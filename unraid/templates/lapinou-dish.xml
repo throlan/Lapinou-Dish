@@ -10,7 +10,7 @@
   <ReadMe>https://github.com/throlan/Lapinou-Dish</ReadMe>
   <Category>Tools:Utilities</Category>
   <WebUI>http://[IP]:[PORT:3000]</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/throlan/Lapinou-Dish/main/unraid/templates/lapinou-dish.xml</TemplateURL>
+  <TemplateURL>false</TemplateURL>
   <Config Name="Web interface port" Target="3000" Default="3000" Mode="tcp" Description="Port HTTP de Lapinou Dish." Type="Port" Display="always" Required="true" Mask="false">3000</Config>
   <Config Name="HTTP listener" Target="HOST" Default="0.0.0.0" Description="Écoute sur l'interface Docker." Type="Variable" Display="advanced" Required="true" Mask="false">0.0.0.0</Config>
   <Config Name="Application password" Target="APP_PASSWORD" Default="" Description="Mot de passe du foyer (12 caractères minimum). À conserver pour les connexions." Type="Variable" Display="always" Required="true" Mask="true"></Config>
