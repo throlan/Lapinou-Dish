@@ -13,7 +13,7 @@ test('home page loads the application module as a versioned same-origin asset', 
   await handleRequest({ method: 'GET', url: '/', headers: {} }, response, {});
   assert.equal(response.status, 200);
   assert.match(response.headers['Content-Type'], /^text\/html/);
-  assert.match(response.body, /<script type="module" src="\/app\.js\?v=0\.2\.13"><\/script>/);
+  assert.match(response.body, /<script type="module" src="\/app\.js\?v=0\.2\.14"><\/script>/);
   const scriptResponse = {
     status: 200,
     headers: {},
@@ -21,7 +21,7 @@ test('home page loads the application module as a versioned same-origin asset', 
     writeHead(status) { this.status = status; },
     end(body) { this.body = body.toString(); },
   };
-  await handleRequest({ method: 'GET', url: '/app.js?v=0.2.13', headers: {} }, scriptResponse, {});
+  await handleRequest({ method: 'GET', url: '/app.js?v=0.2.14', headers: {} }, scriptResponse, {});
   assert.equal(scriptResponse.status, 200);
   assert.match(scriptResponse.headers['Content-Type'], /^text\/javascript/);
   assert.match(scriptResponse.body, /^const \$ =/);
@@ -116,12 +116,38 @@ test('Ciqual-only search adds a source filter to result and count queries', asyn
   assert.equal(calls, 2);
 });
 
-test('nutrition completion validates the selected Ciqual UUID before database access', async () => {
+test('nutrition completion validates the external source and barcode before network or database access', async () => {
   const response = await invoke('/api/foods/10101010-1010-4010-8010-101010101010/complete-nutrition',
     { query: async () => { throw new Error('must not query'); } },
-    { method: 'POST', body: { sourceFoodId: 'not-a-uuid' } });
+    { method: 'POST', body: { source: 'ciqual', sourceReference: 'not-a-barcode' } });
   assert.equal(response.status, 400);
-  assert.deepEqual(response.body, { error: 'invalid-source-food-id' });
+  assert.deepEqual(response.body, { error: 'invalid-nutrition-source' });
+});
+
+test('nutrition suggestions search Open Food Facts using the canonical food name', async () => {
+  const originalFetch = globalThis.fetch;
+  let query;
+  globalThis.fetch = async (url) => {
+    query = new URL(url).searchParams.get('search_terms');
+    return { ok: true, async json() { return { products: [{
+      code: '12345678', product_name: 'Oignon', nutriments: { 'energy-kcal_100g': 35, proteins_100g: 1 },
+    }] }; } };
+  };
+  try {
+    const response = await invoke('/api/foods/10101010-1010-4010-8010-101010101010/nutrition-suggestions', {
+      query: async (sql) => {
+        assert.match(sql, /SELECT f\.id/);
+        return { rows: [{
+          id: '10101010-1010-4010-8010-101010101010', name: 'Oignon jaune', source: 'ciqual',
+          nutrient_values: { energy_kcal: '35', protein_g: null }, grams_per_unit: {}, aliases: [], grams_per_millilitre: null,
+        }] };
+      },
+    });
+    assert.equal(response.status, 200);
+    assert.equal(query, 'Oignon jaune');
+    assert.equal(response.body.source, 'Open Food Facts');
+    assert.deepEqual(response.body.products[0].nutrientsPer100g, { energyKcal: 35, proteinG: 1, carbohydrateG: null, fatG: null, fibreG: null });
+  } finally { globalThis.fetch = originalFetch; }
 });
 
 test('login protects household data with an HTTP-only signed session cookie', async () => {
