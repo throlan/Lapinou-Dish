@@ -131,7 +131,7 @@ function addRecipeLine(initial = null) {
   const foodBox = document.createElement('div'); foodBox.className = 'food-choice';
   const search = document.createElement('input'); search.type = 'search'; search.placeholder = 'Rechercher un aliment'; search.autocomplete = 'off';
   const select = document.createElement('select'); select.setAttribute('aria-label', 'Aliment lié'); select.innerHTML = '<option value="">Choisir un aliment</option>';
-  if (initial?.foodId) { select.add(new Option(initial.foodName ?? 'Aliment sélectionné', initial.foodId, true, true)); search.value = initial.foodName ?? ''; }
+  if (initial?.foodId) select.add(new Option(initial.foodName ?? 'Aliment sélectionné', initial.foodId, true, true));
   else if (initial?.foodName) search.value = initial.foodName;
   let timeout;
   search.addEventListener('input', () => {
@@ -145,6 +145,7 @@ function addRecipeLine(initial = null) {
       } catch { select.replaceChildren(new Option('Catalogue indisponible', '')); }
     }, 180);
   });
+  select.addEventListener('change', () => { if (select.value) search.value = ''; });
   const quantity = document.createElement('input'); quantity.type = 'number'; quantity.min = '0.01'; quantity.step = 'any';
   quantity.value = initial && Object.hasOwn(initial, 'quantity') ? String(initial.quantity ?? '') : '100';
   quantity.placeholder = quantity.value ? '' : 'À préciser'; quantity.required = true; quantity.setAttribute('aria-label', 'Quantité');
@@ -311,7 +312,7 @@ function recipeCard(recipe) {
   const nutrition = document.createElement('p'); nutrition.className = 'recipe-nutrition';
   nutrition.textContent = `${format(recipe.nutrition.perYieldUnit.energyKcal)} kcal · P ${format(recipe.nutrition.perYieldUnit.proteinG)} g · G ${format(recipe.nutrition.perYieldUnit.carbohydrateG)} g · L ${format(recipe.nutrition.perYieldUnit.fatG)} g / ${recipe.yield.unitId}`;
   details.append(nutrition);
-  if (!recipe.nutrition.complete) { const warning = document.createElement('p'); warning.className = 'warning'; warning.textContent = 'Calcul incomplet : vérifie les aliments, unités et valeurs nutritionnelles associés.'; details.append(warning); }
+  if (!recipe.nutrition.complete) details.append(nutritionIssues(recipe));
   const actions = document.createElement('div'); actions.className = 'recipe-card-actions';
   const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'secondary'; edit.textContent = 'Modifier'; edit.addEventListener('click', () => openRecipeEditor(recipe.id));
   actions.append(edit); card.append(details, actions); return card;
@@ -324,8 +325,27 @@ function renderRecipe(recipe) {
   const rows = [['Énergie', recipe.nutrition.perYieldUnit.energyKcal, 'kcal'], ['Protéines', recipe.nutrition.perYieldUnit.proteinG, 'g'], ['Glucides', recipe.nutrition.perYieldUnit.carbohydrateG, 'g'], ['Lipides', recipe.nutrition.perYieldUnit.fatG, 'g'], ['Fibres', recipe.nutrition.perYieldUnit.fibreG, 'g']];
   for (const [label, value, unit] of rows) { const cell = document.createElement('div'); const caption = document.createElement('span'); caption.textContent = `${label} par ${recipe.yield.unitId}`; const amount = document.createElement('strong'); amount.textContent = value == null ? 'Inconnu' : `${format(value)} ${unit}`; cell.append(caption, amount); grid.append(cell); }
   result.append(grid);
-  if (!recipe.nutrition.complete) { const warning = document.createElement('p'); warning.className = 'warning'; warning.textContent = 'Calcul incomplet : une conversion ou une donnée nutritionnelle manque. Les valeurs inconnues ne sont pas remplacées par zéro.'; result.append(warning); }
+  if (!recipe.nutrition.complete) {
+    const warning = document.createElement('p'); warning.className = 'warning'; warning.textContent = 'Calcul incomplet : les données manquantes restent inconnues, elles ne sont pas remplacées par zéro.'; result.append(warning);
+    result.append(nutritionIssues(recipe));
+  }
   const batch = document.createElement('p'); batch.className = 'muted'; batch.textContent = `Total de la recette : ${format(recipe.nutrition.batch.energyKcal)} kcal`; result.append(batch);
+}
+
+function nutritionIssues(recipe) {
+  const list = document.createElement('ul'); list.className = 'nutrition-issues';
+  const nutrientNames = { energyKcal: 'énergie', proteinG: 'protéines', carbohydrateG: 'glucides', fatG: 'lipides', fibreG: 'fibres' };
+  for (const issue of recipe.nutrition.lineIssues ?? []) {
+    const line = recipe.lines[issue.lineIndex];
+    const item = document.createElement('li');
+    const name = line?.foodName || `Ingrédient ${issue.lineIndex + 1}`;
+    if (issue.reason === 'unit-conversion-missing') item.textContent = `${name} (${format(line.quantity)} ${line.unitId}) : conversion en grammes inconnue pour cet aliment.`;
+    else if (issue.reason === 'food-not-linked') item.textContent = `${name} : aucun aliment du catalogue associé.`;
+    else item.textContent = `${name} : valeur${issue.missingNutrients.length > 1 ? 's' : ''} manquante${issue.missingNutrients.length > 1 ? 's' : ''} pour ${issue.missingNutrients.map((key) => nutrientNames[key] ?? key).join(', ')}.`;
+    list.append(item);
+  }
+  if (!list.childElementCount) { const item = document.createElement('li'); item.textContent = 'Vérifie les conversions et les valeurs nutritionnelles des aliments.'; list.append(item); }
+  return list;
 }
 
 async function init() {

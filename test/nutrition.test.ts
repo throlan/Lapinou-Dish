@@ -98,6 +98,7 @@ test("uses density for volume and never treats missing nutrients as zero", () =>
   assert.equal(result.batch.fatG, null);
   assert.equal(result.batch.fibreG, null);
   assert.equal(result.unresolvedLineIndexes.length, 0);
+  assert.deepEqual(result.lineIssues, [{ lineIndex: 0, reason: "nutrient-data-missing", missingNutrients: ["fatG", "fibreG"] }]);
 });
 
 test("an unlinked recipe line makes totals unavailable rather than undercounted", () => {
@@ -107,6 +108,12 @@ test("an unlinked recipe line makes totals unavailable rather than undercounted"
   assert.equal(result.batch.energyKcal, null);
   assert.equal(result.batch.proteinG, null);
   assert.deepEqual(result.unresolvedLineIndexes, [0]);
+  assert.deepEqual(result.lineIssues, [{ lineIndex: 0, reason: "food-not-linked", missingNutrients: [] }]);
+});
+
+test("explains which ingredient needs a unit conversion", () => {
+  const result = calculateRecipeNutrition([recipeLine(rice.id, 600, "ml")], [rice], 1);
+  assert.deepEqual(result.lineIssues, [{ lineIndex: 0, reason: "unit-conversion-missing", missingNutrients: [] }]);
 });
 
 test("rejects a missing or invalid recipe yield", () => {

@@ -27,3 +27,4 @@ dialog { border:0; border-radius:16px; width:min(680px,calc(100vw - 28px)); max-
 .import-card > label { margin-top: 1rem; }
 .import-draft { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .8rem 0; border-bottom: 1px solid var(--line, #ddd); }
 .import-draft p { margin: .2rem 0; }
+.nutrition-issues { margin:6px 0 0; padding-left:20px; color:#765326; font-size:13px; }

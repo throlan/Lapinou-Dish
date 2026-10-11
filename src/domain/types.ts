@@ -61,5 +61,10 @@ export interface RecipeNutritionResult {
   batch: NutrientTotals;
   complete: boolean;
   unresolvedLineIndexes: number[];
+  lineIssues: Array<{
+    lineIndex: number;
+    reason: "food-not-linked" | "unit-conversion-missing" | "nutrient-data-missing";
+    missingNutrients: Array<keyof NutrientsPer100g>;
+  }>;
 }
 

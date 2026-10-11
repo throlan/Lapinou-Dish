@@ -72,6 +72,7 @@ export function calculateRecipeNutrition(
 
   const foodById = new Map(foods.map((food) => [food.id, food]));
   const unresolvedLineIndexes: number[] = [];
+  const lineIssues: Array<{ lineIndex: number; reason: string; missingNutrients: NutrientKey[] }> = [];
   const totals: Record<NutrientKey, number> = {
     energyKcal: 0,
     proteinG: 0,
@@ -95,18 +96,22 @@ export function calculateRecipeNutrition(
     const grams = food ? toGrams(line.quantity, line.unitId, food) : null;
     if (!food || grams == null) {
       unresolvedLineIndexes.push(index);
+      lineIssues.push({ lineIndex: index, reason: food ? "unit-conversion-missing" : "food-not-linked", missingNutrients: [] });
       for (const nutrient of ALL_NUTRIENTS) known[nutrient] = false;
       return;
     }
 
+    const missingNutrients: NutrientKey[] = [];
     for (const nutrient of ALL_NUTRIENTS) {
       const value = food.nutrientsPer100g[nutrient];
       if (value == null || !Number.isFinite(value)) {
         known[nutrient] = false;
+        missingNutrients.push(nutrient);
       } else {
         totals[nutrient] += (value * grams) / 100;
       }
     }
+    if (missingNutrients.length) lineIssues.push({ lineIndex: index, reason: "nutrient-data-missing", missingNutrients });
   });
 
   const batch = Object.fromEntries(
@@ -120,7 +125,7 @@ export function calculateRecipeNutrition(
   ) as Record<NutrientKey, number | null>;
   const complete = REQUIRED_NUTRIENTS.every((nutrient) => batch[nutrient] != null);
 
-  return { batch, perYieldUnit, complete, unresolvedLineIndexes };
+  return { batch, perYieldUnit, complete, unresolvedLineIndexes, lineIssues };
 }
 
 function round(value: number): number {
