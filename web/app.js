@@ -1,6 +1,6 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { offset: 0, limit: 50, query: '', total: 0, household: null, debounce: null };
+const state = { offset: 0, limit: 50, query: '', total: 0, household: null, debounce: null, editingRecipeId: null, importingDraftId: null };
 const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbohydrateG', 'g gluc.'], ['fatG', 'g lip.']];
 
 async function api(path, options = {}) {
@@ -19,6 +19,7 @@ function setView(name) {
   $('#foods-view').classList.toggle('hidden', name !== 'foods');
   $('#recipes-view').classList.toggle('hidden', name !== 'recipes');
   $$('.nav-button').forEach((button) => button.classList.toggle('active', button.dataset.view === name));
+  if (name === 'recipes') refreshRecipes();
 }
 
 async function refreshFoods() {
@@ -125,11 +126,13 @@ async function loadHouseholds() {
   } catch { $('#household-box').textContent = 'Base de données indisponible'; }
 }
 
-function addRecipeLine() {
+function addRecipeLine(initial = null) {
   const row = document.createElement('div'); row.className = 'recipe-line';
   const foodBox = document.createElement('div'); foodBox.className = 'food-choice';
   const search = document.createElement('input'); search.type = 'search'; search.placeholder = 'Rechercher un aliment'; search.autocomplete = 'off';
   const select = document.createElement('select'); select.setAttribute('aria-label', 'Aliment lié'); select.innerHTML = '<option value="">Choisir un aliment</option>';
+  if (initial?.foodId) { select.add(new Option(initial.foodName ?? 'Aliment sélectionné', initial.foodId, true, true)); search.value = initial.foodName ?? ''; }
+  else if (initial?.foodName) search.value = initial.foodName;
   let timeout;
   search.addEventListener('input', () => {
     select.value = '';
@@ -142,14 +145,19 @@ function addRecipeLine() {
       } catch { select.replaceChildren(new Option('Catalogue indisponible', '')); }
     }, 180);
   });
-  const quantity = document.createElement('input'); quantity.type = 'number'; quantity.min = '0.01'; quantity.step = 'any'; quantity.value = '100'; quantity.setAttribute('aria-label', 'Quantité');
+  const quantity = document.createElement('input'); quantity.type = 'number'; quantity.min = '0.01'; quantity.step = 'any';
+  quantity.value = initial && Object.hasOwn(initial, 'quantity') ? String(initial.quantity ?? '') : '100';
+  quantity.placeholder = quantity.value ? '' : 'À préciser'; quantity.required = true; quantity.setAttribute('aria-label', 'Quantité');
   const unit = document.createElement('select'); unit.setAttribute('aria-label', 'Unité');
   for (const [id, label] of [['g','g'],['kg','kg'],['ml','ml'],['l','l'],['tsp','c. à café'],['tbsp','c. à soupe'],['cup','tasse'],['piece','pièce']]) unit.add(new Option(label, id));
+  if (initial?.unitId) unit.value = initial.unitId;
   const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-line'; remove.textContent = '×'; remove.setAttribute('aria-label', 'Supprimer cet ingrédient'); remove.addEventListener('click', () => row.remove());
   foodBox.append(search, select); row.append(foodBox, quantity, unit, remove); $('#recipe-lines').append(row);
 }
 
 $('#add-line').addEventListener('click', addRecipeLine);
+$('#new-recipe').addEventListener('click', () => openRecipeEditor());
+$('#cancel-recipe').addEventListener('click', () => { $('#recipe-form').classList.add('hidden'); $('#recipe-result').classList.add('hidden'); });
 $('#recipe-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const message = $('#recipe-message'); message.textContent = '';
@@ -158,10 +166,153 @@ $('#recipe-form').addEventListener('submit', async (event) => {
   if (lines.some((line) => !line.foodId)) { showMessage(message, 'Associe chaque ligne à un aliment du catalogue.'); return; }
   const form = event.currentTarget;
   try {
-    const { recipe } = await api('/api/recipes', { method: 'POST', body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, lines }) });
+    const path = state.editingRecipeId ? `/api/recipes/${state.editingRecipeId}` : '/api/recipes';
+    const method = state.editingRecipeId ? 'PUT' : 'POST';
+    const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, instructions: form.elements.instructions.value, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, lines }) });
+    if (state.importingDraftId) {
+      await api(`/api/recipe-imports/${state.importingDraftId}/converted`, { method: 'POST', body: JSON.stringify({ householdId: state.household.id }) });
+      state.importingDraftId = null;
+    }
     renderRecipe(recipe); showMessage(message, 'Recette enregistrée. Les valeurs affichées sont calculées depuis le catalogue.', true);
+    state.editingRecipeId = null;
+    $('#recipe-form-title').textContent = 'Nouvelle recette';
+    $('#recipe-form').classList.add('hidden');
+    await refreshRecipes();
   } catch (error) { showMessage(message, `Enregistrement impossible : ${error.body?.error ?? error.message}`); }
 });
+
+async function openRecipeEditor(id = null) {
+  const form = $('#recipe-form');
+  form.reset();
+  $('#recipe-lines').replaceChildren();
+  $('#recipe-message').textContent = '';
+  $('#recipe-result').classList.add('hidden');
+  state.editingRecipeId = id;
+  state.importingDraftId = null;
+  $('#recipe-form-title').textContent = id ? 'Modifier la recette' : 'Nouvelle recette';
+  if (id) {
+    try {
+      const { recipe } = await api(`/api/recipes/${id}`);
+      form.elements.name.value = recipe.name;
+      form.elements.description.value = recipe.description ?? '';
+      form.elements.sourceUrl.value = recipe.sourceUrl ?? '';
+      form.elements.instructions.value = recipe.instructions ?? '';
+      form.elements.yieldAmount.value = recipe.yield.amount;
+      form.elements.yieldUnit.value = recipe.yield.unitId;
+      for (const line of recipe.lines) addRecipeLine(line);
+    } catch (error) {
+      showMessage($('#recipe-message'), `Impossible de charger cette recette : ${error.body?.error ?? error.message}`);
+      form.classList.remove('hidden');
+      return;
+    }
+  } else addRecipeLine();
+  form.classList.remove('hidden');
+  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function refreshRecipes() {
+  const list = $('#recipe-list');
+  if (!state.household) { list.innerHTML = '<p class="empty">Crée d’abord un foyer pour enregistrer des recettes.</p>'; return; }
+  list.innerHTML = '<p class="empty">Chargement des recettes…</p>';
+  try {
+    const { recipes } = await api(`/api/recipes?householdId=${encodeURIComponent(state.household.id)}`);
+    list.replaceChildren(...(recipes.length ? recipes.map(recipeCard) : [emptyMessage('Aucune recette enregistrée.')]));
+  } catch (error) {
+    const message = document.createElement('p'); message.className = 'empty'; message.textContent = `Liste indisponible : ${error.body?.error ?? error.message}`; list.replaceChildren(message);
+  }
+  await refreshImportDrafts();
+}
+
+function emptyMessage(text) { const item = document.createElement('p'); item.className = 'empty'; item.textContent = text; return item; }
+
+async function refreshImportDrafts() {
+  const list = $('#recipe-import-list');
+  if (!state.household) { list.replaceChildren(emptyMessage('Crée d’abord un foyer.')); return; }
+  try {
+    const { drafts } = await api(`/api/recipe-imports?householdId=${encodeURIComponent(state.household.id)}`);
+    if (!drafts.length) { list.replaceChildren(emptyMessage('Aucun brouillon importé.')); return; }
+    list.replaceChildren(...drafts.map((draft) => {
+      const row = document.createElement('article'); row.className = 'import-draft';
+      const copy = document.createElement('div'); const title = document.createElement('strong'); title.textContent = draft.name || 'Recette importée';
+      const details = document.createElement('p'); details.className = 'muted'; details.textContent = `${draft.ingredients.length} ingrédient${draft.ingredients.length === 1 ? '' : 's'} · ${draft.sourcePlatform || draft.sourceKind}${draft.sourceUrl ? ` · ${draft.sourceUrl}` : ''}`; copy.append(title, details);
+      const actions = document.createElement('div'); actions.className = 'recipe-card-actions';
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'secondary'; button.textContent = 'Vérifier'; button.addEventListener('click', () => openImportDraft(draft));
+      const discard = document.createElement('button'); discard.type = 'button'; discard.className = 'secondary'; discard.textContent = 'Ignorer'; discard.addEventListener('click', async () => {
+        try { await api(`/api/recipe-imports/${draft.id}/discarded`, { method: 'POST', body: JSON.stringify({ householdId: state.household.id }) }); await refreshImportDrafts(); }
+        catch { showMessage($('#recipe-import-message'), 'Impossible d’ignorer ce brouillon.'); }
+      });
+      actions.append(button, discard); row.append(copy, actions); return row;
+    }));
+  } catch { list.replaceChildren(emptyMessage('Impossible de charger les brouillons importés.')); }
+}
+
+function openImportDraft(draft) {
+  const form = $('#recipe-form'); form.reset(); $('#recipe-lines').replaceChildren();
+  state.editingRecipeId = null; state.importingDraftId = draft.id;
+  $('#recipe-form-title').textContent = 'Vérifier la recette importée';
+  form.elements.name.value = draft.name || '';
+  form.elements.description.value = draft.description || '';
+  form.elements.instructions.value = draft.instructions || '';
+  form.elements.yieldAmount.value = draft.yieldAmount || 1;
+  form.elements.yieldUnit.value = draft.yieldUnitId || 'portion';
+  form.elements.sourceUrl.value = draft.sourceUrl || '';
+  for (const line of draft.ingredients) addRecipeLine({ foodName: line.foodName || line.rawText, quantity: line.quantity, unitId: line.unitId || toUnitId(line.rawText) });
+  form.classList.remove('hidden'); form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function toUnitId(value = '') {
+  const unit = value.toLowerCase();
+  if (/\bkg\b|kilogramme/.test(unit)) return 'kg';
+  if (/\bml\b|millilitre/.test(unit)) return 'ml';
+  if (/\bl\b|litre/.test(unit)) return 'l';
+  if (/c\.?\s*(à\s*)?café|cuillère.*café/.test(unit)) return 'tsp';
+  if (/c\.?\s*(à\s*)?soupe|cuillère.*soupe/.test(unit)) return 'tbsp';
+  if (/tasse/.test(unit)) return 'cup';
+  if (/pièce|œuf|oeuf|gousse|tranche|muffin/.test(unit)) return 'piece';
+  return 'g';
+}
+
+$('#recipe-import-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  if (!state.household) { showMessage($('#recipe-import-message'), 'Crée d’abord un foyer.'); return; }
+  try {
+    const result = await api('/api/recipe-imports/text', { method: 'POST', body: JSON.stringify({ householdId: state.household.id, text: form.elements.text.value, sourceUrl: form.elements.sourceUrl.value || null }) });
+    form.reset(); showMessage($('#recipe-import-message'), 'Recette ajoutée aux brouillons. Associe ses ingrédients aux aliments du catalogue.', true);
+    await refreshImportDrafts();
+    const { drafts } = await api(`/api/recipe-imports?householdId=${encodeURIComponent(state.household.id)}`);
+    const draft = drafts.find((item) => item.id === result.drafts?.[0]?.id);
+    if (draft) openImportDraft(draft);
+  } catch (error) { showMessage($('#recipe-import-message'), `Import impossible : ${error.body?.error ?? error.message}`); }
+});
+
+$('#recipe-archive-file').addEventListener('change', async (event) => {
+  const file = event.target.files?.[0]; if (!file) return;
+  if (!state.household) { showMessage($('#recipe-archive-message'), 'Crée d’abord un foyer.'); return; }
+  if (file.size > 6_500_000) { showMessage($('#recipe-archive-message'), 'Archive trop volumineuse (limite : 6,5 Mo).'); return; }
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer()); let binary = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    const result = await api('/api/recipe-imports/archive', { method: 'POST', body: JSON.stringify({ householdId: state.household.id, archiveBase64: btoa(binary) }) });
+    showMessage($('#recipe-archive-message'), `${result.imported} recette(s) importée(s), ${result.duplicates} déjà présente(s), ${result.skipped} fiche(s) sans ingrédient ignorée(s).`, true);
+    await refreshImportDrafts();
+  } catch (error) { showMessage($('#recipe-archive-message'), `Import impossible : ${error.body?.error ?? error.message}`); }
+  finally { event.target.value = ''; }
+});
+
+function recipeCard(recipe) {
+  const card = document.createElement('article'); card.className = 'recipe-card';
+  const details = document.createElement('div');
+  const title = document.createElement('h3'); title.textContent = recipe.name; details.append(title);
+  const subtitle = document.createElement('p'); subtitle.textContent = `${recipe.lines.length} ingrédient${recipe.lines.length === 1 ? '' : 's'} · rendement ${format(recipe.yield.amount)} ${recipe.yield.unitId}`; details.append(subtitle);
+  const nutrition = document.createElement('p'); nutrition.className = 'recipe-nutrition';
+  nutrition.textContent = `${format(recipe.nutrition.perYieldUnit.energyKcal)} kcal · P ${format(recipe.nutrition.perYieldUnit.proteinG)} g · G ${format(recipe.nutrition.perYieldUnit.carbohydrateG)} g · L ${format(recipe.nutrition.perYieldUnit.fatG)} g / ${recipe.yield.unitId}`;
+  details.append(nutrition);
+  if (!recipe.nutrition.complete) { const warning = document.createElement('p'); warning.className = 'warning'; warning.textContent = 'Calcul incomplet : vérifie les aliments, unités et valeurs nutritionnelles associés.'; details.append(warning); }
+  const actions = document.createElement('div'); actions.className = 'recipe-card-actions';
+  const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'secondary'; edit.textContent = 'Modifier'; edit.addEventListener('click', () => openRecipeEditor(recipe.id));
+  actions.append(edit); card.append(details, actions); return card;
+}
 
 function renderRecipe(recipe) {
   const result = $('#recipe-result'); result.classList.remove('hidden'); result.replaceChildren();

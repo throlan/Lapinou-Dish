@@ -20,7 +20,7 @@ Lire [le cahier produit](docs/PRODUCT.md), [le modèle métier](docs/DOMAIN.md) 
 
 ## État
 
-Le premier parcours catalogue → recette → calcul est en place : interface de bureau, aliments consultables/modifiables, création d'aliments manuels et de recettes structurées. Le conteneur applique les migrations et le catalogue Ciqual à son premier démarrage. Aucun service Unraid existant n'est modifié par ce dépôt.
+Le parcours catalogue → recette → calcul est en place. L'import de légendes/texte et d'archives Norish ou Tandoor crée des brouillons à vérifier; les ingrédients doivent être associés aux aliments canoniques avant qu'une recette soit enregistrée. Les liens Instagram/YouTube sont conservés comme source, mais leur légende ou transcription doit être collée avec le lien. Le conteneur applique les migrations et le catalogue Ciqual à son premier démarrage. Aucun service Unraid existant n'est modifié par ce dépôt.
 
 ## Démarrage de test avec Docker Compose
 

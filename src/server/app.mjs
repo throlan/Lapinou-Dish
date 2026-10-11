@@ -1,7 +1,9 @@
 import { createServer } from 'node:http';
 import { createHmac, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import { createFood, getFood, updateFood, validateFoodInput } from './foods.mjs';
-import { createRecipe, readRecipe, validateRecipeInput } from './recipes.mjs';
+import { createRecipe, listRecipes, readRecipe, updateRecipe, validateRecipeInput } from './recipes.mjs';
+import { listImportDrafts, saveImportDrafts } from './recipe-imports.mjs';
+import { parseRecipeArchive, parseRecipeText } from '../domain/recipe-import.mjs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -122,7 +124,78 @@ export async function handleRequest(request, response, pool, appPassword = null)
         return send(response, 500, { error: 'recipe-create-failed' });
       }
     }
+    if (request.method === 'GET' && url.pathname === '/api/recipes') {
+      const householdId = url.searchParams.get('householdId');
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(householdId ?? '')) return send(response, 400, { error: 'invalid-household-id' });
+      try {
+        return send(response, 200, { recipes: await listRecipes(pool, householdId) });
+      } catch {
+        return send(response, 500, { error: 'recipe-list-failed' });
+      }
+    }
+    if (request.method === 'GET' && url.pathname === '/api/recipe-imports') {
+      const householdId = url.searchParams.get('householdId');
+      if (!isUuid(householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      try { return send(response, 200, { drafts: await listImportDrafts(pool, householdId) }); }
+      catch { return send(response, 500, { error: 'recipe-import-list-failed' }); }
+    }
+    if (request.method === 'POST' && url.pathname === '/api/recipe-imports/text') {
+      const body = await readJson(request);
+      if (body.error) return send(response, body.status ?? 400, { error: body.error });
+      const householdId = body.value?.householdId;
+      if (!isUuid(householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      const sourceUrl = body.value?.sourceUrl || null;
+      if (sourceUrl && !isSupportedRecipeUrl(sourceUrl)) return send(response, 400, { error: 'unsupported-source-url' });
+      const parsed = parseRecipeText(body.value?.text, sourceUrl);
+      if (parsed.error) return send(response, 400, { error: parsed.error });
+      try {
+        const drafts = await saveImportDrafts(pool, householdId, [parsed.data]);
+        if (drafts.error) return send(response, 400, { error: drafts.error });
+        return send(response, 201, { drafts });
+      } catch { return send(response, 500, { error: 'recipe-import-save-failed' }); }
+    }
+    if (request.method === 'POST' && url.pathname === '/api/recipe-imports/archive') {
+      const body = await readJson(request);
+      if (body.error) return send(response, body.status ?? 400, { error: body.error });
+      const householdId = body.value?.householdId;
+      if (!isUuid(householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      const encoded = body.value?.archiveBase64;
+      if (typeof encoded !== 'string' || encoded.length > 9_000_000 || !/^[A-Za-z0-9+/]*={0,2}$/.test(encoded)) return send(response, 400, { error: 'invalid-archive' });
+      try {
+        const archive = parseRecipeArchive(Buffer.from(encoded, 'base64'));
+        const drafts = await saveImportDrafts(pool, householdId, archive.recipes);
+        if (drafts.error) return send(response, 400, { error: drafts.error });
+        return send(response, 201, { imported: drafts.filter((draft) => !draft.duplicate).length, duplicates: drafts.filter((draft) => draft.duplicate).length, skipped: archive.skipped, drafts });
+      } catch (error) {
+        return send(response, 400, { error: ['unsupported-norish-archive', 'invalid-zip', 'invalid-zip-directory', 'invalid-zip-entry', 'unsupported-or-corrupt-zip-entry', 'no-recipes-found', 'too-many-recipes', 'archive-entry-too-large', 'archive-expands-too-large', 'too-many-archive-entries'].includes(error.message) ? error.message : 'invalid-recipe-archive' });
+      }
+    }
+    const importDraftAction = url.pathname.match(/^\/api\/recipe-imports\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(converted|discarded)$/i);
+    if (importDraftAction && request.method === 'POST') {
+      const body = await readJson(request);
+      if (body.error) return send(response, body.status ?? 400, { error: body.error });
+      if (!isUuid(body.value?.householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      try {
+        const state = importDraftAction[2];
+        const result = await pool.query(`UPDATE recipe_import_drafts SET state = $3 WHERE id = $1 AND household_id = $2 AND state = 'draft' RETURNING id`, [importDraftAction[1], body.value.householdId, state]);
+        return result.rowCount ? send(response, 200, { state }) : send(response, 404, { error: 'recipe-import-draft-not-found' });
+      } catch { return send(response, 500, { error: 'recipe-import-update-failed' }); }
+    }
     const recipeId = url.pathname.match(/^\/api\/recipes\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i)?.[1];
+    if (recipeId && request.method === 'PUT') {
+      const body = await readJson(request);
+      if (body.error) return send(response, body.status ?? 400, { error: body.error });
+      const validation = validateRecipeInput(body.value);
+      if (validation.error) return send(response, 400, { error: validation.error });
+      try {
+        const recipe = await updateRecipe(pool, recipeId, validation.data);
+        if (!recipe) return send(response, 404, { error: 'recipe-not-found' });
+        if (recipe.error) return send(response, 400, { error: recipe.error });
+        return send(response, 200, { recipe });
+      } catch {
+        return send(response, 500, { error: 'recipe-update-failed' });
+      }
+    }
     if (recipeId && request.method === 'GET') {
       try {
         const recipe = await readRecipe(pool, recipeId);
@@ -249,10 +322,16 @@ async function readJson(request) {
   try {
     for await (const chunk of request) {
       raw += chunk;
-      if (raw.length > 32_768) return { error: 'body-too-large', status: 413 };
+      if (raw.length > 9_500_000) return { error: 'body-too-large', status: 413 };
     }
     return { value: JSON.parse(raw || '{}') };
   } catch {
     return { error: 'invalid-json' };
   }
+}
+
+function isUuid(value) { return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value); }
+function isSupportedRecipeUrl(value) {
+  try { const url = new URL(value); return url.protocol === 'https:' && ['instagram.com', 'www.instagram.com', 'youtube.com', 'www.youtube.com', 'youtu.be', 'm.youtube.com'].includes(url.hostname.toLowerCase()); }
+  catch { return false; }
 }

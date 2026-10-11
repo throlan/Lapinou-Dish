@@ -30,10 +30,27 @@
       </section>
 
       <section id="recipes-view" class="view hidden">
-        <div class="section-heading"><div><h2>Nouvelle recette</h2><p>Choisis les aliments du catalogue et saisis leurs quantités.</p></div></div>
-        <form id="recipe-form" class="card form-card">
+        <div class="section-heading"><div><h2>Recettes</h2><p>Les valeurs nutritionnelles sont recalculées depuis les aliments liés au catalogue.</p></div><button type="button" class="primary" id="new-recipe">+ Nouvelle recette</button></div>
+        <details class="card import-card">
+          <summary>Importer des recettes</summary>
+          <p class="hint">Colle une légende Instagram, une transcription YouTube ou une recette copiée. Un lien seul ne donne pas toujours accès au contenu : colle aussi la légende ou la transcription. Les recettes importées restent à vérifier avant enregistrement.</p>
+          <form id="recipe-import-form">
+            <label>Lien Instagram ou YouTube (facultatif)<input name="sourceUrl" type="url" placeholder="https://www.instagram.com/reel/… ou https://youtu.be/…"></label>
+            <label>Texte de la recette<textarea name="text" rows="8" required placeholder="Colle ici le titre, les ingrédients et les étapes…"></textarea></label>
+            <div class="form-actions"><button class="primary" type="submit">Analyser et ajouter aux brouillons</button></div>
+            <p class="form-message" id="recipe-import-message" role="status"></p>
+          </form>
+          <label>Archive Norish ou export Tandoor (.zip, .norishrecipes)<input id="recipe-archive-file" type="file" accept=".zip,.norishrecipes,application/zip"></label>
+          <p class="form-message" id="recipe-archive-message" role="status"></p>
+          <div><h3>Importations à vérifier</h3><div id="recipe-import-list" class="recipe-list"><p class="empty">Aucun brouillon importé.</p></div></div>
+        </details>
+        <div id="recipe-list" class="recipe-list"><p class="empty">Chargement des recettes…</p></div>
+        <form id="recipe-form" class="card form-card hidden">
+          <div class="section-heading"><div><h2 id="recipe-form-title">Nouvelle recette</h2><p>Choisis les aliments du catalogue et saisis leurs quantités.</p></div><button type="button" class="secondary" id="cancel-recipe">Annuler</button></div>
           <label>Nom de la recette<input name="name" required maxlength="200" placeholder="Ex. Muffins pomme-cannelle"></label>
           <label>Description<textarea name="description" rows="2" maxlength="5000" placeholder="Facultatif"></textarea></label>
+          <label>Source (facultatif)<input name="sourceUrl" type="url" placeholder="Lien vers la recette d'origine"></label>
+          <label>Instructions<textarea name="instructions" rows="4" maxlength="20000" placeholder="Étapes de préparation"></textarea></label>
           <div class="yield-row"><label>Rendement<input name="yieldAmount" required type="number" min="0.01" step="any" value="4"></label><label>Unité<select name="yieldUnit"><option value="portion">portions</option><option value="piece">pièces</option><option value="g">grammes</option></select></label></div>
           <div class="line-heading"><h3>Ingrédients</h3><button type="button" class="secondary" id="add-line">+ Ajouter un ingrédient</button></div>
           <div id="recipe-lines"></div>

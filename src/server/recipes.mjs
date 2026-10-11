@@ -17,7 +17,7 @@ export function validateRecipeInput(input) {
     if (typeof line.unitId !== 'string' || !/^[a-z][a-z0-9_-]{0,30}$/.test(line.unitId)) return { error: 'invalid-unit' };
     lines.push({ foodId: line.foodId, quantity: line.quantity, unitId: line.unitId, componentId: null, variantId: null });
   }
-  return { data: { name: input.name.trim(), description: typeof input.description === 'string' ? input.description.slice(0, 5000) : '', householdId: input.householdId, yield: { amount, unitId }, lines } };
+  return { data: { name: input.name.trim(), description: typeof input.description === 'string' ? input.description.slice(0, 5000) : '', instructions: typeof input.instructions === 'string' ? input.instructions.slice(0, 20000) : '', sourceUrl: typeof input.sourceUrl === 'string' && /^https:\/\//i.test(input.sourceUrl) ? input.sourceUrl.slice(0, 2000) : null, householdId: input.householdId, yield: { amount, unitId }, lines } };
 }
 
 export async function createRecipe(pool, data) {
@@ -26,10 +26,52 @@ export async function createRecipe(pool, data) {
   try {
     await client.query('BEGIN');
     await client.query(
-      `INSERT INTO recipes (id, household_id, name, description, yield_amount, yield_unit_id)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [id, data.householdId, data.name, data.description, data.yield.amount, data.yield.unitId],
+      `INSERT INTO recipes (id, household_id, name, description, yield_amount, yield_unit_id, instructions, source_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [id, data.householdId, data.name, data.description, data.yield.amount, data.yield.unitId, data.instructions, data.sourceUrl],
     );
+    for (const [index, line] of data.lines.entries()) {
+      await client.query(
+        `INSERT INTO recipe_lines (id, recipe_id, food_id, quantity, unit_id, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [randomUUID(), id, line.foodId, line.quantity, line.unitId, index],
+      );
+    }
+    const recipe = await readRecipe(client, id);
+    await client.query('COMMIT');
+    return recipe;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    if (error.code === '23503') return { error: 'unknown-household-food-or-unit' };
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function listRecipes(pool, householdId) {
+  const result = await pool.query(
+    `SELECT id FROM recipes WHERE household_id = $1 ORDER BY name, created_at DESC`,
+    [householdId],
+  );
+  return Promise.all(result.rows.map(({ id }) => readRecipe(pool, id)));
+}
+
+export async function updateRecipe(pool, id, data) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const updated = await client.query(
+      `UPDATE recipes SET name = $3, description = $4, yield_amount = $5,
+              yield_unit_id = $6, instructions = $7, source_url = $8, version = version + 1, updated_at = now()
+        WHERE id = $1 AND household_id = $2 RETURNING id`,
+      [id, data.householdId, data.name, data.description, data.yield.amount, data.yield.unitId, data.instructions, data.sourceUrl],
+    );
+    if (!updated.rowCount) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+    await client.query('DELETE FROM recipe_lines WHERE recipe_id = $1', [id]);
     for (const [index, line] of data.lines.entries()) {
       await client.query(
         `INSERT INTO recipe_lines (id, recipe_id, food_id, quantity, unit_id, sort_order)
@@ -51,7 +93,7 @@ export async function createRecipe(pool, data) {
 
 export async function readRecipe(client, id) {
   const recipeResult = await client.query(
-    `SELECT id, name, description, yield_amount, yield_unit_id
+    `SELECT id, name, description, yield_amount, yield_unit_id, instructions, source_url
        FROM recipes WHERE id = $1`, [id],
   );
   const row = recipeResult.rows[0];
@@ -95,7 +137,7 @@ export async function readRecipe(client, id) {
   const nutrition = calculateRecipeNutrition(lines, foods, Number(row.yield_amount));
   const foodById = new Map(foods.map((food) => [food.id, food]));
   return {
-    id: row.id, name: row.name, description: row.description,
+    id: row.id, name: row.name, description: row.description, instructions: row.instructions ?? '', sourceUrl: row.source_url ?? null,
     yield: { amount: Number(row.yield_amount), unitId: row.yield_unit_id },
     lines: lines.map((line, index) => ({ ...line, foodName: foodById.get(line.foodId)?.name ?? null, resolved: !nutrition.unresolvedLineIndexes.includes(index) })),
     nutrition,
