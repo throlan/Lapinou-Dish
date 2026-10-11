@@ -15,6 +15,7 @@
 - Recipe intake can save pasted captions/text and Tandoor or Norish ZIP archives as reviewable drafts. Ingredient names and claimed nutrition remain source material; a draft only becomes a recipe after every line is linked to canonical foods, and saved recipe totals are calculated from those foods.
 - Recipe review now searches the catalog immediately using each imported ingredient label, so suggestions appear without editing the imported text.
 - Recipe review keeps the imported label only while no catalog match is selected; once matched, only the canonical food remains visible. Incomplete nutrition results identify the ingredient and whether its conversion or nutrient values are missing.
+- Common egg, onion and garlic aliases and estimated piece weights are added to the shared Ciqual catalog. Search ranks foods that support the selected recipe unit. Reconstituted beef broth has common aliases and a documented estimated density for ml-based quantities.
 - Imported recipe instructions and source links are stored on the recipe record. ZIP import skips entries without ingredients so planning notes do not become recipes.
 - Desktop-first working UI for catalog editing and recipe nutrition calculated from linked foods.
 - Reference units and nutrient vocabulary for recipes and nutrition calculations.
@@ -23,7 +24,7 @@
 
 ## Verification
 
-`node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` — 33 tests passing. JavaScript syntax checks pass. PostgreSQL integration is not yet exercised on this workstation; Docker, PostgreSQL client, and npm are unavailable here.
+`node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` — 34 tests passing. JavaScript syntax checks pass. PostgreSQL integration is not yet exercised on this workstation; Docker, PostgreSQL client, and npm are unavailable here.
 
 ## Next
 

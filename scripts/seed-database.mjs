@@ -1,5 +1,6 @@
 import pg from 'pg';
 import { getDatabaseConnectionString } from '../src/db/connection.mjs';
+import { applyCommonFoodRefinements } from '../src/domain/catalog-refinements.mjs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,6 +30,7 @@ try {
     );
     console.log(`Imported Ciqual ${dataset.version}: ${expectedCount} foods.`);
   }
+  await applyCommonFoodRefinements(client);
 } finally {
   await client.query('SELECT pg_advisory_unlock(hashtext($1))', ['lapinou-dish:seed:ciqual']);
   client.release();

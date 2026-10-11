@@ -140,7 +140,7 @@ function addRecipeLine(initial = null) {
     timeout = setTimeout(async () => {
       if (search.value.trim().length < 2) return;
       try {
-        const { foods } = await api(`/api/foods?q=${encodeURIComponent(search.value.trim())}&limit=20`);
+        const { foods } = await api(`/api/foods?q=${encodeURIComponent(search.value.trim())}&limit=20&unit=${encodeURIComponent(unit.value)}`);
         select.replaceChildren(new Option('Choisir un aliment', ''), ...foods.map((food) => new Option(`${food.name}${food.brand ? ` · ${food.brand}` : ''}`, food.id)));
       } catch { select.replaceChildren(new Option('Catalogue indisponible', '')); }
     }, 180);
@@ -154,6 +154,7 @@ function addRecipeLine(initial = null) {
   const unit = document.createElement('select'); unit.setAttribute('aria-label', 'Unité');
   for (const [id, label] of [['g','g'],['kg','kg'],['ml','ml'],['l','l'],['tsp','c. à café'],['tbsp','c. à soupe'],['cup','tasse'],['piece','pièce']]) unit.add(new Option(label, id));
   if (initial?.unitId) unit.value = initial.unitId;
+  unit.addEventListener('change', () => { if (search.value.trim().length >= 2) search.dispatchEvent(new Event('input')); });
   const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-line'; remove.textContent = '×'; remove.setAttribute('aria-label', 'Supprimer cet ingrédient'); remove.addEventListener('click', () => row.remove());
   foodBox.append(search, select); row.append(foodBox, quantity, unit, remove); $('#recipe-lines').append(row);
   // Imported ingredient names are already a useful search query. Trigger the

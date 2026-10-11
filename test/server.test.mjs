@@ -15,17 +15,19 @@ test('food search requires two characters, searches the catalogue, and caps resu
     called = true;
     assert.match(sql, /FROM foods f/);
     if (calls++ === 0) {
-      assert.deepEqual(values, ['oeuf', 'oeuf', 50, 0]);
+      assert.deepEqual(values, ['oeuf', 'oeuf', 50, 0, 'piece']);
+      assert.match(sql, /grams_per_millilitre IS NOT NULL/);
+      assert.match(sql, /normalized_alias = \$2/);
       return { rows: [{ id: 'food-1', name: 'Oeuf cru' }] };
     }
     assert.match(sql, /count\(\*\)/);
-    assert.deepEqual(values, ['oeuf', 'oeuf']);
+      assert.deepEqual(values, ['oeuf', 'oeuf']);
     return { rows: [{ total: 1 }] };
   } };
   const empty = await invoke('/api/foods?q=o', pool);
   assert.deepEqual(empty.body, { foods: [], total: 0, limit: 50, offset: 0 });
   assert.equal(called, false);
-  const found = await invoke('/api/foods?q=oeuf', pool);
+  const found = await invoke('/api/foods?q=oeuf&unit=piece', pool);
   assert.equal(found.status, 200);
   assert.deepEqual(found.body, { foods: [{ id: 'food-1', name: 'Oeuf cru' }], total: 1, limit: 50, offset: 0 });
   assert.equal(called, true);

@@ -245,6 +245,7 @@ export async function handleRequest(request, response, pool, appPassword = null)
 
     if (request.method === 'GET' && url.pathname === '/api/foods') {
       const query = (url.searchParams.get('q') ?? '').trim();
+      const unit = url.searchParams.get('unit') ?? '';
       if (query.length === 1) return send(response, 200, { foods: [], total: 0, limit: 50, offset: 0 });
       const limit = integerInRange(url.searchParams.get('limit'), 50, 1, 100);
       const offset = integerInRange(url.searchParams.get('offset'), 0, 0, 100000);
@@ -264,10 +265,18 @@ export async function handleRequest(request, response, pool, appPassword = null)
                        AND a.normalized_alias LIKE '%' || $2 || '%'
                   ))
             GROUP BY f.id
-            ORDER BY CASE WHEN $1 <> '' AND lower(f.canonical_name) = lower($1) THEN 0 ELSE 1 END,
+            ORDER BY CASE WHEN
+                       ($5 IN ('ml', 'l', 'tsp', 'tbsp', 'cup') AND f.grams_per_millilitre IS NOT NULL)
+                       OR ($5 = 'piece' AND EXISTS (SELECT 1 FROM food_unit_conversions c WHERE c.food_id = f.id AND c.unit_id = 'piece'))
+                       OR ($5 NOT IN ('ml', 'l', 'tsp', 'tbsp', 'cup', 'piece'))
+                     THEN 0 ELSE 1 END,
+                     CASE WHEN $1 <> '' AND lower(f.canonical_name) = lower($1) THEN 0
+                          WHEN EXISTS (SELECT 1 FROM food_aliases a WHERE a.food_id = f.id AND a.normalized_alias = $2) THEN 0
+                          WHEN EXISTS (SELECT 1 FROM food_aliases a WHERE a.food_id = f.id AND a.normalized_alias LIKE $2 || '%') THEN 1
+                          ELSE 2 END,
                      f.canonical_name
             LIMIT $3 OFFSET $4`,
-          [query, normalizeSearch(query), limit, offset],
+          [query, normalizeSearch(query), limit, offset, unit],
         );
         const count = await pool.query(
           `SELECT count(*)::integer AS total FROM foods f
