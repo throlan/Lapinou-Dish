@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=0.2.13">
+    <link rel="stylesheet" href="/style.css?v=0.2.14">
   </head>
   <body>
     <header class="topbar">
@@ -75,11 +75,11 @@
           <label>Lipides (g)<input name="fatG" type="number" min="0" step="any"></label>
           <label>Fibres (g)<input name="fibreG" type="number" min="0" step="any"></label>
         </div></fieldset>
-        <section id="ciqual-completion" class="ciqual-completion hidden" aria-label="Compléter les valeurs nutritionnelles depuis Ciqual">
+        <section id="nutrition-completion" class="nutrition-completion hidden" aria-label="Rechercher des valeurs nutritionnelles dans une source externe">
           <div><h3>Données nutritionnelles manquantes ?</h3>
-          <p class="hint">Cherche une valeur sourcée dans Ciqual 2025. Rien n’est appliqué avant ton choix.</p></div>
-          <button type="button" class="secondary" id="find-ciqual">Chercher les données manquantes</button>
-          <div id="ciqual-matches" class="ciqual-matches" aria-live="polite"></div>
+          <p class="hint">Recherche dans Open Food Facts, une base distincte de Ciqual. Vérifie que le produit correspond bien à l’aliment. Les données restent des suggestions jusqu’à ton choix.</p></div>
+          <button type="button" class="secondary" id="find-external-nutrition">Chercher hors Ciqual</button>
+          <div id="nutrition-matches" class="nutrition-matches" aria-live="polite"></div>
         </section>
         <div class="yield-row"><label>Densité (g/ml)<input name="gramsPerMillilitre" type="number" min="0.001" step="any" placeholder="Si connue"></label><label>Poids d'une pièce (g)<input name="pieceGrams" type="number" min="0.001" step="any" placeholder="Si applicable"></label></div>
         <p class="hint">Laisse une valeur vide si elle est inconnue. Elle restera inconnue dans le calcul.</p>
@@ -97,6 +97,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.13"></script>
+    <script type="module" src="/app.js?v=0.2.14"></script>
   </body>
 </html>
