@@ -246,6 +246,7 @@ export async function handleRequest(request, response, pool, appPassword = null)
     if (request.method === 'GET' && url.pathname === '/api/foods') {
       const query = (url.searchParams.get('q') ?? '').trim();
       const unit = url.searchParams.get('unit') ?? '';
+      const onlyIncomplete = url.searchParams.get('incomplete') === 'true';
       if (query.length === 1) return send(response, 200, { foods: [], total: 0, limit: 50, offset: 0 });
       const normalizedQuery = normalizeSearch(query);
       const ignoredSearchTokens = new Set(['de', 'du', 'des', 'la', 'le', 'les', 'un', 'une', 'et', 'au', 'aux']);
@@ -262,7 +263,15 @@ export async function handleRequest(request, response, pool, appPassword = null)
              FROM foods f
              LEFT JOIN food_nutrients fn ON fn.food_id = f.id
              LEFT JOIN nutrients n ON n.id = fn.nutrient_id
-            WHERE ($1 = '' OR lower(f.canonical_name) LIKE '%' || lower($1) || '%'
+            WHERE ($7::boolean = false OR EXISTS (
+                    SELECT 1 FROM nutrients required
+                     WHERE required.is_required_for_recipe
+                       AND NOT EXISTS (SELECT 1 FROM food_nutrients missing
+                                        WHERE missing.food_id = f.id
+                                          AND missing.nutrient_id = required.id
+                                          AND missing.value_per_100g IS NOT NULL)
+                  ))
+              AND ($1 = '' OR lower(f.canonical_name) LIKE '%' || lower($1) || '%'
                OR EXISTS (
                     SELECT 1 FROM food_aliases a
                      WHERE a.food_id = f.id
@@ -292,11 +301,19 @@ export async function handleRequest(request, response, pool, appPassword = null)
                                         AND a.normalized_alias LIKE '%' || search_token || '%')) DESC,
                      f.canonical_name
             LIMIT $3 OFFSET $4`,
-          [query, normalizedQuery, limit, offset, unit, searchTokens],
+          [query, normalizedQuery, limit, offset, unit, searchTokens, onlyIncomplete],
         );
         const count = await pool.query(
           `SELECT count(*)::integer AS total FROM foods f
-            WHERE ($1 = '' OR lower(f.canonical_name) LIKE '%' || lower($1) || '%'
+            WHERE ($4::boolean = false OR EXISTS (
+                    SELECT 1 FROM nutrients required
+                     WHERE required.is_required_for_recipe
+                       AND NOT EXISTS (SELECT 1 FROM food_nutrients missing
+                                        WHERE missing.food_id = f.id
+                                          AND missing.nutrient_id = required.id
+                                          AND missing.value_per_100g IS NOT NULL)
+                  ))
+              AND ($1 = '' OR lower(f.canonical_name) LIKE '%' || lower($1) || '%'
                OR EXISTS (SELECT 1 FROM food_aliases a WHERE a.food_id = f.id AND a.normalized_alias LIKE '%' || $2 || '%')
                OR (cardinality($3::text[]) > 0 AND (
                     SELECT count(*) FROM unnest($3::text[]) AS search_token
@@ -305,7 +322,7 @@ export async function handleRequest(request, response, pool, appPassword = null)
                                     WHERE a.food_id = f.id
                                       AND a.normalized_alias LIKE '%' || search_token || '%')
                   ) >= GREATEST(1, ceil(cardinality($3::text[]) * 0.6)::integer))`,
-          [query, normalizedQuery, searchTokens],
+          [query, normalizedQuery, searchTokens, onlyIncomplete],
         );
         return send(response, 200, { foods: result.rows, total: count.rows[0].total, limit, offset });
       } catch {

@@ -15,14 +15,14 @@ test('food search requires two characters, searches the catalogue, and caps resu
     called = true;
     assert.match(sql, /FROM foods f/);
     if (calls++ === 0) {
-      assert.deepEqual(values, ['oeuf', 'oeuf', 50, 0, 'piece', ['oeuf']]);
+      assert.deepEqual(values, ['oeuf', 'oeuf', 50, 0, 'piece', ['oeuf'], false]);
       assert.match(sql, /grams_per_millilitre IS NOT NULL/);
       assert.match(sql, /normalized_alias = \$2/);
       assert.match(sql, /unnest\(\$6::text\[\]\)/);
       return { rows: [{ id: 'food-1', name: 'Oeuf cru' }] };
     }
     assert.match(sql, /count\(\*\)/);
-    assert.deepEqual(values, ['oeuf', 'oeuf', ['oeuf']]);
+    assert.deepEqual(values, ['oeuf', 'oeuf', ['oeuf'], false]);
     return { rows: [{ total: 1 }] };
   } };
   const empty = await invoke('/api/foods?q=o', pool);
@@ -46,6 +46,19 @@ test('food search uses normalized ingredient words when the full imported label 
   assert.equal(response.status, 200);
   assert.deepEqual(valuesSeen[0][5], ['compote', 'pomme', 'sans', 'sucre', 'ajoute']);
   assert.deepEqual(valuesSeen[1][2], ['compote', 'pomme', 'sans', 'sucre', 'ajoute']);
+});
+
+test('catalogue can be filtered to foods missing required nutrition values', async () => {
+  let calls = 0;
+  const pool = { query: async (sql, values) => {
+    assert.match(sql, /required\.is_required_for_recipe/);
+    assert.match(sql, /missing\.value_per_100g IS NOT NULL/);
+    assert.equal(values.at(-1), true);
+    return calls++ === 0 ? { rows: [] } : { rows: [{ total: 0 }] };
+  } };
+  const response = await invoke('/api/foods?incomplete=true', pool);
+  assert.equal(response.status, 200);
+  assert.equal(calls, 2);
 });
 
 test('health endpoint reports a database outage', async () => {

@@ -1,6 +1,6 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { offset: 0, limit: 50, query: '', total: 0, household: null, debounce: null, editingRecipeId: null, importingDraftId: null };
+const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, importingDraftId: null };
 const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbohydrateG', 'g gluc.'], ['fatG', 'g lip.']];
 
 async function api(path, options = {}) {
@@ -25,6 +25,7 @@ function setView(name) {
 async function refreshFoods() {
   const params = new URLSearchParams({ limit: String(state.limit), offset: String(state.offset) });
   if (state.query) params.set('q', state.query);
+  if (state.onlyIncomplete) params.set('incomplete', 'true');
   $('#food-rows').innerHTML = '<tr><td colspan="4" class="empty">Chargement…</td></tr>';
   try {
     const { foods, total } = await api(`/api/foods?${params}`);
@@ -48,6 +49,9 @@ function foodRow(food) {
   const name = document.createElement('td');
   const strong = document.createElement('strong'); strong.textContent = food.name;
   const small = document.createElement('small'); small.textContent = [food.brand, food.source === 'ciqual' ? `Ciqual ${food.source_reference ?? ''}` : food.source].filter(Boolean).join(' · ');
+  const requiredValues = ['energy_kcal', 'protein_g', 'carbohydrate_g', 'fat_g'];
+  const hasMissingNutrition = requiredValues.some((key) => food.nutrients_per_100g?.[key] == null);
+  if (hasMissingNutrition) small.textContent += `${small.textContent ? ' · ' : ''}À compléter`;
   name.append(strong, small);
   const source = document.createElement('td'); source.textContent = food.source === 'ciqual' ? 'Ciqual' : food.source === 'manual' ? 'Saisie manuelle' : food.source;
   const values = document.createElement('td'); values.className = 'food-nutrients';
@@ -81,6 +85,7 @@ $('#food-search').addEventListener('input', (event) => {
   clearTimeout(state.debounce);
   state.debounce = setTimeout(() => { state.query = event.target.value.trim(); state.offset = 0; refreshFoods(); }, 180);
 });
+$('#food-incomplete').addEventListener('change', (event) => { state.onlyIncomplete = event.target.checked; state.offset = 0; refreshFoods(); });
 $('#previous-page').addEventListener('click', () => { state.offset = Math.max(0, state.offset - state.limit); refreshFoods(); });
 $('#next-page').addEventListener('click', () => { state.offset += state.limit; refreshFoods(); });
 $('#add-food').addEventListener('click', () => openFoodEditor());
@@ -131,7 +136,7 @@ function addRecipeLine(initial = null) {
   const foodBox = document.createElement('div'); foodBox.className = 'food-choice';
   const search = document.createElement('input'); search.type = 'search'; search.placeholder = initial?.foodName ? 'Libellé importé' : 'Rechercher un aliment'; search.autocomplete = 'off';
   const select = document.createElement('select'); select.setAttribute('aria-label', 'Aliment lié'); select.innerHTML = '<option value="">Choisir un aliment</option>';
-  const hint = document.createElement('small'); hint.className = 'food-hint'; hint.setAttribute('aria-live', 'polite');
+  const hint = document.createElement('div'); hint.className = 'food-hint'; hint.setAttribute('aria-live', 'polite');
   if (initial?.foodId) select.add(new Option(initial.foodName ?? 'Aliment sélectionné', initial.foodId, true, true));
   else if (initial?.foodName) search.value = initial.foodName;
   let timeout;
@@ -143,7 +148,35 @@ function addRecipeLine(initial = null) {
       try {
         const { foods } = await api(`/api/foods?q=${encodeURIComponent(search.value.trim())}&limit=20&unit=${encodeURIComponent(unit.value)}`);
         select.replaceChildren(new Option(foods.length ? 'Choisir un aliment' : 'Aucun aliment correspondant', ''), ...foods.map((food) => new Option(`${food.name}${food.brand ? ` · ${food.brand}` : ''}`, food.id)));
-        hint.textContent = foods.length ? '' : 'Essaie un terme plus court, ou crée une fiche dans le catalogue avec les valeurs nutritionnelles de l’étiquette.';
+        if (!foods.length) {
+          hint.replaceChildren(document.createTextNode('Aucun résultat. Tu peux créer cette fiche sans inventer ses valeurs nutritionnelles. '));
+          const create = document.createElement('button'); create.type = 'button'; create.className = 'text-button'; create.textContent = `Créer « ${search.value.trim()} »`;
+          create.addEventListener('click', async () => {
+            const name = search.value.trim();
+            create.disabled = true;
+            try {
+              const { food } = await api('/api/foods', { method: 'POST', body: JSON.stringify({
+                name, brand: null, aliases: [],
+                nutrientsPer100g: { energyKcal: null, proteinG: null, carbohydrateG: null, fatG: null, fibreG: null },
+                gramsPerMillilitre: null, gramsPerUnit: {},
+              }) });
+              select.replaceChildren(new Option(food.name, food.id, true, true));
+              search.value = '';
+              hint.textContent = 'Fiche créée. Les nutriments restent à compléter dans le catalogue.';
+              await refreshFoods();
+            } catch (error) {
+              const matches = error.body?.matches ?? [];
+              if (matches.length) {
+                select.replaceChildren(new Option('Choisir une fiche existante', ''), ...matches.map((food) => new Option(food.name, food.id)));
+                hint.textContent = 'Une fiche similaire existe déjà : sélectionne-la dans la liste.';
+              } else {
+                hint.textContent = `Création impossible : ${error.body?.error ?? error.message}`;
+                create.disabled = false;
+              }
+            }
+          });
+          hint.append(create);
+        } else hint.replaceChildren();
       } catch { select.replaceChildren(new Option('Catalogue indisponible', '')); hint.textContent = ''; }
     }, 180);
   });
@@ -172,7 +205,14 @@ $('#recipe-form').addEventListener('submit', async (event) => {
   const message = $('#recipe-message'); message.textContent = '';
   if (!state.household) { showMessage(message, 'Crée d’abord un foyer en haut de la page.'); return; }
   const lines = $$('.recipe-line').map((row) => ({ foodId: $('select[aria-label="Aliment lié"]', row).value, quantity: Number($('input[aria-label="Quantité"]', row).value), unitId: $('select[aria-label="Unité"]', row).value }));
-  if (lines.some((line) => !line.foodId)) { showMessage(message, 'Associe chaque ligne à un aliment du catalogue.'); return; }
+  const unmatched = $$('.recipe-line').filter((row) => !$('select[aria-label="Aliment lié"]', row).value)
+    .map((row) => $('input[type="search"]', row).value.trim()).filter(Boolean);
+  if (lines.some((line) => !line.foodId)) {
+    showMessage(message, unmatched.length
+      ? `Aliments à créer ou associer : ${unmatched.join(', ')}.`
+      : 'Associe chaque ligne à un aliment du catalogue.');
+    return;
+  }
   const form = event.currentTarget;
   try {
     const path = state.editingRecipeId ? `/api/recipes/${state.editingRecipeId}` : '/api/recipes';
