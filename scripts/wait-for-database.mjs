@@ -1,6 +1,7 @@
 import pg from 'pg';
+import { getDatabaseConnectionString } from '../src/db/connection.mjs';
 
-const connectionString = process.env.DATABASE_URL ?? buildConnectionString();
+const connectionString = getDatabaseConnectionString();
 if (!connectionString) throw new Error('Database connection settings are required');
 const pool = new pg.Pool({ connectionString, max: 1, connectionTimeoutMillis: 2500 });
 let lastError;
@@ -17,9 +18,3 @@ for (let attempt = 1; attempt <= 60; attempt += 1) {
 }
 await pool.end();
 throw new Error(`PostgreSQL did not become ready: ${lastError?.message ?? 'unknown error'}`);
-
-function buildConnectionString() {
-  const { DB_HOST: host, DB_NAME: database, DB_USER: username, DB_PASSWORD: password } = process.env;
-  if (!host || !database || !username || !password) return null;
-  return `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${process.env.DB_PORT ?? '5432'}/${encodeURIComponent(database)}`;
-}

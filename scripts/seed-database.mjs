@@ -1,13 +1,15 @@
 import pg from 'pg';
+import { getDatabaseConnectionString } from '../src/db/connection.mjs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
+const connectionString = getDatabaseConnectionString();
+if (!connectionString) throw new Error('Database connection settings are required');
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataset = JSON.parse(await readFile(path.join(root, 'data/ciqual/ciqual-2025.json'), 'utf8'));
 const expectedCount = dataset.foods.length;
-const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
+const pool = new pg.Pool({ connectionString, max: 1 });
 const client = await pool.connect();
 try {
   await client.query('SELECT pg_advisory_lock(hashtext($1))', ['lapinou-dish:seed:ciqual']);

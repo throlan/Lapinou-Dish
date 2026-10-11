@@ -1,10 +1,12 @@
 import pg from 'pg';
+import { getDatabaseConnectionString } from '../src/db/connection.mjs';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
-const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
+const connectionString = getDatabaseConnectionString();
+if (!connectionString) throw new Error('Database connection settings are required');
+const pool = new pg.Pool({ connectionString, max: 1 });
 const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../db/migrations');
 const client = await pool.connect();
 try {
