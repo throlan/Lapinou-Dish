@@ -2,6 +2,22 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { handleRequest } from '../src/server/app.mjs';
 
+test('home page embeds the application module so proxies cannot break script loading separately', async () => {
+  const response = {
+    status: 200,
+    headers: {},
+    setHeader(name, value) { this.headers[name] = value; },
+    writeHead(status) { this.status = status; },
+    end(body) { this.body = body.toString(); },
+  };
+  await handleRequest({ method: 'GET', url: '/', headers: {} }, response, {});
+  assert.equal(response.status, 200);
+  assert.match(response.headers['Content-Type'], /^text\/html/);
+  assert.match(response.headers['Cache-Control'], /no-transform/);
+  assert.match(response.body, /<script type="module">\s*const \$ =/);
+  assert.doesNotMatch(response.body, /src="\/app\.js/);
+});
+
 test('health endpoint checks the database and returns service state', async () => {
   const response = await invoke('/api/health', { query: async () => ({ rows: [{ '?column?': 1 }] }) });
   assert.equal(response.status, 200);

@@ -11,7 +11,6 @@ import { fileURLToPath } from 'node:url';
 const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web');
 const staticFiles = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
-  ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
 ]);
 
@@ -27,9 +26,13 @@ export async function handleRequest(request, response, pool, appPassword = null)
     const staticFile = staticFiles.get(url.pathname);
     if (request.method === 'GET' && staticFile) {
       try {
-        const contents = await readFile(path.join(webRoot, staticFile[0]));
+        let contents = await readFile(path.join(webRoot, staticFile[0]));
+        if (url.pathname === '/') {
+          const app = await readFile(path.join(webRoot, 'app.js'), 'utf8');
+          contents = Buffer.from(contents.toString('utf8').replace('<!-- LAPINOU_APP_MODULE -->', `<script type="module">\n${app}\n</script>`));
+        }
         response.setHeader('Content-Type', staticFile[1]);
-        response.setHeader('Cache-Control', 'no-store, max-age=0');
+        response.setHeader('Cache-Control', 'no-store, max-age=0, no-transform');
         response.writeHead(200);
         return response.end(contents);
       } catch {
