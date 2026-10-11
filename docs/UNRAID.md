@@ -4,9 +4,9 @@ Les deux templates installent deux conteneurs séparés : `lapinou-dish-db` pour
 
 ## Préparer l'image
 
-Le workflow GitHub Actions teste le code puis publie l'image `ghcr.io/<propriétaire>/<dépôt>:latest` après chaque push sur la branche principale. Les templates sont préremplis avec `throlan/Lapinou-Dish`; vérifie que le dépôt GitHub porte bien ce nom avant la première publication. Si le nom est différent, adapte aussi l'image et les liens `Project`, `ReadMe` et `TemplateURL` du template.
+Le dépôt public `throlan/Lapinou-Dish` publie l'image `ghcr.io/throlan/lapinou-dish:latest` après chaque push sur `main`. Le workflow a réussi : tests et publication de l'image sont terminés. Les templates pointent vers ce dépôt.
 
-Après la première exécution du workflow, ouvre les paramètres du package Container dans GitHub et règle sa visibilité sur Public pour qu'Unraid puisse télécharger l'image sans identifiants. Les images publiques GHCR peuvent être tirées sans connexion; une image privée nécessite une authentification et un droit de lecture du package. [Documentation GitHub sur la visibilité des packages](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility).
+Le dépôt est public, mais le package GHCR est encore privé : une vérification de téléchargement sans authentification a reçu `403`. La visibilité du package est gérée séparément. Dans GitHub, ouvre le profil `throlan` → Packages → `lapinou-dish` → Package settings → Change visibility → Public. Les images publiques GHCR peuvent être tirées sans connexion; une image privée nécessite une authentification et un droit de lecture du package. [Documentation GitHub sur la visibilité des packages](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility).
 
 ## Installer les templates
 
@@ -23,4 +23,4 @@ Le service n'intègre pas encore de TLS. Pour l'accès extérieur au réseau dom
 
 ## État du guide
 
-Les templates et le workflow sont prêts dans le dépôt de travail, mais les URL et le nom d'image présument `throlan/Lapinou-Dish`. Aucun remote GitHub n'est encore configuré et l'image n'a pas encore été publiée. L'installation réelle reste à valider après publication du dépôt et du premier package.
+Le dépôt public et le workflow sont actifs. L'image a été publiée, mais Unraid ne peut pas encore la tirer anonymement tant que le package n'est pas rendu public. L'installation réelle reste à valider sur le serveur.
