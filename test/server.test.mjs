@@ -14,14 +14,17 @@ test('food search requires two characters, searches the catalogue, and caps resu
   const pool = { query: async (sql, values) => {
     called = true;
     assert.match(sql, /FROM foods f/);
+    assertSqlParenthesesBalanced(sql);
     if (calls++ === 0) {
       assert.deepEqual(values, ['oeuf', 'oeuf', 50, 0, 'piece', ['oeuf'], false]);
       assert.match(sql, /grams_per_millilitre IS NOT NULL/);
       assert.match(sql, /normalized_alias = \$2/);
       assert.match(sql, /unnest\(\$6::text\[\]\)/);
+      assert.match(sql, /::integer\)\)\)/);
       return { rows: [{ id: 'food-1', name: 'Oeuf cru' }] };
     }
     assert.match(sql, /count\(\*\)/);
+    assert.match(sql, /::integer\)\)\)/);
     assert.deepEqual(values, ['oeuf', 'oeuf', ['oeuf'], false]);
     return { rows: [{ total: 1 }] };
   } };
@@ -38,6 +41,7 @@ test('food search uses normalized ingredient words when the full imported label 
   const valuesSeen = [];
   let calls = 0;
   const pool = { query: async (sql, values) => {
+    assertSqlParenthesesBalanced(sql);
     valuesSeen.push(values);
     if (calls++ === 0) return { rows: [{ id: 'compote', name: 'Purée de pommes, type compote sans sucres ajoutés' }] };
     return { rows: [{ total: 1 }] };
@@ -51,6 +55,7 @@ test('food search uses normalized ingredient words when the full imported label 
 test('catalogue can be filtered to foods missing required nutrition values', async () => {
   let calls = 0;
   const pool = { query: async (sql, values) => {
+    assertSqlParenthesesBalanced(sql);
     assert.match(sql, /required\.is_required_for_recipe/);
     assert.match(sql, /missing\.value_per_100g IS NOT NULL/);
     assert.equal(values.at(-1), true);
@@ -107,4 +112,19 @@ async function invoke(url, pool, { method = 'GET', body, headers = {} } = {}, pa
   const request = { method, url, headers, socket: { remoteAddress: Math.random().toString() }, async *[Symbol.asyncIterator]() { if (body !== undefined) yield Buffer.from(JSON.stringify(body)); } };
   await handleRequest(request, response, pool, password);
   return response;
+}
+
+function assertSqlParenthesesBalanced(sql) {
+  let depth = 0;
+  let inString = false;
+  for (let index = 0; index < sql.length; index += 1) {
+    if (sql[index] === "'") {
+      if (inString && sql[index + 1] === "'") index += 1;
+      else inString = !inString;
+    } else if (!inString && sql[index] === '(') depth += 1;
+    else if (!inString && sql[index] === ')') depth -= 1;
+    assert.ok(depth >= 0, 'SQL closes a parenthesis before opening it');
+  }
+  assert.equal(inString, false, 'SQL string literal is closed');
+  assert.equal(depth, 0, 'SQL parentheses are balanced');
 }

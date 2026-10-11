@@ -283,7 +283,7 @@ export async function handleRequest(request, response, pool, appPassword = null)
                         OR EXISTS (SELECT 1 FROM food_aliases a
                                     WHERE a.food_id = f.id
                                       AND a.normalized_alias LIKE '%' || search_token || '%')
-                  ) >= GREATEST(1, ceil(cardinality($6::text[]) * 0.6)::integer))
+                  ) >= GREATEST(1, ceil(cardinality($6::text[]) * 0.6)::integer)))
             GROUP BY f.id
             ORDER BY CASE WHEN
                        ($5 IN ('ml', 'l', 'tsp', 'tbsp', 'cup') AND f.grams_per_millilitre IS NOT NULL)
@@ -321,7 +321,7 @@ export async function handleRequest(request, response, pool, appPassword = null)
                         OR EXISTS (SELECT 1 FROM food_aliases a
                                     WHERE a.food_id = f.id
                                       AND a.normalized_alias LIKE '%' || search_token || '%')
-                  ) >= GREATEST(1, ceil(cardinality($3::text[]) * 0.6)::integer))`,
+                  ) >= GREATEST(1, ceil(cardinality($3::text[]) * 0.6)::integer)))`,
           [query, normalizedQuery, searchTokens, onlyIncomplete],
         );
         return send(response, 200, { foods: result.rows, total: count.rows[0].total, limit, offset });
