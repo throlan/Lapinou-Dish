@@ -145,6 +145,9 @@ function addRecipeLine(initial = null) {
       } catch { select.replaceChildren(new Option('Catalogue indisponible', '')); }
     }, 180);
   });
+  select.addEventListener('change', () => {
+    if (select.value) search.value = '';
+  });
   const quantity = document.createElement('input'); quantity.type = 'number'; quantity.min = '0.01'; quantity.step = 'any';
   quantity.value = initial && Object.hasOwn(initial, 'quantity') ? String(initial.quantity ?? '') : '100';
   quantity.placeholder = quantity.value ? '' : 'À préciser'; quantity.required = true; quantity.setAttribute('aria-label', 'Quantité');
