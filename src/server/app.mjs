@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { createHmac, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
-import { createFood, fillMissingNutrientsFromCiqual, getFood, updateFood, validateFoodInput } from './foods.mjs';
+import { createFood, fillMissingNutritionFromExternal, getFood, updateFood, validateFoodInput } from './foods.mjs';
+import { getOpenFoodFactsProduct, searchOpenFoodFacts } from './open-food-facts.mjs';
 import { createRecipe, listRecipes, readRecipe, updateRecipe, validateRecipeInput } from './recipes.mjs';
 import { listImportDrafts, saveImportDrafts } from './recipe-imports.mjs';
 import { parseRecipeArchive, parseRecipeText } from '../domain/recipe-import.mjs';
@@ -220,18 +221,33 @@ export async function handleRequest(request, response, pool, appPassword = null)
     }
 
     const foodId = url.pathname.match(/^\/api\/foods\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i)?.[1];
+    const suggestionsMatch = url.pathname.match(/^\/api\/foods\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/nutrition-suggestions$/i);
+    if (suggestionsMatch && request.method === 'GET') {
+      try {
+        const food = await getFood(pool, suggestionsMatch[1]);
+        if (!food) return send(response, 404, { error: 'food-not-found' });
+        const products = await searchOpenFoodFacts(food.name);
+        return send(response, 200, { source: 'Open Food Facts', products });
+      } catch {
+        return send(response, 503, { error: 'external-nutrition-source-unavailable' });
+      }
+    }
     const completionMatch = url.pathname.match(/^\/api\/foods\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/complete-nutrition$/i);
     if (completionMatch && request.method === 'POST') {
       const body = await readJson(request);
       if (body.error) return send(response, body.status ?? 400, { error: body.error });
-      if (!isUuid(body.value.sourceFoodId)) return send(response, 400, { error: 'invalid-source-food-id' });
+      if (body.value.source !== 'open-food-facts' || !/^\d{8,14}$/.test(body.value.sourceReference ?? '')) {
+        return send(response, 400, { error: 'invalid-nutrition-source' });
+      }
       try {
-        const result = await fillMissingNutrientsFromCiqual(pool, completionMatch[1], body.value.sourceFoodId);
+        const product = await getOpenFoodFactsProduct(body.value.sourceReference);
+        if (!product) return send(response, 404, { error: 'external-product-not-found' });
+        const result = await fillMissingNutritionFromExternal(pool, completionMatch[1], product);
         if (!result) return send(response, 404, { error: 'food-not-found' });
         if (result.error) return send(response, 400, { error: result.error });
         return send(response, 200, result);
       } catch {
-        return send(response, 500, { error: 'food-nutrition-completion-failed' });
+        return send(response, 503, { error: 'external-nutrition-source-unavailable' });
       }
     }
     if (foodId && request.method === 'GET') {

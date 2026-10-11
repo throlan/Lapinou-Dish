@@ -149,50 +149,56 @@ export async function updateFood(pool, id, data) {
   }
 }
 
-export async function fillMissingNutrientsFromCiqual(pool, foodId, ciqualFoodId) {
+export async function fillMissingNutritionFromExternal(pool, foodId, product) {
+  if (!product || !/^\d{8,14}$/.test(product.barcode ?? '') || !product.url?.startsWith('https://world.openfoodfacts.org/product/')) {
+    return { error: 'invalid-nutrition-source' };
+  }
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const target = await client.query('SELECT id FROM foods WHERE id = $1 FOR UPDATE', [foodId]);
-    if (!target.rows[0]) {
+    await client.query('SELECT id FROM foods WHERE id = $1 FOR UPDATE', [foodId]);
+    const before = await getFood(client, foodId);
+    if (!before) {
       await client.query('ROLLBACK');
       return null;
     }
-    const source = await client.query(
-      `SELECT canonical_name, source_reference FROM foods WHERE id = $1 AND source = 'ciqual'`,
-      [ciqualFoodId],
-    );
-    if (!source.rows[0]) {
-      await client.query('ROLLBACK');
-      return { error: 'ciqual-food-not-found' };
+    const note = `Open Food Facts : ${product.name}${product.brand ? ` — ${product.brand}` : ''} (${product.url})`;
+    const nutrientFields = [
+      ['energyKcal', 'energy_kcal'], ['proteinG', 'protein_g'], ['carbohydrateG', 'carbohydrate_g'],
+      ['fatG', 'fat_g'], ['fibreG', 'fibre_g'],
+    ];
+    const filledNutrients = [];
+    for (const [key, nutrientId] of nutrientFields) {
+      const value = product.nutrientsPer100g?.[key];
+      if (value === null || value === undefined || !Number.isFinite(value) || value < 0 || value > 100000) continue;
+      const result = await client.query(
+        `INSERT INTO food_nutrients (food_id, nutrient_id, value_per_100g, source_note)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (food_id, nutrient_id) DO UPDATE
+           SET value_per_100g = EXCLUDED.value_per_100g, source_note = EXCLUDED.source_note
+           WHERE food_nutrients.value_per_100g IS NULL
+         RETURNING nutrient_id`,
+        [foodId, nutrientId, value, note],
+      );
+      if (result.rows.length) filledNutrients.push(nutrientId);
     }
-    const { canonical_name: sourceName, source_reference: sourceReference } = source.rows[0];
-    const note = `Valeurs manquantes complétées depuis Anses Ciqual 2025 : ${sourceName} (code ${sourceReference}).`;
-    const filled = await client.query(
-      `INSERT INTO food_nutrients (food_id, nutrient_id, value_per_100g, source_note)
-       SELECT $1, source_nutrient.nutrient_id, source_nutrient.value_per_100g, $4
-         FROM food_nutrients source_nutrient
-        WHERE source_nutrient.food_id = $2
-          AND source_nutrient.nutrient_id = ANY($3::text[])
-          AND source_nutrient.value_per_100g IS NOT NULL
-       ON CONFLICT (food_id, nutrient_id) DO UPDATE
-         SET value_per_100g = EXCLUDED.value_per_100g,
-             source_note = EXCLUDED.source_note
-         WHERE food_nutrients.value_per_100g IS NULL
-       RETURNING nutrient_id`,
-      [foodId, ciqualFoodId, Object.values(nutrientIds), note],
-    );
-    if (filled.rows.length) {
+    if (filledNutrients.length) {
       await client.query(
         `UPDATE foods SET source_note = concat_ws(E'\\n', NULLIF(source_note, ''), $2),
                 manual_override = true, version = version + 1, updated_at = now()
-          WHERE id = $1`,
-        [foodId, note],
+          WHERE id = $1`, [foodId, note],
       );
     }
     const food = await getFood(client, foodId);
+    if (filledNutrients.length) {
+      await client.query(
+        `INSERT INTO food_change_log (id, food_id, reason, before_state, after_state)
+         VALUES ($1, $2, $3, $4::jsonb, $5::jsonb)`,
+        [randomUUID(), foodId, 'Complément nutritionnel externe', JSON.stringify(before), JSON.stringify(food)],
+      );
+    }
     await client.query('COMMIT');
-    return { food, filledNutrients: filled.rows.map((row) => row.nutrient_id), sourceName, sourceReference };
+    return { food, filledNutrients, sourceName: 'Open Food Facts', sourceReference: product.barcode };
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
