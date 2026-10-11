@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { handleRequest } from '../src/server/app.mjs';
 
-test('home page embeds the application module so proxies cannot break script loading separately', async () => {
+test('home page loads the application module as a versioned same-origin asset', async () => {
   const response = {
     status: 200,
     headers: {},
@@ -13,9 +13,18 @@ test('home page embeds the application module so proxies cannot break script loa
   await handleRequest({ method: 'GET', url: '/', headers: {} }, response, {});
   assert.equal(response.status, 200);
   assert.match(response.headers['Content-Type'], /^text\/html/);
-  assert.match(response.headers['Cache-Control'], /no-transform/);
-  assert.match(response.body, /<script type="module">\s*const \$ =/);
-  assert.doesNotMatch(response.body, /src="\/app\.js/);
+  assert.match(response.body, /<script type="module" src="\/app\.js\?v=0\.2\.13"><\/script>/);
+  const scriptResponse = {
+    status: 200,
+    headers: {},
+    setHeader(name, value) { this.headers[name] = value; },
+    writeHead(status) { this.status = status; },
+    end(body) { this.body = body.toString(); },
+  };
+  await handleRequest({ method: 'GET', url: '/app.js?v=0.2.13', headers: {} }, scriptResponse, {});
+  assert.equal(scriptResponse.status, 200);
+  assert.match(scriptResponse.headers['Content-Type'], /^text\/javascript/);
+  assert.match(scriptResponse.body, /^const \$ =/);
 });
 
 test('health endpoint checks the database and returns service state', async () => {
