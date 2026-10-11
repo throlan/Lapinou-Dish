@@ -131,6 +131,7 @@ function addRecipeLine(initial = null) {
   const foodBox = document.createElement('div'); foodBox.className = 'food-choice';
   const search = document.createElement('input'); search.type = 'search'; search.placeholder = initial?.foodName ? 'Libellé importé' : 'Rechercher un aliment'; search.autocomplete = 'off';
   const select = document.createElement('select'); select.setAttribute('aria-label', 'Aliment lié'); select.innerHTML = '<option value="">Choisir un aliment</option>';
+  const hint = document.createElement('small'); hint.className = 'food-hint'; hint.setAttribute('aria-live', 'polite');
   if (initial?.foodId) select.add(new Option(initial.foodName ?? 'Aliment sélectionné', initial.foodId, true, true));
   else if (initial?.foodName) search.value = initial.foodName;
   let timeout;
@@ -141,8 +142,9 @@ function addRecipeLine(initial = null) {
       if (search.value.trim().length < 2) return;
       try {
         const { foods } = await api(`/api/foods?q=${encodeURIComponent(search.value.trim())}&limit=20&unit=${encodeURIComponent(unit.value)}`);
-        select.replaceChildren(new Option('Choisir un aliment', ''), ...foods.map((food) => new Option(`${food.name}${food.brand ? ` · ${food.brand}` : ''}`, food.id)));
-      } catch { select.replaceChildren(new Option('Catalogue indisponible', '')); }
+        select.replaceChildren(new Option(foods.length ? 'Choisir un aliment' : 'Aucun aliment correspondant', ''), ...foods.map((food) => new Option(`${food.name}${food.brand ? ` · ${food.brand}` : ''}`, food.id)));
+        hint.textContent = foods.length ? '' : 'Essaie un terme plus court, ou crée une fiche dans le catalogue avec les valeurs nutritionnelles de l’étiquette.';
+      } catch { select.replaceChildren(new Option('Catalogue indisponible', '')); hint.textContent = ''; }
     }, 180);
   });
   select.addEventListener('change', () => {
@@ -156,7 +158,7 @@ function addRecipeLine(initial = null) {
   if (initial?.unitId) unit.value = initial.unitId;
   unit.addEventListener('change', () => { if (search.value.trim().length >= 2) search.dispatchEvent(new Event('input')); });
   const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-line'; remove.textContent = '×'; remove.setAttribute('aria-label', 'Supprimer cet ingrédient'); remove.addEventListener('click', () => row.remove());
-  foodBox.append(search, select); row.append(foodBox, quantity, unit, remove); $('#recipe-lines').append(row);
+  foodBox.append(search, select, hint); row.append(foodBox, quantity, unit, remove); $('#recipe-lines').append(row);
   // Imported ingredient names are already a useful search query. Trigger the
   // same lookup as typing so the dropdown is populated during recipe review.
   if (initial?.foodName && !initial?.foodId) search.dispatchEvent(new Event('input'));

@@ -15,13 +15,14 @@ test('food search requires two characters, searches the catalogue, and caps resu
     called = true;
     assert.match(sql, /FROM foods f/);
     if (calls++ === 0) {
-      assert.deepEqual(values, ['oeuf', 'oeuf', 50, 0, 'piece']);
+      assert.deepEqual(values, ['oeuf', 'oeuf', 50, 0, 'piece', ['oeuf']]);
       assert.match(sql, /grams_per_millilitre IS NOT NULL/);
       assert.match(sql, /normalized_alias = \$2/);
+      assert.match(sql, /unnest\(\$6::text\[\]\)/);
       return { rows: [{ id: 'food-1', name: 'Oeuf cru' }] };
     }
     assert.match(sql, /count\(\*\)/);
-      assert.deepEqual(values, ['oeuf', 'oeuf']);
+    assert.deepEqual(values, ['oeuf', 'oeuf', ['oeuf']]);
     return { rows: [{ total: 1 }] };
   } };
   const empty = await invoke('/api/foods?q=o', pool);
@@ -31,6 +32,20 @@ test('food search requires two characters, searches the catalogue, and caps resu
   assert.equal(found.status, 200);
   assert.deepEqual(found.body, { foods: [{ id: 'food-1', name: 'Oeuf cru' }], total: 1, limit: 50, offset: 0 });
   assert.equal(called, true);
+});
+
+test('food search uses normalized ingredient words when the full imported label differs', async () => {
+  const valuesSeen = [];
+  let calls = 0;
+  const pool = { query: async (sql, values) => {
+    valuesSeen.push(values);
+    if (calls++ === 0) return { rows: [{ id: 'compote', name: 'Purée de pommes, type compote sans sucres ajoutés' }] };
+    return { rows: [{ total: 1 }] };
+  } };
+  const response = await invoke('/api/foods?q=compote%20de%20pommes%20sans%20sucres%20ajout%C3%A9s', pool);
+  assert.equal(response.status, 200);
+  assert.deepEqual(valuesSeen[0][5], ['compote', 'pomme', 'sans', 'sucre', 'ajoute']);
+  assert.deepEqual(valuesSeen[1][2], ['compote', 'pomme', 'sans', 'sucre', 'ajoute']);
 });
 
 test('health endpoint reports a database outage', async () => {

@@ -247,6 +247,10 @@ export async function handleRequest(request, response, pool, appPassword = null)
       const query = (url.searchParams.get('q') ?? '').trim();
       const unit = url.searchParams.get('unit') ?? '';
       if (query.length === 1) return send(response, 200, { foods: [], total: 0, limit: 50, offset: 0 });
+      const normalizedQuery = normalizeSearch(query);
+      const ignoredSearchTokens = new Set(['de', 'du', 'des', 'la', 'le', 'les', 'un', 'une', 'et', 'au', 'aux']);
+      const searchTokens = [...new Set(normalizedQuery.split(' ').filter((token) => token.length > 1 && !ignoredSearchTokens.has(token))
+        .map((token) => token.length > 4 && token.endsWith('s') ? token.slice(0, -1) : token))];
       const limit = integerInRange(url.searchParams.get('limit'), 50, 1, 100);
       const offset = integerInRange(url.searchParams.get('offset'), 0, 0, 100000);
       try {
@@ -263,7 +267,14 @@ export async function handleRequest(request, response, pool, appPassword = null)
                     SELECT 1 FROM food_aliases a
                      WHERE a.food_id = f.id
                        AND a.normalized_alias LIKE '%' || $2 || '%'
-                  ))
+                  )
+               OR (cardinality($6::text[]) > 0 AND (
+                    SELECT count(*) FROM unnest($6::text[]) AS search_token
+                     WHERE lower(f.canonical_name) LIKE '%' || search_token || '%'
+                        OR EXISTS (SELECT 1 FROM food_aliases a
+                                    WHERE a.food_id = f.id
+                                      AND a.normalized_alias LIKE '%' || search_token || '%')
+                  ) >= GREATEST(1, ceil(cardinality($6::text[]) * 0.6)::integer))
             GROUP BY f.id
             ORDER BY CASE WHEN
                        ($5 IN ('ml', 'l', 'tsp', 'tbsp', 'cup') AND f.grams_per_millilitre IS NOT NULL)
@@ -274,15 +285,27 @@ export async function handleRequest(request, response, pool, appPassword = null)
                           WHEN EXISTS (SELECT 1 FROM food_aliases a WHERE a.food_id = f.id AND a.normalized_alias = $2) THEN 0
                           WHEN EXISTS (SELECT 1 FROM food_aliases a WHERE a.food_id = f.id AND a.normalized_alias LIKE $2 || '%') THEN 1
                           ELSE 2 END,
+                     (SELECT count(*) FROM unnest($6::text[]) AS search_token
+                       WHERE lower(f.canonical_name) LIKE '%' || search_token || '%'
+                          OR EXISTS (SELECT 1 FROM food_aliases a
+                                      WHERE a.food_id = f.id
+                                        AND a.normalized_alias LIKE '%' || search_token || '%')) DESC,
                      f.canonical_name
             LIMIT $3 OFFSET $4`,
-          [query, normalizeSearch(query), limit, offset, unit],
+          [query, normalizedQuery, limit, offset, unit, searchTokens],
         );
         const count = await pool.query(
           `SELECT count(*)::integer AS total FROM foods f
             WHERE ($1 = '' OR lower(f.canonical_name) LIKE '%' || lower($1) || '%'
-               OR EXISTS (SELECT 1 FROM food_aliases a WHERE a.food_id = f.id AND a.normalized_alias LIKE '%' || $2 || '%'))`,
-          [query, normalizeSearch(query)],
+               OR EXISTS (SELECT 1 FROM food_aliases a WHERE a.food_id = f.id AND a.normalized_alias LIKE '%' || $2 || '%')
+               OR (cardinality($3::text[]) > 0 AND (
+                    SELECT count(*) FROM unnest($3::text[]) AS search_token
+                     WHERE lower(f.canonical_name) LIKE '%' || search_token || '%'
+                        OR EXISTS (SELECT 1 FROM food_aliases a
+                                    WHERE a.food_id = f.id
+                                      AND a.normalized_alias LIKE '%' || search_token || '%')
+                  ) >= GREATEST(1, ceil(cardinality($3::text[]) * 0.6)::integer))`,
+          [query, normalizedQuery, searchTokens],
         );
         return send(response, 200, { foods: result.rows, total: count.rows[0].total, limit, offset });
       } catch {
