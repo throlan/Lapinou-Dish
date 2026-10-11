@@ -1,0 +1,22 @@
+<Container version="2">
+  <Name>lapinou-dish</Name>
+  <Repository>ghcr.io/throlan/lapinou-dish:latest</Repository>
+  <Registry>https://ghcr.io/throlan/lapinou-dish</Registry>
+  <Network>lapinou-dish</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Overview>Planification et nutrition familiale calculées depuis un catalogue alimentaire commun.</Overview>
+  <Project>https://github.com/throlan/Lapinou-Dish</Project>
+  <ReadMe>https://github.com/throlan/Lapinou-Dish</ReadMe>
+  <Category>Tools:Utilities</Category>
+  <WebUI>http://[IP]:[PORT:3000]</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/throlan/Lapinou-Dish/main/unraid/templates/lapinou-dish.xml</TemplateURL>
+  <Config Name="Web interface port" Target="3000" Default="3000" Mode="tcp" Description="Port HTTP de Lapinou Dish." Type="Port" Display="always" Required="true" Mask="false">3000</Config>
+  <Config Name="HTTP listener" Target="HOST" Default="0.0.0.0" Description="Écoute sur l'interface Docker." Type="Variable" Display="advanced" Required="true" Mask="false">0.0.0.0</Config>
+  <Config Name="Application password" Target="APP_PASSWORD" Default="" Description="Mot de passe du foyer (12 caractères minimum). À conserver pour les connexions." Type="Variable" Display="always" Required="true" Mask="true"></Config>
+  <Config Name="Database host" Target="DB_HOST" Default="lapinou-dish-db" Description="Nom du conteneur PostgreSQL sur le réseau lapinou-dish." Type="Variable" Display="advanced" Required="true" Mask="false">lapinou-dish-db</Config>
+  <Config Name="Database port" Target="DB_PORT" Default="5432" Description="Port interne de PostgreSQL." Type="Variable" Display="advanced" Required="true" Mask="false">5432</Config>
+  <Config Name="Database name" Target="DB_NAME" Default="lapinou_dish" Description="Base dédiée Lapinou Dish." Type="Variable" Display="advanced" Required="true" Mask="false">lapinou_dish</Config>
+  <Config Name="Database user" Target="DB_USER" Default="lapinou" Description="Utilisateur PostgreSQL." Type="Variable" Display="advanced" Required="true" Mask="false">lapinou</Config>
+  <Config Name="Database password" Target="DB_PASSWORD" Default="" Description="Même valeur que POSTGRES_PASSWORD du conteneur Lapinou-Dish-DB." Type="Variable" Display="always" Required="true" Mask="true"></Config>
+</Container>

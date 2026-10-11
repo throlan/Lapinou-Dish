@@ -1,0 +1,15 @@
+<Container version="2">
+  <Name>lapinou-dish-db</Name>
+  <Repository>postgres:16-alpine</Repository>
+  <Registry>https://hub.docker.com/_/postgres</Registry>
+  <Network>lapinou-dish</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Overview>Base PostgreSQL dédiée à Lapinou Dish. Ne partage aucune donnée avec Norish.</Overview>
+  <Category>Tools:Database</Category>
+  <Project>https://www.postgresql.org/</Project>
+  <Config Name="Database" Target="POSTGRES_DB" Default="lapinou_dish" Description="Nom de la base dédiée." Type="Variable" Display="always" Required="true" Mask="false">lapinou_dish</Config>
+  <Config Name="Database user" Target="POSTGRES_USER" Default="lapinou" Description="Utilisateur de la base dédiée." Type="Variable" Display="always" Required="true" Mask="false">lapinou</Config>
+  <Config Name="Database password" Target="POSTGRES_PASSWORD" Default="" Description="Choisis un mot de passe long et conserve-le; changer cette variable ne modifie pas le mot de passe d'une base déjà initialisée." Type="Variable" Display="always" Required="true" Mask="true"></Config>
+  <Config Name="PostgreSQL data" Target="/var/lib/postgresql/data" Default="/mnt/user/appdata/lapinou-dish/postgres" Mode="rw" Description="Données persistantes PostgreSQL. Sauvegarde ce dossier." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/lapinou-dish/postgres</Config>
+</Container>

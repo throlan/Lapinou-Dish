@@ -1,0 +1,14 @@
+{
+  "name": "lapinou-dish",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.ts test/*.test.mjs",
+    "seed:ciqual": "node scripts/seed-ciqual.mjs --output db/seeds/ciqual-2025.sql",
+    "migrate": "node scripts/migrate.mjs",
+    "start": "node src/server/main.mjs"
+  },
+  "dependencies": { "pg": "8.16.3" }
+}

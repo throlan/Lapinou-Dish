@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lapinou Dish</title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Lapinou Dish accueil"><span class="brand-mark">🐰</span><span>Lapinou <b>Dish</b></span></a>
+      <nav aria-label="Navigation principale">
+        <button class="nav-button active" data-view="foods">Aliments</button>
+        <button class="nav-button" data-view="recipes">Recettes</button>
+      </nav>
+      <span class="connection" id="connection">Connexion…</span>
+    </header>
+
+    <main>
+      <section class="intro">
+        <div><p class="eyebrow">CATALOGUE UNIQUE · CALCUL TRANSPARENT</p><h1>Lapinou Dish</h1><p>Les recettes tirent leurs valeurs des aliments réellement utilisés.</p></div>
+        <div class="household-box" id="household-box"></div>
+      </section>
+
+      <section id="foods-view" class="view">
+        <div class="section-heading"><div><h2>Catalogue alimentaire</h2><p>Une fiche canonique par aliment, enrichie par Ciqual et modifiable.</p></div><button class="primary" id="add-food">+ Nouvel aliment</button></div>
+        <div class="toolbar"><label class="search"><span>⌕</span><input id="food-search" type="search" placeholder="Rechercher un aliment…" autocomplete="off"></label><span class="muted" id="food-count"></span></div>
+        <div class="table-wrap"><table><thead><tr><th>Aliment</th><th>Provenance</th><th>Pour 100 g</th><th></th></tr></thead><tbody id="food-rows"><tr><td colspan="4" class="empty">Chargement du catalogue…</td></tr></tbody></table></div>
+        <div class="pagination"><span class="muted" id="page-label"></span><div><button class="secondary" id="previous-page">Précédent</button><button class="secondary" id="next-page">Suivant</button></div></div>
+      </section>
+
+      <section id="recipes-view" class="view hidden">
+        <div class="section-heading"><div><h2>Nouvelle recette</h2><p>Choisis les aliments du catalogue et saisis leurs quantités.</p></div></div>
+        <form id="recipe-form" class="card form-card">
+          <label>Nom de la recette<input name="name" required maxlength="200" placeholder="Ex. Muffins pomme-cannelle"></label>
+          <label>Description<textarea name="description" rows="2" maxlength="5000" placeholder="Facultatif"></textarea></label>
+          <div class="yield-row"><label>Rendement<input name="yieldAmount" required type="number" min="0.01" step="any" value="4"></label><label>Unité<select name="yieldUnit"><option value="portion">portions</option><option value="piece">pièces</option><option value="g">grammes</option></select></label></div>
+          <div class="line-heading"><h3>Ingrédients</h3><button type="button" class="secondary" id="add-line">+ Ajouter un ingrédient</button></div>
+          <div id="recipe-lines"></div>
+          <div class="form-actions"><button class="primary" type="submit">Enregistrer et calculer</button></div>
+          <p class="form-message" id="recipe-message" role="status"></p>
+        </form>
+        <section id="recipe-result" class="card result hidden" aria-live="polite"></section>
+      </section>
+    </main>
+
+    <dialog id="food-dialog">
+      <form id="food-form" method="dialog">
+        <div class="dialog-heading"><div><p class="eyebrow">FICHE ALIMENT</p><h2 id="food-dialog-title">Nouvel aliment</h2></div><button class="icon-button" value="cancel" aria-label="Fermer">×</button></div>
+        <input type="hidden" name="id">
+        <label>Nom canonique<input name="name" required maxlength="200"></label>
+        <label>Marque (facultatif)<input name="brand" maxlength="200"></label>
+        <label>Autres noms, séparés par des virgules<input name="aliases" placeholder="Ex. skyr nature, fromage frais"></label>
+        <fieldset><legend>Valeurs nutritionnelles pour 100 g</legend><div class="nutrient-grid">
+          <label>Énergie (kcal)<input name="energyKcal" type="number" min="0" step="any"></label>
+          <label>Protéines (g)<input name="proteinG" type="number" min="0" step="any"></label>
+          <label>Glucides (g)<input name="carbohydrateG" type="number" min="0" step="any"></label>
+          <label>Lipides (g)<input name="fatG" type="number" min="0" step="any"></label>
+          <label>Fibres (g)<input name="fibreG" type="number" min="0" step="any"></label>
+        </div></fieldset>
+        <div class="yield-row"><label>Densité (g/ml)<input name="gramsPerMillilitre" type="number" min="0.001" step="any" placeholder="Si connue"></label><label>Poids d'une pièce (g)<input name="pieceGrams" type="number" min="0.001" step="any" placeholder="Si applicable"></label></div>
+        <p class="hint">Laisse une valeur vide si elle est inconnue. Elle restera inconnue dans le calcul.</p>
+        <div class="form-actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" id="save-food" value="default">Enregistrer</button></div>
+        <p class="form-message" id="food-message" role="status"></p>
+      </form>
+    </dialog>
+    <dialog id="login-dialog" class="login-dialog">
+      <form id="login-form">
+        <p class="eyebrow">ESPACE FAMILIAL</p>
+        <h2>Connexion</h2>
+        <p class="muted">Saisis le mot de passe du foyer pour accéder aux aliments et aux recettes.</p>
+        <label>Mot de passe<input name="password" type="password" autocomplete="current-password" required autofocus></label>
+        <button class="primary" type="submit">Se connecter</button>
+        <p class="form-message" id="login-message" role="alert"></p>
+      </form>
+    </dialog>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
