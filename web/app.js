@@ -153,6 +153,9 @@ function addRecipeLine(initial = null) {
   if (initial?.unitId) unit.value = initial.unitId;
   const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-line'; remove.textContent = '×'; remove.setAttribute('aria-label', 'Supprimer cet ingrédient'); remove.addEventListener('click', () => row.remove());
   foodBox.append(search, select); row.append(foodBox, quantity, unit, remove); $('#recipe-lines').append(row);
+  // Imported ingredient names are already a useful search query. Trigger the
+  // same lookup as typing so the dropdown is populated during recipe review.
+  if (initial?.foodName && !initial?.foodId) search.dispatchEvent(new Event('input'));
 }
 
 $('#add-line').addEventListener('click', addRecipeLine);
