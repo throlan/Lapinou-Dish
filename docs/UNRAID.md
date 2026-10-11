@@ -6,12 +6,12 @@ Les deux templates installent deux conteneurs séparés : `lapinou-dish-db` pour
 
 Le dépôt public `throlan/Lapinou-Dish` publie l'image `ghcr.io/throlan/lapinou-dish:latest` après chaque push sur `main`. Le workflow a réussi : tests et publication de l'image sont terminés. Les templates pointent vers ce dépôt.
 
-Le dépôt est public, mais le package GHCR est encore privé : une vérification de téléchargement sans authentification a reçu `403`. La visibilité du package est gérée séparément. Dans GitHub, ouvre le profil `throlan` → Packages → `lapinou-dish` → Package settings → Change visibility → Public. Les images publiques GHCR peuvent être tirées sans connexion; une image privée nécessite une authentification et un droit de lecture du package. [Documentation GitHub sur la visibilité des packages](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility).
+Le dépôt et le package GHCR sont publics. Un téléchargement anonyme du manifeste `latest` a répondu `HTTP 200`; Unraid peut donc tirer l'image sans identifiants de registre. Les images publiques GHCR peuvent être tirées sans connexion; une image privée nécessite une authentification et un droit de lecture du package. [Documentation GitHub sur la visibilité des packages](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility).
 
 ## Installer les templates
 
 1. Dans le terminal Unraid, crée le réseau Docker une fois : `docker network create lapinou-dish`. Ce réseau doit exister avant d'installer les templates; les réseaux Docker personnalisés Unraid doivent être recréés si le fichier image Docker est reconstruit. [Documentation Unraid sur la restauration des réseaux personnalisés](https://docs.unraid.net/unraid-os/troubleshooting/common-issues/docker-troubleshooting/).
-2. Une fois le dépôt public, télécharge les deux XML bruts depuis GitHub vers `/boot/config/plugins/dockerMan/templates-user/` (par SMB sur le partage `flash` ou avec `curl` dans le terminal Unraid). Ouvre Docker → Add Container, puis choisis chacun dans la liste « User Templates ». Le champ `TemplateURL` de chaque XML permettra ensuite à Unraid de récupérer les mises à jour du modèle. [Guide Unraid sur les templates](https://docs.unraid.net/unraid-os/using-unraid-to/run-docker-containers/managing-and-customizing-containers/).
+2. Télécharge les deux XML bruts depuis GitHub vers `/boot/config/plugins/dockerMan/templates-user/` (par SMB sur le partage `flash` ou avec `curl` dans le terminal Unraid). Ouvre Docker → Add Container, puis choisis chacun dans la liste « User Templates ». Le champ `TemplateURL` de chaque XML permettra ensuite à Unraid de récupérer les mises à jour du modèle. [Guide Unraid sur les templates](https://docs.unraid.net/unraid-os/using-unraid-to/run-docker-containers/managing-and-customizing-containers/).
 3. Pour PostgreSQL, choisis un mot de passe robuste dans `POSTGRES_PASSWORD` et conserve-le dans un gestionnaire de mots de passe. Laisse le chemin de données sur `/mnt/user/appdata/lapinou-dish/postgres`.
 4. Pour l'application, saisis exactement le même `DB_PASSWORD`; choisis un `APP_PASSWORD` distinct d'au moins 12 caractères. Garde `DB_HOST=lapinou-dish-db`, le réseau `lapinou-dish` et le port web `3000` (ou modifie le port hôte).
 5. Démarre d'abord PostgreSQL et attends son état healthy/démarré, puis démarre l'application. Au premier démarrage, elle attend la base, applique les migrations, importe les 3 484 aliments Ciqual et démarre le serveur. Consulte le journal du conteneur pour voir ces étapes.
@@ -23,4 +23,4 @@ Le service n'intègre pas encore de TLS. Pour l'accès extérieur au réseau dom
 
 ## État du guide
 
-Le dépôt public et le workflow sont actifs. L'image a été publiée, mais Unraid ne peut pas encore la tirer anonymement tant que le package n'est pas rendu public. L'installation réelle reste à valider sur le serveur.
+Le dépôt et le workflow sont actifs, et l'image est publiquement téléchargeable sans authentification. L'installation réelle et les migrations restent à valider sur le serveur Unraid.

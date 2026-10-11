@@ -40,7 +40,7 @@ docker compose down       # arrête les services, garde la base
 docker compose down -v    # supprime aussi les données de la base
 ```
 
-La dernière commande est destructive pour les données locales. Pour le déploiement Unraid, voir [le guide](docs/UNRAID.md). Le dépôt GitHub public et l'image GHCR ont été créés; l'accès anonyme à l'image reste à activer dans les paramètres du package avant de l'installer sans identifiants.
+La dernière commande est destructive pour les données locales. Pour le déploiement Unraid, voir [le guide](docs/UNRAID.md). Le dépôt GitHub et l'image GHCR sont publics; le téléchargement anonyme de `ghcr.io/throlan/lapinou-dish:latest` a été vérifié.
 
 ## Développement sans Docker
 

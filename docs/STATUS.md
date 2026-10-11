@@ -22,7 +22,7 @@
 
 ## Next
 
-1. Make the GHCR container package publicly pullable (or configure an Unraid registry credential), then install the templates on Unraid.
+1. Install the templates on Unraid and verify the first-start migrations and Ciqual import.
 2. Verify migrations, Ciqual import, food edits and recipe calculations against a real PostgreSQL 16 instance (Docker Compose or Unraid).
 3. Add recipe editing, variants/components, and clear per-ingredient missing-data details.
 4. Add meal planning and connect recipes to the desktop calendar.
