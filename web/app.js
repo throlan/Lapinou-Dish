@@ -129,7 +129,7 @@ async function loadHouseholds() {
 function addRecipeLine(initial = null) {
   const row = document.createElement('div'); row.className = 'recipe-line';
   const foodBox = document.createElement('div'); foodBox.className = 'food-choice';
-  const search = document.createElement('input'); search.type = 'search'; search.placeholder = 'Rechercher un aliment'; search.autocomplete = 'off';
+  const search = document.createElement('input'); search.type = 'search'; search.placeholder = initial?.foodName ? 'Libellé importé' : 'Rechercher un aliment'; search.autocomplete = 'off';
   const select = document.createElement('select'); select.setAttribute('aria-label', 'Aliment lié'); select.innerHTML = '<option value="">Choisir un aliment</option>';
   if (initial?.foodId) select.add(new Option(initial.foodName ?? 'Aliment sélectionné', initial.foodId, true, true));
   else if (initial?.foodName) search.value = initial.foodName;
@@ -145,7 +145,6 @@ function addRecipeLine(initial = null) {
       } catch { select.replaceChildren(new Option('Catalogue indisponible', '')); }
     }, 180);
   });
-  select.addEventListener('change', () => { if (select.value) search.value = ''; });
   const quantity = document.createElement('input'); quantity.type = 'number'; quantity.min = '0.01'; quantity.step = 'any';
   quantity.value = initial && Object.hasOwn(initial, 'quantity') ? String(initial.quantity ?? '') : '100';
   quantity.placeholder = quantity.value ? '' : 'À préciser'; quantity.required = true; quantity.setAttribute('aria-label', 'Quantité');
