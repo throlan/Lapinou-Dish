@@ -29,7 +29,7 @@ export async function handleRequest(request, response, pool, appPassword = null)
       try {
         const contents = await readFile(path.join(webRoot, staticFile[0]));
         response.setHeader('Content-Type', staticFile[1]);
-        response.setHeader('Cache-Control', 'no-cache');
+        response.setHeader('Cache-Control', 'no-store, max-age=0');
         response.writeHead(200);
         return response.end(contents);
       } catch {

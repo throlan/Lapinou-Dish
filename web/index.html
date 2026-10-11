@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/style.css?v=0.2.10">
   </head>
   <body>
     <header class="topbar">
@@ -76,9 +76,9 @@
           <label>Fibres (g)<input name="fibreG" type="number" min="0" step="any"></label>
         </div></fieldset>
         <section id="ciqual-completion" class="ciqual-completion hidden" aria-label="Compléter les valeurs nutritionnelles depuis Ciqual">
-          <h3>Valeurs absentes</h3>
-          <p class="hint">Recherche dans Ciqual 2025. Choisis une correspondance et vérifie les valeurs avant de les appliquer. Seules les cases encore vides seront remplies.</p>
-          <button type="button" class="secondary" id="find-ciqual">Chercher une correspondance Ciqual</button>
+          <div><h3>Données nutritionnelles manquantes ?</h3>
+          <p class="hint">Cherche une valeur sourcée dans Ciqual 2025. Rien n’est appliqué avant ton choix.</p></div>
+          <button type="button" class="secondary" id="find-ciqual">Chercher les données manquantes</button>
           <div id="ciqual-matches" class="ciqual-matches" aria-live="polite"></div>
         </section>
         <div class="yield-row"><label>Densité (g/ml)<input name="gramsPerMillilitre" type="number" min="0.001" step="any" placeholder="Si connue"></label><label>Poids d'une pièce (g)<input name="pieceGrams" type="number" min="0.001" step="any" placeholder="Si applicable"></label></div>
@@ -97,6 +97,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js"></script>
+    <script type="module" src="/app.js?v=0.2.10"></script>
   </body>
 </html>

@@ -19,6 +19,7 @@
 - Recipe review keeps the imported label only while no catalog match is selected; once matched, only the canonical food remains visible. Incomplete nutrition results identify the ingredient and whether its conversion or nutrient values are missing.
 - Common egg, onion and garlic aliases and estimated piece weights are added to the shared Ciqual catalog. Search ranks foods that support the selected recipe unit. Reconstituted beef broth has common aliases and a documented estimated density for ml-based quantities.
 - Missing nutrient values on an edited food can be searched against Ciqual 2025. The user sees the candidate values and explicitly applies them; only null nutrient fields are filled, known values and zeros are preserved, and the source reference is recorded.
+- Recipe ingredient rows now show the canonical match without repeating the imported label; the search box returns through an explicit “Changer l’aliment” action. Incomplete foods have a visible “Compléter” shortcut that opens their Ciqual suggestions.
 - Imported recipe instructions and source links are stored on the recipe record. ZIP import skips entries without ingredients so planning notes do not become recipes.
 - Desktop-first working UI for catalog editing and recipe nutrition calculated from linked foods.
 - Reference units and nutrient vocabulary for recipes and nutrition calculations.

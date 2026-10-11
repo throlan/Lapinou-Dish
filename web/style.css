@@ -36,3 +36,36 @@ dialog { border:0; border-radius:16px; width:min(680px,calc(100vw - 28px)); max-
 .ciqual-candidate small { color: #64746a; }
 .ciqual-candidate p { margin: 0; font-size: .9rem; }
 .nutrition-issues { margin:6px 0 0; padding-left:20px; color:#765326; font-size:13px; }
+/* Form controls and compact recipe review rows */
+label:not(.search):not(.incomplete-filter) { display:grid; gap:6px; color:#263b30; }
+input:not([type="checkbox"]),select,textarea { min-width:0; width:100%; border:1px solid #e2ded4; border-radius:11px; padding:10px 13px; background:#fff; color:#18221e; outline:none; }
+input:not([type="checkbox"]):focus,select:focus,textarea:focus { border-color:#71947a; box-shadow:0 0 0 3px #315f421c; }
+textarea { resize:vertical; }
+.form-card>label { margin:14px 0; }
+.yield-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin:12px 0; }
+.line-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:20px 0 10px; }
+.line-heading h3 { margin:0; }
+.recipe-line { display:grid; grid-template-columns:minmax(260px,1fr) 120px 135px 40px; align-items:center; gap:10px; margin:9px 0; }
+.food-choice { display:grid; gap:6px; min-width:0; }
+.recipe-line.has-match .food-choice { grid-template-columns:minmax(0,1fr); }
+.recipe-line .food-hint { grid-column:1/-1; }
+.remove-line,.icon-button { border:0; border-radius:50%; width:38px; height:38px; background:#f2f0e9; color:#526157; font-size:20px; }
+.food-actions { display:flex; flex-wrap:wrap; gap:7px; white-space:nowrap; }
+#food-dialog { width:min(760px,calc(100vw - 28px)); }
+#food-form>label { margin:12px 0; }
+#food-form fieldset { border:1px solid #e5e1d7; border-radius:12px; margin:15px 0; padding:13px; }
+#food-form legend { color:#48574d; font-weight:600; font-size:14px; }
+#food-form .nutrient-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px 13px; }
+#food-form .nutrient-grid label { font-size:13px; }
+.ciqual-completion { display:flex; align-items:center; justify-content:space-between; gap:12px; background:#f7f5ef; }
+.ciqual-completion h3 { margin:0 0 5px; color:#315f42; font-size:16px; }
+.ciqual-completion .hint { line-height:1.45; }
+.ciqual-candidate { grid-template-columns:minmax(0,1fr) auto; align-items:center; }
+.ciqual-candidate strong,.ciqual-candidate small,.ciqual-candidate p { grid-column:1; }
+.ciqual-candidate button { grid-column:2; grid-row:1/4; }
+@media(max-width:800px) {
+  .recipe-line { grid-template-columns:minmax(0,1fr) 78px 100px 36px; gap:6px; }
+  .ciqual-completion { align-items:flex-start; flex-direction:column; }
+  .ciqual-candidate { grid-template-columns:1fr; }
+  .ciqual-candidate button { grid-column:1; grid-row:auto; }
+}
