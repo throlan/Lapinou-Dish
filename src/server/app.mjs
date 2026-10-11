@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { createHmac, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
-import { createFood, getFood, updateFood, validateFoodInput } from './foods.mjs';
+import { createFood, fillMissingNutrientsFromCiqual, getFood, updateFood, validateFoodInput } from './foods.mjs';
 import { createRecipe, listRecipes, readRecipe, updateRecipe, validateRecipeInput } from './recipes.mjs';
 import { listImportDrafts, saveImportDrafts } from './recipe-imports.mjs';
 import { parseRecipeArchive, parseRecipeText } from '../domain/recipe-import.mjs';
@@ -220,6 +220,20 @@ export async function handleRequest(request, response, pool, appPassword = null)
     }
 
     const foodId = url.pathname.match(/^\/api\/foods\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i)?.[1];
+    const completionMatch = url.pathname.match(/^\/api\/foods\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/complete-nutrition$/i);
+    if (completionMatch && request.method === 'POST') {
+      const body = await readJson(request);
+      if (body.error) return send(response, body.status ?? 400, { error: body.error });
+      if (!isUuid(body.value.sourceFoodId)) return send(response, 400, { error: 'invalid-source-food-id' });
+      try {
+        const result = await fillMissingNutrientsFromCiqual(pool, completionMatch[1], body.value.sourceFoodId);
+        if (!result) return send(response, 404, { error: 'food-not-found' });
+        if (result.error) return send(response, 400, { error: result.error });
+        return send(response, 200, result);
+      } catch {
+        return send(response, 500, { error: 'food-nutrition-completion-failed' });
+      }
+    }
     if (foodId && request.method === 'GET') {
       try {
         const food = await getFood(pool, foodId);
@@ -247,6 +261,7 @@ export async function handleRequest(request, response, pool, appPassword = null)
       const query = (url.searchParams.get('q') ?? '').trim();
       const unit = url.searchParams.get('unit') ?? '';
       const onlyIncomplete = url.searchParams.get('incomplete') === 'true';
+      const sourceFilter = url.searchParams.get('source') === 'ciqual' ? 'ciqual' : '';
       if (query.length === 1) return send(response, 200, { foods: [], total: 0, limit: 50, offset: 0 });
       const normalizedQuery = normalizeSearch(query);
       const ignoredSearchTokens = new Set(['de', 'du', 'des', 'la', 'le', 'les', 'un', 'une', 'et', 'au', 'aux']);
@@ -263,7 +278,8 @@ export async function handleRequest(request, response, pool, appPassword = null)
              FROM foods f
              LEFT JOIN food_nutrients fn ON fn.food_id = f.id
              LEFT JOIN nutrients n ON n.id = fn.nutrient_id
-            WHERE ($7::boolean = false OR EXISTS (
+            WHERE ($8 = '' OR f.source = $8)
+              AND ($7::boolean = false OR EXISTS (
                     SELECT 1 FROM nutrients required
                      WHERE required.is_required_for_recipe
                        AND NOT EXISTS (SELECT 1 FROM food_nutrients missing
@@ -301,11 +317,12 @@ export async function handleRequest(request, response, pool, appPassword = null)
                                         AND a.normalized_alias LIKE '%' || search_token || '%')) DESC,
                      f.canonical_name
             LIMIT $3 OFFSET $4`,
-          [query, normalizedQuery, limit, offset, unit, searchTokens, onlyIncomplete],
+          [query, normalizedQuery, limit, offset, unit, searchTokens, onlyIncomplete, sourceFilter],
         );
         const count = await pool.query(
           `SELECT count(*)::integer AS total FROM foods f
-            WHERE ($4::boolean = false OR EXISTS (
+            WHERE ($5 = '' OR f.source = $5)
+              AND ($4::boolean = false OR EXISTS (
                     SELECT 1 FROM nutrients required
                      WHERE required.is_required_for_recipe
                        AND NOT EXISTS (SELECT 1 FROM food_nutrients missing
@@ -322,7 +339,7 @@ export async function handleRequest(request, response, pool, appPassword = null)
                                     WHERE a.food_id = f.id
                                       AND a.normalized_alias LIKE '%' || search_token || '%')
                   ) >= GREATEST(1, ceil(cardinality($3::text[]) * 0.6)::integer)))`,
-          [query, normalizedQuery, searchTokens, onlyIncomplete],
+          [query, normalizedQuery, searchTokens, onlyIncomplete, sourceFilter],
         );
         return send(response, 200, { foods: result.rows, total: count.rows[0].total, limit, offset });
       } catch {

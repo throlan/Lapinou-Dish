@@ -149,6 +149,58 @@ export async function updateFood(pool, id, data) {
   }
 }
 
+export async function fillMissingNutrientsFromCiqual(pool, foodId, ciqualFoodId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const target = await client.query('SELECT id FROM foods WHERE id = $1 FOR UPDATE', [foodId]);
+    if (!target.rows[0]) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+    const source = await client.query(
+      `SELECT canonical_name, source_reference FROM foods WHERE id = $1 AND source = 'ciqual'`,
+      [ciqualFoodId],
+    );
+    if (!source.rows[0]) {
+      await client.query('ROLLBACK');
+      return { error: 'ciqual-food-not-found' };
+    }
+    const { canonical_name: sourceName, source_reference: sourceReference } = source.rows[0];
+    const note = `Valeurs manquantes complétées depuis Anses Ciqual 2025 : ${sourceName} (code ${sourceReference}).`;
+    const filled = await client.query(
+      `INSERT INTO food_nutrients (food_id, nutrient_id, value_per_100g, source_note)
+       SELECT $1, source_nutrient.nutrient_id, source_nutrient.value_per_100g, $4
+         FROM food_nutrients source_nutrient
+        WHERE source_nutrient.food_id = $2
+          AND source_nutrient.nutrient_id = ANY($3::text[])
+          AND source_nutrient.value_per_100g IS NOT NULL
+       ON CONFLICT (food_id, nutrient_id) DO UPDATE
+         SET value_per_100g = EXCLUDED.value_per_100g,
+             source_note = EXCLUDED.source_note
+         WHERE food_nutrients.value_per_100g IS NULL
+       RETURNING nutrient_id`,
+      [foodId, ciqualFoodId, Object.values(nutrientIds), note],
+    );
+    if (filled.rows.length) {
+      await client.query(
+        `UPDATE foods SET source_note = concat_ws(E'\\n', NULLIF(source_note, ''), $2),
+                manual_override = true, version = version + 1, updated_at = now()
+          WHERE id = $1`,
+        [foodId, note],
+      );
+    }
+    const food = await getFood(client, foodId);
+    await client.query('COMMIT');
+    return { food, filledNutrients: filled.rows.map((row) => row.nutrient_id), sourceName, sourceReference };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function findDuplicate(client, name, brand, excludingId) {
   await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`${normalizeSearch(name)}:${(brand ?? '').toLocaleLowerCase('fr-FR')}`]);
   const result = await client.query(
@@ -170,7 +222,9 @@ async function writeNutrients(client, foodId, nutrients, note) {
       `INSERT INTO food_nutrients (food_id, nutrient_id, value_per_100g, source_note)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (food_id, nutrient_id) DO UPDATE
-         SET value_per_100g = EXCLUDED.value_per_100g, source_note = EXCLUDED.source_note`,
+         SET source_note = CASE WHEN food_nutrients.value_per_100g IS DISTINCT FROM EXCLUDED.value_per_100g
+                                THEN EXCLUDED.source_note ELSE food_nutrients.source_note END,
+             value_per_100g = EXCLUDED.value_per_100g`,
       [foodId, id, nutrients[key], note],
     );
   }

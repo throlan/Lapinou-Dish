@@ -18,6 +18,7 @@
 - An unmatched imported ingredient can create a canonical catalog record with unknown nutrition, so the recipe line can be saved without guessed values. The food catalogue can be filtered to required nutrition values that still need completion.
 - Recipe review keeps the imported label only while no catalog match is selected; once matched, only the canonical food remains visible. Incomplete nutrition results identify the ingredient and whether its conversion or nutrient values are missing.
 - Common egg, onion and garlic aliases and estimated piece weights are added to the shared Ciqual catalog. Search ranks foods that support the selected recipe unit. Reconstituted beef broth has common aliases and a documented estimated density for ml-based quantities.
+- Missing nutrient values on an edited food can be searched against Ciqual 2025. The user sees the candidate values and explicitly applies them; only null nutrient fields are filled, known values and zeros are preserved, and the source reference is recorded.
 - Imported recipe instructions and source links are stored on the recipe record. ZIP import skips entries without ingredients so planning notes do not become recipes.
 - Desktop-first working UI for catalog editing and recipe nutrition calculated from linked foods.
 - Reference units and nutrient vocabulary for recipes and nutrition calculations.
@@ -26,7 +27,7 @@
 
 ## Verification
 
-`node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` — 36 tests passing. PostgreSQL integration is not yet exercised on this workstation; Docker, PostgreSQL client, and npm are unavailable here.
+`node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` — 39 tests passing. PostgreSQL integration is not yet exercised on this workstation; Docker, PostgreSQL client, and npm are unavailable here.
 
 ## Next
 

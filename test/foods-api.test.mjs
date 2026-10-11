@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateFoodInput } from '../src/server/foods.mjs';
+import { fillMissingNutrientsFromCiqual, validateFoodInput } from '../src/server/foods.mjs';
 import { readRecipe, validateRecipeInput } from '../src/server/recipes.mjs';
 
 test('manual food validation allows unknown nutrients and preserves known zero values', () => {
@@ -50,4 +50,34 @@ test('food validation rejects negative values, malformed units and empty updates
   assert.equal(validateFoodInput({ name: 'Huile', nutrientsPer100g: { fatG: -1 } }, { creating: true }).error, 'invalid-fatG');
   assert.equal(validateFoodInput({ name: 'Riz', nutrientsPer100g: {}, gramsPerUnit: { 'one cup': 200 } }, { creating: true }).error, 'invalid-unit-conversions');
   assert.equal(validateFoodInput({}).error, 'empty-update');
+});
+
+test('Ciqual completion fills only missing nutrients and returns the updated food', async () => {
+  const targetId = '10101010-1010-4010-8010-101010101010';
+  const sourceId = '20202020-2020-4020-8020-202020202020';
+  const calls = [];
+  const client = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (sql.includes('SELECT id FROM foods')) return { rows: [{ id: targetId }] };
+      if (sql.includes('SELECT canonical_name')) return { rows: [{ canonical_name: 'Oignon jaune, cru', source_reference: '20239' }] };
+      if (sql.includes('INSERT INTO food_nutrients')) return { rows: [{ nutrient_id: 'fat_g' }] };
+      if (sql.includes('SELECT f.id')) return { rows: [{
+        id: targetId, name: 'Oignon jaune', nutrient_values: { energy_kcal: '35.9', protein_g: '1.19', carbohydrate_g: '6.39', fat_g: '0.1', fibre_g: '2.6' },
+        grams_per_unit: {}, aliases: [], grams_per_millilitre: null,
+      }] };
+      return { rows: [] };
+    },
+    release() { calls.push({ sql: 'RELEASE' }); },
+  };
+  const result = await fillMissingNutrientsFromCiqual({ connect: async () => client }, targetId, sourceId);
+  const insert = calls.find(({ sql }) => sql.includes('INSERT INTO food_nutrients'));
+  assert.match(insert.sql, /source_nutrient\.value_per_100g IS NOT NULL/);
+  assert.match(insert.sql, /WHERE food_nutrients\.value_per_100g IS NULL/);
+  assert.deepEqual(insert.values.slice(0, 2), [targetId, sourceId]);
+  assert.deepEqual(result.filledNutrients, ['fat_g']);
+  assert.equal(result.sourceReference, '20239');
+  assert.equal(result.food.nutrientsPer100g.fatG, 0.1);
+  assert.ok(calls.some(({ sql }) => sql === 'COMMIT'));
+  assert.ok(calls.some(({ sql }) => sql === 'RELEASE'));
 });

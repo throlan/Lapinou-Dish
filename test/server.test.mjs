@@ -16,7 +16,7 @@ test('food search requires two characters, searches the catalogue, and caps resu
     assert.match(sql, /FROM foods f/);
     assertSqlParenthesesBalanced(sql);
     if (calls++ === 0) {
-      assert.deepEqual(values, ['oeuf', 'oeuf', 50, 0, 'piece', ['oeuf'], false]);
+      assert.deepEqual(values, ['oeuf', 'oeuf', 50, 0, 'piece', ['oeuf'], false, '']);
       assert.match(sql, /grams_per_millilitre IS NOT NULL/);
       assert.match(sql, /normalized_alias = \$2/);
       assert.match(sql, /unnest\(\$6::text\[\]\)/);
@@ -25,7 +25,7 @@ test('food search requires two characters, searches the catalogue, and caps resu
     }
     assert.match(sql, /count\(\*\)/);
     assert.match(sql, /::integer\)\)\)/);
-    assert.deepEqual(values, ['oeuf', 'oeuf', ['oeuf'], false]);
+    assert.deepEqual(values, ['oeuf', 'oeuf', ['oeuf'], false, '']);
     return { rows: [{ total: 1 }] };
   } };
   const empty = await invoke('/api/foods?q=o', pool);
@@ -58,7 +58,7 @@ test('catalogue can be filtered to foods missing required nutrition values', asy
     assertSqlParenthesesBalanced(sql);
     assert.match(sql, /required\.is_required_for_recipe/);
     assert.match(sql, /missing\.value_per_100g IS NOT NULL/);
-    assert.equal(values.at(-1), true);
+    assert.equal(values.at(-2), true);
     return calls++ === 0 ? { rows: [] } : { rows: [{ total: 0 }] };
   } };
   const response = await invoke('/api/foods?incomplete=true', pool);
@@ -78,6 +78,25 @@ test('food creation validates its input before attempting database writes', asyn
   });
   assert.equal(response.status, 400);
   assert.deepEqual(response.body, { error: 'invalid-name' });
+});
+
+test('Ciqual-only search adds a source filter to result and count queries', async () => {
+  let calls = 0;
+  const response = await invoke('/api/foods?q=oignon&source=ciqual', { query: async (sql, values) => {
+    assert.match(sql, /f\.source = \$[58]/);
+    assert.equal(values.at(-1), 'ciqual');
+    return calls++ === 0 ? { rows: [] } : { rows: [{ total: 0 }] };
+  } });
+  assert.equal(response.status, 200);
+  assert.equal(calls, 2);
+});
+
+test('nutrition completion validates the selected Ciqual UUID before database access', async () => {
+  const response = await invoke('/api/foods/10101010-1010-4010-8010-101010101010/complete-nutrition',
+    { query: async () => { throw new Error('must not query'); } },
+    { method: 'POST', body: { sourceFoodId: 'not-a-uuid' } });
+  assert.equal(response.status, 400);
+  assert.deepEqual(response.body, { error: 'invalid-source-food-id' });
 });
 
 test('login protects household data with an HTTP-only signed session cookie', async () => {
