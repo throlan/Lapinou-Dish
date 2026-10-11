@@ -65,14 +65,14 @@ function foodRow(food) {
   if (hasMissingNutrition) {
     const complete = document.createElement('button'); complete.className = 'primary'; complete.textContent = 'Compléter';
     complete.setAttribute('aria-label', `Rechercher des valeurs nutritionnelles manquantes pour ${food.name}`);
-    complete.addEventListener('click', () => openFoodEditor(food.id, { searchCiqual: true })); action.append(complete);
+    complete.addEventListener('click', () => openFoodEditor(food.id, { searchExternal: true })); action.append(complete);
   }
   row.append(name, source, values, action); return row;
 }
 
 function format(value) { return value == null ? '—' : new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(Number(value)); }
 
-async function openFoodEditor(id = null, { searchCiqual = false } = {}) {
+async function openFoodEditor(id = null, { searchExternal = false } = {}) {
   const form = $('#food-form'); form.reset(); form.elements.id.value = '';
   $('#food-message').textContent = '';
   $('#food-dialog-title').textContent = id ? 'Modifier cet aliment' : 'Nouvel aliment';
@@ -86,17 +86,16 @@ async function openFoodEditor(id = null, { searchCiqual = false } = {}) {
       for (const key of ['energyKcal', 'proteinG', 'carbohydrateG', 'fatG', 'fibreG']) form.elements[key].value = food.nutrientsPer100g?.[key] ?? '';
       form.elements.gramsPerMillilitre.value = food.gramsPerMillilitre ?? '';
       form.elements.pieceGrams.value = food.gramsPerUnit?.piece ?? '';
-      $('#ciqual-completion').classList.remove('hidden');
-      $('#ciqual-matches').replaceChildren();
-      $('#ciqual-matches').dataset.foodId = food.id;
-      $('#ciqual-matches').dataset.currentFoodName = food.name;
+      $('#nutrition-completion').classList.remove('hidden');
+      $('#nutrition-matches').replaceChildren();
+      $('#nutrition-matches').dataset.foodId = food.id;
     } catch { showMessage($('#food-message'), 'Impossible de charger cette fiche.'); return; }
   } else {
-    $('#ciqual-completion').classList.add('hidden');
-    $('#ciqual-matches').replaceChildren();
+    $('#nutrition-completion').classList.add('hidden');
+    $('#nutrition-matches').replaceChildren();
   }
   $('#food-dialog').showModal();
-  if (id && searchCiqual) $('#find-ciqual').click();
+  if (id && searchExternal) $('#find-external-nutrition').click();
 }
 
 $('#food-search').addEventListener('input', (event) => {
@@ -107,32 +106,31 @@ $('#food-incomplete').addEventListener('change', (event) => { state.onlyIncomple
 $('#previous-page').addEventListener('click', () => { state.offset = Math.max(0, state.offset - state.limit); refreshFoods(); });
 $('#next-page').addEventListener('click', () => { state.offset += state.limit; refreshFoods(); });
 $('#add-food').addEventListener('click', () => openFoodEditor());
-$('#find-ciqual').addEventListener('click', async () => {
-  const matches = $('#ciqual-matches');
+$('#find-external-nutrition').addEventListener('click', async () => {
+  const matches = $('#nutrition-matches');
   const foodId = matches.dataset.foodId;
-  const query = matches.dataset.currentFoodName;
-  matches.textContent = 'Recherche dans le catalogue Ciqual…';
+  matches.textContent = 'Recherche dans Open Food Facts…';
   try {
-    const { foods } = await api(`/api/foods?q=${encodeURIComponent(query)}&source=ciqual&limit=12`);
-    const candidates = foods.filter((food) => food.id !== foodId);
+    const { products } = await api(`/api/foods/${foodId}/nutrition-suggestions`);
     matches.replaceChildren();
-    if (!candidates.length) { matches.textContent = 'Aucune correspondance Ciqual trouvée pour ce nom.'; return; }
-    for (const candidate of candidates) matches.append(ciqualCandidate(candidate, foodId));
-  } catch { matches.textContent = 'Recherche Ciqual impossible pour le moment.'; }
+    if (!products.length) { matches.textContent = 'Aucun produit avec des valeurs nutritionnelles trouvé dans Open Food Facts.'; return; }
+    for (const candidate of products) matches.append(externalNutritionCandidate(candidate, foodId));
+  } catch (error) { matches.textContent = `Recherche externe impossible : ${error.body?.error ?? error.message}`; }
 });
 
-function ciqualCandidate(candidate, targetFoodId) {
-  const card = document.createElement('article'); card.className = 'ciqual-candidate';
+function externalNutritionCandidate(candidate, targetFoodId) {
+  const card = document.createElement('article'); card.className = 'nutrition-candidate';
   const title = document.createElement('strong'); title.textContent = candidate.name;
-  const reference = document.createElement('small'); reference.textContent = `Ciqual 2025 · code ${candidate.source_reference ?? 'inconnu'}`;
+  const reference = document.createElement('small'); reference.textContent = ['Open Food Facts', candidate.brand, candidate.quantity, `code-barres ${candidate.barcode}`].filter(Boolean).join(' · ');
+  const sourceLink = document.createElement('a'); sourceLink.href = candidate.url; sourceLink.target = '_blank'; sourceLink.rel = 'noopener noreferrer'; sourceLink.textContent = 'Voir la fiche source';
   const values = document.createElement('p');
-  const nutrientKeys = [['energy_kcal', 'kcal'], ['protein_g', 'g protéines'], ['carbohydrate_g', 'g glucides'], ['fat_g', 'g lipides'], ['fibre_g', 'g fibres']];
-  values.textContent = nutrientKeys.map(([key, unit]) => `${format(candidate.nutrients_per_100g?.[key])} ${unit}`).join(' · ');
+  const nutrientKeys = [['energyKcal', 'kcal'], ['proteinG', 'g protéines'], ['carbohydrateG', 'g glucides'], ['fatG', 'g lipides'], ['fibreG', 'g fibres']];
+  values.textContent = nutrientKeys.map(([key, unit]) => `${format(candidate.nutrientsPer100g?.[key])} ${unit}`).join(' · ');
   const apply = document.createElement('button'); apply.type = 'button'; apply.className = 'secondary'; apply.textContent = 'Appliquer les valeurs manquantes';
   apply.addEventListener('click', async () => {
     apply.disabled = true;
     try {
-      const result = await api(`/api/foods/${targetFoodId}/complete-nutrition`, { method: 'POST', body: JSON.stringify({ sourceFoodId: candidate.id }) });
+      const result = await api(`/api/foods/${targetFoodId}/complete-nutrition`, { method: 'POST', body: JSON.stringify({ source: 'open-food-facts', sourceReference: candidate.barcode }) });
       for (const key of ['energyKcal', 'proteinG', 'carbohydrateG', 'fatG', 'fibreG']) {
         if ($('#food-form').elements[key].value === '' && result.food.nutrientsPer100g[key] != null) $('#food-form').elements[key].value = result.food.nutrientsPer100g[key];
       }
@@ -146,7 +144,7 @@ function ciqualCandidate(candidate, targetFoodId) {
       apply.disabled = false;
     }
   });
-  card.append(title, reference, values, apply); return card;
+  card.append(title, reference, sourceLink, values, apply); return card;
 }
 
 $$('.nav-button').forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)));
