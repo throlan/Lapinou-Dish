@@ -15,7 +15,9 @@ COPY scripts ./scripts
 COPY src ./src
 COPY web ./web
 COPY docker ./docker
-RUN node scripts/seed-ciqual.mjs && chown -R node:node /app
+RUN node scripts/seed-ciqual.mjs --output db/seeds/ciqual-2025.sql \
+    && test -s db/seeds/ciqual-2025.sql \
+    && chown -R node:node /app
 
 USER node
 EXPOSE 3000
