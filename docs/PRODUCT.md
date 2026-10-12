@@ -8,9 +8,11 @@ Ce produit aide à organiser les repas. Il ne diagnostique pas, ne prescrit pas 
 
 ## Personnes et objectifs
 
-- Une personne du foyer est un profil alimentaire; elle n'a pas besoin d'un compte pour être planifiée.
-- Un adulte peut avoir une cible d'énergie ou de nutriments configurée, une estimation de maintien affichée séparément, et un historique daté des changements.
-- Aucun objectif de perte de poids n'est calculé ou proposé automatiquement à un mineur.
+- Une personne du foyer est un profil alimentaire; elle n'a pas besoin d'un compte pour être planifiée. Les comptes servent à se connecter, les profils servent à planifier et suivre les personnes.
+- Le profil conserve les données nécessaires aux estimations : date de naissance si renseignée, taille, niveau d'activité et historique daté de leurs changements.
+- Le poids est saisi par l'utilisateur, avec une date pour chaque relevé. L'interface facilite un relevé hebdomadaire et affiche l'historique sans inventer ni extrapoler de mesures.
+- Les besoins quotidiens estimés (dont le maintien énergétique) restent distincts des objectifs choisis ou validés. La méthode, les données d'entrée, l'origine, la date d'effet et l'état de validation sont visibles et historisés.
+- Aucun objectif de perte de poids n'est calculé ou proposé automatiquement à un mineur; aucune estimation ne s'applique sans validation de l'utilisateur.
 - Les préférences, exclusions et allergies sont des informations distinctes des comptes et permissions.
 - Les profils de développement et de test sont synthétiques. Les informations de santé réelles restent hors Git, des images Docker, des journaux et des fixtures.
 

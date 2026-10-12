@@ -6,8 +6,11 @@ Ce modèle exprime le produit Lapinou Dish. Il n'est pas une traduction des tabl
 
 - **Household** : espace privé et paramètres généraux.
 - **Account / Membership** : connexion et permissions; peut être relié à une **Person**, mais une personne dépendante n'a pas besoin de compte.
-- **Person** : identité d'affichage, préférences alimentaires, âge/date de naissance si l'administrateur la renseigne, et objectifs datés.
-- **NutritionTarget** : nutriment, valeur, unité, date d'effet, origine (`manual`, `clinician`, `estimate`), méthode et état de validation.
+- **Person** : profil du foyer avec identité d'affichage et préférences; peut exister sans compte de connexion.
+- **PersonMeasurement** : relevé saisi par l'utilisateur, avec date et poids en kg; la taille en cm est historisée à chaque mise à jour. Les relevés hebdomadaires ne sont jamais générés automatiquement.
+- **ActivityLevelHistory** : niveau d'activité choisi par l'utilisateur et date d'effet; les changements restent consultables.
+- **DailyNeedEstimate** : besoin quotidien estimé, valeur, date, méthode et instantané des données utilisées (âge/taille/poids/activité disponibles), avec origine et validation explicites.
+- **NutritionTarget** : nutriment, valeur, unité, date d'effet, origine (`manual`, `clinician`, `estimate`), méthode et état de validation. Une cible ne remplace ni les mesures ni une estimation de maintien.
 - **Food** : fiche canonique globale, identifiant source optionnel, noms et alias, marque, valeurs nutritionnelles partielles pour 100 g, provenance et version.
 - **FoodUnitConversion** : unité + aliment + quantité équivalente en grammes + source/preuve; conversion absente signifie impossible, pas équivalence 1:1.
 - **Recipe** : titre, instructions, rendements nommés et catégories.
@@ -29,8 +32,10 @@ Ce modèle exprime le produit Lapinou Dish. Il n'est pas une traduction des tabl
 3. Un calcul nutritionnel est une fonction déterministe des lignes, de leurs conversions documentées, de la variante et du rendement demandé.
 4. Une valeur inconnue produit un résultat partiel/incomplet. Aucune inconnue n'est convertie en zéro.
 5. Le plan et le journal sont des faits distincts. Le journal conserve le résultat nutritionnel utilisé à la date de consommation.
-6. Le stock se calcule par mouvements de lots; réserver un lot à un repas ne le décrémente pas avant confirmation de consommation.
-7. Les unités restent qualifiées par état: g cru, g sec, g cuit ne sont jamais substitués silencieusement.
+6. Les mesures corporelles et niveaux d'activité sont des données saisies par l'utilisateur et datées; une modification ajoute une entrée, elle ne réécrit pas l'historique.
+7. Une estimation de besoin quotidien conserve sa méthode, ses entrées, sa provenance et sa validation; elle n'est pas confondue avec une cible alimentaire.
+8. Le stock se calcule par mouvements de lots; réserver un lot à un repas ne le décrémente pas avant confirmation de consommation.
+9. Les unités restent qualifiées par état: g cru, g sec, g cuit ne sont jamais substitués silencieusement.
 
 ## Relations structurantes
 
@@ -52,3 +57,5 @@ ConsumedItem ── snapshot nutrition at time of logging
 - Une quantité volumique ne donne une masse qu'avec conversion générique valide ou facteur spécifique documenté.
 - Une édition de fiche alimentaire recalcule l'affichage actuel des recettes; elle ne change jamais les snapshots du journal passé.
 - Les profils/mesures n'apparaissent ni dans des événements publics, ni des journaux ordinaires, ni dans des fixtures réelles.
+- Un relevé de poids est explicite, saisi par l'utilisateur et daté; aucune mesure manquante n'est extrapolée.
+- Les estimations et objectifs restent distincts; les changements de profil ne réécrivent ni les relevés passés ni les consommations historisées.
