@@ -232,3 +232,11 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
 .beverage-item-top { grid-template-columns:minmax(190px,1fr) auto; }
 .beverage-person { display:grid; gap:6px; }
 .beverage-person span { color:var(--muted,#a8b9d6); }
+
+.recipe-taxonomy { display:grid; grid-template-columns:minmax(220px, .7fr) minmax(0, 1.3fr); gap:16px; align-items:end; }
+.recipe-moments { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; margin:0; padding:10px 12px; border:1px solid #e5e1d7; border-radius:12px; }
+.recipe-moments legend { padding:0 5px; color:#59645e; font-size:13px; }
+.recipe-moments label { display:flex !important; align-items:center; gap:6px !important; white-space:nowrap; }
+.recipe-moments input { accent-color:#315f42; }
+.recipe-taxonomy-badges { color:#315f42 !important; font-size:12px !important; font-weight:600; margin:0 0 5px !important; }
+@media (max-width: 700px) { .recipe-taxonomy { grid-template-columns:1fr; } }
