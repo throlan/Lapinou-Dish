@@ -198,8 +198,11 @@ function addRecipeLine(initial = null) {
   const select = document.createElement('select'); select.setAttribute('aria-label', 'Aliment lié'); select.innerHTML = '<option value="">Choisir un aliment</option>';
   const changeMatch = document.createElement('button'); changeMatch.type = 'button'; changeMatch.className = 'text-button change-match hidden'; changeMatch.textContent = 'Changer l’aliment';
   const editFood = document.createElement('button'); editFood.type = 'button'; editFood.className = 'text-button edit-food hidden'; editFood.textContent = 'Modifier les valeurs nutritionnelles';
+  const incompleteTag = document.createElement('span'); incompleteTag.className = 'incomplete-tag hidden'; incompleteTag.textContent = 'Incomplet';
+  incompleteTag.setAttribute('aria-label', 'Données nutritionnelles ou conversion à compléter');
+  if (initial?.incomplete) incompleteTag.classList.remove('hidden');
   editFood.addEventListener('click', () => { if (select.value) openFoodEditor(select.value, { fromRecipe: true }); });
-  changeMatch.addEventListener('click', () => { select.value = ''; search.value = ''; search.classList.remove('hidden'); row.classList.remove('has-match'); changeMatch.classList.add('hidden'); editFood.classList.add('hidden'); search.focus(); });
+  changeMatch.addEventListener('click', () => { select.value = ''; search.value = ''; search.classList.remove('hidden'); row.classList.remove('has-match'); changeMatch.classList.add('hidden'); editFood.classList.add('hidden'); incompleteTag.classList.add('hidden'); search.focus(); });
   const hint = document.createElement('div'); hint.className = 'food-hint'; hint.setAttribute('aria-live', 'polite');
   if (initial?.foodId) { select.add(new Option(initial.foodName ?? 'Aliment sélectionné', initial.foodId, true, true)); search.classList.add('hidden'); row.classList.add('has-match'); changeMatch.classList.remove('hidden'); editFood.classList.remove('hidden'); }
   else if (initial?.foodName) search.value = initial.foodName;
@@ -245,6 +248,7 @@ function addRecipeLine(initial = null) {
     }, 180);
   });
   select.addEventListener('change', () => {
+    incompleteTag.classList.add('hidden');
     if (select.value) { search.value = ''; search.classList.add('hidden'); row.classList.add('has-match'); changeMatch.classList.remove('hidden'); editFood.classList.remove('hidden'); }
     else { search.classList.remove('hidden'); row.classList.remove('has-match'); changeMatch.classList.add('hidden'); editFood.classList.add('hidden'); }
   });
@@ -256,7 +260,7 @@ function addRecipeLine(initial = null) {
   if (initial?.unitId) unit.value = initial.unitId;
   unit.addEventListener('change', () => { if (search.value.trim().length >= 2) search.dispatchEvent(new Event('input')); });
   const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-line'; remove.textContent = '×'; remove.setAttribute('aria-label', 'Supprimer cet ingrédient'); remove.addEventListener('click', () => row.remove());
-  foodBox.append(search, select, changeMatch, editFood, hint); row.append(foodBox, quantity, unit, remove); $('#recipe-lines').append(row);
+  foodBox.append(search, select, changeMatch, editFood, incompleteTag, hint); row.append(foodBox, quantity, unit, remove); $('#recipe-lines').append(row);
   if (initial?.foodId) changeMatch.classList.remove('hidden');
   // Imported ingredient names are already a useful search query. Trigger the
   // same lookup as typing so the dropdown is populated during recipe review.
@@ -314,7 +318,8 @@ async function openRecipeEditor(id = null) {
       form.elements.instructions.value = recipe.instructions ?? '';
       form.elements.yieldAmount.value = recipe.yield.amount;
       form.elements.yieldUnit.value = recipe.yield.unitId;
-      for (const line of recipe.lines) addRecipeLine(line);
+      const incompleteLines = new Set((recipe.nutrition.lineIssues ?? []).map((issue) => issue.lineIndex));
+      recipe.lines.forEach((line, index) => addRecipeLine({ ...line, incomplete: incompleteLines.has(index) }));
     } catch (error) {
       showMessage($('#recipe-message'), `Impossible de charger cette recette : ${error.body?.error ?? error.message}`);
       form.classList.remove('hidden');
