@@ -67,7 +67,7 @@ function profileCard(person) {
     } catch (error) { showMessage($('#people-message'), error.body?.error === 'weight-entry-already-exists-for-date' ? 'Un relevé existe déjà pour cette date.' : 'Impossible d’enregistrer ce relevé.'); }
   });
   const profileForm = document.createElement('form'); profileForm.className = 'profile-entry profile-context';
-  profileForm.innerHTML = '<h4>Profil à partir d’une date</h4><label>Valable à partir du<input name="effectiveFrom" type="date" required></label><label>Taille (cm)<input name="heightCm" type="number" min="50" max="260" step="0.1" placeholder="Facultatif"></label><label>Activité<select name="activityLevel"><option value="">Non renseignée</option><option value="sedentary">Sédentaire</option><option value="light">Légère</option><option value="moderate">Modérée</option><option value="active">Importante</option><option value="very_active">Très importante</option></select></label><label>Besoin quotidien (kcal)<input name="dailyEnergyKcal" type="number" min="500" max="10000" step="1" placeholder="Facultatif"></label><label>Origine du besoin<select name="dailyEnergyOrigin"><option value="">—</option><option value="manual">Saisi par le foyer</option><option value="clinician">Validé par un professionnel</option><option value="estimate">Estimation documentée</option></select></label><label>Méthode ou note<input name="dailyEnergyMethod" maxlength="500" placeholder="Facultatif"></label><button class="secondary" type="submit">Ajouter à l’historique</button>';
+  profileForm.innerHTML = '<h4>Profil à partir d’une date</h4><label>Valable à partir du<input name="effectiveFrom" type="date" required></label><label>Taille (cm)<input name="heightCm" type="number" min="50" max="260" step="0.1" placeholder="Facultatif"></label><label>Activité<select name="activityLevel"><option value="">Non renseignée</option><option value="sedentary">Sédentaire</option><option value="light">Légère</option><option value="moderate">Modérée</option><option value="active">Importante</option><option value="very_active">Très importante</option></select></label><label>Besoin quotidien (kcal)<input name="dailyEnergyKcal" type="number" min="500" max="10000" step="1" placeholder="Facultatif"></label><label>Origine du besoin<select name="dailyEnergyOrigin"><option value="">—</option><option value="manual">Saisi par le foyer</option><option value="clinician">Validé par un professionnel</option><option value="estimate">Estimation documentée</option></select></label><label>Méthode ou note<input name="dailyEnergyMethod" maxlength="500" placeholder="Facultatif"></label><button class="secondary" type="submit">Enregistrer le profil</button>';
   profileForm.elements.effectiveFrom.value = localDateValue();
   const latestProfile = person.profileHistory[0];
   if (latestProfile) {
@@ -82,8 +82,8 @@ function profileCard(person) {
     const data = Object.fromEntries(new FormData(profileForm));
     try {
       await api(`/api/people/${person.id}/profile-history`, { method: 'POST', body: JSON.stringify({ householdId: state.household.id, ...data }) });
-      showMessage($('#people-message'), 'Profil ajouté à l’historique.', true); await refreshPeople();
-    } catch (error) { showMessage($('#people-message'), error.body?.error === 'profile-entry-already-exists-for-date' ? 'Une entrée de profil existe déjà pour cette date.' : 'Impossible d’enregistrer ce profil.'); }
+      showMessage($('#people-message'), 'Profil enregistré pour cette date.', true); await refreshPeople();
+    } catch (error) { showMessage($('#people-message'), error.body?.error === 'person-not-found' ? 'Ce profil n’existe plus.' : `Impossible d’enregistrer ce profil : ${error.body?.error ?? error.message}`); }
   });
   forms.append(weightForm, profileForm); card.append(forms);
   const histories = document.createElement('div'); histories.className = 'profile-histories';
