@@ -20,6 +20,7 @@ test('accepts a planned recipe with explicit attendees and separate quantities',
   const result = validatePlannedMeal(valid());
   assert.equal(result.error, undefined);
   assert.equal(result.data.items[0].amounts[1].quantity, 0.5);
+  assert.equal(result.data.items[0].role, 'main');
 });
 
 test('requires a person to be explicitly selected', () => {
@@ -52,4 +53,10 @@ test('planned meals keep their exact calendar date when listed', async () => {
   const meals = await listPlannedMeals(pool, householdId, '2026-10-12');
   assert.ok(queries[0].includes('meal_date::text AS meal_date'));
   assert.equal(meals[0].mealDate, '2026-10-12');
+});
+
+
+test('accepts meal item categories and rejects unsupported categories', () => {
+  assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, role: 'beverage', amounts: [{ personId: personA, quantity: 1 }, { personId: personB, quantity: 1 }] }] })).data.items[0].role, 'beverage');
+  assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, role: 'dessert', amounts: [{ personId: personA, quantity: 1 }, { personId: personB, quantity: 1 }] }] })).error, 'invalid-planned-item-role');
 });

@@ -2,7 +2,7 @@ export const SLOT_RATIOS = Object.freeze({ breakfast: 0.2, lunch: 0.4, dinner: 0
 
 const NATURAL_STEPS = Object.freeze({ piece: 1, portion: 0.5, g: 10 });
 
-export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, recipeKcal, recipeUnit = 'portion', recipeCount = 1 }) {
+export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, recipeKcal, recipeUnit = 'portion', recipeCount = 1, budgetShare = 1 }) {
   const target = Number(dailyTargetKcal);
   const recipeEnergy = Number(recipeKcal);
   if (!Number.isFinite(target) || target <= 0) return { quantity: null, reason: 'daily-target-missing' };
@@ -12,7 +12,8 @@ export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, r
   if (!remaining) return { quantity: null, reason: 'daily-budget-used' };
   const slotBudget = Math.min(target * SLOT_RATIOS[slot] + 100, remaining);
   const count = Math.max(1, Math.floor(Number(recipeCount) || 1));
-  const energyPerRecipe = slotBudget / count;
+  const share = Math.max(0, Math.min(1, Number(budgetShare) || 0));
+  const energyPerRecipe = slotBudget * share / count;
   const step = NATURAL_STEPS[recipeUnit] ?? 0.5;
   const raw = energyPerRecipe / recipeEnergy;
   const quantity = Math.floor((raw + 1e-9) / step) * step;
