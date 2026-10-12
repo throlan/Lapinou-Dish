@@ -2,7 +2,7 @@ import { calculatePersonProtein, capAccompanimentQuantity, MIN_PROTEIN_G_PER_MEA
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, importingDraftId: null, editingFoodFromRecipe: false, people: [], recipes: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [] };
+const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, importingDraftId: null, editingFoodFromRecipe: false, people: [], recipes: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [] };
 const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbohydrateG', 'g gluc.'], ['fatG', 'g lip.']];
 
 async function api(path, options = {}) {
@@ -22,14 +22,236 @@ function showMessage(target, text, success = false) {
 }
 
 function setView(name) {
+  $('#home-view').classList.toggle('hidden', name !== 'home');
   $('#foods-view').classList.toggle('hidden', name !== 'foods');
   $('#recipes-view').classList.toggle('hidden', name !== 'recipes');
   $('#calendar-view').classList.toggle('hidden', name !== 'calendar');
   $('#profiles-view').classList.toggle('hidden', name !== 'profiles');
-  $$('.nav-button').forEach((button) => button.classList.toggle('active', button.dataset.view === name));
+  $('#shopping-view').classList.toggle('hidden', name !== 'shopping');
+  
+
+const dashboardSlots = ['breakfast','lunch','dinner','snack'];
+const dashboardSlotLabels = { breakfast:'Petit-déjeuner', lunch:'Déjeuner', dinner:'Dîner', snack:'Collation' };
+function dashboardPanel(title, className='dashboard-panel') {
+  const panel=document.createElement('section'); panel.className=className;
+  const heading=document.createElement('h2'); heading.textContent=title; panel.append(heading); return panel;
+}
+function dashboardAction(label,view) {
+  const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=label;button.addEventListener('click',()=>setView(view));return button;
+}
+function mealNutritionForPerson(meal,personId) {
+  let kcal=0,protein=0,missing=false,items=[];
+  for(const item of meal.items??[]){
+    const amount=item.amounts.find(entry=>entry.personId===personId); if(!amount) continue;
+    const per=item.recipe?.nutrition?.perYieldUnit;
+    const energy=per?.energyKcal, prot=per?.proteinG;
+    if(energy==null||prot==null||!item.recipe?.nutrition?.complete) missing=true;
+    if(energy!=null)kcal+=energy*amount.quantity;
+    if(prot!=null)protein+=prot*amount.quantity;
+    items.push({name:item.recipe?.name??'Recette',quantity:amount.quantity,unit:item.recipe?.yield?.unitId??'portion'});
+  }
+  return {kcal,protein,missing,items};
+}
+async function refreshDashboard() {
+  const root=$('#dashboard-content'); if(!root||!state.household){if(root)root.replaceChildren(emptyMessage('Crée d’abord un foyer.'));return;}
+  root.replaceChildren(emptyMessage('Chargement du tableau de bord…'));
+  const today=localDateValue();
+  try {
+    const [plan,peopleResult,planning]=await Promise.all([
+      api(`/api/planning?householdId=${encodeURIComponent(state.household.id)}&weekStart=${today}`),
+      api(`/api/people?householdId=${encodeURIComponent(state.household.id)}`),
+      api(`/api/household-planning?householdId=${encodeURIComponent(state.household.id)}`)
+    ]);
+    const meals=(plan.meals??[]).filter(meal=>meal.mealDate===today);
+    const people=peopleResult.people??[]; state.people=people; state.routines=planning.routines??[];
+    const intro=document.createElement('div');intro.className='dashboard-welcome';
+    const copy=document.createElement('div');const eyebrow=document.createElement('p');eyebrow.className='eyebrow';eyebrow.textContent=displayDate(today,{weekday:'long',day:'numeric',month:'long'});
+    const title=document.createElement('h1');title.textContent='Aujourd’hui à la maison';
+    const subtitle=document.createElement('p');subtitle.textContent='Tes repas, les repères du foyer et ce qui mérite ton attention.';
+    copy.append(eyebrow,title,subtitle);intro.append(copy,dashboardAction('Ouvrir le calendrier','calendar'));root.replaceChildren(intro);
+    const stats=document.createElement('div');stats.className='dashboard-stats';
+    const plannedCount=meals.length;
+    const plannedRecipes=new Set(meals.flatMap(meal=>meal.items.map(item=>item.recipeId))).size;
+    const lowStock=(planning.stock??[]).filter(item=>Number(item.availableQuantity)<=0);
+    const nextRoutine=(planning.routines??[]).slice().sort((x,y)=>x.nextDate.localeCompare(y.nextDate))[0];
+    const statData=[
+      [`${plannedCount}`,'repas planifié'+(plannedCount===1?'':'s')],
+      [`${plannedRecipes}`,'préparation'+(plannedRecipes===1?'':'s')+' au menu'],
+      [`${lowStock.length}`,'stock'+(lowStock.length===1?'':'s')+' à refaire'],
+      [nextRoutine?displayDate(nextRoutine.nextDate,{day:'numeric',month:'short'}):'—',nextRoutine?routineLabels[nextRoutine.routineId]:'Prochaine routine']
+    ];
+    for(const [value,label] of statData){const card=document.createElement('article');card.className='dashboard-stat';const strong=document.createElement('strong');strong.textContent=value;const small=document.createElement('span');small.textContent=label;card.append(strong,small);stats.append(card);}root.append(stats);
+    const layout=document.createElement('div');layout.className='dashboard-layout';
+    const menu=dashboardPanel('Menus du jour');menu.classList.add('dashboard-menu');
+    for(const slot of dashboardSlots){
+      const section=document.createElement('section');section.className='dashboard-meal-slot';
+      const heading=document.createElement('h3');heading.textContent=dashboardSlotLabels[slot];section.append(heading);
+      const slotMeals=meals.filter(meal=>meal.slot===slot);
+      if(!slotMeals.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='Rien de planifié';section.append(empty);}
+      for(const meal of slotMeals){
+        const mealCard=document.createElement('article');mealCard.className='dashboard-meal';
+        const mealHead=document.createElement('div');mealHead.className='dashboard-meal-heading';
+        const note=document.createElement('span');note.textContent=meal.notes||'Repas familial';
+        const edit=document.createElement('button');edit.type='button';edit.className='text-button';edit.textContent='Modifier';
+        edit.addEventListener('click',()=>openMealEditor(meal.mealDate,meal.slot,meal));mealHead.append(note,edit);mealCard.append(mealHead);
+        const roster=people.filter(person=>meal.attendees.some(att=>att.id===person.id));
+        if(!roster.length){mealCard.append(emptyMessage('Aucune personne associée.'));}
+        for(const person of roster){
+          const info=mealNutritionForPerson(meal,person.id);
+          const row=document.createElement('div');row.className='dashboard-person-meal';
+          const personName=document.createElement('strong');personName.textContent=person.displayName;
+          const recipeText=document.createElement('span');recipeText.textContent=info.items.map(item=>`${item.name} × ${formatQty(item.quantity)} ${item.unit}`).join(' · ')||'Recette à préciser';
+          const nutrition=document.createElement('small');nutrition.textContent=`${format(info.kcal)} kcal · ${format(info.protein)} g protéines${info.missing?' · calcul incomplet':''}`;
+          row.append(personName,recipeText,nutrition);mealCard.append(row);
+        }
+        section.append(mealCard);
+      }
+      const add=document.createElement('button');add.type='button';add.className='dashboard-add';add.textContent='+ Ajouter un repas';
+      add.addEventListener('click',()=>openMealEditor(today,slot));section.append(add);menu.append(section);
+    }
+    const sidebar=document.createElement('div');sidebar.className='dashboard-sidebar';
+    const profiles=dashboardPanel('Repères personnels');
+    if(!people.length)profiles.append(emptyMessage('Ajoute les membres du foyer dans Profils.'));
+    for(const person of people){
+      const profile=latestProfile(person,today);const weight=person.weightHistory?.[0];
+      const dailyMeals=meals.filter(meal=>meal.attendees.some(att=>att.id===person.id));
+      const statsForDay=dailyMeals.flatMap(meal=>{const info=mealNutritionForPerson(meal,person.id);return [{meal,info}];});
+      const kcal=statsForDay.reduce((sum,row)=>sum+row.info.kcal,0), protein=statsForDay.reduce((sum,row)=>sum+row.info.protein,0);
+      const card=document.createElement('article');card.className='dashboard-profile';
+      const heading=document.createElement('div');heading.className='dashboard-profile-heading';
+      const name=document.createElement('strong');name.textContent=person.displayName;
+      const goal=document.createElement('span');goal.textContent=profile?.dailyEnergyKcal?`${format(kcal)} / ${format(profile.dailyEnergyKcal)} kcal`:'Objectif kcal non renseigné';
+      heading.append(name,goal);card.append(heading);
+      if(profile?.dailyEnergyKcal){const progress=document.createElement('progress');progress.max=profile.dailyEnergyKcal;progress.value=Math.min(kcal,profile.dailyEnergyKcal);progress.setAttribute('aria-label',`Progression calories de ${person.displayName}`);card.append(progress);}
+      const details=document.createElement('p');details.textContent=`${format(protein)} g protéines · ${profile?.activityLevel?(activityLabels[profile.activityLevel]??profile.activityLevel):'activité à renseigner'}${weight?` · ${format(weight.weightKg)} kg`:''}`;card.append(details);
+      const remaining=profile?.dailyEnergyKcal?profile.dailyEnergyKcal-kcal:null;
+      if(remaining!=null){const small=document.createElement('small');small.textContent=remaining>=0?`${format(remaining)} kcal restantes selon le menu prévu`:`${format(Math.abs(remaining))} kcal au-dessus du repère prévu`;card.append(small);}
+      profiles.append(card);
+    }
+    profiles.append(dashboardAction('Gérer les profils','profiles'));sidebar.append(profiles);
+    const stocks=dashboardPanel('Stocks à surveiller');
+    const stockItems=(planning.stock??[]).slice().sort((x,y)=>Number(x.availableQuantity)-Number(y.availableQuantity)).slice(0,5);
+    if(!stockItems.length)stocks.append(emptyMessage('Aucun stock suivi pour le moment.'));
+    for(const item of stockItems){const row=document.createElement('article');row.className='dashboard-stock';const name=document.createElement('strong');name.textContent=item.name;const detail=document.createElement('span');detail.textContent=`${formatQty(item.availableQuantity)} ${item.unitId} disponibles après réservation des repas`;row.append(name,detail);if(Number(item.availableQuantity)<=0){const tag=document.createElement('b');tag.textContent='À refaire';tag.className='warning-tag';row.append(tag);}stocks.append(row);}
+    stocks.append(dashboardAction('Voir les courses et stocks','shopping'));sidebar.append(stocks);
+    const routines=dashboardPanel('À venir cette semaine');
+    const weekEnd=addDays(today,6);const upcoming=(planning.routines??[]).filter(item=>item.nextDate>=today&&item.nextDate<=weekEnd).sort((x,y)=>x.nextDate.localeCompare(y.nextDate));
+    if(!upcoming.length)routines.append(emptyMessage('Aucune routine prévue cette semaine.'));
+    upcoming.forEach(item=>{const row=document.createElement('p');row.className='dashboard-routine';row.textContent=`${displayDate(item.nextDate,{weekday:'short',day:'numeric',month:'short'})} · ${routineLabels[item.routineId]??item.routineId}`;routines.append(row);});
+    routines.append(dashboardAction('Gérer le planning','shopping'));sidebar.append(routines);
+    layout.append(menu,sidebar);root.append(layout);
+  } catch(error){root.replaceChildren(emptyMessage('Accueil indisponible : '+(error.body?.error??error.message)));}
+}
+
+const routineLabels = {
+  bulk_shopping: 'Grosses courses',
+  fresh_shopping: 'Courses de frais',
+  whey_flour_order: 'Commande whey et farines',
+  pasta_pastry_production: 'Pâtes et pâtisseries',
+  bread_production: 'Pain',
+  batch_cooking: 'Batch cooking',
+};
+const routineOrder = ['bulk_shopping','fresh_shopping','whey_flour_order','pasta_pastry_production','bread_production','batch_cooking'];
+const groupLabels = { bulk: 'Grosses courses', fresh: 'Frais', whey_flour: 'Whey et farines', other: 'Autres' };
+function renderRoutines(routines) {
+  state.routines = routines;
+  const root = $('#routine-list');
+  root.replaceChildren(...routineOrder.map((id) => {
+    const routine = routines.find((entry) => entry.routineId === id);
+    if (!routine) return document.createElement('span');
+    const row = document.createElement('div'); row.className = 'routine-row'; row.dataset.routineId = id;
+    const name = document.createElement('strong'); name.textContent = routineLabels[id];
+    const frequency = document.createElement('select'); frequency.setAttribute('aria-label', 'Fréquence : ' + routineLabels[id]);
+    frequency.innerHTML = '<option value="weekly">Chaque semaine</option><option value="biweekly">Tous les 15 jours</option><option value="monthly">Une fois par mois</option>';
+    frequency.value = routine.frequency;
+    const next = document.createElement('input'); next.type = 'date'; next.required = true; next.value = routine.nextDate; next.setAttribute('aria-label', 'Prochaine date : ' + routineLabels[id]);
+    const done = document.createElement('button'); done.type = 'button'; done.className = 'secondary'; done.textContent = 'Fait';
+    done.addEventListener('click', async () => {
+      try { await api('/api/household-planning/routines/complete', { method:'POST', body:JSON.stringify({householdId:state.household.id,routineId:id}) }); await refreshShopping(); }
+      catch(error) { showMessage($('#routines-message'), 'Mise à jour impossible : '+(error.body?.error ?? error.message)); }
+    });
+    row.append(name,frequency,next,done); return row;
+  }));
+}
+function formatQty(value) { return new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2}).format(value); }
+async function refreshShopping() {
+  if (!state.household) return;
+  const routineMessage = $('#routines-message'); if (routineMessage) routineMessage.textContent = '';
+  try {
+    const [planning, recipesResult] = await Promise.all([
+      api('/api/household-planning?householdId='+encodeURIComponent(state.household.id)),
+      api('/api/recipes?householdId='+encodeURIComponent(state.household.id)),
+    ]);
+    state.recipes = recipesResult.recipes;
+    renderRoutines(planning.routines);
+    const productionSelect = $('#production-form').elements.recipeId;
+    productionSelect.replaceChildren(new Option('Choisir une préparation…',''));
+    state.recipes.filter((recipe) => recipe.productionType && recipe.productionType !== 'none').forEach((recipe) => {
+      productionSelect.add(new Option(`${recipe.name} · rendement ${formatQty(recipe.yield.amount)} ${recipe.yield.unitId}`,recipe.id));
+    });
+    const stockRoot = $('#stock-list');
+    stockRoot.replaceChildren(...(planning.stock.length ? planning.stock.map((item) => {
+      const card=document.createElement('article'); card.className='stock-row';
+      const title=document.createElement('strong'); title.textContent=item.name;
+      const details=document.createElement('p'); details.textContent=`Produit : ${formatQty(item.producedQuantity)} ${item.unitId} · réservé aux repas planifiés : ${formatQty(item.plannedQuantity)} · disponible : ${formatQty(item.availableQuantity)} ${item.unitId}`;
+      const status=document.createElement('span'); status.className='stock-status'; status.textContent=Number(item.availableQuantity)<=0?'À produire':'En stock';
+      card.append(title,details,status); return card;
+    }) : [emptyMessage('Aucun stock suivi. Ajoute un type de production à une recette, puis enregistre une production.')]));
+  } catch(error) {
+    $('#routine-list').replaceChildren(emptyMessage('Planning indisponible : '+(error.body?.error ?? error.message)));
+    $('#stock-list').replaceChildren(emptyMessage('Stock indisponible.'));
+  }
+  await refreshShoppingList();
+}
+async function refreshShoppingList() {
+  const start=$('#shopping-start').value, end=$('#shopping-end').value, root=$('#shopping-list');
+  if (!state.household || !start || !end) return;
+  root.replaceChildren(emptyMessage('Calcul de la liste…'));
+  try {
+    const {items}=await api(`/api/shopping-list?householdId=${encodeURIComponent(state.household.id)}&startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`);
+    const groups={bulk:[],fresh:[],whey_flour:[],other:[]};
+    items.forEach(item => (groups[item.groupId] ?? groups.other).push(item));
+    root.replaceChildren(...Object.entries(groups).map(([groupId, entries]) => {
+      const section=document.createElement('section'); section.className='shopping-group';
+      const heading=document.createElement('h4'); heading.textContent=groupLabels[groupId]; section.append(heading);
+      if (!entries.length) { const empty=emptyMessage('Aucun produit prévu'); section.append(empty); return section; }
+      entries.forEach(item => {
+        const row=document.createElement('div'); row.className='shopping-item'+(item.checked?' checked':'');
+        const checkbox=document.createElement('input'); checkbox.type='checkbox'; checkbox.checked=item.checked; checkbox.setAttribute('aria-label','Acheté : '+item.name);
+        const name=document.createElement('span'); name.className='shopping-item-name'; name.textContent=item.name;
+        const qty=document.createElement('span'); qty.className='shopping-quantity'; qty.textContent=`${formatQty(item.quantity)} ${item.unitId}`;
+        const group=document.createElement('select'); group.setAttribute('aria-label','Catégorie de '+item.name);
+        for (const [key,label] of Object.entries(groupLabels)) group.add(new Option(label,key));
+        group.value=item.groupId;
+        const save=async()=>{try{await api('/api/shopping-list/state',{method:'POST',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,unitId:item.unitId,startDate:start,endDate:end,groupId:group.value,checked:checkbox.checked})});row.classList.toggle('checked',checkbox.checked);}catch(error){showMessage($('#routines-message'),'Liste non enregistrée : '+(error.body?.error??error.message));}};
+        checkbox.addEventListener('change',save); group.addEventListener('change',save);
+        row.append(checkbox,name,qty,group); section.append(row);
+      });
+      return section;
+    }));
+    if (!items.length) root.replaceChildren(emptyMessage('Aucun repas planifié sur cette période.'));
+  } catch(error) { root.replaceChildren(emptyMessage('Liste indisponible : '+(error.body?.error ?? error.message))); }
+}
+$('#routines-form').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const routines=$('#routine-list .routine-row').map(row=>({routineId:row.dataset.routineId,frequency:$('select',row).value,nextDate:$('input',row).value}));
+  try{await api('/api/household-planning/routines',{method:'PUT',body:JSON.stringify({householdId:state.household.id,routines})});showMessage($('#routines-message'),'Planning enregistré.',true);await refreshShopping();}
+  catch(error){showMessage($('#routines-message'),'Enregistrement impossible : '+(error.body?.error??error.message));}
+});
+$('#production-form').addEventListener('submit',async event=>{
+  event.preventDefault();const form=event.currentTarget;
+  try{await api('/api/household-planning/production',{method:'POST',body:JSON.stringify({householdId:state.household.id,recipeId:form.elements.recipeId.value,producedOn:form.elements.producedOn.value,quantity:Number(form.elements.quantity.value),storage:form.elements.storage.value,note:form.elements.note.value})});form.reset();form.elements.producedOn.value=localDateValue();showMessage($('#production-message'),'Production ajoutée au stock.',true);await refreshShopping();}
+  catch(error){showMessage($('#production-message'),'Production non enregistrée : '+(error.body?.error??error.message));}
+});
+$('#refresh-shopping').addEventListener('click',refreshShoppingList);
+$('#production-form').elements.recipeId.addEventListener('change', event => { const recipe=state.recipes.find(item=>item.id===event.target.value); if(recipe) $('#production-form').elements.quantity.value=recipe.yield.amount; });
+
+$('.nav-button').forEach((button) => button.classList.toggle('active', button.dataset.view === name));
+  if (name === 'home') refreshDashboard();
   if (name === 'recipes') refreshRecipes();
   if (name === 'calendar') refreshCalendar();
   if (name === 'profiles') refreshPeople();
+  if (name === 'shopping') refreshShopping();
 }
 
 function localDateValue() {
@@ -370,7 +592,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
   try {
     const path = state.editingRecipeId ? `/api/recipes/${state.editingRecipeId}` : '/api/recipes';
     const method = state.editingRecipeId ? 'PUT' : 'POST';
-    const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, recipeType: form.elements.recipeType.value, mealMoments: [...form.querySelectorAll('input[name="mealMoments"]:checked')].map((input) => input.value), instructions: form.elements.instructions.value, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, lines }) });
+    const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, productionType: form.elements.productionType.value, recipeType: form.elements.recipeType.value, mealMoments: [...form.querySelectorAll('input[name="mealMoments"]:checked')].map((input) => input.value), instructions: form.elements.instructions.value, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, lines }) });
     if (state.importingDraftId) {
       await api(`/api/recipe-imports/${state.importingDraftId}/converted`, { method: 'POST', body: JSON.stringify({ householdId: state.household.id }) });
       state.importingDraftId = null;
@@ -397,6 +619,7 @@ async function openRecipeEditor(id = null) {
       const { recipe } = await api(`/api/recipes/${id}`);
       form.elements.name.value = recipe.name;
       form.elements.description.value = recipe.description ?? '';
+      form.elements.productionType.value = recipe.productionType ?? 'none';
       form.elements.sourceUrl.value = recipe.sourceUrl ?? '';
       form.elements.instructions.value = recipe.instructions ?? '';
       form.elements.yieldAmount.value = recipe.yield.amount;
@@ -575,7 +798,8 @@ async function init() {
     $('#connection').classList.add('error');
   });
   await Promise.all([refreshFoods(), loadHouseholds(), health]);
-  await Promise.all([refreshPeople(), refreshCalendar()]);
+  await Promise.all([refreshPeople(), refreshCalendar(), refreshDashboard()]);
+  $('#shopping-start').value = localDateValue(); $('#shopping-end').value = addDays(localDateValue(), 29); $('#production-form').elements.producedOn.value = localDateValue();
   addRecipeLine();
 }
 

@@ -10,9 +10,12 @@ export function validateRecipeInput(input) {
   if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 || amount > 100000) return { error: 'invalid-yield' };
   if (typeof unitId !== 'string' || !/^[a-z][a-z0-9_-]{0,30}$/.test(unitId)) return { error: 'invalid-yield-unit' };
   const recipeTypes = ['dish', 'beverage', 'accompaniment', 'dessert', 'snack', 'other'];
+  const productionTypes = ['none', 'batch_cooking', 'pasta', 'pastry', 'bread'];
   const mealMoments = ['breakfast', 'lunch', 'dinner', 'snack'];
   const recipeType = input.recipeType == null ? 'dish' : input.recipeType;
   if (!recipeTypes.includes(recipeType)) return { error: 'invalid-recipe-type' };
+  const productionType = input.productionType == null ? 'none' : input.productionType;
+  if (!productionTypes.includes(productionType)) return { error: 'invalid-production-type' };
   const moments = input.mealMoments == null ? [] : input.mealMoments;
   if (!Array.isArray(moments) || moments.length > mealMoments.length || moments.some((moment) => !mealMoments.includes(moment)) || new Set(moments).size !== moments.length) return { error: 'invalid-meal-moments' };
   if (!Array.isArray(input.lines) || input.lines.length === 0 || input.lines.length > 300) return { error: 'invalid-lines' };
@@ -23,7 +26,7 @@ export function validateRecipeInput(input) {
     if (typeof line.unitId !== 'string' || !/^[a-z][a-z0-9_-]{0,30}$/.test(line.unitId)) return { error: 'invalid-unit' };
     lines.push({ foodId: line.foodId, quantity: line.quantity, unitId: line.unitId, componentId: null, variantId: null });
   }
-  return { data: { name: input.name.trim(), description: typeof input.description === 'string' ? input.description.slice(0, 5000) : '', instructions: typeof input.instructions === 'string' ? input.instructions.slice(0, 20000) : '', sourceUrl: typeof input.sourceUrl === 'string' && /^https:\/\//i.test(input.sourceUrl) ? input.sourceUrl.slice(0, 2000) : null, recipeType, mealMoments: [...moments], householdId: input.householdId, yield: { amount, unitId }, lines } };
+  return { data: { name: input.name.trim(), description: typeof input.description === 'string' ? input.description.slice(0, 5000) : '', instructions: typeof input.instructions === 'string' ? input.instructions.slice(0, 20000) : '', sourceUrl: typeof input.sourceUrl === 'string' && /^https:\/\//i.test(input.sourceUrl) ? input.sourceUrl.slice(0, 2000) : null, recipeType, productionType, mealMoments: [...moments], householdId: input.householdId, yield: { amount, unitId }, lines } };
 }
 
 export async function createRecipe(pool, data) {
@@ -32,9 +35,9 @@ export async function createRecipe(pool, data) {
   try {
     await client.query('BEGIN');
     await client.query(
-      `INSERT INTO recipes (id, household_id, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, meal_moments)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [id, data.householdId, data.name, data.description, data.yield.amount, data.yield.unitId, data.instructions, data.sourceUrl, data.recipeType, data.mealMoments],
+      `INSERT INTO recipes (id, household_id, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type, meal_moments)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      [id, data.householdId, data.name, data.description, data.yield.amount, data.yield.unitId, data.instructions, data.sourceUrl, data.recipeType, data.productionType, data.mealMoments],
     );
     for (const [index, line] of data.lines.entries()) {
       await client.query(
@@ -69,9 +72,9 @@ export async function updateRecipe(pool, id, data) {
     await client.query('BEGIN');
     const updated = await client.query(
       `UPDATE recipes SET name = $3, description = $4, yield_amount = $5,
-              yield_unit_id = $6, instructions = $7, source_url = $8, recipe_type = $9, meal_moments = $10, version = version + 1, updated_at = now()
+              yield_unit_id = $6, instructions = $7, source_url = $8, recipe_type = $9, production_type = $10, meal_moments = $11, version = version + 1, updated_at = now()
         WHERE id = $1 AND household_id = $2 RETURNING id`,
-      [id, data.householdId, data.name, data.description, data.yield.amount, data.yield.unitId, data.instructions, data.sourceUrl, data.recipeType, data.mealMoments],
+      [id, data.householdId, data.name, data.description, data.yield.amount, data.yield.unitId, data.instructions, data.sourceUrl, data.recipeType, data.productionType, data.mealMoments],
     );
     if (!updated.rowCount) {
       await client.query('ROLLBACK');
@@ -99,7 +102,7 @@ export async function updateRecipe(pool, id, data) {
 
 export async function readRecipe(client, id) {
   const recipeResult = await client.query(
-    `SELECT id, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, meal_moments
+    `SELECT id, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type, meal_moments
        FROM recipes WHERE id = $1`, [id],
   );
   const row = recipeResult.rows[0];
@@ -144,7 +147,7 @@ export async function readRecipe(client, id) {
   const foodById = new Map(foods.map((food) => [food.id, food]));
   return {
     id: row.id, name: row.name, description: row.description, instructions: row.instructions ?? '', sourceUrl: row.source_url ?? null,
-    recipeType: row.recipe_type ?? 'dish', mealMoments: row.meal_moments ?? [],
+    recipeType: row.recipe_type ?? 'dish', productionType: row.production_type ?? 'none', mealMoments: row.meal_moments ?? [],
     yield: { amount: Number(row.yield_amount), unitId: row.yield_unit_id },
     lines: lines.map((line, index) => ({ ...line, foodName: foodById.get(line.foodId)?.name ?? null, resolved: !nutrition.unresolvedLineIndexes.includes(index) })),
     nutrition,

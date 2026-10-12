@@ -4,16 +4,18 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=calendar-profiles-2">
+    <link rel="stylesheet" href="/style.css?v=dashboard-home-1">
   </head>
   <body>
     <header class="topbar">
       <a class="brand" href="/" aria-label="Lapinou Dish accueil"><span class="brand-mark">🐰</span><span>Lapinou <b>Dish</b></span></a>
       <nav aria-label="Navigation principale">
+        <button class="nav-button active" data-view="home">Accueil</button>
         <button class="nav-button" data-view="foods">Aliments</button>
         <button class="nav-button" data-view="recipes">Recettes</button>
-        <button class="nav-button active" data-view="calendar">Calendrier</button>
+        <button class="nav-button" data-view="calendar">Calendrier</button>
         <button class="nav-button" data-view="profiles">Profils</button>
+        <button class="nav-button" data-view="shopping">Courses & stocks</button>
       </nav>
       <span class="connection" id="connection">Connexion…</span>
     </header>
@@ -24,7 +26,8 @@
         <div class="household-box" id="household-box"></div>
       </section>
 
-      <section id="calendar-view" class="view">
+      <section id="home-view" class="view"><div id="dashboard-content"><p class="empty">Chargement du tableau de bord…</p></div></section>
+      <section id="calendar-view" class="view hidden">
         <div class="section-heading"><div><h2>Calendrier familial</h2><p>Prévisions par personne, reliées aux recettes du catalogue.</p></div><button type="button" class="secondary" id="manage-profiles">Gérer les profils</button></div>
         <div class="calendar-toolbar">
           <div class="calendar-week-nav"><button type="button" class="secondary" id="previous-week" aria-label="Semaine précédente">‹</button><strong id="calendar-week-title"></strong><button type="button" class="secondary" id="next-week" aria-label="Semaine suivante">›</button><button type="button" class="secondary" id="current-week">Aujourd’hui</button></div>
@@ -75,6 +78,7 @@
           </div>
           <label>Source (facultatif)<input name="sourceUrl" type="url" placeholder="Lien vers la recette d'origine"></label>
           <label>Instructions<textarea name="instructions" rows="4" maxlength="20000" placeholder="Étapes de préparation"></textarea></label>
+          <label>Production à suivre (facultatif)<select name="productionType"><option value="none">Aucune</option><option value="batch_cooking">Batch cooking</option><option value="pasta">Pâtes</option><option value="pastry">Pâtisserie</option><option value="bread">Pain</option></select></label>
           <div class="yield-row"><label>Rendement<input name="yieldAmount" required type="number" min="0.01" step="any" value="4"></label><label>Unité<select name="yieldUnit"><option value="portion">portions</option><option value="piece">pièces</option><option value="g">grammes</option></select></label></div>
           <div class="line-heading"><h3>Ingrédients</h3><button type="button" class="secondary" id="add-line">+ Ajouter un ingrédient</button></div>
           <div id="recipe-lines"></div>
@@ -84,6 +88,14 @@
         <section id="recipe-result" class="card result hidden" aria-live="polite"></section>
       </section>
 
+      <section id="shopping-view" class="view hidden">
+        <div class="section-heading"><div><h2>Courses & productions</h2><p>Planifie les achats, les préparations et le stock du foyer.</p></div></div>
+        <section class="card"><h3>Routines du foyer</h3><p class="muted">Les courses fraîches sont prévues chaque lundi par défaut. Tu peux choisir un lundi sur deux.</p><form id="routines-form"><div id="routine-list" class="routine-list"></div><div class="form-actions"><button class="primary" type="submit">Enregistrer le planning</button></div><p class="form-message" id="routines-message" role="status"></p></form></section>
+        <div class="shopping-columns">
+          <section class="card"><h3>Liste de courses</h3><div class="shopping-range"><label>Du<input id="shopping-start" type="date"></label><label>Au<input id="shopping-end" type="date"></label><button class="secondary" type="button" id="refresh-shopping">Actualiser</button></div><div id="shopping-list" class="shopping-groups"><p class="empty">Choisis une période.</p></div></section>
+          <section class="card"><h3>Enregistrer une production</h3><form id="production-form"><label>Préparation<select name="recipeId" required></select></label><div class="yield-row"><label>Date<input name="producedOn" type="date" required></label><label>Quantité produite<input name="quantity" type="number" min="0.01" step="any" required></label></div><label>Conservation<select name="storage"><option value="freezer">Congélateur</option><option value="fridge">Réfrigérateur</option><option value="pantry">Placard</option></select></label><label>Note (facultatif)<input name="note" maxlength="500"></label><button class="primary" type="submit">Ajouter au stock</button><p id="production-message" class="form-message" role="status"></p></form><h3>Stock des préparations</h3><p class="hint">Le stock disponible tient compte des quantités déjà prévues dans les repas.</p><div id="stock-list"><p class="empty">Chargement…</p></div></section>
+        </div>
+      </section>
       <section id="profiles-view" class="view hidden">
         <div class="section-heading"><div><h2>Profils du foyer</h2><p>Mesures et activité saisies par les membres, conservées dans leur historique.</p></div></div>
         <form id="person-form" class="profile-create">
@@ -147,6 +159,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.18"></script>
+    <script type="module" src="/app.js?v=0.2.20"></script>
   </body>
 </html>
