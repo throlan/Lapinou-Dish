@@ -1,7 +1,7 @@
--- Indicative piece-to-edible-grams conversions for common raw produce records.
+-- Indicative piece-to-edible-grams conversions for countable raw produce.
 -- Ciqual provides composition, not household piece weights. These are editable
--- household averages (not analytical values); the note records the intended
--- piece/portion interpretation. Existing conversions are kept unchanged.
+-- household averages (not analytical values); leaves, handfuls, mixes and
+-- frozen chopped products are excluded because a piece has no stable meaning. Existing conversions are kept unchanged.
 WITH piece_weights (ciqual_code, grams_per_piece, estimate_note) AS (
   VALUES
   ('13039', 200, 'Pomme entière moyenne, avec peau'),
@@ -39,8 +39,6 @@ WITH piece_weights (ciqual_code, grams_per_piece, estimate_note) AS (
   ('13034', 130, 'Orange moyenne, chair sans peau ni pépins'),
   ('13035', 350, 'Papaye moyenne, chair sans peau'),
   ('13202', 350, 'Papaye moyenne, chair sans peau'),
-  ('13036', 1000, 'Pastèque, portion correspondant à une tranche (pas au fruit entier)'),
-  ('13433', 1000, 'Pastèque, portion correspondant à une tranche (pas au fruit entier)'),
   ('13040', 230, 'Pomelo moyen, chair sans peau ni pépins'),
   ('13179', 230, 'Pomelo moyen, chair sans peau ni pépins'),
   ('13180', 230, 'Pomelo moyen, chair sans peau ni pépins'),
@@ -78,13 +76,9 @@ WITH piece_weights (ciqual_code, grams_per_piece, estimate_note) AS (
   ('20090', 300, 'Salade entière (frisée ou scarole)'),
   ('20014', 800, 'Chou rouge moyen, poids net comestible estimé'),
   ('20016', 600, 'Chou-fleur moyen, poids net comestible estimé'),
-  ('20082', 600, 'Chou-fleur moyen, poids net comestible estimé'),
   ('20019', 300, 'Concombre moyen avec peau'),
   ('20210', 250, 'Concombre moyen sans peau'),
   ('20020', 250, 'Courgette moyenne'),
-  ('20230', 250, 'Courgette moyenne'),
-  ('20022', 30, 'Petite botte individuelle / portion, non une feuille'),
-  ('20199', 30, 'Petite botte individuelle / portion, non une feuille'),
   ('20023', 40, 'Branche de céleri moyenne'),
   ('20026', 150, 'Endive moyenne'),
   ('20028', 250, 'Fenouil moyen'),
@@ -108,23 +102,16 @@ WITH piece_weights (ciqual_code, grams_per_piece, estimate_note) AS (
   ('20055', 400, 'Céleri-rave moyen, partie comestible'),
   ('20056', 15, 'Champignon de Paris moyen'),
   ('20057', 300, 'Brocoli moyen, partie comestible'),
-  ('20204', 300, 'Brocoli moyen, partie comestible'),
   ('20280', 300, 'Brocoli moyen, partie comestible'),
   ('20058', 20, 'Chou de Bruxelles individuel'),
-  ('20206', 20, 'Chou de Bruxelles individuel'),
   ('20061', 5, 'Haricot vert individuel'),
-  ('20070', 5, 'Haricot vert individuel'),
   ('20064', 150, 'Navet moyen, partie comestible'),
-  ('20234', 150, 'Navet moyen, partie comestible'),
   ('20065', 300, 'Chou-rave moyen'),
   ('20069', 800, 'Chou entier moyen, poids net comestible estimé'),
   ('20116', 800, 'Chou entier moyen, poids net comestible estimé'),
   ('20089', 100, 'Radis noir moyen'),
   ('20091', 100, 'Betterave rouge moyenne'),
   ('20097', 30, 'Échalote moyenne'),
-  ('20099', 50, 'Poignée individuelle de feuilles (unité approximative)'),
-  ('20217', 50, 'Poignée individuelle de feuilles (unité approximative)'),
-  ('20270', 50, 'Poignée individuelle de feuilles (unité approximative)'),
   ('20103', 15, 'Champignon frais moyen'),
   ('20105', 15, 'Champignon frais moyen'),
   ('20106', 15, 'Champignon frais moyen'),
@@ -132,9 +119,7 @@ WITH piece_weights (ciqual_code, grams_per_piece, estimate_note) AS (
   ('20159', 15, 'Champignon frais moyen'),
   ('20160', 15, 'Champignon frais moyen'),
   ('20161', 15, 'Champignon frais moyen'),
-  ('20111', 10, 'Feuille d''oseille (portion estimée)'),
   ('20119', 120, 'Tomate verte moyenne'),
-  ('20127', 50, 'Poignée de pourpier (unité approximative)'),
   ('20128', 700, 'Courge, portion comestible indicative d''une unité moyenne'),
   ('20132', 700, 'Courge, portion comestible indicative d''une unité moyenne'),
   ('20134', 700, 'Courge, portion comestible indicative d''une unité moyenne'),
@@ -151,7 +136,6 @@ WITH piece_weights (ciqual_code, grams_per_piece, estimate_note) AS (
   ('20172', 15, 'Tomate cerise moyenne'),
   ('20173', 5, 'Pois mange-tout individuel'),
   ('20181', 150, 'Panais moyen'),
-  ('20183', 50, 'Poignée de graines germées (unité approximative)'),
   ('20195', 5, 'Haricot beurre individuel'),
   ('20196', 150, 'Topinambour moyen'),
   ('20197', 150, 'Salsifis moyen'),
@@ -169,9 +153,7 @@ WITH piece_weights (ciqual_code, grams_per_piece, estimate_note) AS (
   ('20835', 120, 'Tomate ronde ou grappe moyenne'),
   ('20279', 20, 'Asperge moyenne, une tige'),
   ('20282', 20, 'Asperge moyenne, une tige'),
-  ('20283', 10, 'Salicorne, poignée individuelle'),
   ('20347', 10, 'Gousse de moringa moyenne'),
-  ('20348', 30, 'Poignée de feuilles de moringa'),
   ('4008', 150, 'Pomme de terre moyenne crue, chair comestible'),
   ('4023', 150, 'Pomme de terre moyenne crue, chair comestible'),
   ('11000', 3, 'Gousse d''ail moyenne')
