@@ -187,6 +187,11 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
 .planned-meal-card button { width:100%; border:0; padding:0; background:transparent; color:#edf4ff; text-align:left; font-size:10px; font-weight:700; line-height:1.35; }
 .planned-meal-card small { display:block; margin-top:4px; color:#91a5c5; font-size:9px; line-height:1.3; }
 .planned-meal-card .meal-kcal { color:#c3eb70; font-weight:800; }
+.meal-protein-tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:5px; }
+.meal-protein-tags .protein-tag { display:inline-flex; align-items:center; width:auto; margin:0; padding:2px 5px; border:1px solid #344764; border-radius:999px; font-size:8px; line-height:1.3; }
+.meal-protein-tags .protein-sufficient { color:#c6ed75; border-color:#56753b; }
+.meal-protein-tags .protein-low { color:#ffd071; border-color:#806330; }
+.meal-protein-tags .protein-unknown { color:#aab8cf; border-color:#485976; }
 .calendar-add { min-height:23px; border:1px dashed #344764; border-radius:7px; background:transparent; color:#8296b7; font-size:9px; }
 .calendar-add:hover { border-color:#24d4e4; color:#70e4ed; }
 .calendar-summary { display:flex; flex-direction:column; gap:9px; padding:13px; border:1px solid #30415f; border-radius:13px; background:#18243d; }
