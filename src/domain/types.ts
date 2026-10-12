@@ -60,6 +60,8 @@ export interface RecipeNutritionResult {
   /** Nutrients for the full recipe batch. */
   batch: NutrientTotals;
   complete: boolean;
+  /** Recipe lines included in the reported subtotal. */
+  calculatedLineIndexes: number[];
   unresolvedLineIndexes: number[];
   lineIssues: Array<{
     lineIndex: number;
@@ -67,4 +69,5 @@ export interface RecipeNutritionResult {
     missingNutrients: Array<keyof NutrientsPer100g>;
   }>;
 }
+
 

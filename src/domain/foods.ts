@@ -60,7 +60,7 @@ const REQUIRED_NUTRIENTS = ["energyKcal", "proteinG", "carbohydrateG", "fatG"] a
 const ALL_NUTRIENTS = [...REQUIRED_NUTRIENTS, "fibreG"] as const;
 type NutrientKey = (typeof ALL_NUTRIENTS)[number];
 
-/** Deterministic ingredient-based nutrition. A nutrient is null if any line lacks it. */
+/** Deterministic ingredient-based nutrition. Unconvertible lines are excluded from the subtotal. */
 export function calculateRecipeNutrition(
   lines: readonly RecipeLine[],
   foods: readonly Food[],
@@ -72,6 +72,7 @@ export function calculateRecipeNutrition(
 
   const foodById = new Map(foods.map((food) => [food.id, food]));
   const unresolvedLineIndexes: number[] = [];
+  const calculatedLineIndexes: number[] = [];
   const lineIssues: Array<{ lineIndex: number; reason: string; missingNutrients: NutrientKey[] }> = [];
   const totals: Record<NutrientKey, number> = {
     energyKcal: 0,
@@ -87,20 +88,16 @@ export function calculateRecipeNutrition(
     fatG: true,
     fibreG: true,
   };
-  if (lines.length === 0) {
-    for (const nutrient of ALL_NUTRIENTS) known[nutrient] = false;
-  }
-
   lines.forEach((line, index) => {
     const food = foodById.get(line.foodId);
     const grams = food ? toGrams(line.quantity, line.unitId, food) : null;
     if (!food || grams == null) {
       unresolvedLineIndexes.push(index);
       lineIssues.push({ lineIndex: index, reason: food ? "unit-conversion-missing" : "food-not-linked", missingNutrients: [] });
-      for (const nutrient of ALL_NUTRIENTS) known[nutrient] = false;
       return;
     }
 
+    calculatedLineIndexes.push(index);
     const missingNutrients: NutrientKey[] = [];
     for (const nutrient of ALL_NUTRIENTS) {
       const value = food.nutrientsPer100g[nutrient];
@@ -114,6 +111,11 @@ export function calculateRecipeNutrition(
     if (missingNutrients.length) lineIssues.push({ lineIndex: index, reason: "nutrient-data-missing", missingNutrients });
   });
 
+  // Never report a misleading zero when no ingredient could be included.
+  if (calculatedLineIndexes.length === 0) {
+    for (const nutrient of ALL_NUTRIENTS) known[nutrient] = false;
+  }
+
   const batch = Object.fromEntries(
     ALL_NUTRIENTS.map((nutrient) => [nutrient, known[nutrient] ? round(totals[nutrient]) : null])
   ) as Record<NutrientKey, number | null>;
@@ -123,9 +125,10 @@ export function calculateRecipeNutrition(
       known[nutrient] ? round(totals[nutrient] / yieldAmount) : null,
     ])
   ) as Record<NutrientKey, number | null>;
-  const complete = REQUIRED_NUTRIENTS.every((nutrient) => batch[nutrient] != null);
+  const complete = unresolvedLineIndexes.length === 0
+    && REQUIRED_NUTRIENTS.every((nutrient) => batch[nutrient] != null);
 
-  return { batch, perYieldUnit, complete, unresolvedLineIndexes, lineIssues };
+  return { batch, perYieldUnit, complete, unresolvedLineIndexes, calculatedLineIndexes, lineIssues };
 }
 
 function round(value: number): number {
@@ -152,3 +155,4 @@ export function searchFoods(foods: readonly Food[], query: string): Food[] {
     .sort((a, b) => b.score - a.score || a.food.name.localeCompare(b.food.name, "fr"))
     .map(({ food }) => food);
 }
+

@@ -420,6 +420,9 @@ function recipeCard(recipe) {
   const nutrition = document.createElement('p'); nutrition.className = 'recipe-nutrition';
   nutrition.textContent = `${format(recipe.nutrition.perYieldUnit.energyKcal)} kcal · P ${format(recipe.nutrition.perYieldUnit.proteinG)} g · G ${format(recipe.nutrition.perYieldUnit.carbohydrateG)} g · L ${format(recipe.nutrition.perYieldUnit.fatG)} g / ${recipe.yield.unitId}`;
   details.append(nutrition);
+  if (recipe.nutrition.unresolvedLineIndexes?.length) {
+    const partial = document.createElement('p'); partial.className = 'muted'; partial.textContent = 'Sous-total partiel : les ingrédients sans conversion sont exclus.'; details.append(partial);
+  }
   if (!recipe.nutrition.complete) details.append(nutritionIssues(recipe));
   const actions = document.createElement('div'); actions.className = 'recipe-card-actions';
   const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'secondary'; edit.textContent = 'Modifier'; edit.addEventListener('click', () => openRecipeEditor(recipe.id));
@@ -429,15 +432,20 @@ function recipeCard(recipe) {
 function renderRecipe(recipe) {
   const result = $('#recipe-result'); result.classList.remove('hidden'); result.replaceChildren();
   const title = document.createElement('h3'); title.textContent = `${recipe.name} · ${recipe.yield.amount} ${recipe.yield.unitId}`; result.append(title);
+  if (recipe.nutrition.unresolvedLineIndexes?.length) {
+    const partial = document.createElement('p'); partial.className = 'warning';
+    partial.textContent = `Sous-total partiel : calculé avec ${recipe.nutrition.calculatedLineIndexes?.length ?? 0} ingrédient(s) convertible(s). Les autres sont exclus tant que leur poids n’est pas connu.`;
+    result.append(partial);
+  }
   const grid = document.createElement('div'); grid.className = 'nutrition-grid';
   const rows = [['Énergie', recipe.nutrition.perYieldUnit.energyKcal, 'kcal'], ['Protéines', recipe.nutrition.perYieldUnit.proteinG, 'g'], ['Glucides', recipe.nutrition.perYieldUnit.carbohydrateG, 'g'], ['Lipides', recipe.nutrition.perYieldUnit.fatG, 'g'], ['Fibres', recipe.nutrition.perYieldUnit.fibreG, 'g']];
   for (const [label, value, unit] of rows) { const cell = document.createElement('div'); const caption = document.createElement('span'); caption.textContent = `${label} par ${recipe.yield.unitId}`; const amount = document.createElement('strong'); amount.textContent = value == null ? 'Inconnu' : `${format(value)} ${unit}`; cell.append(caption, amount); grid.append(cell); }
   result.append(grid);
   if (!recipe.nutrition.complete) {
-    const warning = document.createElement('p'); warning.className = 'warning'; warning.textContent = 'Calcul incomplet : les données manquantes restent inconnues, elles ne sont pas remplacées par zéro.'; result.append(warning);
+    const warning = document.createElement('p'); warning.className = 'warning'; warning.textContent = 'Calcul incomplet : les données nutritionnelles inconnues ne sont pas remplacées par zéro.'; result.append(warning);
     result.append(nutritionIssues(recipe));
   }
-  const batch = document.createElement('p'); batch.className = 'muted'; batch.textContent = `Total de la recette : ${format(recipe.nutrition.batch.energyKcal)} kcal`; result.append(batch);
+  const batch = document.createElement('p'); batch.className = 'muted'; batch.textContent = `${recipe.nutrition.unresolvedLineIndexes?.length ? 'Sous-total calculable' : 'Total de la recette'} : ${format(recipe.nutrition.batch.energyKcal)} kcal`; result.append(batch);
 }
 
 function nutritionIssues(recipe) {
@@ -486,3 +494,4 @@ $('#login-form').addEventListener('submit', async (event) => {
 });
 
 init();
+
