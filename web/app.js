@@ -891,7 +891,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
         const unit = recipe?.yield.unitId ?? 'portion';
         const step = unit === 'piece' ? '1' : unit === 'g' ? '10' : '0.5';
         const input = document.createElement('input'); input.type = 'number'; input.min = '0'; input.step = step; input.dataset.personId = personId;
-        input.value = assignment.quantity ?? (personSelect.value ? '0' : ''); input.placeholder = 'Quantité (0 si aucune)'; input.setAttribute('aria-label', `Quantité de boisson pour ${person?.displayName ?? 'personne'}`);
+        input.value = assignment.quantity == null || assignment.quantity === '' ? (personSelect.value ? '0' : '') : assignment.quantity; input.placeholder = 'Quantité (0 si aucune)'; input.setAttribute('aria-label', `Quantité de boisson pour ${person?.displayName ?? 'personne'}`);
         if (!personSelect.value) input.disabled = true;
         personSelect.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
         input.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
