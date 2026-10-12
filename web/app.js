@@ -744,7 +744,8 @@ function currentFormAmounts() {
     const recipeId = $('select[name="recipeId"]', row)?.value;
     const amounts = {};
     $$('input[data-person-id]', row).forEach((input) => { amounts[input.dataset.personId] = input.value; });
-    output[index] = { recipeId, amounts };
+    const role = $('select[name="role"]', row)?.value ?? 'main';
+    output[index] = { recipeId, role, amounts };
   });
   return output;
 }
@@ -763,6 +764,9 @@ function applyAutomaticPortions(items, attendeeIds) {
   const slot = $('#meal-form').elements.slot.value;
   const recipes = Object.values(items).filter((item) => item.recipeId).map((item) => state.recipes.find((recipe) => recipe.id === item.recipeId));
   const validRecipes = recipes.filter(Boolean);
+  const roleWeights = { main: 0.7, accompaniment: 0.2, beverage: 0.1 };
+  const roleCounts = Object.fromEntries(Object.keys(roleWeights).map((role) => [role, Object.values(items).filter((item) => item.recipeId && (item.role ?? 'main') === role).length]));
+  const activeWeight = Object.entries(roleCounts).reduce((sum, [role, count]) => sum + (count ? roleWeights[role] : 0), 0);
   const messages = new Set();
   for (const personId of attendeeIds) {
     const person = state.people.find((entry) => entry.id === personId);
@@ -780,7 +784,8 @@ function applyAutomaticPortions(items, attendeeIds) {
         plannedOtherKcal,
         recipeKcal: kcal,
         recipeUnit: recipe?.yield.unitId,
-        recipeCount: validRecipes.length,
+        recipeCount: roleCounts[item.role ?? 'main'] || 1,
+        budgetShare: activeWeight ? roleWeights[item.role ?? 'main'] / activeWeight : 1,
       });
       item.amounts ??= {};
       const fallbackQuantity = suggestion.quantity == null && ['daily-target-missing', 'recipe-energy-missing'].includes(suggestion.reason)
@@ -798,7 +803,7 @@ function applyAutomaticPortions(items, attendeeIds) {
   notice.setAttribute('role', 'status');
   notice.textContent = messages.size
     ? [...messages].join(' ')
-    : 'Portions proposées selon le besoin du profil et le créneau (±100 kcal), en respectant le budget quotidien. Tu peux les ajuster.';
+    : 'Répartition du créneau : 70 % recette principale, 20 % accompagnements et 10 % boisson (parts redistribuées si une catégorie manque). Tu peux ajuster les quantités.';
   $('#planned-items').replaceChildren(notice);
 }
 
@@ -816,6 +821,10 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     select.add(new Option('Choisir une recette', ''));
     state.recipes.forEach((recipe) => select.add(new Option(`${recipe.name} · ${recipe.yield.amount} ${recipe.yield.unitId}`, recipe.id)));
     select.value = item.recipeId ?? '';
+    const role = document.createElement('select'); role.name = 'role'; role.setAttribute('aria-label', 'Catégorie de la recette');
+    [['main', 'Recette principale · 70 %'], ['accompaniment', 'Accompagnement · 20 %'], ['beverage', 'Boisson · 10 %']].forEach(([value, label]) => role.add(new Option(label, value)));
+    role.value = item.role ?? 'main';
+    role.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
     const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-line'; remove.textContent = '×'; remove.setAttribute('aria-label', 'Retirer cette recette');
     remove.addEventListener('click', () => { const data = currentFormAmounts(); delete data[index]; renderPlannedItems(data); });
     const quantities = document.createElement('div'); quantities.className = 'planned-amounts';
@@ -829,7 +838,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
       input.value = item.amounts?.[personId] ?? ''; input.placeholder = 'Ex. 1'; input.setAttribute('aria-label', `Quantité pour ${person?.displayName ?? 'personne'}`);
       label.append(input); quantities.append(label);
     }
-    const top = document.createElement('div'); top.className = 'planned-item-top'; top.append(select, remove);
+    const top = document.createElement('div'); top.className = 'planned-item-top'; top.append(select, role, remove);
     select.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
     row.append(top, quantities); return row;
   });
@@ -854,7 +863,7 @@ async function openMealEditor(date, slot, meal = null) {
     const name = document.createElement('span'); name.textContent = person.displayName; label.append(checkbox, name); return label;
   }));
   const items = {};
-  (meal?.items ?? []).forEach((item, index) => { items[index] = { recipeId: item.recipeId, amounts: Object.fromEntries(item.amounts.map((amount) => [amount.personId, String(amount.quantity)])) }; });
+  (meal?.items ?? []).forEach((item, index) => { items[index] = { recipeId: item.recipeId, role: item.role ?? ['main', 'accompaniment', 'beverage'][Math.min(index, 2)], amounts: Object.fromEntries(item.amounts.map((amount) => [amount.personId, String(amount.quantity)])) }; });
   if (!Object.keys(items).length) items[0] = { recipeId: '', amounts: {} };
   renderPlannedItems(items, { autoSuggest: true });
   $('#meal-dialog').showModal();
@@ -887,7 +896,8 @@ $('#meal-form').addEventListener('submit', async (event) => {
   const rows = $$('.planned-item-editor', $('#planned-items'));
   const items = rows.map((row) => ({
     recipeId: $('select[name="recipeId"]', row).value,
-    amounts: $$('input[data-person-id]', row).map((input) => ({ personId: input.dataset.personId, quantity: Number(input.value) })),
+    role: $('select[name="role"]', row).value,
+    amounts: $('input[data-person-id]', row).map((input) => ({ personId: input.dataset.personId, quantity: Number(input.value) })),
   }));
   if (!attendeeIds.length) { showMessage($('#meal-message'), 'Sélectionne les personnes présentes pour ce repas.'); return; }
   if (!items.length || items.some((item) => !item.recipeId)) { showMessage($('#meal-message'), 'Choisis au moins une recette pour ce repas.'); return; }
