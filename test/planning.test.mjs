@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validatePlannedMeal } from '../src/server/planning.mjs';
+import { listPlannedMeals, validatePlannedMeal } from '../src/server/planning.mjs';
 
 const householdId = '11111111-1111-4111-8111-111111111111';
 const recipeId = '22222222-2222-4222-8222-222222222222';
@@ -35,4 +35,21 @@ test('rejects invalid dates, slots and people outside the attendee set', () => {
   assert.equal(validatePlannedMeal(valid({ mealDate: '2026-02-30' })).error, 'invalid-meal-date');
   assert.equal(validatePlannedMeal(valid({ slot: 'midnight' })).error, 'invalid-meal-slot');
   assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, amounts: [{ personId: '55555555-5555-4555-8555-555555555555', quantity: 1 }, { personId: personB, quantity: 1 }] }] })).error, 'invalid-planned-amount-person');
+});
+
+test('planned meals keep their exact calendar date when listed', async () => {
+  const mealId = '55555555-5555-4555-8555-555555555555';
+  const queries = [];
+  const pool = { query: async (sql, values) => {
+    queries.push(sql);
+    if (sql.includes('FROM planned_meals WHERE household_id')) {
+      return { rows: [{ id: mealId, meal_date: '2026-10-12', slot: 'lunch', notes: '' }] };
+    }
+    if (sql.includes('FROM planned_meal_attendees')) return { rows: [{ id: personA, display_name: 'Lapinou' }] };
+    if (sql.includes('FROM planned_meal_items')) return { rows: [] };
+    throw new Error('Unexpected query');
+  } };
+  const meals = await listPlannedMeals(pool, householdId, '2026-10-12');
+  assert.ok(queries[0].includes('meal_date::text AS meal_date'));
+  assert.equal(meals[0].mealDate, '2026-10-12');
 });
