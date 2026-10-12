@@ -21,3 +21,24 @@ test('profile history validates activity and keeps daily needs explicitly attrib
   assert.equal(validateProfileHistoryInput({ effectiveFrom: '2026-10-12', activityLevel: 'extreme' }).error, 'invalid-activity-level');
   assert.equal(validateProfileHistoryInput({ effectiveFrom: '2026-10-12', dailyEnergyKcal: 2100 }).error, 'invalid-daily-energy-origin');
 });
+
+
+test('saving profile history updates an existing date instead of rejecting it', async () => {
+  const existingId = '49a9ae37-8f1a-4b3b-98a3-481cbb344259';
+  let statement = '';
+  let values = [];
+  const pool = { query: async (sql, parameters) => {
+    statement = sql;
+    values = parameters;
+    return { rowCount: 1, rows: [{ id: existingId, effective_from: '2026-10-12', height_cm: '173.0', activity_level: 'sedentary', daily_energy_kcal: 2050, daily_energy_origin: 'estimate', daily_energy_method: 'Test' }] };
+  } };
+  const result = await addProfileHistory(pool, 'f4a02d74-0eab-4b92-8873-0a7238b09e98', '1903fe37-7b79-4d11-9e10-0cdaf89d4f17', {
+    effectiveFrom: '2026-10-12', heightCm: 173, activityLevel: 'sedentary', dailyEnergyKcal: 2050, dailyEnergyOrigin: 'estimate', dailyEnergyMethod: 'Test',
+  });
+  assert.match(statement, /ON CONFLICT \(person_id, effective_from\) DO UPDATE/);
+  assert.equal(values[2], '2026-10-12');
+  assert.equal(values[5], 2050);
+  assert.equal(result.id, existingId);
+  assert.equal(result.effectiveFrom, '2026-10-12');
+  assert.equal(result.dailyEnergyKcal, 2050);
+});
