@@ -4,14 +4,16 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=navy-visual-1">
+    <link rel="stylesheet" href="/style.css?v=calendar-profiles-2">
   </head>
   <body>
     <header class="topbar">
       <a class="brand" href="/" aria-label="Lapinou Dish accueil"><span class="brand-mark">🐰</span><span>Lapinou <b>Dish</b></span></a>
       <nav aria-label="Navigation principale">
-        <button class="nav-button active" data-view="foods">Aliments</button>
+        <button class="nav-button" data-view="foods">Aliments</button>
         <button class="nav-button" data-view="recipes">Recettes</button>
+        <button class="nav-button active" data-view="calendar">Calendrier</button>
+        <button class="nav-button" data-view="profiles">Profils</button>
       </nav>
       <span class="connection" id="connection">Connexion…</span>
     </header>
@@ -22,7 +24,18 @@
         <div class="household-box" id="household-box"></div>
       </section>
 
-      <section id="foods-view" class="view">
+      <section id="calendar-view" class="view">
+        <div class="section-heading"><div><h2>Calendrier familial</h2><p>Prévisions par personne, reliées aux recettes du catalogue.</p></div><button type="button" class="secondary" id="manage-profiles">Gérer les profils</button></div>
+        <div class="calendar-toolbar">
+          <div class="calendar-week-nav"><button type="button" class="secondary" id="previous-week" aria-label="Semaine précédente">‹</button><strong id="calendar-week-title"></strong><button type="button" class="secondary" id="next-week" aria-label="Semaine suivante">›</button><button type="button" class="secondary" id="current-week">Aujourd’hui</button></div>
+          <span class="muted">Prévu · les consommations réelles seront journalisées séparément</span>
+        </div>
+        <div class="calendar-layout">
+          <div id="calendar-grid" class="calendar-grid"><p class="empty">Chargement de la semaine…</p></div>
+          <aside id="calendar-summary" class="calendar-summary"><h3>Prévisions par personne</h3><p class="muted">Aucune donnée à afficher.</p></aside>
+        </div>
+      </section>
+      <section id="foods-view" class="view hidden">
         <div class="section-heading"><div><h2>Catalogue alimentaire</h2><p>Une fiche canonique par aliment, enrichie par Ciqual et modifiable.</p></div><button class="primary" id="add-food">+ Nouvel aliment</button></div>
         <div class="toolbar"><label class="search"><span>⌕</span><input id="food-search" type="search" placeholder="Rechercher un aliment…" autocomplete="off"></label><label class="incomplete-filter"><input id="food-incomplete" type="checkbox"> À compléter</label><span class="muted" id="food-count"></span></div>
         <div class="table-wrap"><table><thead><tr><th>Aliment</th><th>Provenance</th><th>Pour 100 g</th><th></th></tr></thead><tbody id="food-rows"><tr><td colspan="4" class="empty">Chargement du catalogue…</td></tr></tbody></table></div>
@@ -59,8 +72,34 @@
         </form>
         <section id="recipe-result" class="card result hidden" aria-live="polite"></section>
       </section>
+
+      <section id="profiles-view" class="view hidden">
+        <div class="section-heading"><div><h2>Profils du foyer</h2><p>Mesures et activité saisies par les membres, conservées dans leur historique.</p></div></div>
+        <form id="person-form" class="profile-create">
+          <label>Nom affiché<input name="displayName" required maxlength="80" placeholder="Ex. Alex"></label>
+          <label>Date de naissance (facultatif)<input name="birthDate" type="date"></label>
+          <button class="primary" type="submit">Ajouter une personne</button>
+        </form>
+        <p id="people-message" class="form-message" role="status"></p>
+        <div id="people-list" class="people-list"><p class="empty">Chargement des profils…</p></div>
+      </section>
     </main>
 
+    <dialog id="meal-dialog">
+      <form id="meal-form" method="dialog" class="meal-form">
+        <div class="dialog-heading"><div><p class="eyebrow">PLANIFIER UN REPAS</p><h2 id="meal-dialog-title">Nouveau repas</h2></div><button type="button" class="icon-button" id="close-meal-dialog" aria-label="Fermer">×</button></div>
+        <div class="meal-fields">
+          <label>Date<input name="mealDate" type="date" required></label>
+          <label>Créneau<select name="slot"><option value="breakfast">Petit-déjeuner</option><option value="lunch">Déjeuner</option><option value="dinner">Dîner</option><option value="snack">Collation</option></select></label>
+        </div>
+        <fieldset class="attendee-fieldset"><legend>Qui sera présent ?</legend><div id="meal-attendees" class="attendee-list"></div></fieldset>
+        <div class="line-heading"><h3>Recettes et quantités par personne</h3><button type="button" class="secondary" id="add-planned-item">+ Ajouter une recette</button></div>
+        <div id="planned-items" class="planned-items"></div>
+        <label>Note (facultatif)<textarea name="notes" rows="2" maxlength="1000" placeholder="Ex. à décongeler la veille"></textarea></label>
+        <p id="meal-message" class="form-message" role="status"></p>
+        <div class="meal-actions"><button type="button" class="secondary hidden" id="delete-meal">Supprimer</button><span></span><button type="button" class="secondary" id="cancel-meal">Annuler</button><button type="submit" class="primary">Enregistrer le repas</button></div>
+      </form>
+    </dialog>
     <dialog id="food-dialog">
       <form id="food-form" method="dialog">
         <div class="dialog-heading"><div><p class="eyebrow">FICHE ALIMENT</p><h2 id="food-dialog-title">Nouvel aliment</h2></div><button class="icon-button" value="cancel" aria-label="Fermer">×</button></div>

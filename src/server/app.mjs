@@ -4,6 +4,8 @@ import { createFood, fillMissingNutritionFromExternal, getFood, updateFood, vali
 import { getOpenFoodFactsProduct, searchOpenFoodFacts } from './open-food-facts.mjs';
 import { createRecipe, listRecipes, readRecipe, updateRecipe, validateRecipeInput } from './recipes.mjs';
 import { listImportDrafts, saveImportDrafts } from './recipe-imports.mjs';
+import { addProfileHistory, addWeightEntry, createPerson, listPeople, validatePersonInput, validateProfileHistoryInput, validateWeightInput } from './people.mjs';
+import { deletePlannedMeal, listPlannedMeals, savePlannedMeal, validatePlannedMeal } from './planning.mjs';
 import { parseRecipeArchive, parseRecipeText } from '../domain/recipe-import.mjs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -110,6 +112,80 @@ export async function handleRequest(request, response, pool, appPassword = null)
       } catch {
         return send(response, 500, { error: 'household-create-failed' });
       }
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/people') {
+      const householdId = url.searchParams.get('householdId');
+      if (!isUuid(householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      try { return send(response, 200, { people: await listPeople(pool, householdId) }); }
+      catch { return send(response, 500, { error: 'people-list-failed' }); }
+    }
+    if (request.method === 'POST' && url.pathname === '/api/people') {
+      const body = await readJson(request);
+      if (body.error) return send(response, body.status ?? 400, { error: body.error });
+      if (!isUuid(body.value?.householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      const validation = validatePersonInput(body.value);
+      if (validation.error) return send(response, 400, { error: validation.error });
+      try { return send(response, 201, { person: await createPerson(pool, body.value.householdId, validation.data) }); }
+      catch (error) { return send(response, error.code === '23505' ? 409 : 500, { error: error.code === '23505' ? 'person-already-exists' : 'person-create-failed' }); }
+    }
+    const personAction = url.pathname.match(/^\/api\/people\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(weights|profile-history)$/i);
+    if (personAction && request.method === 'POST') {
+      const body = await readJson(request);
+      if (body.error) return send(response, body.status ?? 400, { error: body.error });
+      if (!isUuid(body.value?.householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      const isWeight = personAction[2] === 'weights';
+      const validation = isWeight ? validateWeightInput(body.value) : validateProfileHistoryInput(body.value);
+      if (validation.error) return send(response, 400, { error: validation.error });
+      try {
+        const result = isWeight
+          ? await addWeightEntry(pool, personAction[1], body.value.householdId, validation.data)
+          : await addProfileHistory(pool, personAction[1], body.value.householdId, validation.data);
+        if (!result) return send(response, 404, { error: 'person-not-found' });
+        return send(response, 201, { [isWeight ? 'measurement' : 'profileHistoryEntry']: result });
+      } catch (error) {
+        if (error.code === '23505') return send(response, 409, { error: isWeight ? 'weight-entry-already-exists-for-date' : 'profile-entry-already-exists-for-date' });
+        return send(response, 500, { error: isWeight ? 'weight-entry-create-failed' : 'profile-history-create-failed' });
+      }
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/planning') {
+      const householdId = url.searchParams.get('householdId');
+      const weekStart = url.searchParams.get('weekStart');
+      if (!isUuid(householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      if (!isValidDate(weekStart) || new Date(`${weekStart}T00:00:00Z`).getUTCDay() !== 1) return send(response, 400, { error: 'invalid-week-start' });
+      try { return send(response, 200, { meals: await listPlannedMeals(pool, householdId, weekStart) }); }
+      catch { return send(response, 500, { error: 'planning-list-failed' }); }
+    }
+    if (url.pathname === '/api/planning/meals' && request.method === 'POST') {
+      const body = await readJson(request);
+      if (body.error) return send(response, body.status ?? 400, { error: body.error });
+      const validation = validatePlannedMeal(body.value);
+      if (validation.error) return send(response, 400, { error: validation.error });
+      try {
+        const meal = await savePlannedMeal(pool, null, validation.data);
+        if (meal?.error) return send(response, 400, { error: meal.error });
+        return send(response, 201, { meal });
+      } catch { return send(response, 500, { error: 'planning-save-failed' }); }
+    }
+    const plannedMealId = url.pathname.match(/^\/api\/planning\/meals\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i)?.[1];
+    if (plannedMealId && request.method === 'PUT') {
+      const body = await readJson(request);
+      if (body.error) return send(response, body.status ?? 400, { error: body.error });
+      const validation = validatePlannedMeal(body.value);
+      if (validation.error) return send(response, 400, { error: validation.error });
+      try {
+        const meal = await savePlannedMeal(pool, plannedMealId, validation.data);
+        if (!meal) return send(response, 404, { error: 'planned-meal-not-found' });
+        if (meal.error) return send(response, 400, { error: meal.error });
+        return send(response, 200, { meal });
+      } catch { return send(response, 500, { error: 'planning-save-failed' }); }
+    }
+    if (plannedMealId && request.method === 'DELETE') {
+      const householdId = url.searchParams.get('householdId');
+      if (!isUuid(householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      try { return await deletePlannedMeal(pool, plannedMealId, householdId) ? send(response, 200, { deleted: true }) : send(response, 404, { error: 'planned-meal-not-found' }); }
+      catch { return send(response, 500, { error: 'planning-delete-failed' }); }
     }
 
     if (request.method === 'POST' && url.pathname === '/api/recipes') {
@@ -412,6 +488,12 @@ async function readJson(request) {
   }
 }
 
+
+function isValidDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(value + 'T00:00:00Z');
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
 function isUuid(value) { return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value); }
 function isSupportedRecipeUrl(value) {
   try { const url = new URL(value); return url.protocol === 'https:' && ['instagram.com', 'www.instagram.com', 'youtube.com', 'www.youtube.com', 'youtu.be', 'm.youtube.com'].includes(url.hostname.toLowerCase()); }
