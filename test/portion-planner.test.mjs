@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SLOT_RATIOS, suggestQuantity } from '../web/portion-planner.js';
+import { SLOT_RATIOS, rebalanceNaturalPortions, suggestQuantity } from '../web/portion-planner.js';
 
 test('uses the same daily energy ratios for every profile and slot', () => {
   assert.deepEqual(SLOT_RATIOS, { breakfast: 0.2, lunch: 0.4, dinner: 0.3, snack: 0.1 });
@@ -32,4 +32,28 @@ test('allocates the slot budget with the requested main, accompaniment and bever
   assert.equal(main.estimatedKcal, 350);
   assert.equal(accompaniment.estimatedKcal, 100);
   assert.equal(beverage.estimatedKcal, 50);
+});
+
+
+test('lets a whole breakfast drink exceed its soft share by reducing the main recipe within the slot budget', () => {
+  const result = rebalanceNaturalPortions([
+    { role: 'main', quantity: 3, step: 1, recipeKcal: 100 },
+    { role: 'accompaniment', quantity: 1, step: 1, recipeKcal: 80 },
+    { role: 'beverage', quantity: null, reason: 'no-natural-portion-fits', step: 1, recipeKcal: 150 },
+  ], 400);
+  assert.equal(result.beverageAdded, true);
+  assert.equal(result.proposals[0].quantity, 1);
+  assert.equal(result.proposals[2].quantity, 1);
+  assert.ok(result.estimatedKcal <= 400);
+});
+
+test('does not invent a drink when minimum natural portions cannot fit the slot budget', () => {
+  const result = rebalanceNaturalPortions([
+    { role: 'main', quantity: 1, step: 1, recipeKcal: 300 },
+    { role: 'accompaniment', quantity: 1, step: 1, recipeKcal: 100 },
+    { role: 'beverage', quantity: null, reason: 'no-natural-portion-fits', step: 1, recipeKcal: 150 },
+  ], 500);
+  assert.equal(result.beverageAdded, false);
+  assert.equal(result.proposals[2].quantity, null);
+  assert.equal(result.estimatedKcal, 400);
 });
