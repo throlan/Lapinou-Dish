@@ -797,7 +797,7 @@ function applyAutomaticPortions(items, attendeeIds) {
       if (suggestion.reason === 'daily-target-missing') messages.add(`${person?.displayName ?? 'Une personne'} : besoin quotidien manquant, ${fallbackQuantity} ${recipeUnit} proposé par défaut.`);
       else if (suggestion.reason === 'recipe-energy-missing') messages.add(`${recipe?.name ?? 'Une recette'} : calories inconnues, ${fallbackQuantity} ${recipeUnit} proposé par défaut; le budget calorique ne peut pas être garanti.`);
       else if (suggestion.reason === 'daily-budget-used') messages.add(`${person?.displayName ?? 'Une personne'} : enveloppe quotidienne déjà atteinte.`);
-      else if (suggestion.reason === 'no-natural-portion-fits') messages.add(`${recipe?.name ?? 'Une recette'} : aucune portion entière ou demi-portion ne tient dans le budget restant.`);
+      else if (suggestion.reason === 'no-natural-portion-fits' && role !== 'beverage') messages.add(`${recipe?.name ?? 'Une recette'} : aucune portion entière ou demi-portion ne tient dans le budget restant.`);
       proposals.push({ item, role, quantity: suggestion.quantity ?? fallbackQuantity, reason: suggestion.reason, step, recipeKcal: Number(kcal), slotBudgetKcal: suggestion.slotBudgetKcal });
     }
     const budget = proposals.find((proposal) => Number.isFinite(proposal.slotBudgetKcal))?.slotBudgetKcal;
@@ -805,6 +805,7 @@ function applyAutomaticPortions(items, attendeeIds) {
       const result = rebalanceNaturalPortions(proposals, budget);
       result.proposals.forEach((proposal) => { proposal.item.amounts[personId] = proposal.quantity == null ? '' : String(proposal.quantity); });
       if (result.beverageAdded) messages.add(`${person?.displayName ?? 'Une personne'} : une boisson entière est proposée; le surplus au-delà des 10 % indicatifs est pris sur la recette principale, dans la limite du créneau.`);
+      else if (result.proposals.some((proposal) => proposal.role === 'beverage' && proposal.quantity == null && proposal.reason === 'no-natural-portion-fits')) messages.add('Aucune boisson entière ne tient dans le budget restant, même après réduction des autres recettes.');
     }
   }
   const notice = document.createElement('p');
