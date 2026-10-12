@@ -22,7 +22,21 @@ export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, r
 }
 
 
-export const MIN_PROTEIN_G_PER_MEAL = 4;
+export const MIN_PROTEIN_G_PER_MEAL = 40;
+
+export function calculatePersonProtein(meal, personId) {
+  let grams = 0;
+  let hasPortions = false;
+  for (const item of meal?.items ?? []) {
+    const amount = item.amounts?.find((entry) => entry.personId === personId);
+    if (!amount || !(Number(amount.quantity) > 0)) continue;
+    hasPortions = true;
+    const protein = item.recipe?.nutrition?.perYieldUnit?.proteinG;
+    if (protein == null || !Number.isFinite(Number(protein))) return { grams: null, known: false, hasPortions };
+    grams += Number(amount.quantity) * Number(protein);
+  }
+  return { grams: hasPortions ? Number(grams.toFixed(2)) : null, known: hasPortions, hasPortions };
+}
 
 export function capAccompanimentQuantity(quantity, { recipeUnit, recipeYieldAmount }) {
   if (recipeUnit !== 'g' || !Number.isFinite(Number(quantity)) || !Number.isFinite(Number(recipeYieldAmount)) || Number(recipeYieldAmount) <= 0) return quantity;
