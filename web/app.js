@@ -783,9 +783,12 @@ function applyAutomaticPortions(items, attendeeIds) {
         recipeCount: validRecipes.length,
       });
       item.amounts ??= {};
-      item.amounts[personId] = suggestion.quantity == null ? '' : String(suggestion.quantity);
-      if (suggestion.reason === 'daily-target-missing') messages.add(`${person?.displayName ?? 'Une personne'} : besoin quotidien à renseigner pour proposer une quantité.`);
-      else if (suggestion.reason === 'recipe-energy-missing') messages.add(`${recipe?.name ?? 'Une recette'} : énergie indisponible, quantité à saisir.`);
+      const fallbackQuantity = suggestion.quantity == null && ['daily-target-missing', 'recipe-energy-missing'].includes(suggestion.reason)
+        ? (recipe?.yield.unitId === 'g' ? 10 : 1)
+        : null;
+      item.amounts[personId] = suggestion.quantity == null ? (fallbackQuantity == null ? '' : String(fallbackQuantity)) : String(suggestion.quantity);
+      if (suggestion.reason === 'daily-target-missing') messages.add(`${person?.displayName ?? 'Une personne'} : besoin quotidien manquant, ${fallbackQuantity} ${recipe?.yield.unitId ?? 'portion'} proposé par défaut.`);
+      else if (suggestion.reason === 'recipe-energy-missing') messages.add(`${recipe?.name ?? 'Une recette'} : calories inconnues, ${fallbackQuantity} ${recipe?.yield.unitId ?? 'portion'} proposé par défaut; le budget calorique ne peut pas être garanti.`);
       else if (suggestion.reason === 'daily-budget-used') messages.add(`${person?.displayName ?? 'Une personne'} : enveloppe quotidienne déjà atteinte.`);
       else if (suggestion.reason === 'no-natural-portion-fits') messages.add(`${recipe?.name ?? 'Une recette'} : aucune portion entière ou demi-portion ne tient dans le budget restant.`);
     }
@@ -853,7 +856,7 @@ async function openMealEditor(date, slot, meal = null) {
   const items = {};
   (meal?.items ?? []).forEach((item, index) => { items[index] = { recipeId: item.recipeId, amounts: Object.fromEntries(item.amounts.map((amount) => [amount.personId, String(amount.quantity)])) }; });
   if (!Object.keys(items).length) items[0] = { recipeId: '', amounts: {} };
-  renderPlannedItems(items);
+  renderPlannedItems(items, { autoSuggest: true });
   $('#meal-dialog').showModal();
 }
 
@@ -873,6 +876,10 @@ $('#delete-meal').addEventListener('click', async () => {
     $('#meal-dialog').close(); await refreshCalendar();
   } catch (error) { showMessage($('#meal-message'), `Suppression impossible : ${error.body?.error ?? error.message}`); }
 });
+for (const field of ['mealDate', 'slot']) {
+  $('#meal-form').elements[field].addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
+}
+
 $('#meal-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   if (!state.household) return;
