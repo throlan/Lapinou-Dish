@@ -227,3 +227,8 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
   .calendar-summary h3 { grid-column:auto; }
   .meal-fields { grid-template-columns:1fr; }
 }
+
+/* Personalized beverage choice in the meal planner. */
+.beverage-item-top { grid-template-columns:minmax(190px,1fr) auto; }
+.beverage-person { display:grid; gap:6px; }
+.beverage-person span { color:var(--muted,#a8b9d6); }
