@@ -1,6 +1,8 @@
+import { suggestQuantity } from './portion-planner.js';
+
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, importingDraftId: null, editingFoodFromRecipe: false, people: [], recipes: [], calendarWeekStart: null, calendarMealId: null };
+const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, importingDraftId: null, editingFoodFromRecipe: false, people: [], recipes: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [] };
 const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbohydrateG', 'g gluc.'], ['fatG', 'g lip.']];
 
 async function api(path, options = {}) {
@@ -641,6 +643,7 @@ async function refreshCalendar() {
     ]);
     state.people = peopleResult.people;
     state.recipes = recipesResult.recipes;
+    state.calendarMeals = plan.meals ?? [];
     const end = addDays(state.calendarWeekStart, 6);
     $('#calendar-week-title').textContent = `${displayDate(state.calendarWeekStart, { day: '2-digit', month: 'long' })} – ${displayDate(end, { day: '2-digit', month: 'long', year: 'numeric' })}`;
     grid.replaceChildren(...Array.from({ length: 7 }, (_, index) => renderCalendarDay(addDays(state.calendarWeekStart, index), plan.meals ?? [], today)));
@@ -746,13 +749,65 @@ function currentFormAmounts() {
   return output;
 }
 
-function renderPlannedItems(existing = {}) {
+function plannedCaloriesForPerson(meal, personId) {
+  if (!meal.attendees?.some((person) => person.id === personId)) return 0;
+  return (meal.items ?? []).reduce((sum, item) => {
+    const amount = item.amounts?.find((entry) => entry.personId === personId);
+    const energy = item.recipe?.nutrition?.perYieldUnit?.energyKcal;
+    return amount && energy != null ? sum + amount.quantity * energy : sum;
+  }, 0);
+}
+
+function applyAutomaticPortions(items, attendeeIds) {
+  const date = $('#meal-form').elements.mealDate.value;
+  const slot = $('#meal-form').elements.slot.value;
+  const recipes = Object.values(items).filter((item) => item.recipeId).map((item) => state.recipes.find((recipe) => recipe.id === item.recipeId));
+  const validRecipes = recipes.filter(Boolean);
+  const messages = new Set();
+  for (const personId of attendeeIds) {
+    const person = state.people.find((entry) => entry.id === personId);
+    const profile = person && latestProfile(person, date);
+    const plannedOtherKcal = state.calendarMeals
+      .filter((meal) => meal.mealDate === date && meal.id !== state.calendarMealId)
+      .reduce((sum, meal) => sum + plannedCaloriesForPerson(meal, personId), 0);
+    for (const item of Object.values(items)) {
+      if (!item.recipeId) continue;
+      const recipe = state.recipes.find((entry) => entry.id === item.recipeId);
+      const kcal = recipe?.nutrition?.perYieldUnit?.energyKcal;
+      const suggestion = suggestQuantity({
+        dailyTargetKcal: profile?.dailyEnergyKcal,
+        slot,
+        plannedOtherKcal,
+        recipeKcal: kcal,
+        recipeUnit: recipe?.yield.unitId,
+        recipeCount: validRecipes.length,
+      });
+      item.amounts ??= {};
+      item.amounts[personId] = suggestion.quantity == null ? '' : String(suggestion.quantity);
+      if (suggestion.reason === 'daily-target-missing') messages.add(`${person?.displayName ?? 'Une personne'} : besoin quotidien à renseigner pour proposer une quantité.`);
+      else if (suggestion.reason === 'recipe-energy-missing') messages.add(`${recipe?.name ?? 'Une recette'} : énergie indisponible, quantité à saisir.`);
+      else if (suggestion.reason === 'daily-budget-used') messages.add(`${person?.displayName ?? 'Une personne'} : enveloppe quotidienne déjà atteinte.`);
+      else if (suggestion.reason === 'no-natural-portion-fits') messages.add(`${recipe?.name ?? 'Une recette'} : aucune portion entière ou demi-portion ne tient dans le budget restant.`);
+    }
+  }
+  const notice = document.createElement('p');
+  notice.className = messages.size ? 'form-message warning' : 'form-message';
+  notice.setAttribute('role', 'status');
+  notice.textContent = messages.size
+    ? [...messages].join(' ')
+    : 'Portions proposées selon le besoin du profil et le créneau (±100 kcal), en respectant le budget quotidien. Tu peux les ajuster.';
+  $('#planned-items').replaceChildren(notice);
+}
+
+function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
   const root = $('#planned-items');
   const saved = currentFormAmounts();
   const source = Object.keys(existing).length ? existing : saved;
   const attendees = $$('#meal-attendees input:checked').map((input) => input.value);
+  if (autoSuggest) applyAutomaticPortions(source, attendees);
   const rows = Object.entries(source);
-  root.replaceChildren(...rows.map(([index, item]) => {
+  const suggestionNotice = autoSuggest ? root.firstChild : null;
+  const editorRows = rows.map(([index, item]) => {
     const row = document.createElement('div'); row.className = 'planned-item-editor';
     const select = document.createElement('select'); select.name = 'recipeId'; select.setAttribute('aria-label', 'Recette');
     select.add(new Option('Choisir une recette', ''));
@@ -764,14 +819,19 @@ function renderPlannedItems(existing = {}) {
     for (const personId of attendees) {
       const person = state.people.find((entry) => entry.id === personId);
       const label = document.createElement('label'); label.textContent = `${person?.displayName ?? 'Personne'} · ${state.recipes.find((recipe) => recipe.id === item.recipeId)?.yield.unitId ?? 'portion'}`;
-      const input = document.createElement('input'); input.type = 'number'; input.min = '0.01'; input.step = 'any'; input.required = true; input.dataset.personId = personId;
+      const recipe = state.recipes.find((entry) => entry.id === item.recipeId);
+      const unit = recipe?.yield.unitId ?? 'portion';
+      const step = unit === 'piece' ? '1' : unit === 'g' ? '10' : '0.5';
+      const input = document.createElement('input'); input.type = 'number'; input.min = step; input.step = step; input.required = true; input.dataset.personId = personId;
       input.value = item.amounts?.[personId] ?? ''; input.placeholder = 'Ex. 1'; input.setAttribute('aria-label', `Quantité pour ${person?.displayName ?? 'personne'}`);
       label.append(input); quantities.append(label);
     }
     const top = document.createElement('div'); top.className = 'planned-item-top'; top.append(select, remove);
-    select.addEventListener('change', () => renderPlannedItems(currentFormAmounts()));
+    select.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
     row.append(top, quantities); return row;
-  }));
+  });
+  if (suggestionNotice) root.replaceChildren(suggestionNotice, ...editorRows);
+  else root.replaceChildren(...editorRows);
 }
 
 async function openMealEditor(date, slot, meal = null) {
@@ -787,7 +847,7 @@ async function openMealEditor(date, slot, meal = null) {
   const attendeeRoot = $('#meal-attendees');
   attendeeRoot.replaceChildren(...state.people.map((person) => {
     const label = document.createElement('label'); label.className = 'attendee-option';
-    const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = person.id; checkbox.checked = Boolean(meal?.attendees?.some((entry) => entry.id === person.id)); checkbox.addEventListener('change', () => renderPlannedItems());
+    const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = person.id; checkbox.checked = Boolean(meal?.attendees?.some((entry) => entry.id === person.id)); checkbox.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
     const name = document.createElement('span'); name.textContent = person.displayName; label.append(checkbox, name); return label;
   }));
   const items = {};
