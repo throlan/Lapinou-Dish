@@ -63,14 +63,14 @@ test('caps gram-based accompaniment portions at 1.5 yields and 200 g', async () 
   assert.equal(capAccompanimentQuantity(620, { recipeUnit: 'piece', recipeYieldAmount: 4 }), 620);
 });
 
-test('rebalances to the 4 g protein floor when there is calorie room and respects the cap', () => {
+test('rebalances to the 40 g protein floor when there is calorie room and respects the cap', () => {
   const result = rebalanceNaturalPortions([
-    { role: 'main', quantity: 1, step: 1, recipeKcal: 100, proteinG: 3, maxQuantity: Infinity },
+    { role: 'main', quantity: 1, step: 1, recipeKcal: 190, proteinG: 30, maxQuantity: Infinity },
     { role: 'accompaniment', quantity: 0, step: 10, recipeKcal: 0.6, proteinG: 0.1, maxQuantity: 150 },
-  ], 200);
+  ], 250);
   assert.equal(result.proposals[0].quantity, 1);
-  assert.equal(result.proposals[1].quantity, 10);
-  assert.equal(result.estimatedProteinG, 4);
+  assert.equal(result.proposals[1].quantity, 100);
+  assert.equal(result.estimatedProteinG, 40);
   assert.equal(result.proteinTargetMet, true);
   assert.equal(result.withinBudget, true);
 });
@@ -82,4 +82,16 @@ test('reports when protein values are unknown instead of claiming the floor is m
   assert.equal(result.proteinKnown, false);
   assert.equal(result.proteinTargetMet, false);
   assert.equal(result.estimatedProteinG, null);
+});
+
+test('totals protein per attendee and treats any missing recipe value as unknown', async () => {
+  const { calculatePersonProtein } = await import('../web/portion-planner.js');
+  const meal = { items: [
+    { recipe: { nutrition: { perYieldUnit: { proteinG: 12 } } }, amounts: [{ personId: 'a', quantity: 2 }, { personId: 'b', quantity: 1 }] },
+    { recipe: { nutrition: { perYieldUnit: { proteinG: 4 } } }, amounts: [{ personId: 'a', quantity: 1 }] },
+  ] };
+  assert.deepEqual(calculatePersonProtein(meal, 'a'), { grams: 28, known: true, hasPortions: true });
+  assert.deepEqual(calculatePersonProtein(meal, 'b'), { grams: 12, known: true, hasPortions: true });
+  meal.items.push({ recipe: { nutrition: { perYieldUnit: { proteinG: null } } }, amounts: [{ personId: 'a', quantity: 1 }] });
+  assert.deepEqual(calculatePersonProtein(meal, 'a'), { grams: null, known: false, hasPortions: true });
 });
