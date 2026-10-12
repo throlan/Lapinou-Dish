@@ -27,8 +27,48 @@ test('requires a person to be explicitly selected', () => {
   assert.equal(validatePlannedMeal(valid({ attendeeIds: [] })).error, 'attendees-required');
 });
 
-test('requires a positive amount for every attendee on each recipe', () => {
+test('shared recipes require everyone while beverage amounts may be person-specific', () => {
   assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, amounts: [{ personId: personA, quantity: 1 }] }] })).error, 'amounts-must-match-attendees');
+  const individualDrink = validatePlannedMeal(valid({ items: [{ recipeId, role: 'beverage', amounts: [{ personId: personA, quantity: 1 }] }] }));
+  assert.equal(individualDrink.error, undefined);
+  assert.equal(individualDrink.data.items[0].amounts.length, 1);
+  assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, role: 'beverage', amounts: [] }] })).error, 'invalid-beverage-amounts');
+  assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, amounts: [{ personId: personA, quantity: 0 }, { personId: personB, quantity: 1 }] }] })).error, 'invalid-planned-quantity');
+});
+
+test('rejects invalid dates, slots and people outside the attendee set', () => {
+  assert.equal(validatePlannedMeal(valid({ mealDate: '2026-02-30' })).error, 'invalid-meal-date');
+  assert.equal(validatePlannedMeal(valid({ slot: 'midnight' })).error, 'invalid-meal-slot');
+  assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, amounts: [{ personId: '55555555-5555-4555-8555-555555555555', quantity: 1 }, { personId: personB, quantity: 1 }] }] })).error, 'invalid-planned-amount-person');
+});
+
+test('planned meals keep their exact calendar date when listed', async () => {
+  const mealId = '55555555-5555-4555-8555-555555555555';
+  const queries = [];
+  const pool = { query: async (sql, values) => {
+    queries.push(sql);
+    if (sql.includes('FROM planned_meals WHERE household_id')) {
+      return { rows: [{ id: mealId, meal_date: '2026-10-12', slot: 'lunch', notes: '' }] };
+    }
+    if (sql.includes('FROM planned_meal_attendees')) return { rows: [{ id: personA, display_name: 'Lapinou' }] };
+    if (sql.includes('FROM planned_meal_items')) return { rows: [] };
+    throw new Error('Unexpected query');
+  } };
+  const meals = await listPlannedMeals(pool, householdId, '2026-10-12');
+  assert.ok(queries[0].includes('meal_date::text AS meal_date'));
+  assert.equal(meals[0].mealDate, '2026-10-12');
+});
+
+
+test('accepts meal item categories and rejects unsupported categories', () => {
+  assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, role: 'beverage', amounts: [{ personId: personA, quantity: 1 }, { personId: personB, quantity: 1 }] }] })).data.items[0].role, 'beverage');
+  assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, role: 'dessert', amounts: [{ personId: personA, quantity: 1 }, { personId: personB, quantity: 1 }] }] })).error, 'invalid-planned-item-role');
+});test('shared recipes require everyone while beverage amounts may be person-specific', () => {
+  assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, amounts: [{ personId: personA, quantity: 1 }] }] })).error, 'amounts-must-match-attendees');
+  const individualDrink = validatePlannedMeal(valid({ items: [{ recipeId, role: 'beverage', amounts: [{ personId: personA, quantity: 1 }] }] }));
+  assert.equal(individualDrink.error, undefined);
+  assert.equal(individualDrink.data.items[0].amounts.length, 1);
+  assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, role: 'beverage', amounts: [] }] })).error, 'invalid-beverage-amounts');
   assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, amounts: [{ personId: personA, quantity: 0 }, { personId: personB, quantity: 1 }] }] })).error, 'invalid-planned-quantity');
 });
 

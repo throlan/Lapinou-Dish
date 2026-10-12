@@ -17,7 +17,10 @@ export function validatePlannedMeal(input) {
   const items = [];
   for (const item of input.items) {
     if (!item || !isUuid(item.recipeId) || !Array.isArray(item.amounts)) return { error: 'invalid-planned-item' };
-    if (item.amounts.length !== attendeeIds.length) return { error: 'amounts-must-match-attendees' };
+    const role = item.role ?? 'main';
+    if (!['main', 'accompaniment', 'beverage'].includes(role)) return { error: 'invalid-planned-item-role' };
+    if (role !== 'beverage' && item.amounts.length !== attendeeIds.length) return { error: 'amounts-must-match-attendees' };
+    if (role === 'beverage' && (item.amounts.length < 1 || item.amounts.length > attendeeIds.length)) return { error: 'invalid-beverage-amounts' };
     const seen = new Set();
     const amounts = [];
     for (const amount of item.amounts) {
@@ -27,9 +30,7 @@ export function validatePlannedMeal(input) {
       seen.add(amount.personId);
       amounts.push({ personId: amount.personId, quantity });
     }
-    if (seen.size !== attendeeIds.length) return { error: 'amounts-must-match-attendees' };
-    const role = item.role ?? 'main';
-    if (!['main', 'accompaniment', 'beverage'].includes(role)) return { error: 'invalid-planned-item-role' };
+    if (role !== 'beverage' && seen.size !== attendeeIds.length) return { error: 'amounts-must-match-attendees' };
     items.push({ recipeId: item.recipeId, role, amounts });
   }
   return { data: { householdId: input.householdId, mealDate: input.mealDate, slot: input.slot, notes, attendeeIds, items } };
