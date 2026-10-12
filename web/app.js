@@ -741,10 +741,33 @@ function renderCalendarSummary(meals, people, weekStart) {
 function currentFormAmounts() {
   const output = {};
   $$('.planned-item-editor', $('#planned-items')).forEach((row, index) => {
-    const recipeId = $('select[name="recipeId"]', row)?.value;
-    const amounts = {};
-    $$('input[data-person-id]', row).forEach((input) => { amounts[input.dataset.personId] = input.value; });
     const role = $('select[name="role"]', row)?.value ?? 'main';
+    if (role === 'beverage') {
+      const assignments = {};
+      $$('.beverage-person', row).forEach((personRow) => {
+        const personId = personRow.dataset.personId;
+        const recipeId = $('select[data-person-recipe]', personRow)?.value ?? '';
+        const quantity = $('input[data-person-id]', personRow)?.value ?? '';
+        if (recipeId) assignments[personId] = { recipeId, quantity };
+      });
+      const sharedRecipeId = $('select[name="recipeId"]', row)?.value;
+      if (!Object.keys(assignments).length && sharedRecipeId) {
+        $('input[data-person-id]', row).forEach((input) => {
+          assignments[input.dataset.personId] = { recipeId: sharedRecipeId, quantity: input.value };
+        });
+      }
+      output[index] = { recipeId: '', role, assignments };
+      return;
+    }
+    const assignments = {};
+    $('.beverage-person', row).forEach((personRow) => {
+      const recipeId = $('select[data-person-recipe]', personRow)?.value ?? '';
+      if (recipeId) assignments[personRow.dataset.personId] = { recipeId, quantity: $('input[data-person-id]', personRow)?.value ?? '' };
+    });
+    const recipeId = $('select[name="recipeId"]', row)?.value || Object.values(assignments)[0]?.recipeId || '';
+    const amounts = {};
+    if (Object.keys(assignments).length) Object.entries(assignments).forEach(([personId, assignment]) => { amounts[personId] = assignment.quantity; });
+    else $('input[data-person-id]', row).forEach((input) => { amounts[input.dataset.personId] = input.value; });
     output[index] = { recipeId, role, amounts };
   });
   return output;
@@ -763,7 +786,7 @@ function applyAutomaticPortions(items, attendeeIds) {
   const date = $('#meal-form').elements.mealDate.value;
   const slot = $('#meal-form').elements.slot.value;
   const roleWeights = { main: 0.7, accompaniment: 0.2, beverage: 0.1 };
-  const selectedItems = Object.values(items).filter((item) => item.recipeId);
+  const selectedItems = Object.values(items).filter((item) => item.recipeId || (item.role === 'beverage' && Object.keys(item.assignments ?? {}).length));
   const roleCounts = Object.fromEntries(Object.keys(roleWeights).map((role) => [role, selectedItems.filter((item) => (item.role ?? 'main') === role).length]));
   const activeWeight = Object.entries(roleCounts).reduce((sum, [role, count]) => sum + (count ? roleWeights[role] : 0), 0);
   const messages = new Set();
@@ -775,9 +798,12 @@ function applyAutomaticPortions(items, attendeeIds) {
       .reduce((sum, meal) => sum + plannedCaloriesForPerson(meal, personId), 0);
     const proposals = [];
     for (const item of selectedItems) {
-      const recipe = state.recipes.find((entry) => entry.id === item.recipeId);
-      const kcal = recipe?.nutrition?.perYieldUnit?.energyKcal;
       const role = item.role ?? 'main';
+      const assignment = role === 'beverage' ? item.assignments?.[personId] : null;
+      const recipeId = role === 'beverage' ? assignment?.recipeId : item.recipeId;
+      if (!recipeId) continue;
+      const recipe = state.recipes.find((entry) => entry.id === recipeId);
+      const kcal = recipe?.nutrition?.perYieldUnit?.energyKcal;
       const recipeUnit = recipe?.yield.unitId ?? 'portion';
       const step = recipeUnit === 'piece' ? 1 : recipeUnit === 'g' ? 10 : 0.5;
       const suggestion = suggestQuantity({
@@ -789,23 +815,30 @@ function applyAutomaticPortions(items, attendeeIds) {
         recipeCount: roleCounts[role] || 1,
         budgetShare: activeWeight ? roleWeights[role] / activeWeight : 1,
       });
-      item.amounts ??= {};
-      const fallbackQuantity = suggestion.quantity == null && ['daily-target-missing', 'recipe-energy-missing'].includes(suggestion.reason)
-        ? (recipeUnit === 'g' ? 10 : 1)
-        : null;
-      item.amounts[personId] = suggestion.quantity == null ? (fallbackQuantity == null ? '' : String(fallbackQuantity)) : String(suggestion.quantity);
-      if (suggestion.reason === 'daily-target-missing') messages.add(`${person?.displayName ?? 'Une personne'} : besoin quotidien manquant, ${fallbackQuantity} ${recipeUnit} proposé par défaut.`);
-      else if (suggestion.reason === 'recipe-energy-missing') messages.add(`${recipe?.name ?? 'Une recette'} : calories inconnues, ${fallbackQuantity} ${recipeUnit} proposé par défaut; le budget calorique ne peut pas être garanti.`);
+      if (role === 'beverage') assignment.quantity = suggestion.quantity == null ? '' : String(suggestion.quantity);
+      else {
+        item.amounts ??= {};
+        const fallbackQuantity = suggestion.quantity == null && ['daily-target-missing', 'recipe-energy-missing'].includes(suggestion.reason)
+          ? (recipeUnit === 'g' ? 10 : 1)
+          : null;
+        item.amounts[personId] = suggestion.quantity == null ? (fallbackQuantity == null ? '' : String(fallbackQuantity)) : String(suggestion.quantity);
+      }
+      const quantity = role === 'beverage' ? (suggestion.quantity == null ? null : suggestion.quantity) : (suggestion.quantity ?? (['daily-target-missing', 'recipe-energy-missing'].includes(suggestion.reason) ? (recipeUnit === 'g' ? 10 : 1) : null));
+      if (suggestion.reason === 'daily-target-missing') messages.add(`${person?.displayName ?? 'Une personne'} : besoin quotidien manquant, une quantité par défaut est proposée.`);
+      else if (suggestion.reason === 'recipe-energy-missing') messages.add(`${recipe?.name ?? 'Une recette'} : calories inconnues, la quantité par défaut ne peut pas garantir le budget.`);
       else if (suggestion.reason === 'daily-budget-used') messages.add(`${person?.displayName ?? 'Une personne'} : enveloppe quotidienne déjà atteinte.`);
       else if (suggestion.reason === 'no-natural-portion-fits' && role !== 'beverage') messages.add(`${recipe?.name ?? 'Une recette'} : aucune portion entière ou demi-portion ne tient dans le budget restant.`);
-      proposals.push({ item, role, quantity: suggestion.quantity ?? fallbackQuantity, reason: suggestion.reason, step, recipeKcal: Number(kcal), slotBudgetKcal: suggestion.slotBudgetKcal });
+      proposals.push({ item, personId, role, quantity, reason: suggestion.reason, step, recipeKcal: Number(kcal), slotBudgetKcal: suggestion.slotBudgetKcal, assignment });
     }
     const budget = proposals.find((proposal) => Number.isFinite(proposal.slotBudgetKcal))?.slotBudgetKcal;
     if (Number.isFinite(budget) && proposals.length && proposals.every((proposal) => Number.isFinite(proposal.recipeKcal) && proposal.recipeKcal > 0)) {
       const result = rebalanceNaturalPortions(proposals, budget);
-      result.proposals.forEach((proposal) => { proposal.item.amounts[personId] = proposal.quantity == null ? '' : String(proposal.quantity); });
+      result.proposals.forEach((proposal) => {
+        if (proposal.role === 'beverage') proposal.assignment.quantity = proposal.quantity == null ? '' : String(proposal.quantity);
+        else proposal.item.amounts[personId] = proposal.quantity == null ? '' : String(proposal.quantity);
+      });
       if (result.beverageAdded) messages.add(`${person?.displayName ?? 'Une personne'} : une boisson entière est proposée; le surplus au-delà des 10 % indicatifs est pris sur la recette principale, dans la limite du créneau.`);
-      else if (result.proposals.some((proposal) => proposal.role === 'beverage' && proposal.quantity == null && proposal.reason === 'no-natural-portion-fits')) messages.add('Aucune boisson entière ne tient dans le budget restant, même après réduction des autres recettes.');
+      else if (result.proposals.some((proposal) => proposal.role === 'beverage' && proposal.quantity == null && proposal.reason === 'no-natural-portion-fits')) messages.add(`${person?.displayName ?? 'Une personne'} : aucune boisson entière ne tient dans le budget restant après ajustement des autres recettes.`);
     }
   }
   const notice = document.createElement('p');
@@ -813,7 +846,7 @@ function applyAutomaticPortions(items, attendeeIds) {
   notice.setAttribute('role', 'status');
   notice.textContent = messages.size
     ? [...messages].join(' ')
-    : 'Répartition indicative : 70 % recette principale, 20 % accompagnements et 10 % boisson. Une boisson entière peut dépasser sa part; le surplus est alors pris sur le plat sans dépasser le budget du créneau ni celui de la journée.';
+    : 'Répartition indicative : 70 % recette principale, 20 % accompagnements et 10 % boisson. Chacun choisit sa boisson ou peut ne pas en prendre; une boisson entière peut dépasser sa part, le surplus est pris sur le plat sans dépasser le budget du créneau ni celui de la journée.';
   $('#planned-items').replaceChildren(notice);
 }
 
@@ -833,23 +866,47 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     select.value = item.recipeId ?? '';
     const role = document.createElement('select'); role.name = 'role'; role.setAttribute('aria-label', 'Catégorie de la recette');
     [['main', 'Recette principale · 70 %'], ['accompaniment', 'Accompagnement · 20 %'], ['beverage', 'Boisson · 10 %']].forEach(([value, label]) => role.add(new Option(label, value)));
-    role.value = item.role ?? ['main', 'accompaniment', 'beverage'][Math.min(rowIndex, 2)];
+    role.value = item.role ?? 'main';
     role.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
     const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-line'; remove.textContent = '×'; remove.setAttribute('aria-label', 'Retirer cette recette');
     remove.addEventListener('click', () => { const data = currentFormAmounts(); delete data[index]; renderPlannedItems(data); });
-    const quantities = document.createElement('div'); quantities.className = 'planned-amounts';
-    for (const personId of attendees) {
-      const person = state.people.find((entry) => entry.id === personId);
-      const label = document.createElement('label'); label.textContent = `${person?.displayName ?? 'Personne'} · ${state.recipes.find((recipe) => recipe.id === item.recipeId)?.yield.unitId ?? 'portion'}`;
-      const recipe = state.recipes.find((entry) => entry.id === item.recipeId);
-      const unit = recipe?.yield.unitId ?? 'portion';
-      const step = unit === 'piece' ? '1' : unit === 'g' ? '10' : '0.5';
-      const input = document.createElement('input'); input.type = 'number'; input.min = step; input.step = step; input.required = true; input.dataset.personId = personId;
-      input.value = item.amounts?.[personId] ?? ''; input.placeholder = 'Ex. 1'; input.setAttribute('aria-label', `Quantité pour ${person?.displayName ?? 'personne'}`);
-      label.append(input); quantities.append(label);
-    }
     const top = document.createElement('div'); top.className = 'planned-item-top'; top.append(select, role, remove);
-    select.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
+    const quantities = document.createElement('div'); quantities.className = 'planned-amounts';
+    if (role.value === 'beverage') {
+      select.hidden = true;
+      quantities.classList.add('beverage-amounts');
+      for (const personId of attendees) {
+        const person = state.people.find((entry) => entry.id === personId);
+        const assignment = item.assignments?.[personId] ?? {};
+        const personRow = document.createElement('label'); personRow.className = 'beverage-person'; personRow.dataset.personId = personId;
+        const caption = document.createElement('span'); caption.textContent = person?.displayName ?? 'Personne';
+        const personSelect = document.createElement('select'); personSelect.dataset.personRecipe = 'true'; personSelect.setAttribute('aria-label', `Boisson pour ${person?.displayName ?? 'personne'}`);
+        personSelect.add(new Option('Aucune boisson', ''));
+        state.recipes.forEach((recipe) => personSelect.add(new Option(`${recipe.name} · ${recipe.yield.amount} ${recipe.yield.unitId}`, recipe.id)));
+        personSelect.value = assignment.recipeId ?? '';
+        const recipe = state.recipes.find((entry) => entry.id === personSelect.value);
+        const unit = recipe?.yield.unitId ?? 'portion';
+        const step = unit === 'piece' ? '1' : unit === 'g' ? '10' : '0.5';
+        const input = document.createElement('input'); input.type = 'number'; input.min = step; input.step = step; input.dataset.personId = personId;
+        input.value = assignment.quantity ?? ''; input.placeholder = 'Quantité'; input.setAttribute('aria-label', `Quantité de boisson pour ${person?.displayName ?? 'personne'}`);
+        if (!personSelect.value) input.disabled = true;
+        personSelect.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
+        personRow.append(caption, personSelect, input); quantities.append(personRow);
+      }
+      top.classList.add('beverage-item-top');
+    } else {
+      for (const personId of attendees) {
+        const person = state.people.find((entry) => entry.id === personId);
+        const label = document.createElement('label'); label.textContent = `${person?.displayName ?? 'Personne'} · ${state.recipes.find((recipe) => recipe.id === item.recipeId)?.yield.unitId ?? 'portion'}`;
+        const recipe = state.recipes.find((entry) => entry.id === item.recipeId);
+        const unit = recipe?.yield.unitId ?? 'portion';
+        const step = unit === 'piece' ? '1' : unit === 'g' ? '10' : '0.5';
+        const input = document.createElement('input'); input.type = 'number'; input.min = step; input.step = step; input.required = true; input.dataset.personId = personId;
+        input.value = item.amounts?.[personId] ?? ''; input.placeholder = 'Ex. 1'; input.setAttribute('aria-label', `Quantité pour ${person?.displayName ?? 'personne'}`);
+        label.append(input); quantities.append(label);
+      }
+      select.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
+    }
     row.append(top, quantities); return row;
   });
   if (suggestionNotice) root.replaceChildren(suggestionNotice, ...editorRows);
@@ -873,7 +930,9 @@ async function openMealEditor(date, slot, meal = null) {
     const name = document.createElement('span'); name.textContent = person.displayName; label.append(checkbox, name); return label;
   }));
   const items = {};
-  (meal?.items ?? []).forEach((item, index) => { items[index] = { recipeId: item.recipeId, role: item.role ?? ['main', 'accompaniment', 'beverage'][Math.min(index, 2)], amounts: Object.fromEntries(item.amounts.map((amount) => [amount.personId, String(amount.quantity)])) }; });
+  (meal?.items ?? []).forEach((item, index) => { items[index] = item.role === 'beverage'
+    ? { recipeId: '', role: 'beverage', assignments: Object.fromEntries(item.amounts.map((amount) => [amount.personId, { recipeId: item.recipeId, quantity: String(amount.quantity) }])) }
+    : { recipeId: item.recipeId, role: item.role ?? 'main', amounts: Object.fromEntries(item.amounts.map((amount) => [amount.personId, String(amount.quantity)])) }; });
   if (!Object.keys(items).length) items[0] = { recipeId: '', amounts: {} };
   renderPlannedItems(items, { autoSuggest: true });
   $('#meal-dialog').showModal();
@@ -904,14 +963,31 @@ $('#meal-form').addEventListener('submit', async (event) => {
   if (!state.household) return;
   const attendeeIds = $$('#meal-attendees input:checked').map((input) => input.value);
   const rows = $$('.planned-item-editor', $('#planned-items'));
-  const items = rows.map((row) => ({
-    recipeId: $('select[name="recipeId"]', row).value,
-    role: $('select[name="role"]', row).value,
-    amounts: $('input[data-person-id]', row).map((input) => ({ personId: input.dataset.personId, quantity: Number(input.value) })),
-  }));
+  const items = rows.flatMap((row) => {
+    const role = $('select[name="role"]', row).value;
+    if (role !== 'beverage') return [{
+      recipeId: $('select[name="recipeId"]', row).value,
+      role,
+      amounts: $('input[data-person-id]', row).map((input) => ({ personId: input.dataset.personId, quantity: Number(input.value) })),
+    }];
+    const byRecipe = new Map();
+    $('.beverage-person', row).forEach((personRow) => {
+      const recipeId = $('select[data-person-recipe]', personRow).value;
+      if (!recipeId) return;
+      const quantity = Number($('input[data-person-id]', personRow).value);
+      const amounts = byRecipe.get(recipeId) ?? [];
+      amounts.push({ personId: personRow.dataset.personId, quantity });
+      byRecipe.set(recipeId, amounts);
+    });
+    return [...byRecipe].map(([recipeId, amounts]) => ({ recipeId, role, amounts }));
+  });
   if (!attendeeIds.length) { showMessage($('#meal-message'), 'Sélectionne les personnes présentes pour ce repas.'); return; }
   if (!items.length || items.some((item) => !item.recipeId)) { showMessage($('#meal-message'), 'Choisis au moins une recette pour ce repas.'); return; }
-  if (items.some((item) => item.amounts.length !== attendeeIds.length || item.amounts.some((amount) => !Number.isFinite(amount.quantity) || amount.quantity <= 0))) { showMessage($('#meal-message'), 'Indique une quantité positive pour chaque personne présente et chaque recette.'); return; }
+  if (items.some((item) => item.role !== 'beverage' && item.amounts.length !== attendeeIds.length)
+    || items.some((item) => item.amounts.length < 1 || item.amounts.some((amount) => !Number.isFinite(amount.quantity) || amount.quantity <= 0))) {
+    showMessage($('#meal-message'), 'Indique une quantité positive pour chaque personne concernée par les recettes choisies.');
+    return;
+  }
   const form = event.currentTarget;
   const payload = { householdId: state.household.id, mealDate: form.elements.mealDate.value, slot: form.elements.slot.value, notes: form.elements.notes.value, attendeeIds, items };
   try {
