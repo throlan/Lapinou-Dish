@@ -35,7 +35,7 @@ export function validatePlannedMeal(input) {
 
 export async function listPlannedMeals(pool, householdId, weekStart) {
   const result = await pool.query(
-    'SELECT id, meal_date, slot, notes FROM planned_meals WHERE household_id = $1 AND meal_date >= $2::date AND meal_date < $2::date + 7 ORDER BY meal_date, CASE slot WHEN \'breakfast\' THEN 1 WHEN \'lunch\' THEN 2 WHEN \'dinner\' THEN 3 ELSE 4 END, created_at',
+    'SELECT id, meal_date::text AS meal_date, slot, notes FROM planned_meals WHERE household_id = $1 AND meal_date >= $2::date AND meal_date < $2::date + 7 ORDER BY meal_date, CASE slot WHEN \'breakfast\' THEN 1 WHEN \'lunch\' THEN 2 WHEN \'dinner\' THEN 3 ELSE 4 END, created_at',
     [householdId, weekStart],
   );
   const meals = [];
@@ -108,7 +108,7 @@ export async function deletePlannedMeal(pool, id, householdId) {
 async function readPlannedMeal(client, meal, householdId) {
   let row = meal;
   if (meal.meal_date == null) {
-    const result = await client.query('SELECT id, meal_date, slot, notes FROM planned_meals WHERE id = $1 AND household_id = $2', [meal.id, householdId]);
+    const result = await client.query('SELECT id, meal_date::text AS meal_date, slot, notes FROM planned_meals WHERE id = $1 AND household_id = $2', [meal.id, householdId]);
     row = result.rows[0];
   }
   if (!row) return null;
