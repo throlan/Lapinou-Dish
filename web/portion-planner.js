@@ -43,7 +43,7 @@ export function rebalanceNaturalPortions(proposals, slotBudgetKcal, { minProtein
     candidate.quantity = Number((candidate.quantity - candidate.step).toFixed(4));
   }
 
-  const proteinKnown = rows.every((item) => (Number(item.quantity) || 0) <= 0 || Number.isFinite(Number(item.proteinG)));
+  const proteinKnown = rows.every((item) => (Number(item.quantity) || 0) <= 0 || (item.proteinG != null && Number.isFinite(Number(item.proteinG))));
   const totalProtein = () => rows.reduce((sum, item) => sum + Math.max(0, Number(item.quantity) || 0) * (Number(item.proteinG) || 0), 0);
   if (proteinKnown) {
     while (totalProtein() < minProteinG - 1e-9) {
