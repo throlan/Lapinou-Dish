@@ -1,4 +1,4 @@
-import { suggestQuantity } from './portion-planner.js';
+import { rebalanceNaturalPortions, suggestQuantity } from './portion-planner.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -762,10 +762,9 @@ function plannedCaloriesForPerson(meal, personId) {
 function applyAutomaticPortions(items, attendeeIds) {
   const date = $('#meal-form').elements.mealDate.value;
   const slot = $('#meal-form').elements.slot.value;
-  const recipes = Object.values(items).filter((item) => item.recipeId).map((item) => state.recipes.find((recipe) => recipe.id === item.recipeId));
-  const validRecipes = recipes.filter(Boolean);
   const roleWeights = { main: 0.7, accompaniment: 0.2, beverage: 0.1 };
-  const roleCounts = Object.fromEntries(Object.keys(roleWeights).map((role) => [role, Object.values(items).filter((item) => item.recipeId && (item.role ?? 'main') === role).length]));
+  const selectedItems = Object.values(items).filter((item) => item.recipeId);
+  const roleCounts = Object.fromEntries(Object.keys(roleWeights).map((role) => [role, selectedItems.filter((item) => (item.role ?? 'main') === role).length]));
   const activeWeight = Object.entries(roleCounts).reduce((sum, [role, count]) => sum + (count ? roleWeights[role] : 0), 0);
   const messages = new Set();
   for (const personId of attendeeIds) {
@@ -774,28 +773,39 @@ function applyAutomaticPortions(items, attendeeIds) {
     const plannedOtherKcal = state.calendarMeals
       .filter((meal) => meal.mealDate === date && meal.id !== state.calendarMealId)
       .reduce((sum, meal) => sum + plannedCaloriesForPerson(meal, personId), 0);
-    for (const item of Object.values(items)) {
-      if (!item.recipeId) continue;
+    const proposals = [];
+    for (const item of selectedItems) {
       const recipe = state.recipes.find((entry) => entry.id === item.recipeId);
       const kcal = recipe?.nutrition?.perYieldUnit?.energyKcal;
+      const role = item.role ?? 'main';
+      const recipeUnit = recipe?.yield.unitId ?? 'portion';
+      const step = recipeUnit === 'piece' ? 1 : recipeUnit === 'g' ? 10 : 0.5;
       const suggestion = suggestQuantity({
         dailyTargetKcal: profile?.dailyEnergyKcal,
         slot,
         plannedOtherKcal,
         recipeKcal: kcal,
-        recipeUnit: recipe?.yield.unitId,
-        recipeCount: roleCounts[item.role ?? 'main'] || 1,
-        budgetShare: activeWeight ? roleWeights[item.role ?? 'main'] / activeWeight : 1,
+        recipeUnit,
+        recipeCount: roleCounts[role] || 1,
+        budgetShare: activeWeight ? roleWeights[role] / activeWeight : 1,
       });
       item.amounts ??= {};
       const fallbackQuantity = suggestion.quantity == null && ['daily-target-missing', 'recipe-energy-missing'].includes(suggestion.reason)
-        ? (recipe?.yield.unitId === 'g' ? 10 : 1)
+        ? (recipeUnit === 'g' ? 10 : 1)
         : null;
       item.amounts[personId] = suggestion.quantity == null ? (fallbackQuantity == null ? '' : String(fallbackQuantity)) : String(suggestion.quantity);
-      if (suggestion.reason === 'daily-target-missing') messages.add(`${person?.displayName ?? 'Une personne'} : besoin quotidien manquant, ${fallbackQuantity} ${recipe?.yield.unitId ?? 'portion'} proposé par défaut.`);
-      else if (suggestion.reason === 'recipe-energy-missing') messages.add(`${recipe?.name ?? 'Une recette'} : calories inconnues, ${fallbackQuantity} ${recipe?.yield.unitId ?? 'portion'} proposé par défaut; le budget calorique ne peut pas être garanti.`);
+      if (suggestion.reason === 'daily-target-missing') messages.add(`${person?.displayName ?? 'Une personne'} : besoin quotidien manquant, ${fallbackQuantity} ${recipeUnit} proposé par défaut.`);
+      else if (suggestion.reason === 'recipe-energy-missing') messages.add(`${recipe?.name ?? 'Une recette'} : calories inconnues, ${fallbackQuantity} ${recipeUnit} proposé par défaut; le budget calorique ne peut pas être garanti.`);
       else if (suggestion.reason === 'daily-budget-used') messages.add(`${person?.displayName ?? 'Une personne'} : enveloppe quotidienne déjà atteinte.`);
-      else if (suggestion.reason === 'no-natural-portion-fits') messages.add(`${recipe?.name ?? 'Une recette'} : aucune portion entière ou demi-portion ne tient dans le budget restant.`);
+      else if (suggestion.reason === 'no-natural-portion-fits' && role !== 'beverage') messages.add(`${recipe?.name ?? 'Une recette'} : aucune portion entière ou demi-portion ne tient dans le budget restant.`);
+      proposals.push({ item, role, quantity: suggestion.quantity ?? fallbackQuantity, reason: suggestion.reason, step, recipeKcal: Number(kcal), slotBudgetKcal: suggestion.slotBudgetKcal });
+    }
+    const budget = proposals.find((proposal) => Number.isFinite(proposal.slotBudgetKcal))?.slotBudgetKcal;
+    if (Number.isFinite(budget) && proposals.length && proposals.every((proposal) => Number.isFinite(proposal.recipeKcal) && proposal.recipeKcal > 0)) {
+      const result = rebalanceNaturalPortions(proposals, budget);
+      result.proposals.forEach((proposal) => { proposal.item.amounts[personId] = proposal.quantity == null ? '' : String(proposal.quantity); });
+      if (result.beverageAdded) messages.add(`${person?.displayName ?? 'Une personne'} : une boisson entière est proposée; le surplus au-delà des 10 % indicatifs est pris sur la recette principale, dans la limite du créneau.`);
+      else if (result.proposals.some((proposal) => proposal.role === 'beverage' && proposal.quantity == null && proposal.reason === 'no-natural-portion-fits')) messages.add('Aucune boisson entière ne tient dans le budget restant, même après réduction des autres recettes.');
     }
   }
   const notice = document.createElement('p');
@@ -803,7 +813,7 @@ function applyAutomaticPortions(items, attendeeIds) {
   notice.setAttribute('role', 'status');
   notice.textContent = messages.size
     ? [...messages].join(' ')
-    : 'Répartition du créneau : 70 % recette principale, 20 % accompagnements et 10 % boisson (parts redistribuées si une catégorie manque). Tu peux ajuster les quantités.';
+    : 'Répartition indicative : 70 % recette principale, 20 % accompagnements et 10 % boisson. Une boisson entière peut dépasser sa part; le surplus est alors pris sur le plat sans dépasser le budget du créneau ni celui de la journée.';
   $('#planned-items').replaceChildren(notice);
 }
 
