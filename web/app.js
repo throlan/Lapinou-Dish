@@ -904,35 +904,10 @@ function recipesForPlanning(slot, role, selectedIds = []) {
   return eligible;
 }
 
-function normalizeBeverageRows(items) {
-  const normalized = {};
-  const beverageRows = new Map();
-  let nextIndex = 0;
-  for (const item of Object.values(items)) {
-    if ((item.role ?? 'main') !== 'beverage') {
-      normalized[String(nextIndex++)] = item;
-      continue;
-    }
-    for (const [personId, assignment] of Object.entries(item.assignments ?? {})) {
-      if (!assignment.recipeId) continue;
-      const row = beverageRows.get(assignment.recipeId) ?? { recipeId: '', role: 'beverage', assignments: {} };
-      row.assignments[personId] = {
-        recipeId: assignment.recipeId,
-        quantity: assignment.quantity == null || assignment.quantity === '' ? '1' : String(assignment.quantity),
-      };
-      beverageRows.set(assignment.recipeId, row);
-    }
-    if (!Object.keys(item.assignments ?? {}).length && !beverageRows.has('')) beverageRows.set('', { recipeId: '', role: 'beverage', assignments: {} });
-  }
-  if (!beverageRows.size && !Object.keys(items).length) beverageRows.set('', { recipeId: '', role: 'beverage', assignments: {} });
-  for (const row of beverageRows.values()) normalized[String(nextIndex++)] = row;
-  return normalized;
-}
-
 function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
   const root = $('#planned-items');
   const saved = currentFormAmounts();
-  const source = normalizeBeverageRows(Object.keys(existing).length ? existing : saved);
+  const source = Object.keys(existing).length ? existing : saved;
   const attendees = $$('#meal-attendees input:checked').map((input) => input.value);
   if (autoSuggest) applyAutomaticPortions(source, attendees);
   const rows = Object.entries(source);
@@ -976,11 +951,10 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
           rowData.assignments ??= {};
           const recipeId = personSelect.value;
           if (recipeId) {
-            const previous = rowData.assignments[personId];
             const quantity = $('input[data-person-id]', personRow).value;
             rowData.assignments[personId] = {
               recipeId,
-              quantity: previous?.recipeId === recipeId && quantity !== '' ? quantity : '1',
+              quantity: assignment.recipeId === recipeId && quantity !== '' ? quantity : '1',
             };
           } else {
             delete rowData.assignments[personId];
@@ -1028,9 +1002,22 @@ async function openMealEditor(date, slot, meal = null) {
     const name = document.createElement('span'); name.textContent = person.displayName; label.append(checkbox, name); return label;
   }));
   const items = {};
-  (meal?.items ?? []).forEach((item, index) => { items[index] = item.role === 'beverage'
-    ? { recipeId: '', role: 'beverage', assignments: Object.fromEntries(item.amounts.map((amount) => [amount.personId, { recipeId: item.recipeId, quantity: String(amount.quantity) }])) }
-    : { recipeId: item.recipeId, role: item.role ?? 'main', amounts: Object.fromEntries(item.amounts.map((amount) => [amount.personId, String(amount.quantity)])) }; });
+  let nextItemIndex = 0;
+  let beverageRow = null;
+  for (const item of meal?.items ?? []) {
+    if (item.role === 'beverage') {
+      beverageRow ??= { recipeId: '', role: 'beverage', assignments: {} };
+      for (const amount of item.amounts) {
+        beverageRow.assignments[amount.personId] = { recipeId: item.recipeId, quantity: String(amount.quantity) };
+      }
+    } else {
+      items[nextItemIndex++] = {
+        recipeId: item.recipeId, role: item.role ?? 'main',
+        amounts: Object.fromEntries(item.amounts.map((amount) => [amount.personId, String(amount.quantity)])),
+      };
+    }
+  }
+  if (beverageRow) items[nextItemIndex++] = beverageRow;
   if (!Object.keys(items).length) items[0] = { recipeId: '', amounts: {} };
   renderPlannedItems(items, { autoSuggest: true });
   $('#meal-dialog').showModal();
