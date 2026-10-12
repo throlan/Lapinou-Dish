@@ -9,7 +9,6 @@ const routineDefaults = [
   ['batch_cooking', 'weekly'],
 ];
 const frequencies = new Set(['weekly', 'biweekly', 'monthly']);
-const productionTypes = new Set(['batch_cooking', 'pasta', 'pastry', 'bread']);
 const storageTypes = new Set(['pantry', 'fridge', 'freezer']);
 const shoppingGroups = new Set(['bulk', 'fresh', 'whey_flour', 'other']);
 
@@ -82,12 +81,12 @@ export async function completeRoutine(pool, householdId, routineId) {
 
 export function validateProductionInput(input) {
   if (!input || typeof input !== 'object' || !isUuid(input.householdId) || !isUuid(input.recipeId)
-    || !productionTypes.has(input.productionType) || !isDate(input.producedOn)
+    || !isDate(input.producedOn)
     || !Number.isFinite(input.quantity) || input.quantity <= 0 || input.quantity > 100000
     || !storageTypes.has(input.storage ?? 'freezer')
     || (input.note != null && (typeof input.note !== 'string' || input.note.length > 500))) return { error: 'invalid-production' };
   return { data: {
-    householdId: input.householdId, recipeId: input.recipeId, productionType: input.productionType,
+    householdId: input.householdId, recipeId: input.recipeId,
     producedOn: input.producedOn, quantity: input.quantity, storage: input.storage ?? 'freezer',
     note: typeof input.note === 'string' ? input.note.trim() : '',
   } };
@@ -98,16 +97,17 @@ export async function addStockLot(pool, input) {
   const id = randomUUID();
   try {
     const recipe = await client.query(
-      'SELECT id, yield_unit_id FROM recipes WHERE id = $1 AND household_id = $2',
+      'SELECT id, yield_unit_id, production_type FROM recipes WHERE id = $1 AND household_id = $2',
       [input.recipeId, input.householdId],
     );
     if (!recipe.rowCount) return { error: 'recipe-not-found' };
+    if (recipe.rows[0].production_type === 'none') return { error: 'recipe-not-for-production' };
     await client.query(
-      `INSERT INTO stock_lots (id, household_id, recipe_id, production_type, produced_on, quantity, storage, note)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [id, input.householdId, input.recipeId, input.productionType, input.producedOn, input.quantity, input.storage, input.note],
+      `INSERT INTO stock_lots (id, household_id, recipe_id, produced_on, quantity, storage, note)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [id, input.householdId, input.recipeId, input.producedOn, input.quantity, input.storage, input.note],
     );
-    return { id, recipeId: input.recipeId, productionType: input.productionType, producedOn: input.producedOn, quantity: input.quantity, unitId: recipe.rows[0].yield_unit_id, storage: input.storage, note: input.note };
+    return { id, recipeId: input.recipeId, productionType: recipe.rows[0].production_type, producedOn: input.producedOn, quantity: input.quantity, unitId: recipe.rows[0].yield_unit_id, storage: input.storage, note: input.note };
   } catch (error) {
     if (error.code === '23503') return { error: 'recipe-not-found' };
     throw error;
@@ -117,9 +117,9 @@ export async function addStockLot(pool, input) {
 export async function listStock(pool, householdId) {
   const result = await pool.query(
     `WITH produced AS (
-       SELECT recipe_id, production_type, sum(quantity) AS quantity,
+       SELECT recipe_id, sum(quantity) AS quantity,
               max(produced_on) AS latest_production, array_agg(DISTINCT storage) AS storage
-         FROM stock_lots WHERE household_id = $1 GROUP BY recipe_id, production_type
+         FROM stock_lots WHERE household_id = $1 GROUP BY recipe_id
      ), planned AS (
        SELECT i.recipe_id, sum(a.quantity) AS quantity
          FROM planned_meal_items i
@@ -127,7 +127,7 @@ export async function listStock(pool, householdId) {
          JOIN planned_amounts a ON a.planned_item_id = i.id
         WHERE m.household_id = $1 GROUP BY i.recipe_id
      )
-     SELECT r.id AS "recipeId", r.name, r.yield_unit_id AS "unitId", p.production_type AS "productionType",
+     SELECT r.id AS "recipeId", r.name, r.yield_unit_id AS "unitId", r.production_type AS "productionType",
             p.quantity AS "producedQuantity", p.latest_production::text AS "latestProduction",
             p.storage, COALESCE(pl.quantity, 0) AS "plannedQuantity",
             COALESCE(p.quantity, 0) - COALESCE(pl.quantity, 0) AS "availableQuantity"
@@ -136,11 +136,11 @@ export async function listStock(pool, householdId) {
        LEFT JOIN planned pl ON pl.recipe_id = r.id
       WHERE r.household_id = $1
      UNION ALL
-     SELECT r.id AS "recipeId", r.name, r.yield_unit_id AS "unitId", 'batch_cooking' AS "productionType",
+     SELECT r.id AS "recipeId", r.name, r.yield_unit_id AS "unitId", r.production_type AS "productionType",
             0 AS "producedQuantity", NULL::text AS "latestProduction", ARRAY[]::text[] AS storage,
             pl.quantity AS "plannedQuantity", -pl.quantity AS "availableQuantity"
        FROM planned pl JOIN recipes r ON r.id = pl.recipe_id
-      WHERE r.household_id = $1 AND NOT EXISTS (SELECT 1 FROM produced p WHERE p.recipe_id = r.id)
+      WHERE r.household_id = $1 AND r.production_type <> 'none' AND NOT EXISTS (SELECT 1 FROM produced p WHERE p.recipe_id = r.id)
       ORDER BY name`,
     [householdId],
   );
