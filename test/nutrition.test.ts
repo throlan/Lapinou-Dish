@@ -101,14 +101,54 @@ test("uses density for volume and never treats missing nutrients as zero", () =>
   assert.deepEqual(result.lineIssues, [{ lineIndex: 0, reason: "nutrient-data-missing", missingNutrients: ["fatG", "fibreG"] }]);
 });
 
-test("an unlinked recipe line makes totals unavailable rather than undercounted", () => {
+test("an unlinked line is excluded while convertible ingredients remain a clearly incomplete subtotal", () => {
   const draftLine = { ...recipeLine(chicken.id, 100), foodId: "missing-food" };
-  const result = calculateRecipeNutrition([draftLine], [chicken], 1);
+  const result = calculateRecipeNutrition([recipeLine(chicken.id, 100), draftLine], [chicken], 1);
+  assert.equal(result.complete, false);
+  assert.equal(result.batch.energyKcal, 110);
+  assert.equal(result.batch.proteinG, 23.4);
+  assert.deepEqual(result.calculatedLineIndexes, [0]);
+  assert.deepEqual(result.unresolvedLineIndexes, [1]);
+  assert.deepEqual(result.lineIssues, [
+    { lineIndex: 0, reason: "nutrient-data-missing", missingNutrients: ["fibreG"] },
+    { lineIndex: 1, reason: "food-not-linked", missingNutrients: [] },
+  ]);
+});
+
+test("an unknown steak-piece weight does not block nutrition for 2.5 g of basil", () => {
+  const steak: Food = {
+    ...chicken,
+    id: "food-steak-5-percent",
+    name: "Steak haché 5 %",
+    gramsPerUnit: {},
+  };
+  const basil: Food = {
+    ...rice,
+    id: "food-basil",
+    name: "Basilic frais",
+    nutrientsPer100g: { energyKcal: 23, proteinG: 3.15, carbohydrateG: 2.65, fatG: 0.64, fibreG: 1.6 },
+  };
+  const result = calculateRecipeNutrition(
+    [recipeLine(steak.id, 1, "piece"), recipeLine(basil.id, 2.5, "g")],
+    [steak, basil],
+    1,
+  );
+
+  assert.equal(result.complete, false);
+  assert.deepEqual(result.unresolvedLineIndexes, [0]);
+  assert.deepEqual(result.calculatedLineIndexes, [1]);
+  assert.equal(result.batch.energyKcal, 0.58);
+  assert.equal(result.batch.proteinG, 0.08);
+  assert.equal(result.perYieldUnit.carbohydrateG, 0.07);
+  assert.deepEqual(result.lineIssues, [{ lineIndex: 0, reason: "unit-conversion-missing", missingNutrients: [] }]);
+});
+
+test("an unknown piece weight with no other convertible ingredient does not appear as zero", () => {
+  const steak: Food = { ...chicken, id: "food-steak", name: "Steak haché 5 %", gramsPerUnit: {} };
+  const result = calculateRecipeNutrition([recipeLine(steak.id, 1, "piece")], [steak], 1);
   assert.equal(result.complete, false);
   assert.equal(result.batch.energyKcal, null);
-  assert.equal(result.batch.proteinG, null);
-  assert.deepEqual(result.unresolvedLineIndexes, [0]);
-  assert.deepEqual(result.lineIssues, [{ lineIndex: 0, reason: "food-not-linked", missingNutrients: [] }]);
+  assert.deepEqual(result.calculatedLineIndexes, []);
 });
 
 test("explains which ingredient needs a unit conversion", () => {
@@ -127,3 +167,4 @@ test("an empty recipe never appears as a complete zero-calorie recipe", () => {
   assert.equal(result.batch.energyKcal, null);
   assert.equal(result.perYieldUnit.proteinG, null);
 });
+
