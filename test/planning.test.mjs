@@ -27,8 +27,16 @@ test('requires a person to be explicitly selected', () => {
   assert.equal(validatePlannedMeal(valid({ attendeeIds: [] })).error, 'attendees-required');
 });
 
-test('requires a positive amount for every attendee on each recipe', () => {
+test('requires shared recipes to cover everyone while beverage choices can be individual or omitted', () => {
   assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, amounts: [{ personId: personA, quantity: 1 }] }] })).error, 'amounts-must-match-attendees');
+  const individualDrink = validatePlannedMeal(valid({ items: [{ recipeId, role: 'beverage', amounts: [{ personId: personA, quantity: 1 }] }] }));
+  assert.equal(individualDrink.error, undefined);
+  assert.equal(individualDrink.data.items[0].amounts.length, 1);
+  assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, role: 'beverage', amounts: [] }] })).error, 'invalid-beverage-amounts');
+  const individualDrink = validatePlannedMeal(valid({ items: [{ recipeId, role: 'beverage', amounts: [{ personId: personA, quantity: 1 }] }] }));
+  assert.equal(individualDrink.error, undefined);
+  assert.equal(individualDrink.data.items[0].amounts.length, 1);
+  assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, role: 'beverage', amounts: [] }] })).error, 'invalid-beverage-amounts');
   assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, amounts: [{ personId: personA, quantity: 0 }, { personId: personB, quantity: 1 }] }] })).error, 'invalid-planned-quantity');
 });
 
