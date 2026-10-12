@@ -21,3 +21,15 @@ test('returns an explicit reason instead of inventing a portion when data or bud
   assert.equal(suggestQuantity({ dailyTargetKcal: 2000, slot: 'dinner', recipeKcal: null }).reason, 'recipe-energy-missing');
   assert.equal(suggestQuantity({ dailyTargetKcal: 2000, slot: 'breakfast', recipeKcal: 1000, recipeUnit: 'piece' }).reason, 'no-natural-portion-fits');
 });
+
+
+test('allocates the slot budget with the requested main, accompaniment and beverage shares', () => {
+  const base = { dailyTargetKcal: 2000, slot: 'breakfast', recipeKcal: 100, recipeUnit: 'portion' };
+  const main = suggestQuantity({ ...base, budgetShare: 0.7 });
+  const accompaniment = suggestQuantity({ ...base, budgetShare: 0.2 });
+  const beverage = suggestQuantity({ ...base, budgetShare: 0.1 });
+  assert.equal(main.slotBudgetKcal, 500);
+  assert.equal(main.estimatedKcal, 350);
+  assert.equal(accompaniment.estimatedKcal, 100);
+  assert.equal(beverage.estimatedKcal, 50);
+});
