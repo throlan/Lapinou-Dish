@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validatePersonInput, validateProfileHistoryInput, validateWeightInput } from '../src/server/people.mjs';
+import { addProfileHistory, validatePersonInput, validateProfileHistoryInput, validateWeightInput } from '../src/server/people.mjs';
 
 test('profile creation requires a display name and accepts an optional valid birth date', () => {
   assert.deepEqual(validatePersonInput({ displayName: '  Camille ', birthDate: '2010-04-18' }), { data: { displayName: 'Camille', birthDate: '2010-04-18' } });
