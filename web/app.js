@@ -1022,7 +1022,7 @@ async function saveMeal(event) {
     if (role !== 'beverage') return [{
       recipeId: $('select[name="recipeId"]', row).value,
       role,
-      amounts: $('input[data-person-id]', row).map((input) => ({ personId: input.dataset.personId, quantity: Number(input.value) })),
+      amounts: $$('input[data-person-id]', row).map((input) => ({ personId: input.dataset.personId, quantity: Number(input.value) })),
     }];
     const byRecipe = new Map();
     $$('.beverage-person', row).forEach((personRow) => {
