@@ -71,7 +71,7 @@ export async function updateRecipe(pool, id, data) {
       `UPDATE recipes SET name = $3, description = $4, yield_amount = $5,
               yield_unit_id = $6, instructions = $7, source_url = $8, recipe_type = $9, meal_moments = $10, version = version + 1, updated_at = now()
         WHERE id = $1 AND household_id = $2 RETURNING id`,
-      [id, data.householdId, data.name, data.description, data.yield.amount, data.yield.unitId, data.instructions, data.sourceUrl],
+      [id, data.householdId, data.name, data.description, data.yield.amount, data.yield.unitId, data.instructions, data.sourceUrl, data.recipeType, data.mealMoments],
     );
     if (!updated.rowCount) {
       await client.query('ROLLBACK');
