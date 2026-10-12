@@ -28,7 +28,13 @@ function setView(name) {
   $('#calendar-view').classList.toggle('hidden', name !== 'calendar');
   $('#profiles-view').classList.toggle('hidden', name !== 'profiles');
   $('#shopping-view').classList.toggle('hidden', name !== 'shopping');
-  
+  $$('.nav-button').forEach((button) => button.classList.toggle('active', button.dataset.view === name));
+  if (name === 'home') refreshDashboard();
+  if (name === 'recipes') refreshRecipes();
+  if (name === 'calendar') refreshCalendar();
+  if (name === 'profiles') refreshPeople();
+  if (name === 'shopping') refreshShopping();
+}
 
 const dashboardSlots = ['breakfast','lunch','dinner','snack'];
 const dashboardSlotLabels = { breakfast:'Petit-déjeuner', lunch:'Déjeuner', dinner:'Dîner', snack:'Collation' };
@@ -246,13 +252,6 @@ $('#production-form').addEventListener('submit',async event=>{
 $('#refresh-shopping').addEventListener('click',refreshShoppingList);
 $('#production-form').elements.recipeId.addEventListener('change', event => { const recipe=state.recipes.find(item=>item.id===event.target.value); if(recipe) $('#production-form').elements.quantity.value=recipe.yield.amount; });
 
-$('.nav-button').forEach((button) => button.classList.toggle('active', button.dataset.view === name));
-  if (name === 'home') refreshDashboard();
-  if (name === 'recipes') refreshRecipes();
-  if (name === 'calendar') refreshCalendar();
-  if (name === 'profiles') refreshPeople();
-  if (name === 'shopping') refreshShopping();
-}
 
 function localDateValue() {
   const now = new Date();
