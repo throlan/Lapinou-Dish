@@ -370,7 +370,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
   try {
     const path = state.editingRecipeId ? `/api/recipes/${state.editingRecipeId}` : '/api/recipes';
     const method = state.editingRecipeId ? 'PUT' : 'POST';
-    const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, instructions: form.elements.instructions.value, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, lines }) });
+    const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, recipeType: form.elements.recipeType.value, mealMoments: [...form.querySelectorAll('input[name="mealMoments"]:checked')].map((input) => input.value), instructions: form.elements.instructions.value, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, lines }) });
     if (state.importingDraftId) {
       await api(`/api/recipe-imports/${state.importingDraftId}/converted`, { method: 'POST', body: JSON.stringify({ householdId: state.household.id }) });
       state.importingDraftId = null;
@@ -508,6 +508,11 @@ function recipeCard(recipe) {
   const card = document.createElement('article'); card.className = 'recipe-card';
   const details = document.createElement('div');
   const title = document.createElement('h3'); title.textContent = recipe.name; details.append(title);
+  const taxonomy = document.createElement('p'); taxonomy.className = 'recipe-taxonomy-badges';
+  const typeLabels = { dish: 'Plat', beverage: 'Boisson', accompaniment: 'Accompagnement', dessert: 'Dessert', snack: 'Collation', other: 'Autre' };
+  const momentLabels = { breakfast: 'Petit-déjeuner', lunch: 'Déjeuner', dinner: 'Dîner', snack: 'Collation' };
+  const tags = [typeLabels[recipe.recipeType], ...(recipe.mealMoments ?? []).map((moment) => momentLabels[moment]).filter(Boolean)];
+  if (tags.length) { taxonomy.textContent = tags.join(' · '); details.append(taxonomy); }
   const subtitle = document.createElement('p'); subtitle.textContent = `${recipe.lines.length} ingrédient${recipe.lines.length === 1 ? '' : 's'} · rendement ${format(recipe.yield.amount)} ${recipe.yield.unitId}`; details.append(subtitle);
   const nutrition = document.createElement('p'); nutrition.className = 'recipe-nutrition';
   nutrition.textContent = `${format(recipe.nutrition.perYieldUnit.energyKcal)} kcal · P ${format(recipe.nutrition.perYieldUnit.proteinG)} g · G ${format(recipe.nutrition.perYieldUnit.carbohydrateG)} g · L ${format(recipe.nutrition.perYieldUnit.fatG)} g / ${recipe.yield.unitId}`;
@@ -853,6 +858,28 @@ function applyAutomaticPortions(items, attendeeIds) {
   $('#planned-items').replaceChildren(notice);
 }
 
+function recipesForPlanning(slot, role, selectedIds = []) {
+  const selected = new Set(selectedIds.filter(Boolean));
+  const eligible = state.recipes.filter((recipe) => {
+    const moments = recipe.mealMoments ?? [];
+    if (moments.length && !moments.includes(slot)) return false;
+    if (recipe.recipeType) {
+      if (role === 'beverage' && recipe.recipeType !== 'beverage') return false;
+      if (role === 'accompaniment' && recipe.recipeType !== 'accompaniment') return false;
+      if (role === 'main' && ['beverage', 'accompaniment'].includes(recipe.recipeType)) return false;
+    }
+    return true;
+  });
+  const kept = new Set(eligible.map((recipe) => recipe.id));
+  for (const id of selected) {
+    if (!kept.has(id)) {
+      const recipe = state.recipes.find((entry) => entry.id === id);
+      if (recipe) eligible.push(recipe);
+    }
+  }
+  return eligible;
+}
+
 function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
   const root = $('#planned-items');
   const saved = currentFormAmounts();
@@ -865,11 +892,12 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     const row = document.createElement('div'); row.className = 'planned-item-editor';
     const select = document.createElement('select'); select.name = 'recipeId'; select.setAttribute('aria-label', 'Recette');
     select.add(new Option('Choisir une recette', ''));
-    state.recipes.forEach((recipe) => select.add(new Option(`${recipe.name} · ${recipe.yield.amount} ${recipe.yield.unitId}`, recipe.id)));
-    select.value = item.recipeId ?? '';
     const role = document.createElement('select'); role.name = 'role'; role.setAttribute('aria-label', 'Catégorie de la recette');
     [['main', 'Recette principale · 70 %'], ['accompaniment', 'Accompagnement · 20 %'], ['beverage', 'Boisson · choix individuel']].forEach(([value, label]) => role.add(new Option(label, value)));
     role.value = item.role ?? 'main';
+    const slot = $('#meal-form').elements.slot.value;
+    recipesForPlanning(slot, role.value, [item.recipeId]).forEach((recipe) => select.add(new Option(`${recipe.name} · ${recipe.yield.amount} ${recipe.yield.unitId}`, recipe.id)));
+    select.value = item.recipeId ?? '';
     role.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
     const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-line'; remove.textContent = '×'; remove.setAttribute('aria-label', 'Retirer cette recette');
     remove.addEventListener('click', () => { const data = currentFormAmounts(); delete data[index]; renderPlannedItems(data); });
@@ -885,7 +913,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
         const caption = document.createElement('span'); caption.textContent = person?.displayName ?? 'Personne';
         const personSelect = document.createElement('select'); personSelect.dataset.personRecipe = 'true'; personSelect.setAttribute('aria-label', `Boisson pour ${person?.displayName ?? 'personne'}`);
         personSelect.add(new Option('Aucune boisson', ''));
-        state.recipes.forEach((recipe) => personSelect.add(new Option(`${recipe.name} · ${recipe.yield.amount} ${recipe.yield.unitId}`, recipe.id)));
+        recipesForPlanning(slot, 'beverage', [assignment.recipeId]).forEach((recipe) => personSelect.add(new Option(`${recipe.name} · ${recipe.yield.amount} ${recipe.yield.unitId}`, recipe.id)));
         personSelect.value = assignment.recipeId ?? '';
         const recipe = state.recipes.find((entry) => entry.id === personSelect.value);
         const unit = recipe?.yield.unitId ?? 'portion';
@@ -962,9 +990,21 @@ for (const field of ['mealDate', 'slot']) {
   $('#meal-form').elements[field].addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
 }
 
+$('#meal-form').addEventListener('invalid', (event) => {
+  const field = event.target.getAttribute('aria-label')
+    ?? event.target.closest('label')?.textContent?.trim()
+    ?? 'un champ obligatoire';
+  showMessage($('#meal-message'), `Vérifie « ${field} » avant d’enregistrer le repas.`);
+}, true);
+
 $('#meal-form').addEventListener('submit', async (event) => {
   event.preventDefault();
-  if (!state.household) return;
+  const message = $('#meal-message');
+  if (!state.household) {
+    showMessage(message, 'Le foyer n’est pas chargé. Recharge la page puis réessaie.');
+    message.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
   const attendeeIds = $$('#meal-attendees input:checked').map((input) => input.value);
   const rows = $$('.planned-item-editor', $('#planned-items'));
   const items = rows.flatMap((row) => {
@@ -994,9 +1034,19 @@ $('#meal-form').addEventListener('submit', async (event) => {
     return;
   }
   const form = event.currentTarget;
+  const submitButton = $('button[type="submit"]', form);
+  const originalLabel = submitButton.textContent;
+  submitButton.disabled = true;
+  submitButton.textContent = 'Enregistrement…';
   const payload = { householdId: state.household.id, mealDate: form.elements.mealDate.value, slot: form.elements.slot.value, notes: form.elements.notes.value, attendeeIds, items };
   try {
     await api(state.calendarMealId ? `/api/planning/meals/${state.calendarMealId}` : '/api/planning/meals', { method: state.calendarMealId ? 'PUT' : 'POST', body: JSON.stringify(payload) });
     $('#meal-dialog').close(); await refreshCalendar();
-  } catch (error) { showMessage($('#meal-message'), `Enregistrement impossible : ${error.body?.error ?? error.message}`); }
+  } catch (error) {
+    showMessage(message, `Enregistrement impossible : ${error.body?.error ?? error.message}`);
+    message.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = originalLabel;
+  }
 });

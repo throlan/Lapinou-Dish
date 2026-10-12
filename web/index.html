@@ -62,6 +62,17 @@
           <div class="section-heading"><div><h2 id="recipe-form-title">Nouvelle recette</h2><p>Choisis les aliments du catalogue et saisis leurs quantités.</p></div><button type="button" class="secondary" id="cancel-recipe">Annuler</button></div>
           <label>Nom de la recette<input name="name" required maxlength="200" placeholder="Ex. Muffins pomme-cannelle"></label>
           <label>Description<textarea name="description" rows="2" maxlength="5000" placeholder="Facultatif"></textarea></label>
+          <div class="recipe-taxonomy">
+            <label>Type de préparation<select name="recipeType">
+              <option value="dish">Plat</option><option value="beverage">Boisson</option><option value="accompaniment">Accompagnement</option><option value="dessert">Dessert</option><option value="snack">Collation</option><option value="other">Autre</option>
+            </select></label>
+            <fieldset class="recipe-moments"><legend>Moments adaptés</legend>
+              <label><input type="checkbox" name="mealMoments" value="breakfast"> Petit-déjeuner</label>
+              <label><input type="checkbox" name="mealMoments" value="lunch"> Déjeuner</label>
+              <label><input type="checkbox" name="mealMoments" value="dinner"> Dîner</label>
+              <label><input type="checkbox" name="mealMoments" value="snack"> Collation</label>
+            </fieldset>
+          </div>
           <label>Source (facultatif)<input name="sourceUrl" type="url" placeholder="Lien vers la recette d'origine"></label>
           <label>Instructions<textarea name="instructions" rows="4" maxlength="20000" placeholder="Étapes de préparation"></textarea></label>
           <div class="yield-row"><label>Rendement<input name="yieldAmount" required type="number" min="0.01" step="any" value="4"></label><label>Unité<select name="yieldUnit"><option value="portion">portions</option><option value="piece">pièces</option><option value="g">grammes</option></select></label></div>
