@@ -24,7 +24,19 @@ test('home page loads the application module as a versioned same-origin asset', 
   await handleRequest({ method: 'GET', url: '/app.js?v=0.2.14', headers: {} }, scriptResponse, {});
   assert.equal(scriptResponse.status, 200);
   assert.match(scriptResponse.headers['Content-Type'], /^text\/javascript/);
-  assert.match(scriptResponse.body, /^const \$ =/);
+  assert.match(scriptResponse.body, /^import \\{ suggestQuantity \\} from '\\.\\/portion-planner\\.js';/);
+  assert.match(scriptResponse.body, /const state = .*calendarMeals: \\[\\]/);
+  const plannerResponse = {
+    status: 200,
+    headers: {},
+    setHeader(name, value) { this.headers[name] = value; },
+    writeHead(status) { this.status = status; },
+    end(body) { this.body = body.toString(); },
+  };
+  await handleRequest({ method: 'GET', url: '/portion-planner.js', headers: {} }, plannerResponse, {});
+  assert.equal(plannerResponse.status, 200);
+  assert.match(plannerResponse.headers['Content-Type'], /^text\\/javascript/);
+  assert.match(plannerResponse.body, /export function suggestQuantity/);
 });
 
 test('health endpoint checks the database and returns service state', async () => {
