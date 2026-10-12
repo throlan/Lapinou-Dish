@@ -28,7 +28,9 @@ export function validatePlannedMeal(input) {
       amounts.push({ personId: amount.personId, quantity });
     }
     if (seen.size !== attendeeIds.length) return { error: 'amounts-must-match-attendees' };
-    items.push({ recipeId: item.recipeId, amounts });
+    const role = item.role ?? 'main';
+    if (!['main', 'accompaniment', 'beverage'].includes(role)) return { error: 'invalid-planned-item-role' };
+    items.push({ recipeId: item.recipeId, role, amounts });
   }
   return { data: { householdId: input.householdId, mealDate: input.mealDate, slot: input.slot, notes, attendeeIds, items } };
 }
@@ -83,7 +85,7 @@ export async function savePlannedMeal(pool, id, data) {
     }
     for (const [index, item] of data.items.entries()) {
       const itemId = randomUUID();
-      await client.query('INSERT INTO planned_meal_items (id, meal_id, recipe_id, sort_order) VALUES ($1,$2,$3,$4)', [itemId, mealId, item.recipeId, index]);
+      await client.query('INSERT INTO planned_meal_items (id, meal_id, recipe_id, sort_order, role) VALUES ($1,$2,$3,$4,$5)', [itemId, mealId, item.recipeId, index, item.role]);
       for (const amount of item.amounts) {
         await client.query('INSERT INTO planned_amounts (planned_item_id, person_id, quantity) VALUES ($1,$2,$3)', [itemId, amount.personId, amount.quantity]);
       }
@@ -117,7 +119,7 @@ async function readPlannedMeal(client, meal, householdId) {
       'SELECT p.id, p.display_name FROM planned_meal_attendees a JOIN people p ON p.id = a.person_id WHERE a.meal_id = $1 ORDER BY p.display_name',
       [row.id],
     ),
-    client.query('SELECT id, recipe_id FROM planned_meal_items WHERE meal_id = $1 ORDER BY sort_order', [row.id]),
+    client.query('SELECT id, recipe_id, role FROM planned_meal_items WHERE meal_id = $1 ORDER BY sort_order', [row.id]),
   ]);
   const items = [];
   for (const item of itemsResult.rows) {
@@ -126,7 +128,7 @@ async function readPlannedMeal(client, meal, householdId) {
       client.query('SELECT person_id, quantity FROM planned_amounts WHERE planned_item_id = $1', [item.id]),
     ]);
     items.push({
-      recipeId: item.recipe_id, recipe,
+      recipeId: item.recipe_id, role: item.role ?? 'main', recipe,
       amounts: amounts.rows.map((amount) => ({ personId: amount.person_id, quantity: Number(amount.quantity) })),
     });
   }
