@@ -208,8 +208,8 @@ function addRecipeLine(initial = null) {
       try {
         const { foods } = await api(`/api/foods?q=${encodeURIComponent(search.value.trim())}&limit=20&unit=${encodeURIComponent(unit.value)}`);
         select.replaceChildren(new Option(foods.length ? 'Choisir un aliment' : 'Aucun aliment correspondant', ''), ...foods.map((food) => new Option(`${food.name}${food.brand ? ` · ${food.brand}` : ''}`, food.id)));
-        if (!foods.length) {
-          hint.replaceChildren(document.createTextNode('Aucun résultat. Tu peux créer cette fiche sans inventer ses valeurs nutritionnelles. '));
+        hint.replaceChildren(document.createTextNode(foods.length
+          ? 'Aucune suggestion ne convient ? Tu peux créer cette fiche sans inventer ses valeurs nutritionnelles. ' : 'Aucun résultat. Tu peux créer cette fiche sans inventer ses valeurs nutritionnelles. '));
           const create = document.createElement('button'); create.type = 'button'; create.className = 'text-button'; create.textContent = `Créer « ${search.value.trim()} »`;
           create.addEventListener('click', async () => {
             const name = search.value.trim();
@@ -236,8 +236,7 @@ function addRecipeLine(initial = null) {
               }
             }
           });
-          hint.append(create);
-        } else hint.replaceChildren();
+        hint.append(create);
       } catch { select.replaceChildren(new Option('Catalogue indisponible', '')); hint.textContent = ''; }
     }, 180);
   });
