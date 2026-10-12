@@ -1,4 +1,4 @@
-import { capAccompanimentQuantity, MIN_PROTEIN_G_PER_MEAL, rebalanceNaturalPortions, suggestQuantity } from './portion-planner.js';
+import { calculatePersonProtein, capAccompanimentQuantity, MIN_PROTEIN_G_PER_MEAL, rebalanceNaturalPortions, suggestQuantity } from './portion-planner.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -700,7 +700,19 @@ function renderMealCard(meal) {
   const kcal = mealCalories(meal);
   const partial = meal.items?.some((item) => !item.recipe?.nutrition?.complete) ?? false;
   const total = document.createElement('small'); total.className = 'meal-kcal'; total.textContent = kcal ? `${partial ? 'Sous-total partiel' : 'Total'} · ${format(kcal)} kcal` : 'Valeurs inconnues ou incomplètes';
-  card.append(edit, attendee, total);
+  const proteinTags = document.createElement('div'); proteinTags.className = 'meal-protein-tags';
+  for (const person of meal.attendees ?? []) {
+    const result = calculatePersonProtein(meal, person.id);
+    const tag = document.createElement('span');
+    tag.className = `protein-tag ${!result.known ? 'protein-unknown' : result.grams >= MIN_PROTEIN_G_PER_MEAL ? 'protein-sufficient' : 'protein-low'}`;
+    tag.textContent = !result.known
+      ? `${person.displayName} · protéines inconnues`
+      : result.grams >= MIN_PROTEIN_G_PER_MEAL
+        ? `${person.displayName} · ${format(result.grams)} g ✓`
+        : `${person.displayName} · ${format(result.grams)} / ${MIN_PROTEIN_G_PER_MEAL} g`;
+    proteinTags.append(tag);
+  }
+  card.append(edit, attendee, total, proteinTags);
   edit.addEventListener('click', () => openMealEditor(meal.mealDate, meal.slot, meal));
   return card;
 }
