@@ -1,6 +1,6 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, importingDraftId: null };
+const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, importingDraftId: null, editingFoodFromRecipe: false };
 const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbohydrateG', 'g gluc.'], ['fatG', 'g lip.']];
 
 async function api(path, options = {}) {
@@ -72,7 +72,8 @@ function foodRow(food) {
 
 function format(value) { return value == null ? '—' : new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(Number(value)); }
 
-async function openFoodEditor(id = null, { searchExternal = false } = {}) {
+async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = false } = {}) {
+  state.editingFoodFromRecipe = fromRecipe;
   const form = $('#food-form'); form.reset(); form.elements.id.value = '';
   $('#food-message').textContent = '';
   $('#food-dialog-title').textContent = id ? 'Modifier cet aliment' : 'Nouvel aliment';
@@ -166,6 +167,7 @@ $('#food-form').addEventListener('submit', async (event) => {
     const result = await api(id ? `/api/foods/${id}` : '/api/foods', { method: id ? 'PATCH' : 'POST', body: JSON.stringify(payload) });
     $('#food-dialog').close();
     await refreshFoods();
+    if (state.editingFoodFromRecipe) showMessage($('#recipe-message'), 'Fiche mise à jour. Les valeurs seront recalculées à l’enregistrement de la recette.', true);
   } catch (error) {
     const duplicates = error.body?.matches?.map((food) => food.name).join(', ');
     showMessage($('#food-message'), error.body?.error === 'possible-duplicate' ? `Cette fiche ressemble à un aliment déjà présent : ${duplicates}.` : `Enregistrement impossible : ${error.body?.error ?? error.message}`);
@@ -195,9 +197,11 @@ function addRecipeLine(initial = null) {
   const search = document.createElement('input'); search.type = 'search'; search.placeholder = 'Rechercher un aliment'; search.autocomplete = 'off';
   const select = document.createElement('select'); select.setAttribute('aria-label', 'Aliment lié'); select.innerHTML = '<option value="">Choisir un aliment</option>';
   const changeMatch = document.createElement('button'); changeMatch.type = 'button'; changeMatch.className = 'text-button change-match hidden'; changeMatch.textContent = 'Changer l’aliment';
-  changeMatch.addEventListener('click', () => { select.value = ''; search.value = ''; search.classList.remove('hidden'); row.classList.remove('has-match'); search.focus(); });
+  const editFood = document.createElement('button'); editFood.type = 'button'; editFood.className = 'text-button edit-food hidden'; editFood.textContent = 'Modifier les valeurs nutritionnelles';
+  editFood.addEventListener('click', () => { if (select.value) openFoodEditor(select.value, { fromRecipe: true }); });
+  changeMatch.addEventListener('click', () => { select.value = ''; search.value = ''; search.classList.remove('hidden'); row.classList.remove('has-match'); changeMatch.classList.add('hidden'); editFood.classList.add('hidden'); search.focus(); });
   const hint = document.createElement('div'); hint.className = 'food-hint'; hint.setAttribute('aria-live', 'polite');
-  if (initial?.foodId) { select.add(new Option(initial.foodName ?? 'Aliment sélectionné', initial.foodId, true, true)); search.classList.add('hidden'); row.classList.add('has-match'); }
+  if (initial?.foodId) { select.add(new Option(initial.foodName ?? 'Aliment sélectionné', initial.foodId, true, true)); search.classList.add('hidden'); row.classList.add('has-match'); changeMatch.classList.remove('hidden'); editFood.classList.remove('hidden'); }
   else if (initial?.foodName) search.value = initial.foodName;
   let timeout;
   search.addEventListener('input', () => {
@@ -221,7 +225,7 @@ function addRecipeLine(initial = null) {
                 gramsPerMillilitre: null, gramsPerUnit: {},
               }) });
               select.replaceChildren(new Option(food.name, food.id, true, true));
-              search.classList.add('hidden'); row.classList.add('has-match'); changeMatch.classList.remove('hidden');
+              search.classList.add('hidden'); row.classList.add('has-match'); changeMatch.classList.remove('hidden'); editFood.classList.remove('hidden');
               search.value = '';
               hint.textContent = 'Fiche créée. Les nutriments restent à compléter dans le catalogue.';
               await refreshFoods();
@@ -241,8 +245,8 @@ function addRecipeLine(initial = null) {
     }, 180);
   });
   select.addEventListener('change', () => {
-    if (select.value) { search.value = ''; search.classList.add('hidden'); row.classList.add('has-match'); changeMatch.classList.remove('hidden'); }
-    else { search.classList.remove('hidden'); row.classList.remove('has-match'); changeMatch.classList.add('hidden'); }
+    if (select.value) { search.value = ''; search.classList.add('hidden'); row.classList.add('has-match'); changeMatch.classList.remove('hidden'); editFood.classList.remove('hidden'); }
+    else { search.classList.remove('hidden'); row.classList.remove('has-match'); changeMatch.classList.add('hidden'); editFood.classList.add('hidden'); }
   });
   const quantity = document.createElement('input'); quantity.type = 'number'; quantity.min = '0.01'; quantity.step = 'any';
   quantity.value = initial && Object.hasOwn(initial, 'quantity') ? String(initial.quantity ?? '') : '100';
@@ -252,7 +256,7 @@ function addRecipeLine(initial = null) {
   if (initial?.unitId) unit.value = initial.unitId;
   unit.addEventListener('change', () => { if (search.value.trim().length >= 2) search.dispatchEvent(new Event('input')); });
   const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-line'; remove.textContent = '×'; remove.setAttribute('aria-label', 'Supprimer cet ingrédient'); remove.addEventListener('click', () => row.remove());
-  foodBox.append(search, select, changeMatch, hint); row.append(foodBox, quantity, unit, remove); $('#recipe-lines').append(row);
+  foodBox.append(search, select, changeMatch, editFood, hint); row.append(foodBox, quantity, unit, remove); $('#recipe-lines').append(row);
   if (initial?.foodId) changeMatch.classList.remove('hidden');
   // Imported ingredient names are already a useful search query. Trigger the
   // same lookup as typing so the dropdown is populated during recipe review.
