@@ -55,3 +55,31 @@ test('keeps zero as no beverage and reports when the minimum food portions still
   assert.equal(result.withinBudget, false);
   assert.equal(result.estimatedKcal, 400);
 });
+
+test('caps gram-based accompaniment portions at 1.5 yields and 200 g', async () => {
+  const { capAccompanimentQuantity } = await import('../web/portion-planner.js');
+  assert.equal(capAccompanimentQuantity(620, { recipeUnit: 'g', recipeYieldAmount: 100 }), 150);
+  assert.equal(capAccompanimentQuantity(240, { recipeUnit: 'g', recipeYieldAmount: 300 }), 200);
+  assert.equal(capAccompanimentQuantity(620, { recipeUnit: 'piece', recipeYieldAmount: 4 }), 620);
+});
+
+test('rebalances to the 4 g protein floor when there is calorie room and respects the cap', () => {
+  const result = rebalanceNaturalPortions([
+    { role: 'main', quantity: 1, step: 1, recipeKcal: 100, proteinG: 3, maxQuantity: Infinity },
+    { role: 'accompaniment', quantity: 0, step: 10, recipeKcal: 0.6, proteinG: 0.1, maxQuantity: 150 },
+  ], 200);
+  assert.equal(result.proposals[0].quantity, 1);
+  assert.equal(result.proposals[1].quantity, 10);
+  assert.equal(result.estimatedProteinG, 4);
+  assert.equal(result.proteinTargetMet, true);
+  assert.equal(result.withinBudget, true);
+});
+
+test('reports when protein values are unknown instead of claiming the floor is met', () => {
+  const result = rebalanceNaturalPortions([
+    { role: 'main', quantity: 1, step: 1, recipeKcal: 100, proteinG: null },
+  ], 200);
+  assert.equal(result.proteinKnown, false);
+  assert.equal(result.proteinTargetMet, false);
+  assert.equal(result.estimatedProteinG, null);
+});
