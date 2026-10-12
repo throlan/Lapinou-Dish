@@ -22,9 +22,11 @@ function showMessage(target, text, success = false) {
 function setView(name) {
   $('#foods-view').classList.toggle('hidden', name !== 'foods');
   $('#recipes-view').classList.toggle('hidden', name !== 'recipes');
+  $('#calendar-view').classList.toggle('hidden', name !== 'calendar');
   $('#profiles-view').classList.toggle('hidden', name !== 'profiles');
-  $('.nav-button').forEach((button) => button.classList.toggle('active', button.dataset.view === name));
+  $$('.nav-button').forEach((button) => button.classList.toggle('active', button.dataset.view === name));
   if (name === 'recipes') refreshRecipes();
+  if (name === 'calendar') refreshCalendar();
   if (name === 'profiles') refreshPeople();
 }
 
@@ -39,6 +41,7 @@ async function refreshPeople() {
   list.replaceChildren(emptyMessage('Chargement des profils…'));
   try {
     const { people } = await api(`/api/people?householdId=${encodeURIComponent(state.household.id)}`);
+    state.people = people;
     list.replaceChildren(...(people.length ? people.map(profileCard) : [emptyMessage('Aucun profil pour le moment. Ajoute les personnes à planifier.')]));
   } catch (error) {
     list.replaceChildren(emptyMessage(`Profils indisponibles : ${error.body?.error ?? error.message}`));
@@ -565,7 +568,7 @@ async function init() {
     $('#connection').classList.add('error');
   });
   await Promise.all([refreshFoods(), loadHouseholds(), health]);
-  await refreshPeople();
+  await Promise.all([refreshPeople(), refreshCalendar()]);
   addRecipeLine();
 }
 

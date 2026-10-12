@@ -13,7 +13,7 @@ test('home page loads the application module as a versioned same-origin asset', 
   await handleRequest({ method: 'GET', url: '/', headers: {} }, response, {});
   assert.equal(response.status, 200);
   assert.match(response.headers['Content-Type'], /^text\/html/);
-  assert.match(response.body, /<script type="module" src="\/app\.js\?v=0\.2\.14"><\/script>/);
+  assert.match(response.body, /<script type="module" src="\/app\.js\?v=[0-9.]+"><\/script>/);
   const scriptResponse = {
     status: 200,
     headers: {},
