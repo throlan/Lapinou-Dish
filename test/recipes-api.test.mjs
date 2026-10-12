@@ -60,7 +60,8 @@ test('recipe update replaces its lines atomically and recalculates nutrition', a
   assert.equal(response.body.recipe.nutrition.batch.energyKcal, 120);
   assert.equal(response.body.recipe.nutrition.perYieldUnit.energyKcal, 60);
   assert.equal(updateValues[8], 'beverage');
-  assert.deepEqual(updateValues[9], ['breakfast', 'snack']);
+  assert.equal(updateValues[9], 'none');
+  assert.deepEqual(updateValues[10], ['breakfast', 'snack']);
   assert.equal(calls[0], 'BEGIN');
   assert.ok(calls.some((sql) => sql.startsWith('DELETE FROM recipe_lines')));
   assert.ok(calls.some((sql) => sql.startsWith('INSERT INTO recipe_lines')));
