@@ -4,15 +4,16 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=shopping-planning-1">
+    <link rel="stylesheet" href="/style.css?v=dashboard-home-1">
   </head>
   <body>
     <header class="topbar">
       <a class="brand" href="/" aria-label="Lapinou Dish accueil"><span class="brand-mark">🐰</span><span>Lapinou <b>Dish</b></span></a>
       <nav aria-label="Navigation principale">
+        <button class="nav-button active" data-view="home">Accueil</button>
         <button class="nav-button" data-view="foods">Aliments</button>
         <button class="nav-button" data-view="recipes">Recettes</button>
-        <button class="nav-button active" data-view="calendar">Calendrier</button>
+        <button class="nav-button" data-view="calendar">Calendrier</button>
         <button class="nav-button" data-view="profiles">Profils</button>
         <button class="nav-button" data-view="shopping">Courses & stocks</button>
       </nav>
@@ -25,7 +26,8 @@
         <div class="household-box" id="household-box"></div>
       </section>
 
-      <section id="calendar-view" class="view">
+      <section id="home-view" class="view"><div id="dashboard-content"><p class="empty">Chargement du tableau de bord…</p></div></section>
+      <section id="calendar-view" class="view hidden">
         <div class="section-heading"><div><h2>Calendrier familial</h2><p>Prévisions par personne, reliées aux recettes du catalogue.</p></div><button type="button" class="secondary" id="manage-profiles">Gérer les profils</button></div>
         <div class="calendar-toolbar">
           <div class="calendar-week-nav"><button type="button" class="secondary" id="previous-week" aria-label="Semaine précédente">‹</button><strong id="calendar-week-title"></strong><button type="button" class="secondary" id="next-week" aria-label="Semaine suivante">›</button><button type="button" class="secondary" id="current-week">Aujourd’hui</button></div>
@@ -157,6 +159,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.19"></script>
+    <script type="module" src="/app.js?v=0.2.20"></script>
   </body>
 </html>
