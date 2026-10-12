@@ -785,7 +785,7 @@ function plannedCaloriesForPerson(meal, personId) {
 function applyAutomaticPortions(items, attendeeIds) {
   const date = $('#meal-form').elements.mealDate.value;
   const slot = $('#meal-form').elements.slot.value;
-  const roleWeights = { main: 0.7, accompaniment: 0.2, beverage: 0.1 };
+  const roleWeights = { main: 0.7, accompaniment: 0.2 };
   const selectedItems = Object.values(items).filter((item) => item.recipeId || (item.role === 'beverage' && Object.keys(item.assignments ?? {}).length));
   const messages = new Set();
   for (const personId of attendeeIds) {
@@ -807,6 +807,12 @@ function applyAutomaticPortions(items, attendeeIds) {
       const kcal = recipe?.nutrition?.perYieldUnit?.energyKcal;
       const recipeUnit = recipe?.yield.unitId ?? 'portion';
       const step = recipeUnit === 'piece' ? 1 : recipeUnit === 'g' ? 10 : 0.5;
+      if (role === 'beverage') {
+        const quantity = Number(assignment.quantity);
+        proposals.push({ item, assignment, personId, role, quantity: Number.isFinite(quantity) && quantity >= 0 ? quantity : 0, step, recipeKcal: Number(kcal) });
+        if (kcal == null) messages.add(`${recipe?.name ?? 'Une boisson'} : calories inconnues, le respect du budget ne peut pas être vérifié.`);
+        continue;
+      }
       const suggestion = suggestQuantity({
         dailyTargetKcal: profile?.dailyEnergyKcal,
         slot,
@@ -816,30 +822,26 @@ function applyAutomaticPortions(items, attendeeIds) {
         recipeCount: roleCounts[role] || 1,
         budgetShare: activeWeight ? roleWeights[role] / activeWeight : 1,
       });
-      if (role === 'beverage') assignment.quantity = suggestion.quantity == null ? '' : String(suggestion.quantity);
-      else {
-        item.amounts ??= {};
-        const fallbackQuantity = suggestion.quantity == null && ['daily-target-missing', 'recipe-energy-missing'].includes(suggestion.reason)
-          ? (recipeUnit === 'g' ? 10 : 1)
-          : null;
-        item.amounts[personId] = suggestion.quantity == null ? (fallbackQuantity == null ? '' : String(fallbackQuantity)) : String(suggestion.quantity);
-      }
-      const quantity = role === 'beverage' ? (suggestion.quantity == null ? null : suggestion.quantity) : (suggestion.quantity ?? (['daily-target-missing', 'recipe-energy-missing'].includes(suggestion.reason) ? (recipeUnit === 'g' ? 10 : 1) : null));
+      item.amounts ??= {};
+      const fallbackQuantity = suggestion.quantity == null && ['daily-target-missing', 'recipe-energy-missing'].includes(suggestion.reason)
+        ? (recipeUnit === 'g' ? 10 : 1)
+        : null;
+      item.amounts[personId] = suggestion.quantity == null ? (fallbackQuantity == null ? '' : String(fallbackQuantity)) : String(suggestion.quantity);
+      const quantity = suggestion.quantity ?? fallbackQuantity;
       if (suggestion.reason === 'daily-target-missing') messages.add(`${person?.displayName ?? 'Une personne'} : besoin quotidien manquant, une quantité par défaut est proposée.`);
       else if (suggestion.reason === 'recipe-energy-missing') messages.add(`${recipe?.name ?? 'Une recette'} : calories inconnues, la quantité par défaut ne peut pas garantir le budget.`);
       else if (suggestion.reason === 'daily-budget-used') messages.add(`${person?.displayName ?? 'Une personne'} : enveloppe quotidienne déjà atteinte.`);
-      else if (suggestion.reason === 'no-natural-portion-fits' && role !== 'beverage') messages.add(`${recipe?.name ?? 'Une recette'} : aucune portion entière ou demi-portion ne tient dans le budget restant.`);
+      else if (suggestion.reason === 'no-natural-portion-fits') messages.add(`${recipe?.name ?? 'Une recette'} : aucune portion entière ou demi-portion ne tient dans le budget restant.`);
       proposals.push({ item, personId, role, quantity, reason: suggestion.reason, step, recipeKcal: Number(kcal), slotBudgetKcal: suggestion.slotBudgetKcal, assignment });
     }
     const budget = proposals.find((proposal) => Number.isFinite(proposal.slotBudgetKcal))?.slotBudgetKcal;
     if (Number.isFinite(budget) && proposals.length && proposals.every((proposal) => Number.isFinite(proposal.recipeKcal) && proposal.recipeKcal > 0)) {
       const result = rebalanceNaturalPortions(proposals, budget);
       result.proposals.forEach((proposal) => {
-        if (proposal.role === 'beverage') proposal.assignment.quantity = proposal.quantity == null ? '' : String(proposal.quantity);
+        if (proposal.role === 'beverage') proposal.assignment.quantity = String(proposal.quantity);
         else proposal.item.amounts[personId] = proposal.quantity == null ? '' : String(proposal.quantity);
       });
-      if (result.beverageAdded) messages.add(`${person?.displayName ?? 'Une personne'} : une boisson entière est proposée; le surplus au-delà des 10 % indicatifs est pris sur la recette principale, dans la limite du créneau.`);
-      else if (result.proposals.some((proposal) => proposal.role === 'beverage' && proposal.quantity == null && proposal.reason === 'no-natural-portion-fits')) messages.add(`${person?.displayName ?? 'Une personne'} : aucune boisson entière ne tient dans le budget restant après ajustement des autres recettes.`);
+      if (!result.withinBudget) messages.add(`${person?.displayName ?? 'Une personne'} : le repas dépasse encore l’enveloppe avec les portions minimales; réduis une boisson ou ajuste le repas.`);
     }
   }
   const notice = document.createElement('p');
@@ -847,7 +849,7 @@ function applyAutomaticPortions(items, attendeeIds) {
   notice.setAttribute('role', 'status');
   notice.textContent = messages.size
     ? [...messages].join(' ')
-    : 'Répartition indicative : 70 % recette principale, 20 % accompagnements et 10 % boisson. Chacun choisit sa boisson ou peut ne pas en prendre; une boisson entière peut dépasser sa part, le surplus est pris sur le plat sans dépasser le budget du créneau ni celui de la journée.';
+    : 'Les portions du plat et des accompagnements sont proposées automatiquement. La boisson est facultative, sans quota : chacun choisit sa boisson et sa quantité, ou indique 0. Ses calories comptent dans le budget du repas et de la journée.';
   $('#planned-items').replaceChildren(notice);
 }
 
@@ -866,7 +868,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     state.recipes.forEach((recipe) => select.add(new Option(`${recipe.name} · ${recipe.yield.amount} ${recipe.yield.unitId}`, recipe.id)));
     select.value = item.recipeId ?? '';
     const role = document.createElement('select'); role.name = 'role'; role.setAttribute('aria-label', 'Catégorie de la recette');
-    [['main', 'Recette principale · 70 %'], ['accompaniment', 'Accompagnement · 20 %'], ['beverage', 'Boisson · 10 %']].forEach(([value, label]) => role.add(new Option(label, value)));
+    [['main', 'Recette principale · 70 %'], ['accompaniment', 'Accompagnement · 20 %'], ['beverage', 'Boisson · choix individuel']].forEach(([value, label]) => role.add(new Option(label, value)));
     role.value = item.role ?? 'main';
     role.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
     const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-line'; remove.textContent = '×'; remove.setAttribute('aria-label', 'Retirer cette recette');
@@ -888,10 +890,11 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
         const recipe = state.recipes.find((entry) => entry.id === personSelect.value);
         const unit = recipe?.yield.unitId ?? 'portion';
         const step = unit === 'piece' ? '1' : unit === 'g' ? '10' : '0.5';
-        const input = document.createElement('input'); input.type = 'number'; input.min = step; input.step = step; input.dataset.personId = personId;
-        input.value = assignment.quantity ?? ''; input.placeholder = 'Quantité'; input.setAttribute('aria-label', `Quantité de boisson pour ${person?.displayName ?? 'personne'}`);
+        const input = document.createElement('input'); input.type = 'number'; input.min = '0'; input.step = step; input.dataset.personId = personId;
+        input.value = assignment.quantity ?? (personSelect.value ? '0' : ''); input.placeholder = 'Quantité (0 si aucune)'; input.setAttribute('aria-label', `Quantité de boisson pour ${person?.displayName ?? 'personne'}`);
         if (!personSelect.value) input.disabled = true;
         personSelect.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
+        input.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
         personRow.append(caption, personSelect, input); quantities.append(personRow);
       }
       top.classList.add('beverage-item-top');
@@ -976,6 +979,7 @@ $('#meal-form').addEventListener('submit', async (event) => {
       const recipeId = $('select[data-person-recipe]', personRow).value;
       if (!recipeId) return;
       const quantity = Number($('input[data-person-id]', personRow).value);
+      if (!Number.isFinite(quantity) || quantity <= 0) return;
       const amounts = byRecipe.get(recipeId) ?? [];
       amounts.push({ personId: personRow.dataset.personId, quantity });
       byRecipe.set(recipeId, amounts);
@@ -985,7 +989,7 @@ $('#meal-form').addEventListener('submit', async (event) => {
   if (!attendeeIds.length) { showMessage($('#meal-message'), 'Sélectionne les personnes présentes pour ce repas.'); return; }
   if (!items.length || items.some((item) => !item.recipeId)) { showMessage($('#meal-message'), 'Choisis au moins une recette pour ce repas.'); return; }
   if (items.some((item) => item.role !== 'beverage' && item.amounts.length !== attendeeIds.length)
-    || items.some((item) => item.amounts.length < 1 || item.amounts.some((amount) => !Number.isFinite(amount.quantity) || amount.quantity <= 0))) {
+    || items.some((item) => item.amounts.length < 1 || item.amounts.some((amount) => !Number.isFinite(amount.quantity) || (item.role === 'beverage' ? amount.quantity < 0 : amount.quantity <= 0)))) {
     showMessage($('#meal-message'), 'Indique une quantité positive pour chaque personne concernée par les recettes choisies.');
     return;
   }
