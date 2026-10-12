@@ -22,10 +22,18 @@ export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, r
 }
 
 
-export function rebalanceNaturalPortions(proposals, slotBudgetKcal) {
+export const MIN_PROTEIN_G_PER_MEAL = 4;
+
+export function capAccompanimentQuantity(quantity, { recipeUnit, recipeYieldAmount }) {
+  if (recipeUnit !== 'g' || !Number.isFinite(Number(quantity)) || !Number.isFinite(Number(recipeYieldAmount)) || Number(recipeYieldAmount) <= 0) return quantity;
+  const maxGrams = Math.min(200, Number(recipeYieldAmount) * 1.5);
+  return Math.min(Number(quantity), maxGrams);
+}
+
+export function rebalanceNaturalPortions(proposals, slotBudgetKcal, { minProteinG = MIN_PROTEIN_G_PER_MEAL } = {}) {
   const rows = proposals.map((item) => ({ ...item }));
   const budget = Number(slotBudgetKcal);
-  if (!Number.isFinite(budget) || budget < 0) return { proposals: rows, withinBudget: false };
+  if (!Number.isFinite(budget) || budget < 0) return { proposals: rows, withinBudget: false, proteinKnown: false, proteinTargetMet: false };
   const total = () => rows.reduce((sum, item) => sum + Math.max(0, Number(item.quantity) || 0) * item.recipeKcal, 0);
   while (total() > budget + 1e-9) {
     const candidate = ['main', 'accompaniment']
@@ -34,5 +42,29 @@ export function rebalanceNaturalPortions(proposals, slotBudgetKcal) {
     if (!candidate) break;
     candidate.quantity = Number((candidate.quantity - candidate.step).toFixed(4));
   }
-  return { proposals: rows, withinBudget: total() <= budget + 1e-9, estimatedKcal: total() };
+
+  const proteinKnown = rows.every((item) => item.quantity == null || Number.isFinite(Number(item.proteinG)));
+  const totalProtein = () => rows.reduce((sum, item) => sum + Math.max(0, Number(item.quantity) || 0) * (Number(item.proteinG) || 0), 0);
+  if (proteinKnown) {
+    while (totalProtein() < minProteinG - 1e-9) {
+      const candidate = rows
+        .filter((item) => ['main', 'accompaniment'].includes(item.role)
+          && Number(item.proteinG) > 0
+          && Number.isFinite(Number(item.recipeKcal))
+          && Number(item.step) > 0
+          && (Number(item.quantity) || 0) + item.step <= (Number(item.maxQuantity) || Infinity) + 1e-9)
+        .filter((item) => total() + item.recipeKcal * item.step <= budget + 1e-9)
+        .sort((a, b) => b.proteinG / b.step - a.proteinG / a.step)[0];
+      if (!candidate) break;
+      candidate.quantity = Number(((Number(candidate.quantity) || 0) + candidate.step).toFixed(4));
+    }
+  }
+  return {
+    proposals: rows,
+    withinBudget: total() <= budget + 1e-9,
+    estimatedKcal: total(),
+    estimatedProteinG: proteinKnown ? totalProtein() : null,
+    proteinKnown,
+    proteinTargetMet: proteinKnown && totalProtein() >= minProteinG - 1e-9,
+  };
 }
