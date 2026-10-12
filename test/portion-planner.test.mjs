@@ -68,8 +68,9 @@ test('rebalances to the 4 g protein floor when there is calorie room and respect
     { role: 'main', quantity: 1, step: 1, recipeKcal: 100, proteinG: 3, maxQuantity: Infinity },
     { role: 'accompaniment', quantity: 0, step: 10, recipeKcal: 0.6, proteinG: 0.1, maxQuantity: 150 },
   ], 200);
-  assert.equal(result.proposals[0].quantity, 2);
-  assert.equal(result.estimatedProteinG, 6);
+  assert.equal(result.proposals[0].quantity, 1);
+  assert.equal(result.proposals[1].quantity, 10);
+  assert.equal(result.estimatedProteinG, 4);
   assert.equal(result.proteinTargetMet, true);
   assert.equal(result.withinBudget, true);
 });
