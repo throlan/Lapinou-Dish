@@ -787,17 +787,18 @@ function applyAutomaticPortions(items, attendeeIds) {
   const slot = $('#meal-form').elements.slot.value;
   const roleWeights = { main: 0.7, accompaniment: 0.2, beverage: 0.1 };
   const selectedItems = Object.values(items).filter((item) => item.recipeId || (item.role === 'beverage' && Object.keys(item.assignments ?? {}).length));
-  const roleCounts = Object.fromEntries(Object.keys(roleWeights).map((role) => [role, selectedItems.filter((item) => (item.role ?? 'main') === role).length]));
-  const activeWeight = Object.entries(roleCounts).reduce((sum, [role, count]) => sum + (count ? roleWeights[role] : 0), 0);
   const messages = new Set();
   for (const personId of attendeeIds) {
+    const selectedForPerson = selectedItems.filter((item) => (item.role ?? 'main') !== 'beverage' || item.assignments?.[personId]?.recipeId);
+    const roleCounts = Object.fromEntries(Object.keys(roleWeights).map((role) => [role, selectedForPerson.filter((item) => (item.role ?? 'main') === role).length]));
+    const activeWeight = Object.entries(roleCounts).reduce((sum, [role, count]) => sum + (count ? roleWeights[role] : 0), 0);
     const person = state.people.find((entry) => entry.id === personId);
     const profile = person && latestProfile(person, date);
     const plannedOtherKcal = state.calendarMeals
       .filter((meal) => meal.mealDate === date && meal.id !== state.calendarMealId)
       .reduce((sum, meal) => sum + plannedCaloriesForPerson(meal, personId), 0);
     const proposals = [];
-    for (const item of selectedItems) {
+    for (const item of selectedForPerson) {
       const role = item.role ?? 'main';
       const assignment = role === 'beverage' ? item.assignments?.[personId] : null;
       const recipeId = role === 'beverage' ? assignment?.recipeId : item.recipeId;
