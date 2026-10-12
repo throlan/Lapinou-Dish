@@ -43,8 +43,8 @@ export async function listPeople(pool, householdId) {
   if (!people.length) return [];
   const ids = people.map((person) => person.id);
   const [weights, profiles] = await Promise.all([
-    pool.query('SELECT id, person_id, measured_on, weight_kg FROM person_weight_entries WHERE person_id = ANY($1::uuid[]) ORDER BY measured_on DESC', [ids]),
-    pool.query('SELECT id, person_id, effective_from, height_cm, activity_level, daily_energy_kcal, daily_energy_origin, daily_energy_method FROM person_profile_history WHERE person_id = ANY($1::uuid[]) ORDER BY effective_from DESC', [ids]),
+    pool.query('SELECT id, person_id, measured_on::text AS measured_on, weight_kg FROM person_weight_entries WHERE person_id = ANY($1::uuid[]) ORDER BY measured_on DESC', [ids]),
+    pool.query('SELECT id, person_id, effective_from::text AS effective_from, height_cm, activity_level, daily_energy_kcal, daily_energy_origin, daily_energy_method FROM person_profile_history WHERE person_id = ANY($1::uuid[]) ORDER BY effective_from DESC', [ids]),
   ]);
   return people.map((person) => ({
     id: person.id, displayName: person.display_name, birthDate: person.birth_date, active: person.active,
@@ -68,7 +68,7 @@ export async function createPerson(pool, householdId, data) {
 
 export async function addWeightEntry(pool, personId, householdId, data) {
   const result = await pool.query(
-    'INSERT INTO person_weight_entries (id, person_id, measured_on, weight_kg) SELECT $1, p.id, $3, $4 FROM people p WHERE p.id = $2 AND p.household_id = $5 RETURNING id, measured_on, weight_kg',
+    'INSERT INTO person_weight_entries (id, person_id, measured_on, weight_kg) SELECT $1, p.id, $3, $4 FROM people p WHERE p.id = $2 AND p.household_id = $5 RETURNING id, measured_on::text AS measured_on, weight_kg',
     [randomUUID(), personId, data.measuredOn, data.weightKg, householdId],
   );
   if (!result.rowCount) return null;
@@ -77,7 +77,7 @@ export async function addWeightEntry(pool, personId, householdId, data) {
 
 export async function addProfileHistory(pool, personId, householdId, data) {
   const result = await pool.query(
-    'INSERT INTO person_profile_history (id, person_id, effective_from, height_cm, activity_level, daily_energy_kcal, daily_energy_origin, daily_energy_method) SELECT $1, p.id, $3, $4, $5, $6, $7, $8 FROM people p WHERE p.id = $2 AND p.household_id = $9 RETURNING id, effective_from, height_cm, activity_level, daily_energy_kcal, daily_energy_origin, daily_energy_method',
+    'INSERT INTO person_profile_history (id, person_id, effective_from, height_cm, activity_level, daily_energy_kcal, daily_energy_origin, daily_energy_method) SELECT $1, p.id, $3, $4, $5, $6, $7, $8 FROM people p WHERE p.id = $2 AND p.household_id = $9 ON CONFLICT (person_id, effective_from) DO UPDATE SET height_cm = EXCLUDED.height_cm, activity_level = EXCLUDED.activity_level, daily_energy_kcal = EXCLUDED.daily_energy_kcal, daily_energy_origin = EXCLUDED.daily_energy_origin, daily_energy_method = EXCLUDED.daily_energy_method RETURNING id, effective_from::text AS effective_from, height_cm, activity_level, daily_energy_kcal, daily_energy_origin, daily_energy_method',
     [randomUUID(), personId, data.effectiveFrom, data.heightCm, data.activityLevel, data.dailyEnergyKcal, data.dailyEnergyOrigin, data.dailyEnergyMethod, householdId],
   );
   if (!result.rowCount) return null;
