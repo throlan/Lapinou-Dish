@@ -70,3 +70,83 @@ textarea { resize:vertical; }
   .nutrition-candidate { grid-template-columns:1fr; }
   .nutrition-candidate button { grid-column:1; grid-row:auto; }
 }
+
+
+/* Lapinou Dish meal-planner visual direction */
+:root {
+  color-scheme: dark;
+  font-family: Inter, "Segoe UI", sans-serif;
+  color: #edf4ff;
+  background: #10182b;
+  --night: #10182b;
+  --panel: #18243d;
+  --panel-raised: #202e4b;
+  --line: #30415f;
+  --muted: #96a9cb;
+  --cyan: #24d4e4;
+  --purple: #b66be0;
+  --pink: #ec62c8;
+  --yellow: #f3d463;
+}
+body { background: radial-gradient(ellipse at 50% -20%, #1d2b49 0, var(--night) 62%); color: #edf4ff; }
+.topbar { height: 72px; background: #151f35; border: 1px solid #293957; border-radius: 16px; margin: 12px 18px 0; padding: 0 24px; box-shadow: 0 8px 28px #070b1680; }
+.brand { color: #b8f4fa; font-family: Inter, "Segoe UI", sans-serif; font-weight: 800; letter-spacing: -.04em; font-size: 20px; }
+.brand b { color: #d888e9; }
+.brand-mark { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 13px; background: linear-gradient(140deg,#49d6e6,#966fe6 65%,#d958c7); font-size: 25px; }
+.nav-button { color: #aec0df; padding: 12px 19px; border-radius: 13px; }
+.nav-button:hover,.nav-button.active { color: #f4f8ff; background: #2b3b5c; }
+.connection { color: #9badca; }
+.connection.error { color: #ff8299; }
+main { max-width: 1580px; padding-top: 25px; }
+.intro h1 { color: #b9f6fb; font-family: Inter, "Segoe UI", sans-serif; font-size: 29px; letter-spacing: -.035em; }
+.eyebrow { color: #6bd6e1; }
+.intro p:not(.eyebrow),.section-heading p,.muted,.hint { color: var(--muted); }
+.household-box,.view,.card { background: var(--panel); border-color: #2a3b5a; color: #eaf1ff; box-shadow: 0 10px 30px #060b1680; }
+.view { border-radius: 17px; }
+.section-heading h2,.line-heading h3 { color: #edf4ff; }
+.primary { background: var(--cyan); color: #0d1b30; border-color: transparent; box-shadow: 0 4px 14px #24d4e433; }
+.primary:hover { background: #66e5ee; }
+.secondary { background: #202e4b; color: #d9e6ff; border-color: #3a4d6c; }
+.secondary:hover { background: #2a3b5b; }
+.search,.nutrition-completion { background: #202e49; border-color: #344563; }
+.search span { color: var(--cyan); }
+input:not([type="checkbox"]),select,textarea { background: #111b30; border-color: #364866; color: #edf4ff; }
+input::placeholder,textarea::placeholder { color: #8da1c3; }
+input:not([type="checkbox"]):focus,select:focus,textarea:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px #24d4e42b; }
+.incomplete-filter { color: #c5d2e8; }
+.incomplete-filter input { accent-color: var(--cyan); }
+.table-wrap { border-color: #30415f; background: #151f35; }
+th { background: #202e49; color: #9eb2d2; }
+th,td { border-color: #2b3b58; }
+td small,.food-nutrients { color: #9badca; }
+.empty { color: #a6b7d2; }
+.pagination { color: #a6b7d2; }
+.recipe-card { background: #18243d; border-color: #30415f; box-shadow: inset 0 1px #ffffff08; }
+.recipe-card h3 { color: #c8f8fb; }
+.recipe-card p,.recipe-card .recipe-nutrition { color: #a8bad7; }
+.recipe-card .warning,.nutrition-issues { color: #f2c86b; }
+.nutrition-grid > div { background: #202e49; border: 1px solid #30415f; border-radius: 12px; padding: 14px; }
+.nutrition-grid span { color: #9eb2d2; }
+.nutrition-grid strong { color: #eaf2ff; }
+.result h3 { color: #bdf5fa; }
+.text-button { color: #75e2ec; }
+.incomplete-tag { border-color: #8f7131; background: #3b321e; color: #ffdc7c; }
+.remove-line,.icon-button { background: #263550; color: #c6d5ed; }
+.remove-line:hover,.icon-button:hover { background: #3b4b68; }
+.recipe-line .food-hint { color: #a1b2cc; }
+dialog { background: #18243d; color: #edf4ff; border: 1px solid #364866; }
+dialog::backdrop { background: #050914c9; }
+.dialog-heading h2,.login-dialog form h2 { color: #c8f8fb; }
+.dialog fieldset,#food-form fieldset { border-color: #364866; }
+.dialog legend,#food-form legend { color: #c5d6ee; }
+.nutrition-candidate { background: #202e49; border: 1px solid #344563; border-radius: 12px; }
+.nutrition-candidate small { color: #a6b8d5; }
+.nutrition-candidate a { color: #65dce8; }
+.nutrition-issues { color: #f4ce75; }
+label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
+.import-draft { border-color: #344563; }
+@media (max-width:800px) {
+  .topbar { margin: 8px 8px 0; padding: 0 10px; border-radius: 13px; }
+  .brand { font-size: 15px; }
+  .brand-mark { width: 34px; height: 34px; border-radius: 11px; }
+}
