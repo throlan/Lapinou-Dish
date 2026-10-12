@@ -856,7 +856,7 @@ async function openMealEditor(date, slot, meal = null) {
   const items = {};
   (meal?.items ?? []).forEach((item, index) => { items[index] = { recipeId: item.recipeId, amounts: Object.fromEntries(item.amounts.map((amount) => [amount.personId, String(amount.quantity)])) }; });
   if (!Object.keys(items).length) items[0] = { recipeId: '', amounts: {} };
-  renderPlannedItems(items);
+  renderPlannedItems(items, { autoSuggest: true });
   $('#meal-dialog').showModal();
 }
 
