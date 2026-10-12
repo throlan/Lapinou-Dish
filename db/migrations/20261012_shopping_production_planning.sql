@@ -17,7 +17,6 @@ CREATE TABLE IF NOT EXISTS stock_lots (
   id uuid PRIMARY KEY,
   household_id uuid NOT NULL REFERENCES households(id) ON DELETE CASCADE,
   recipe_id uuid NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-  production_type text NOT NULL CHECK (production_type IN ('batch_cooking', 'pasta', 'pastry', 'bread')),
   produced_on date NOT NULL,
   quantity numeric(12,3) NOT NULL CHECK (quantity > 0),
   storage text NOT NULL DEFAULT 'freezer' CHECK (storage IN ('pantry', 'fridge', 'freezer')),
