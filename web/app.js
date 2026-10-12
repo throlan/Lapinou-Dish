@@ -997,8 +997,18 @@ $('#meal-form').addEventListener('invalid', (event) => {
   showMessage($('#meal-message'), `Vérifie « ${field} » avant d’enregistrer le repas.`);
 }, true);
 
-$('#meal-form').addEventListener('submit', async (event) => {
+async function saveMeal(event) {
   event.preventDefault();
+  const form = $('#meal-form');
+  if (!form.reportValidity()) {
+    const invalid = form.querySelector(':invalid');
+    if (invalid) {
+      const field = invalid.getAttribute('aria-label') ?? invalid.closest('label')?.textContent?.trim() ?? 'un champ obligatoire';
+      showMessage($('#meal-message'), `Vérifie « ${field} » avant d’enregistrer le repas.`);
+      invalid.focus();
+    }
+    return;
+  }
   const message = $('#meal-message');
   if (!state.household) {
     showMessage(message, 'Le foyer n’est pas chargé. Recharge la page puis réessaie.');
@@ -1033,8 +1043,7 @@ $('#meal-form').addEventListener('submit', async (event) => {
     showMessage($('#meal-message'), 'Indique une quantité positive pour chaque personne concernée par les recettes choisies.');
     return;
   }
-  const form = event.currentTarget;
-  const submitButton = $('button[type="submit"]', form);
+  const submitButton = $('#save-meal');
   const originalLabel = submitButton.textContent;
   submitButton.disabled = true;
   submitButton.textContent = 'Enregistrement…';
@@ -1049,4 +1058,8 @@ $('#meal-form').addEventListener('submit', async (event) => {
     submitButton.disabled = false;
     submitButton.textContent = originalLabel;
   }
-});
+}
+
+$('#meal-form').addEventListener('submit', saveMeal);
+$('#save-meal').addEventListener('click', saveMeal);
+
