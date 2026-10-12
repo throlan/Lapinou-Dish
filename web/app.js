@@ -990,9 +990,21 @@ for (const field of ['mealDate', 'slot']) {
   $('#meal-form').elements[field].addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
 }
 
+$('#meal-form').addEventListener('invalid', (event) => {
+  const field = event.target.getAttribute('aria-label')
+    ?? event.target.closest('label')?.textContent?.trim()
+    ?? 'un champ obligatoire';
+  showMessage($('#meal-message'), `Vérifie « ${field} » avant d’enregistrer le repas.`);
+}, true);
+
 $('#meal-form').addEventListener('submit', async (event) => {
   event.preventDefault();
-  if (!state.household) return;
+  const message = $('#meal-message');
+  if (!state.household) {
+    showMessage(message, 'Le foyer n’est pas chargé. Recharge la page puis réessaie.');
+    message.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
   const attendeeIds = $$('#meal-attendees input:checked').map((input) => input.value);
   const rows = $$('.planned-item-editor', $('#planned-items'));
   const items = rows.flatMap((row) => {
@@ -1022,9 +1034,19 @@ $('#meal-form').addEventListener('submit', async (event) => {
     return;
   }
   const form = event.currentTarget;
+  const submitButton = $('button[type="submit"]', form);
+  const originalLabel = submitButton.textContent;
+  submitButton.disabled = true;
+  submitButton.textContent = 'Enregistrement…';
   const payload = { householdId: state.household.id, mealDate: form.elements.mealDate.value, slot: form.elements.slot.value, notes: form.elements.notes.value, attendeeIds, items };
   try {
     await api(state.calendarMealId ? `/api/planning/meals/${state.calendarMealId}` : '/api/planning/meals', { method: state.calendarMealId ? 'PUT' : 'POST', body: JSON.stringify(payload) });
     $('#meal-dialog').close(); await refreshCalendar();
-  } catch (error) { showMessage($('#meal-message'), `Enregistrement impossible : ${error.body?.error ?? error.message}`); }
+  } catch (error) {
+    showMessage(message, `Enregistrement impossible : ${error.body?.error ?? error.message}`);
+    message.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = originalLabel;
+  }
 });
