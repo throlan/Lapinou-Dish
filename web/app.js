@@ -752,7 +752,7 @@ function currentFormAmounts() {
       });
       const sharedRecipeId = $('select[name="recipeId"]', row)?.value;
       if (!Object.keys(assignments).length && sharedRecipeId) {
-        $('input[data-person-id]', row).forEach((input) => {
+        $$('input[data-person-id]', row).forEach((input) => {
           assignments[input.dataset.personId] = { recipeId: sharedRecipeId, quantity: input.value };
         });
       }
@@ -760,14 +760,14 @@ function currentFormAmounts() {
       return;
     }
     const assignments = {};
-    $('.beverage-person', row).forEach((personRow) => {
+    $$('.beverage-person', row).forEach((personRow) => {
       const recipeId = $('select[data-person-recipe]', personRow)?.value ?? '';
       if (recipeId) assignments[personRow.dataset.personId] = { recipeId, quantity: $('input[data-person-id]', personRow)?.value ?? '' };
     });
     const recipeId = $('select[name="recipeId"]', row)?.value || Object.values(assignments)[0]?.recipeId || '';
     const amounts = {};
     if (Object.keys(assignments).length) Object.entries(assignments).forEach(([personId, assignment]) => { amounts[personId] = assignment.quantity; });
-    else $('input[data-person-id]', row).forEach((input) => { amounts[input.dataset.personId] = input.value; });
+    else $$('input[data-person-id]', row).forEach((input) => { amounts[input.dataset.personId] = input.value; });
     output[index] = { recipeId, role, amounts };
   });
   return output;
@@ -972,7 +972,7 @@ $('#meal-form').addEventListener('submit', async (event) => {
       amounts: $('input[data-person-id]', row).map((input) => ({ personId: input.dataset.personId, quantity: Number(input.value) })),
     }];
     const byRecipe = new Map();
-    $('.beverage-person', row).forEach((personRow) => {
+    $$('.beverage-person', row).forEach((personRow) => {
       const recipeId = $('select[data-person-recipe]', personRow).value;
       if (!recipeId) return;
       const quantity = Number($('input[data-person-id]', personRow).value);
