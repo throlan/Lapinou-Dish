@@ -414,6 +414,7 @@ async function refreshRecipes() {
   list.innerHTML = '<p class="empty">Chargement des recettes…</p>';
   try {
     const { recipes } = await api(`/api/recipes?householdId=${encodeURIComponent(state.household.id)}`);
+    state.recipes = recipes;
     list.replaceChildren(...(recipes.length ? recipes.map(recipeCard) : [emptyMessage('Aucune recette enregistrée.')]));
   } catch (error) {
     const message = document.createElement('p'); message.className = 'empty'; message.textContent = `Liste indisponible : ${error.body?.error ?? error.message}`; list.replaceChildren(message);
