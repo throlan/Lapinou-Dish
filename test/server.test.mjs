@@ -24,8 +24,8 @@ test('home page loads the application module as a versioned same-origin asset', 
   await handleRequest({ method: 'GET', url: '/app.js?v=0.2.14', headers: {} }, scriptResponse, {});
   assert.equal(scriptResponse.status, 200);
   assert.match(scriptResponse.headers['Content-Type'], /^text\/javascript/);
-  assert.match(scriptResponse.body, /^import \\{ suggestQuantity \\} from '\\.\\/portion-planner\\.js';/);
-  assert.match(scriptResponse.body, /const state = .*calendarMeals: \\[\\]/);
+  assert.ok(scriptResponse.body.startsWith("import { suggestQuantity } from './portion-planner.js';"));
+  assert.ok(scriptResponse.body.includes('calendarMeals: []'));
   const plannerResponse = {
     status: 200,
     headers: {},
@@ -35,7 +35,7 @@ test('home page loads the application module as a versioned same-origin asset', 
   };
   await handleRequest({ method: 'GET', url: '/portion-planner.js', headers: {} }, plannerResponse, {});
   assert.equal(plannerResponse.status, 200);
-  assert.match(plannerResponse.headers['Content-Type'], /^text\\/javascript/);
+  assert.ok(plannerResponse.headers['Content-Type'].startsWith('text/javascript'));
   assert.match(plannerResponse.body, /export function suggestQuantity/);
 });
 
