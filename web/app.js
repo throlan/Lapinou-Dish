@@ -817,7 +817,7 @@ $('#meal-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   if (!state.household) return;
   const attendeeIds = $$('#meal-attendees input:checked').map((input) => input.value);
-  const rows = $('.planned-item-editor', $('#planned-items'));
+  const rows = $$('.planned-item-editor', $('#planned-items'));
   const items = rows.map((row) => ({
     recipeId: $('select[name="recipeId"]', row).value,
     amounts: $$('input[data-person-id]', row).map((input) => ({ personId: input.dataset.personId, quantity: Number(input.value) })),
