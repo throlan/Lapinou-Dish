@@ -25,21 +25,14 @@ export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, r
 export function rebalanceNaturalPortions(proposals, slotBudgetKcal) {
   const rows = proposals.map((item) => ({ ...item }));
   const budget = Number(slotBudgetKcal);
-  if (!Number.isFinite(budget) || budget < 0) return { proposals: rows, beverageAdded: false, withinBudget: false };
-  let beverageAdded = false;
-  const total = () => rows.reduce((sum, item) => sum + (Number(item.quantity) || 0) * item.recipeKcal, 0);
-  for (const beverage of rows.filter((item) => item.role === 'beverage' && item.quantity == null && item.reason === 'no-natural-portion-fits')) {
-    const snapshot = rows.map((item) => item.quantity);
-    beverage.quantity = beverage.step;
-    while (total() > budget + 1e-9) {
-      const candidate = ['main', 'accompaniment']
-        .flatMap((role) => rows.filter((item) => item.role === role && item.quantity != null && item.quantity - item.step >= item.step))
-        .sort((a, b) => b.recipeKcal - a.recipeKcal)[0];
-      if (!candidate) break;
-      candidate.quantity = Number((candidate.quantity - candidate.step).toFixed(4));
-    }
-    if (total() <= budget + 1e-9) beverageAdded = true;
-    else rows.forEach((item, index) => { item.quantity = snapshot[index]; });
+  if (!Number.isFinite(budget) || budget < 0) return { proposals: rows, withinBudget: false };
+  const total = () => rows.reduce((sum, item) => sum + Math.max(0, Number(item.quantity) || 0) * item.recipeKcal, 0);
+  while (total() > budget + 1e-9) {
+    const candidate = ['main', 'accompaniment']
+      .flatMap((role) => rows.filter((item) => item.role === role && item.quantity != null && item.quantity - item.step >= item.step))
+      .sort((a, b) => b.recipeKcal / b.step - a.recipeKcal / a.step)[0];
+    if (!candidate) break;
+    candidate.quantity = Number((candidate.quantity - candidate.step).toFixed(4));
   }
-  return { proposals: rows, beverageAdded, withinBudget: total() <= budget + 1e-9, estimatedKcal: total() };
+  return { proposals: rows, withinBudget: total() <= budget + 1e-9, estimatedKcal: total() };
 }
