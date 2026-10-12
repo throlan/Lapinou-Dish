@@ -815,7 +815,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
   if (autoSuggest) applyAutomaticPortions(source, attendees);
   const rows = Object.entries(source);
   const suggestionNotice = autoSuggest ? root.firstChild : null;
-  const editorRows = rows.map(([index, item]) => {
+  const editorRows = rows.map(([index, item], rowIndex) => {
     const row = document.createElement('div'); row.className = 'planned-item-editor';
     const select = document.createElement('select'); select.name = 'recipeId'; select.setAttribute('aria-label', 'Recette');
     select.add(new Option('Choisir une recette', ''));
@@ -823,7 +823,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     select.value = item.recipeId ?? '';
     const role = document.createElement('select'); role.name = 'role'; role.setAttribute('aria-label', 'Catégorie de la recette');
     [['main', 'Recette principale · 70 %'], ['accompaniment', 'Accompagnement · 20 %'], ['beverage', 'Boisson · 10 %']].forEach(([value, label]) => role.add(new Option(label, value)));
-    role.value = item.role ?? 'main';
+    role.value = item.role ?? ['main', 'accompaniment', 'beverage'][Math.min(rowIndex, 2)];
     role.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
     const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-line'; remove.textContent = '×'; remove.setAttribute('aria-label', 'Retirer cette recette');
     remove.addEventListener('click', () => { const data = currentFormAmounts(); delete data[index]; renderPlannedItems(data); });
