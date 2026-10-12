@@ -1,4 +1,4 @@
-import { rebalanceNaturalPortions, suggestQuantity } from './portion-planner.js';
+import { capAccompanimentQuantity, MIN_PROTEIN_G_PER_MEAL, rebalanceNaturalPortions, suggestQuantity } from './portion-planner.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -831,22 +831,34 @@ function applyAutomaticPortions(items, attendeeIds) {
       const fallbackQuantity = suggestion.quantity == null && ['daily-target-missing', 'recipe-energy-missing'].includes(suggestion.reason)
         ? (recipeUnit === 'g' ? 10 : 1)
         : null;
-      item.amounts[personId] = suggestion.quantity == null ? (fallbackQuantity == null ? '' : String(fallbackQuantity)) : String(suggestion.quantity);
-      const quantity = suggestion.quantity ?? fallbackQuantity;
+      const proposedQuantity = suggestion.quantity ?? fallbackQuantity;
+      const maxQuantity = role === 'accompaniment' && recipeUnit === 'g'
+        ? Math.min(200, Number(recipe?.yield?.amount) * 1.5)
+        : Infinity;
+      const quantity = proposedQuantity == null ? null : Math.min(
+        proposedQuantity,
+        capAccompanimentQuantity(proposedQuantity, { recipeUnit, recipeYieldAmount: recipe?.yield?.amount }),
+      );
+      item.amounts[personId] = quantity == null ? '' : String(quantity);
+      if (Number.isFinite(maxQuantity) && proposedQuantity > maxQuantity) {
+        messages.add(`${recipe?.name ?? 'L’accompagnement'} : portion proposée plafonnée à ${maxQuantity} g par personne; tu peux toujours l’ajuster.`);
+      }
       if (suggestion.reason === 'daily-target-missing') messages.add(`${person?.displayName ?? 'Une personne'} : besoin quotidien manquant, une quantité par défaut est proposée.`);
       else if (suggestion.reason === 'recipe-energy-missing') messages.add(`${recipe?.name ?? 'Une recette'} : calories inconnues, la quantité par défaut ne peut pas garantir le budget.`);
       else if (suggestion.reason === 'daily-budget-used') messages.add(`${person?.displayName ?? 'Une personne'} : enveloppe quotidienne déjà atteinte.`);
       else if (suggestion.reason === 'no-natural-portion-fits') messages.add(`${recipe?.name ?? 'Une recette'} : aucune portion entière ou demi-portion ne tient dans le budget restant.`);
-      proposals.push({ item, personId, role, quantity, reason: suggestion.reason, step, recipeKcal: Number(kcal), slotBudgetKcal: suggestion.slotBudgetKcal, assignment });
+      proposals.push({ item, personId, role, quantity, reason: suggestion.reason, step, recipeKcal: Number(kcal), proteinG: recipe?.nutrition?.perYieldUnit?.proteinG == null ? null : Number(recipe.nutrition.perYieldUnit.proteinG), maxQuantity, slotBudgetKcal: suggestion.slotBudgetKcal, assignment });
     }
     const budget = proposals.find((proposal) => Number.isFinite(proposal.slotBudgetKcal))?.slotBudgetKcal;
     if (Number.isFinite(budget) && proposals.length && proposals.every((proposal) => Number.isFinite(proposal.recipeKcal) && proposal.recipeKcal > 0)) {
-      const result = rebalanceNaturalPortions(proposals, budget);
+      const result = rebalanceNaturalPortions(proposals, budget, { minProteinG: MIN_PROTEIN_G_PER_MEAL });
       result.proposals.forEach((proposal) => {
         if (proposal.role === 'beverage') proposal.assignment.quantity = String(proposal.quantity);
         else proposal.item.amounts[personId] = proposal.quantity == null ? '' : String(proposal.quantity);
       });
       if (!result.withinBudget) messages.add(`${person?.displayName ?? 'Une personne'} : le repas dépasse encore l’enveloppe avec les portions minimales; réduis une boisson ou ajuste le repas.`);
+      if (!result.proteinKnown) messages.add(`${person?.displayName ?? 'Une personne'} : données protéiques incomplètes, le seuil de ${MIN_PROTEIN_G_PER_MEAL} g ne peut pas être vérifié.`);
+      else if (!result.proteinTargetMet) messages.add(`${person?.displayName ?? 'Une personne'} : impossible d’atteindre ${MIN_PROTEIN_G_PER_MEAL} g de protéines sans dépasser l’enveloppe ou les portions maximales.`);
     }
   }
   const notice = document.createElement('p');
@@ -854,7 +866,7 @@ function applyAutomaticPortions(items, attendeeIds) {
   notice.setAttribute('role', 'status');
   notice.textContent = messages.size
     ? [...messages].join(' ')
-    : 'Les portions du plat et des accompagnements sont proposées automatiquement. La boisson est facultative, sans quota : chacun choisit sa boisson et sa quantité, ou indique 0. Ses calories comptent dans le budget du repas et de la journée.';
+    : 'Les portions du plat et des accompagnements sont proposées automatiquement, avec un objectif minimal de 4 g de protéines par personne et par repas. Les accompagnements en grammes sont limités à 1,5 rendement, dans la limite de 200 g. La boisson reste individuelle et facultative; ses calories comptent dans le budget.';
   $('#planned-items').replaceChildren(notice);
 }
 
