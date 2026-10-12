@@ -6,6 +6,7 @@ import { createRecipe, listRecipes, readRecipe, updateRecipe, validateRecipeInpu
 import { listImportDrafts, saveImportDrafts } from './recipe-imports.mjs';
 import { addProfileHistory, addWeightEntry, createPerson, listPeople, validatePersonInput, validateProfileHistoryInput, validateWeightInput } from './people.mjs';
 import { deletePlannedMeal, listPlannedMeals, savePlannedMeal, validatePlannedMeal } from './planning.mjs';
+import { addStockLot, completeRoutine, getRoutineSettings, listShoppingRequirements, listStock, saveRoutineSettings, saveShoppingLineState, validateProductionInput, validateRoutineSettings, validateShoppingLineState } from './household-planning.mjs';
 import { parseRecipeArchive, parseRecipeText } from '../domain/recipe-import.mjs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -148,6 +149,66 @@ export async function handleRequest(request, response, pool, appPassword = null)
         if (error.code === '23505') return send(response, 409, { error: isWeight ? 'weight-entry-already-exists-for-date' : 'profile-entry-already-exists-for-date' });
         return send(response, 500, { error: isWeight ? 'weight-entry-create-failed' : 'profile-history-create-failed' });
       }
+    }
+
+    if (url.pathname === '/api/household-planning' && request.method === 'GET') {
+      const householdId = url.searchParams.get('householdId');
+      if (!isUuid(householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      try {
+        const [routines, stock] = await Promise.all([getRoutineSettings(pool, householdId), listStock(pool, householdId)]);
+        return send(response, 200, { routines, stock });
+      } catch { return send(response, 500, { error: 'household-planning-read-failed' }); }
+    }
+    if (url.pathname === '/api/household-planning/routines' && request.method === 'PUT') {
+      const body = await readJson(request);
+      if (body.error) return send(response, body.status ?? 400, { error: body.error });
+      if (!isUuid(body.value?.householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      const validation = validateRoutineSettings(body.value?.routines);
+      if (validation.error) return send(response, 400, { error: validation.error });
+      try { return send(response, 200, { routines: await saveRoutineSettings(pool, body.value.householdId, validation.data) }); }
+      catch { return send(response, 500, { error: 'household-routines-save-failed' }); }
+    }
+    if (url.pathname === '/api/household-planning/routines/complete' && request.method === 'POST') {
+      const body = await readJson(request);
+      if (body.error) return send(response, body.status ?? 400, { error: body.error });
+      if (!isUuid(body.value?.householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      try {
+        const routine = await completeRoutine(pool, body.value.householdId, body.value.routineId);
+        return routine ? send(response, 200, { routine }) : send(response, 404, { error: 'routine-not-found' });
+      } catch { return send(response, 500, { error: 'routine-complete-failed' }); }
+    }
+    if (url.pathname === '/api/household-planning/production' && request.method === 'POST') {
+      const body = await readJson(request);
+      if (body.error) return send(response, body.status ?? 400, { error: body.error });
+      const validation = validateProductionInput(body.value);
+      if (validation.error) return send(response, 400, { error: validation.error });
+      try {
+        const lot = await addStockLot(pool, validation.data);
+        if (lot?.error === 'recipe-not-for-production') return send(response, 400, { error: lot.error });
+        if (lot?.error) return send(response, 404, { error: lot.error });
+        return send(response, 201, { lot });
+      } catch { return send(response, 500, { error: 'production-stock-save-failed' }); }
+    }
+    if (url.pathname === '/api/shopping-list' && request.method === 'GET') {
+      const householdId = url.searchParams.get('householdId');
+      const startDate = url.searchParams.get('startDate');
+      const endDate = url.searchParams.get('endDate');
+      if (!isUuid(householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      if (!isValidDate(startDate) || !isValidDate(endDate) || endDate < startDate) return send(response, 400, { error: 'invalid-shopping-period' });
+      if ((new Date(endDate) - new Date(startDate)) / 86400000 > 62) return send(response, 400, { error: 'shopping-period-too-long' });
+      try { return send(response, 200, { items: await listShoppingRequirements(pool, householdId, startDate, endDate) }); }
+      catch { return send(response, 500, { error: 'shopping-list-read-failed' }); }
+    }
+    if (url.pathname === '/api/shopping-list/state' && request.method === 'POST') {
+      const body = await readJson(request);
+      if (body.error) return send(response, body.status ?? 400, { error: body.error });
+      const validation = validateShoppingLineState(body.value);
+      if (validation.error) return send(response, 400, { error: validation.error });
+      try {
+        const result = await saveShoppingLineState(pool, validation.data);
+        if (result.error) return send(response, 404, { error: result.error });
+        return send(response, 200, result);
+      } catch { return send(response, 500, { error: 'shopping-list-state-save-failed' }); }
     }
 
     if (request.method === 'GET' && url.pathname === '/api/planning') {
