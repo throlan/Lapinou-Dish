@@ -24,7 +24,7 @@ test('home page loads the application module as a versioned same-origin asset', 
   await handleRequest({ method: 'GET', url: '/app.js?v=0.2.14', headers: {} }, scriptResponse, {});
   assert.equal(scriptResponse.status, 200);
   assert.match(scriptResponse.headers['Content-Type'], /^text\/javascript/);
-  assert.ok(scriptResponse.body.startsWith("import { suggestQuantity } from './portion-planner.js';"));
+  assert.ok(scriptResponse.body.startsWith("import { rebalanceNaturalPortions, suggestQuantity } from './portion-planner.js';"));
   assert.ok(scriptResponse.body.includes('calendarMeals: []'));
   const plannerResponse = {
     status: 200,
