@@ -41,10 +41,12 @@ test('recipe update replaces its lines atomically and recalculates nutrition', a
   const householdId = '10101010-1010-4010-8010-101010101010';
   const foodId = '20202020-2020-4020-8020-202020202020';
   const calls = [];
-  const client = { query: async (sql) => {
+  let updateValues;
+  const client = { query: async (sql, values) => {
     calls.push(sql);
+    if (sql.startsWith('UPDATE recipes')) updateValues = values;
     if (sql.startsWith('UPDATE recipes')) return { rowCount: 1, rows: [{ id: recipeId }] };
-    if (sql.startsWith('SELECT id, name, description')) return { rows: [{ id: recipeId, name: 'Muffins revus', description: '', yield_amount: '2', yield_unit_id: 'piece' }] };
+    if (sql.startsWith('SELECT id, name, description')) return { rows: [{ id: recipeId, name: 'Muffins revus', description: '', yield_amount: '2', yield_unit_id: 'piece', recipe_type: 'beverage', meal_moments: ['breakfast', 'snack'] }] };
     if (sql.startsWith('SELECT id, food_id')) return { rows: [{ id: '40404040-4040-4040-8040-404040404040', food_id: foodId, quantity: '200', unit_id: 'g', sort_order: 0 }] };
     if (sql.startsWith('SELECT f.id')) return { rows: [{ id: foodId, name: 'Skyr nature', source: 'manual', nutrient_values: { energy_kcal: '60', protein_g: '10', carbohydrate_g: '4', fat_g: '0', fibre_g: null }, grams_per_unit: {}, grams_per_millilitre: null }] };
     return { rowCount: 1, rows: [] };
@@ -52,11 +54,13 @@ test('recipe update replaces its lines atomically and recalculates nutrition', a
   const pool = { connect: async () => client };
   const response = await invoke(`/api/recipes/${recipeId}`, pool, {
     method: 'PUT',
-    body: { householdId, name: 'Muffins revus', yield: { amount: 2, unitId: 'piece' }, lines: [{ foodId, quantity: 200, unitId: 'g' }] },
+    body: { householdId, name: 'Cappuccino maison', recipeType: 'beverage', mealMoments: ['breakfast', 'snack'], yield: { amount: 2, unitId: 'piece' }, lines: [{ foodId, quantity: 200, unitId: 'g' }] },
   });
   assert.equal(response.status, 200);
   assert.equal(response.body.recipe.nutrition.batch.energyKcal, 120);
   assert.equal(response.body.recipe.nutrition.perYieldUnit.energyKcal, 60);
+  assert.equal(updateValues[8], 'beverage');
+  assert.deepEqual(updateValues[9], ['breakfast', 'snack']);
   assert.equal(calls[0], 'BEGIN');
   assert.ok(calls.some((sql) => sql.startsWith('DELETE FROM recipe_lines')));
   assert.ok(calls.some((sql) => sql.startsWith('INSERT INTO recipe_lines')));
