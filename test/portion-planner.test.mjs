@@ -23,37 +23,35 @@ test('returns an explicit reason instead of inventing a portion when data or bud
 });
 
 
-test('allocates the slot budget with the requested main, accompaniment and beverage shares', () => {
+test('allocates the slot budget between main recipe and accompaniment without reserving a drink share', () => {
   const base = { dailyTargetKcal: 2000, slot: 'breakfast', recipeKcal: 100, recipeUnit: 'portion' };
   const main = suggestQuantity({ ...base, budgetShare: 0.7 });
   const accompaniment = suggestQuantity({ ...base, budgetShare: 0.2 });
-  const beverage = suggestQuantity({ ...base, budgetShare: 0.1 });
   assert.equal(main.slotBudgetKcal, 500);
   assert.equal(main.estimatedKcal, 350);
   assert.equal(accompaniment.estimatedKcal, 100);
-  assert.equal(beverage.estimatedKcal, 50);
 });
 
 
-test('lets a whole breakfast drink exceed its soft share by reducing the main recipe within the slot budget', () => {
+test('preserves the chosen beverage quantity and reduces food portions to the slot budget', () => {
   const result = rebalanceNaturalPortions([
     { role: 'main', quantity: 3, step: 1, recipeKcal: 100 },
     { role: 'accompaniment', quantity: 1, step: 1, recipeKcal: 80 },
-    { role: 'beverage', quantity: null, reason: 'no-natural-portion-fits', step: 1, recipeKcal: 150 },
-  ], 400);
-  assert.equal(result.beverageAdded, true);
+    { role: 'beverage', quantity: 3, step: 1, recipeKcal: 50 },
+  ], 350);
   assert.equal(result.proposals[0].quantity, 1);
-  assert.equal(result.proposals[2].quantity, 1);
-  assert.ok(result.estimatedKcal <= 400);
+  assert.equal(result.proposals[2].quantity, 3);
+  assert.equal(result.withinBudget, true);
+  assert.equal(result.estimatedKcal, 330);
 });
 
-test('does not invent a drink when minimum natural portions cannot fit the slot budget', () => {
+test('keeps zero as no beverage and reports when the minimum food portions still exceed the budget', () => {
   const result = rebalanceNaturalPortions([
     { role: 'main', quantity: 1, step: 1, recipeKcal: 300 },
     { role: 'accompaniment', quantity: 1, step: 1, recipeKcal: 100 },
-    { role: 'beverage', quantity: null, reason: 'no-natural-portion-fits', step: 1, recipeKcal: 150 },
-  ], 500);
-  assert.equal(result.beverageAdded, false);
-  assert.equal(result.proposals[2].quantity, null);
+    { role: 'beverage', quantity: 0, step: 1, recipeKcal: 150 },
+  ], 350);
+  assert.equal(result.proposals[2].quantity, 0);
+  assert.equal(result.withinBudget, false);
   assert.equal(result.estimatedKcal, 400);
 });
