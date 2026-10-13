@@ -130,7 +130,7 @@
         <div class="dialog-heading"><div><p class="eyebrow">PLANIFIER UN REPAS</p><h2 id="meal-dialog-title">Nouveau repas</h2></div><button type="button" class="icon-button" id="close-meal-dialog" aria-label="Fermer">×</button></div>
         <div class="meal-fields">
           <label>Date<input name="mealDate" type="date" required></label>
-          <label>Créneau<select name="slot"><option value="breakfast">Petit-déjeuner</option><option value="lunch">Déjeuner</option><option value="dinner">Dîner</option><option value="snack">Collation</option></select></label>
+          <label>Créneau<select name="slot"><option value="breakfast">Petit-déjeuner</option><option value="lunch">Déjeuner</option><option value="snack">Collation</option><option value="dinner">Dîner</option></select></label>
         </div>
         <fieldset class="attendee-fieldset"><legend>Qui sera présent ?</legend><div id="meal-attendees" class="attendee-list"></div></fieldset>
         <div class="line-heading"><h3>Recettes et quantités par personne</h3><button type="button" class="secondary" id="add-planned-item">+ Ajouter une recette</button></div>
@@ -146,7 +146,7 @@
         <p id="duplicate-source" class="muted"></p>
         <p>Copie le repas enregistré avec ses personnes, recettes, boissons, quantités et note. Chaque copie sera modifiable séparément. Les repas déjà présents sont conservés.</p>
         <div class="yield-row"><label>Du<input name="startDate" type="date" required></label><label>Au<input name="endDate" type="date" required></label></div>
-        <label>Créneau des copies<select name="slot"><option value="breakfast">Petit-déjeuner</option><option value="lunch">Déjeuner</option><option value="dinner">Dîner</option><option value="snack">Collation</option></select></label>
+        <label>Créneau des copies<select name="slot"><option value="breakfast">Petit-déjeuner</option><option value="lunch">Déjeuner</option><option value="snack">Collation</option><option value="dinner">Dîner</option></select></label>
         <fieldset><legend>Jours à inclure</legend><div class="duplicate-weekdays">
           <label><input type="checkbox" name="weekday" value="1" checked>Lun.</label><label><input type="checkbox" name="weekday" value="2" checked>Mar.</label><label><input type="checkbox" name="weekday" value="3" checked>Mer.</label><label><input type="checkbox" name="weekday" value="4" checked>Jeu.</label><label><input type="checkbox" name="weekday" value="5" checked>Ven.</label><label><input type="checkbox" name="weekday" value="6" checked>Sam.</label><label><input type="checkbox" name="weekday" value="0" checked>Dim.</label>
         </div></fieldset>
@@ -191,6 +191,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.28"></script>
+    <script type="module" src="/app.js?v=0.2.29"></script>
   </body>
 </html>
