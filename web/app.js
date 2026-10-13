@@ -734,6 +734,8 @@ async function openRecipeEditor(id = null) {
       const { recipe } = await api(`/api/recipes/${id}`);
       form.elements.name.value = recipe.name;
       form.elements.description.value = recipe.description ?? '';
+      form.elements.recipeType.value = recipe.recipeType ?? 'dish';
+      for (const checkbox of form.querySelectorAll('input[name="mealMoments"]')) checkbox.checked = (recipe.mealMoments ?? []).includes(checkbox.value);
       form.elements.productionType.value = recipe.productionType ?? 'none';
       form.elements.sourceUrl.value = recipe.sourceUrl ?? '';
       form.elements.instructions.value = recipe.instructions ?? '';
