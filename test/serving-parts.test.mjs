@@ -21,6 +21,8 @@ test('serving factors are explicit estimates and never classify ingredients by n
   assert.equal(validateRecipeInput(input({lines:[null]})).error,'invalid-food-id');
   const lasagna=checked(input({lines:input().lines.map(line=>({...line,servingPart:'main'}))}));
   assert.deepEqual(Object.keys(lasagna.cookingFactors),['main']);
+  assert.equal(validateRecipeInput(input({servingMode:'separate',lines:input().lines.map(line=>({...line,servingPart:'main'}))})).error,'starch-ingredients-required');
+  assert.equal(validateRecipeInput(input({servingMode:'separate',separateStarch:false})).error,'invalid-serving-parts');
 });
 
 test('gram preparations preserve nutrition, shopping, stock and complete meal duplication',async t=>{
@@ -99,6 +101,35 @@ test('gram preparations preserve nutrition, shopping, stock and complete meal du
       const bad=await createRecipe(pool,checked(input({lines:[{foodId:beef,quantity:5,unitId:'ml',servingPart:'main'}]})));
       assert.equal(bad.error,'serving-weight-conversion-required');
       assert.equal((await pool.query('SELECT count(*) FROM recipes')).rows[0].count,count);
+    });
+    await t.test('switching a saved whole preparation to separate starch converts its existing gram meals and lots once',async()=>{
+      const wholeLines=input().lines.map(line=>({...line,servingPart:'main',cookingFactor:line.foodId===rice?3:null}));
+      const whole=await createRecipe(pool,checked(input({name:'Plat déjà enregistré',servingMode:'whole',lines:wholeLines})));
+      const wholeMain=whole.servingParts[0];assert.equal(wholeMain.yield.amount,2300);
+      const before=await savePlannedMeal(pool,null,{householdId:h,mealDate:'2026-10-22',slot:'lunch',notes:'Conserver',attendeeIds:[person],items:[{recipeId:wholeMain.id,role:'main',amounts:[{personId:person,quantity:575}]}]});
+      const caloriesBefore=before.items[0].amounts[0].quantity*before.items[0].recipe.nutrition.perYieldUnit.energyKcal;
+      const production=await addStockLot(pool,{householdId:h,recipeId:whole.id,producedOn:date,quantity:4,storage:'freezer',note:'',requestId:null});
+      const ingredientBefore=(await listIngredientStock(pool,h))[0].quantityG;
+      const splitInput=checked(input({name:'Plat déjà enregistré',servingMode:'separate'}));
+      const split=await updateRecipe(pool,whole.id,splitInput);
+      assert.equal(split.error,undefined);assert.equal(split.servingParts.length,2);
+      const splitMain=split.servingParts.find(p=>p.servingPart==='main'),splitStarch=split.servingParts.find(p=>p.servingPart==='starch');
+      assert.equal(splitMain.id,wholeMain.id);
+      const mealAfter=(await listPlannedMeals(pool,h,date)).find(m=>m.id===before.id);
+      assert.deepEqual(mealAfter.items.map(i=>i.amounts[0].quantity),[387.5,187.5]);
+      const caloriesAfter=mealAfter.items.reduce((sum,i)=>sum+i.amounts[0].quantity*i.recipe.nutrition.perYieldUnit.energyKcal,0);
+      assert.ok(Math.abs(caloriesBefore-caloriesAfter)<1e-8);
+      const stocks=await listStock(pool,h);
+      assert.equal(stocks.find(s=>s.recipeId===splitMain.id).producedQuantity,1550);
+      assert.equal(stocks.find(s=>s.recipeId===splitStarch.id).producedQuantity,750);
+      assert.equal((await listIngredientStock(pool,h))[0].quantityG,ingredientBefore);
+      assert.deepEqual(await rawShoppingRequirements(pool,h,'2026-10-22','2026-10-22'),[]);
+      await updateRecipe(pool,whole.id,checked(input({name:'Plat déjà enregistré',servingMode:'separate'})));
+      assert.equal((await listPlannedMeals(pool,h,date)).find(m=>m.id===before.id).items.length,2);
+      assert.equal((await listStock(pool,h)).find(s=>s.recipeId===splitStarch.id).producedQuantity,750);
+      assert.equal((await listIngredientStock(pool,h))[0].quantityG,ingredientBefore);
+      await cancelStockLot(pool,h,production.id);
+      assert.equal((await listIngredientStock(pool,h))[0].quantityG,ingredientBefore+250);
     });
   }finally{await db.close();}
 });

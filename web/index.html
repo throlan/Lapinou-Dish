@@ -90,6 +90,7 @@
           <fieldset id="serving-configuration">
             <legend>Portions dans le calendrier</legend>
             <label>Service<select name="servingMode"><option value="original">Portions actuelles de la recette</option><option value="whole">Préparation servie ensemble — grammes estimés</option><option value="separate">Viande et légumes ensemble, féculents à part — grammes estimés</option></select></label>
+            <p id="serving-assignment-status" class="hint hidden" role="status"></p>
             <div id="cooking-factors" class="yield-row hidden">
               <label>Coefficient du plat / de la préparation<input name="mainCookingFactor" type="number" min="0.1" max="10" step="0.05" value="1"></label>
               <label id="starch-factor-label">Féculents<select name="starchCookingFactor"><option value="3">Riz — ×3</option><option value="2.5">Pâtes sèches / pois chiches — ×2,5</option><option value="1.25">Pâtes fraîches — ×1,25</option><option value="1.5">Pâtes fraîches — ×1,5</option><option value="2.4">Lentilles vertes / haricots — ×2,4</option><option value="2.3">Lentilles corail / pois cassés — ×2,3</option><option value="2.5">Lentilles vertes / haricots — ×2,5</option></select></label>
@@ -207,6 +208,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.35"></script>
+    <script type="module" src="/app.js?v=0.2.36"></script>
   </body>
 </html>

@@ -684,6 +684,7 @@ function addRecipeLine(initial = null) {
   const serving = document.createElement('select'); serving.name = 'servingPart'; serving.className = 'serving-part-choice'; serving.setAttribute('aria-label','Partie servie');
   serving.add(new Option('Viande, légumes, sauce','main')); serving.add(new Option('Féculents','starch')); serving.value = initial?.servingPart ?? 'main';
   serving.hidden = $('#recipe-form').elements.servingMode.value !== 'separate';
+  serving.addEventListener('change',updateServingConfiguration);
   const cooking = document.createElement('select'); cooking.name='cookingFactor'; cooking.className='ingredient-cooking-choice'; cooking.setAttribute('aria-label','Coefficient de cuisson de cet ingrédient');
   for (const [factor,label] of [['','Coefficient de la partie'],['1','Poids inchangé — ×1'],['3','Riz — ×3'],['2.5','Pâtes sèches / pois chiches — ×2,5'],['1.25','Pâtes fraîches — ×1,25'],['1.5','Pâtes fraîches — ×1,5'],['2.4','Lentilles / haricots — ×2,4'],['2.3','Corail / pois cassés — ×2,3']]) cooking.add(new Option(label,factor));
   cooking.value=initial?.cookingFactor == null ? '' : String(initial.cookingFactor); cooking.hidden=$('#recipe-form').elements.servingMode.value === 'original';
@@ -702,6 +703,10 @@ function updateServingConfiguration() {
   $('#recipe-lines').classList.toggle('serving-parts-active',mode === 'separate');
   $$('.serving-part-choice').forEach(select => { select.hidden = mode !== 'separate'; });
   $$('.ingredient-cooking-choice').forEach(select=>{select.hidden=mode === 'original';});
+  const status=$('#serving-assignment-status');
+  status.classList.toggle('hidden',mode !== 'separate');
+  const starchLines=$$('.serving-part-choice').filter(select=>select.value==='starch').length;
+  status.textContent=starchLines ? `${starchLines} ingrédient(s) affecté(s) aux féculents. Les autres restent dans le plat.` : 'Choisis « Féculents » sur la ligne du riz, des pâtes ou des autres féculents dans les ingrédients ci-dessous. Cette affectation est nécessaire pour enregistrer deux parties.';
 }
 $('#recipe-form').elements.servingMode.addEventListener('change',updateServingConfiguration);
 $('#recipe-form').elements.recipeType.addEventListener('change', () => {
@@ -727,8 +732,13 @@ $('#recipe-form').addEventListener('submit', async (event) => {
   }
   const form = event.currentTarget;
   const servingMode = form.elements.servingMode.value;
-  const servingOptions = { separateStarch: servingMode !== 'original', cookingFactors: { main: Number(form.elements.mainCookingFactor.value), starch: Number(form.elements.starchCookingFactor.value) } };
+  const servingOptions = { servingMode, separateStarch: servingMode !== 'original', cookingFactors: { main: Number(form.elements.mainCookingFactor.value), starch: Number(form.elements.starchCookingFactor.value) } };
   $$('.recipe-line').forEach((row,index) => { lines[index].servingPart = servingMode === 'separate' ? $('select[name="servingPart"]',row).value : 'main'; const factor=$('select[name="cookingFactor"]',row).value; lines[index].cookingFactor=factor === '' ? null : Number(factor); });
+  if (servingMode === 'separate' && !lines.some(line=>line.servingPart === 'starch')) {
+    showMessage(message,'Affecte le riz ou les autres féculents à « Féculents » sur leurs lignes d’ingrédients avant d’enregistrer. Le service séparé est conservé dans le formulaire.');
+    message.scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
   try {
     const path = state.editingRecipeId ? `/api/recipes/${state.editingRecipeId}` : '/api/recipes';
     const method = state.editingRecipeId ? 'PUT' : 'POST';
@@ -744,6 +754,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
     await refreshRecipes();
   } catch (error) {
     const servingErrors={
+      'starch-ingredients-required':'Affecte au moins un ingrédient à la partie « Féculents » avant d’enregistrer le service séparé.',
       'serving-weight-conversion-required':'Pour estimer les grammes, complète la conversion en grammes des ingrédients exprimés en ml, cuillères ou pièces dans leurs fiches aliments.',
       'invalid-serving-parts':'La séparation des féculents est réservée aux plats. Garde au moins un ingrédient dans la partie principale.',
       'invalid-cooking-factor':'Le coefficient de cuisson doit être un nombre positif, au maximum 10.',
