@@ -272,6 +272,10 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
 
 /* Home dashboard */
 .ingredient-section { margin-top:20px; }
+.recipe-filters { display:grid;gap:12px;margin:16px 0 20px;padding:16px;border:1px solid var(--line);border-radius:12px; }
+.recipe-filter-buttons { display:flex;flex-wrap:wrap;gap:8px;margin-top:8px; }
+.recipe-filter-buttons button[aria-pressed="true"] { background:var(--accent);color:#081b28;border-color:var(--accent);font-weight:700; }
+.recipe-filters p { margin:0; }
 .production-lot { display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;border-top:1px solid var(--line);margin-top:12px;padding-top:12px; }
 .production-lot span { color:var(--muted);font-size:.85rem; }
 .ingredient-fields { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }

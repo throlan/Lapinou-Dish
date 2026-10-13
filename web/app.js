@@ -753,6 +753,28 @@ async function openRecipeEditor(id = null) {
   form.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+const recipeFilterChoices={
+  type:[['','Tous'],['dish','Plat'],['beverage','Boisson'],['accompaniment','Accompagnement'],['dessert','Dessert'],['snack','Collation'],['other','Autre']],
+  moment:[['','Tous'],['breakfast','Petit-déjeuner'],['lunch','Déjeuner'],['snack','Collation'],['dinner','Dîner'],['untagged','Sans tag']],
+};
+const recipeFilters={type:'',moment:''};
+try{
+  const saved=JSON.parse(localStorage.getItem('lapinou-recipe-filters')??'{}');
+  for(const key of ['type','moment'])if(recipeFilterChoices[key].some(([value])=>value===saved[key]))recipeFilters[key]=saved[key];
+}catch{}
+function renderFilteredRecipes(){
+  const recipes=state.recipes.filter(recipe=>(!recipeFilters.type||(recipe.recipeType??'dish')===recipeFilters.type)
+    && (!recipeFilters.moment||(recipeFilters.moment==='untagged'?!recipe.mealMoments?.length:recipe.mealMoments?.includes(recipeFilters.moment))));
+  $('#recipe-list').replaceChildren(...(recipes.length?recipes.map(recipeCard):[emptyMessage(state.recipes.length?'Aucune recette avec ces tags. Clique sur Tous pour élargir la sélection.':'Aucune recette enregistrée.')]));
+  $('#recipe-filter-count').textContent=`${recipes.length} recette${recipes.length===1?'':'s'} affichée${recipes.length===1?'':'s'} sur ${state.recipes.length}`;
+  for(const key of ['type','moment']){
+    const root=$(`#recipe-${key}-filters`);root.replaceChildren(...recipeFilterChoices[key].map(([value,label])=>{
+      const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=label;button.setAttribute('aria-pressed',String(recipeFilters[key]===value));
+      button.addEventListener('click',()=>{recipeFilters[key]=value;try{localStorage.setItem('lapinou-recipe-filters',JSON.stringify(recipeFilters));}catch{}renderFilteredRecipes();});
+      return button;
+    }));
+  }
+}
 async function refreshRecipes() {
   const list = $('#recipe-list');
   if (!state.household) { list.innerHTML = '<p class="empty">Crée d’abord un foyer pour enregistrer des recettes.</p>'; return; }
@@ -760,7 +782,7 @@ async function refreshRecipes() {
   try {
     const { recipes } = await api(`/api/recipes?householdId=${encodeURIComponent(state.household.id)}`);
     state.recipes = recipes;
-    list.replaceChildren(...(recipes.length ? recipes.map(recipeCard) : [emptyMessage('Aucune recette enregistrée.')]));
+    renderFilteredRecipes();
   } catch (error) {
     const message = document.createElement('p'); message.className = 'empty'; message.textContent = `Liste indisponible : ${error.body?.error ?? error.message}`; list.replaceChildren(message);
   }
