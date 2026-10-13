@@ -1,5 +1,6 @@
 import { calculatePersonProtein, capAccompanimentQuantity, MIN_PROTEIN_G_PER_MEAL, rebalanceNaturalPortions, suggestQuantity } from './portion-planner.js';
 import { mainServingLimit } from './portion-planner.js';
+import { calculatePersonEnergy, SLOT_RATIOS } from './portion-planner.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -683,8 +684,11 @@ function addRecipeLine(initial = null) {
   unit.addEventListener('change', () => { if (search.value.trim().length >= 2) search.dispatchEvent(new Event('input')); });
   const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-line'; remove.textContent = '×'; remove.setAttribute('aria-label', 'Supprimer cet ingrédient'); remove.addEventListener('click', () => row.remove());
   const serving = document.createElement('select'); serving.name = 'servingPart'; serving.className = 'serving-part-choice'; serving.setAttribute('aria-label','Partie servie');
-  serving.add(new Option('Viande, légumes, sauce','main')); serving.add(new Option('Féculents','starch')); serving.value = initial?.servingPart ?? 'main';
-  serving.hidden = $('#recipe-form').elements.servingMode.value !== 'separate';
+  serving.add(new Option('Viande, légumes, sauce','main')); serving.add(new Option('Féculents','starch')); serving.add(new Option('Légumes','vegetables')); serving.value = initial?.servingPart ?? 'main';
+  serving.hidden = !['separate','three'].includes($('#recipe-form').elements.servingMode.value);
+  serving.options[2].hidden = $('#recipe-form').elements.servingMode.value !== 'three';
+  serving.options[2].disabled = serving.options[2].hidden;
+  if(!serving.options[2].hidden) serving.options[0].textContent='Viande / protéines et sauce';
   serving.addEventListener('change',updateServingConfiguration);
   const cooking = document.createElement('select'); cooking.name='cookingFactor'; cooking.className='ingredient-cooking-choice'; cooking.setAttribute('aria-label','Coefficient de cuisson de cet ingrédient');
   for (const [factor,label] of [['','Coefficient de la partie'],['1','Poids inchangé — ×1'],['3','Riz — ×3'],['2.5','Pâtes sèches / pois chiches — ×2,5'],['1.25','Pâtes fraîches — ×1,25'],['1.5','Pâtes fraîches — ×1,5'],['2.4','Lentilles / haricots — ×2,4'],['2.3','Corail / pois cassés — ×2,3']]) cooking.add(new Option(label,factor));
@@ -700,19 +704,27 @@ $('#add-line').addEventListener('click', addRecipeLine);
 function updateServingConfiguration() {
   const form = $('#recipe-form'); const mode = form.elements.servingMode.value;
   $('#cooking-factors').classList.toggle('hidden',mode === 'original');
-  $('#starch-factor-label').classList.toggle('hidden',mode !== 'separate');
-  $('#recipe-lines').classList.toggle('serving-parts-active',mode === 'separate');
-  $$('.serving-part-choice').forEach(select => { select.hidden = mode !== 'separate'; });
+  const split = ['separate','three'].includes(mode);
+  $('#starch-factor-label').classList.toggle('hidden',!split);
+  $('#recipe-lines').classList.toggle('serving-parts-active',split);
+  $$('.serving-part-choice').forEach(select => {
+    select.hidden = !split;
+    select.options[0].textContent = mode === 'three' ? 'Viande / protéines et sauce' : 'Viande, légumes, sauce';
+    select.options[2].hidden = mode !== 'three';
+    select.options[2].disabled = mode !== 'three';
+    if(mode !== 'three' && select.value === 'vegetables') select.value = 'main';
+  });
   $$('.ingredient-cooking-choice').forEach(select=>{select.hidden=mode === 'original';});
   const status=$('#serving-assignment-status');
-  status.classList.toggle('hidden',mode !== 'separate');
+  status.classList.toggle('hidden',!split);
   const starchLines=$$('.serving-part-choice').filter(select=>select.value==='starch').length;
   status.textContent=starchLines ? `${starchLines} ingrédient(s) affecté(s) aux féculents. Les autres restent dans le plat.` : 'Choisis « Féculents » sur la ligne du riz, des pâtes ou des autres féculents dans les ingrédients ci-dessous. Cette affectation est nécessaire pour enregistrer deux parties.';
+  if(mode === 'three') status.textContent='Affecte chaque ingrédient à « Viande / protéines et sauce », « Légumes » ou « Féculents ». Les trois parties auront des quantités indépendantes dans le calendrier. Le coefficient des légumes est ×1, sauf coefficient individuel choisi sur leur ligne.';
 }
 $('#recipe-form').elements.servingMode.addEventListener('change',updateServingConfiguration);
 $('#recipe-form').elements.recipeType.addEventListener('change', () => {
   const form = $('#recipe-form');
-  if (form.elements.recipeType.value !== 'dish' && form.elements.servingMode.value === 'separate') form.elements.servingMode.value = 'whole';
+  if (form.elements.recipeType.value !== 'dish' && ['separate','three'].includes(form.elements.servingMode.value)) form.elements.servingMode.value = 'whole';
   if (['dessert','beverage'].includes(form.elements.recipeType.value)) form.elements.servingMode.value = 'original';
   updateServingConfiguration();
 });
@@ -733,12 +745,15 @@ $('#recipe-form').addEventListener('submit', async (event) => {
   }
   const form = event.currentTarget;
   const servingMode = form.elements.servingMode.value;
-  const servingOptions = { servingMode, separateStarch: servingMode !== 'original', cookingFactors: { main: Number(form.elements.mainCookingFactor.value), starch: Number(form.elements.starchCookingFactor.value) } };
-  $$('.recipe-line').forEach((row,index) => { lines[index].servingPart = servingMode === 'separate' ? $('select[name="servingPart"]',row).value : 'main'; const factor=$('select[name="cookingFactor"]',row).value; lines[index].cookingFactor=factor === '' ? null : Number(factor); });
-  if (servingMode === 'separate' && !lines.some(line=>line.servingPart === 'starch')) {
+  const servingOptions = { servingMode, separateStarch: servingMode !== 'original', cookingFactors: { main: Number(form.elements.mainCookingFactor.value), starch: Number(form.elements.starchCookingFactor.value), vegetables:1 } };
+  $$('.recipe-line').forEach((row,index) => { lines[index].servingPart = ['separate','three'].includes(servingMode) ? $('select[name="servingPart"]',row).value : 'main'; const factor=$('select[name="cookingFactor"]',row).value; lines[index].cookingFactor=factor === '' ? null : Number(factor); });
+  if (['separate','three'].includes(servingMode) && !lines.some(line=>line.servingPart === 'starch')) {
     showMessage(message,'Affecte le riz ou les autres féculents à « Féculents » sur leurs lignes d’ingrédients avant d’enregistrer. Le service séparé est conservé dans le formulaire.');
     message.scrollIntoView({behavior:'smooth',block:'center'});
     return;
+  }
+  if (servingMode === 'three' && !lines.some(line=>line.servingPart === 'vegetables')) {
+    showMessage($('#recipe-message'),'Affecte au moins un ingrédient à « Légumes » avant d’enregistrer les trois parties.');return;
   }
   try {
     const path = state.editingRecipeId ? `/api/recipes/${state.editingRecipeId}` : '/api/recipes';
@@ -756,6 +771,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
   } catch (error) {
     const servingErrors={
       'starch-ingredients-required':'Affecte au moins un ingrédient à la partie « Féculents » avant d’enregistrer le service séparé.',
+      'vegetable-ingredients-required':'Affecte au moins un ingrédient à la partie « Légumes » avant d’enregistrer les trois parties.',
       'serving-weight-conversion-required':'Pour estimer les grammes, complète la conversion en grammes des ingrédients exprimés en ml, cuillères ou pièces dans leurs fiches aliments.',
       'invalid-serving-parts':'La séparation des féculents est réservée aux plats. Garde au moins un ingrédient dans la partie principale.',
       'invalid-cooking-factor':'Le coefficient de cuisson doit être un nombre positif, au maximum 10.',
@@ -789,7 +805,7 @@ async function openRecipeEditor(id = null) {
       form.elements.yieldAmount.value = recipe.yield.amount;
       form.elements.yieldUnit.value = recipe.yield.unitId;
       if (form.elements.servingMode) {
-        form.elements.servingMode.value = recipe.separateStarch ? (recipe.servingParts?.some(part=>part.servingPart==='starch') ? 'separate' : 'whole') : 'original';
+        form.elements.servingMode.value = recipe.separateStarch ? (recipe.servingParts?.some(part=>part.servingPart==='vegetables') ? 'three' : recipe.servingParts?.some(part=>part.servingPart==='starch') ? 'separate' : 'whole') : 'original';
         form.elements.mainCookingFactor.value = recipe.cookingFactors?.main ?? 1;
         form.elements.starchCookingFactor.value = recipe.cookingFactors?.starch ?? 3;
       }
@@ -966,7 +982,7 @@ function recipeCard(recipe) {
   if (tags.length) { taxonomy.textContent = tags.join(' · '); details.append(taxonomy); }
   const subtitle = document.createElement('p'); subtitle.textContent = `${recipe.lines.length} ingrédient${recipe.lines.length === 1 ? '' : 's'} · rendement ${format(recipe.yield.amount)} ${recipe.yield.unitId}`; details.append(subtitle);
   if (recipe.servingParts?.length) {
-    const weights=document.createElement('p'); weights.className='muted'; weights.textContent='Poids estimés du batch : '+recipe.servingParts.map(part=>`${part.servingPart==='starch'?'féculents':recipe.servingParts.length>1?'viande et légumes':'plat entier'} ${formatQty(part.yield.amount)} g`).join(' · '); details.append(weights);
+    const weights=document.createElement('p'); weights.className='muted'; weights.textContent='Poids estimés du batch : '+recipe.servingParts.map(part=>`${part.servingPart==='starch'?'féculents':part.servingPart==='vegetables'?'légumes':recipe.servingParts.length>2?'viande / protéines':recipe.servingParts.length>1?'viande et légumes':'plat entier'} ${formatQty(part.yield.amount)} g`).join(' · '); details.append(weights);
   }
   const nutrition = document.createElement('p'); nutrition.className = 'recipe-nutrition';
   nutrition.textContent = `${format(recipe.nutrition.perYieldUnit.energyKcal)} kcal · P ${format(recipe.nutrition.perYieldUnit.proteinG)} g · G ${format(recipe.nutrition.perYieldUnit.carbohydrateG)} g · L ${format(recipe.nutrition.perYieldUnit.fatG)} g / ${recipe.yield.unitId}`;
@@ -1175,7 +1191,8 @@ function renderMealCard(meal) {
     const parts=(meal.items ?? []).filter(item=>['main','accompaniment'].includes(item.role ?? 'main')).map(item=>{
       const amount=item.amounts.find(amount=>amount.personId===person.id);
       if(!amount)return null;
-      const name=item.recipe?.servingPart === 'starch' ? 'féculents' : item.role === 'accompaniment' ? 'accompagnement' : 'plat';
+      const threeParts=state.recipes.find(recipe=>recipe.id===item.recipe?.parentRecipeId)?.servingParts?.some(part=>part.servingPart==='vegetables');
+      const name=item.recipe?.servingPart === 'starch' ? 'féculents' : item.recipe?.servingPart === 'vegetables' ? 'légumes' : threeParts && item.recipe?.servingPart === 'main' ? 'viande / protéines' : item.role === 'accompaniment' ? 'accompagnement' : 'plat';
       return `${name} ${formatQty(amount.quantity)} ${item.recipe?.yield.unitId ?? 'portion'}`;
     }).filter(Boolean);
     if(parts.length){const line=document.createElement('small');line.textContent=`${person.displayName} : ${parts.join(' + ')}`;servingAmounts.append(line);}
@@ -1317,7 +1334,7 @@ function applyAutomaticPortions(items, attendeeIds) {
         ? (recipeUnit === 'g' ? 10 : 1)
         : null;
       const proposedQuantity = suggestion.quantity ?? fallbackQuantity;
-      const maxQuantity = recipe?.parentRecipeId && role === 'main'
+      const maxQuantity = recipe?.parentRecipeId && ['main','vegetables'].includes(recipe.servingPart)
         ? mainServingLimit(recipe, state.recipes.find(parent => parent.id === recipe.parentRecipeId))
         : role === 'accompaniment' && recipeUnit === 'g' && !recipe?.parentRecipeId
         ? Math.min(200, Number(recipe?.yield?.amount) * 1.5)
@@ -1371,6 +1388,15 @@ function mealProteinSummary(items, attendeeIds) {
     tag.textContent=`${person?.displayName??'Personne'} : ${result.known?format(result.grams):'—'} / ${MIN_PROTEIN_G_PER_MEAL} g de protéines`;
     if(!result.known)tag.title='Quantités ou données protéiques à compléter';
     root.append(tag);
+    const energy=calculatePersonEnergy(meal,personId);
+    const form=$('#meal-form'),profile=person && latestProfile(person,form.elements.mealDate.value);
+    const daily=Number(profile?.dailyEnergyKcal),ratio=SLOT_RATIOS[form.elements.slot.value];
+    const objective=Number.isFinite(daily) && daily>0 && ratio ? daily*ratio : null;
+    const energyTag=document.createElement('span');
+    energyTag.className=`protein-tag ${!energy.known || objective==null?'protein-unknown':energy.kcal<=objective?'protein-sufficient':'protein-low'}`;
+    energyTag.textContent=`${person?.displayName??'Personne'} : ${energy.known?format(energy.kcal):'—'} / ${objective==null?'—':format(objective)} kcal`;
+    energyTag.title=objective==null?'Objectif quotidien à renseigner dans le profil':`Objectif du repas : ${ratio*100} % du besoin quotidien. Les propositions automatiques autorisent une marge de 100 kcal, dans le budget quotidien restant.`;
+    root.append(energyTag);
   }
   return root;
 }
@@ -1489,6 +1515,8 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
           const starch = recipe.servingParts.find(part => part.servingPart === 'starch');
           data[index] = {recipeId:main.id,role:role.value,amounts:{}};
           if (starch) data[Math.max(-1,...Object.keys(data).map(Number))+1] = {recipeId:starch.id,role:'accompaniment',amounts:{}};
+          const vegetables = recipe.servingParts.find(part => part.servingPart === 'vegetables');
+          if (vegetables) data[Math.max(-1,...Object.keys(data).map(Number))+1] = {recipeId:vegetables.id,role:'accompaniment',amounts:{}};
         }
         renderPlannedItems(data,{autoSuggest:true});
       });

@@ -89,7 +89,7 @@
           <div class="yield-row"><label>Rendement<input name="yieldAmount" required type="number" min="0.01" step="any" value="4"></label><label>Unité<select name="yieldUnit"><option value="portion">portions</option><option value="piece">pièces</option><option value="g">grammes</option><option value="ml">millilitres</option></select></label></div>
           <fieldset id="serving-configuration">
             <legend>Portions dans le calendrier</legend>
-            <label>Service<select name="servingMode"><option value="original">Portions actuelles de la recette</option><option value="whole">Préparation servie ensemble — grammes estimés</option><option value="separate">Viande et légumes ensemble, féculents à part — grammes estimés</option></select></label>
+            <label>Service<select name="servingMode"><option value="original">Portions actuelles de la recette</option><option value="whole">Préparation servie ensemble — grammes estimés</option><option value="separate">Viande et légumes ensemble, féculents à part — grammes estimés</option><option value="three">Viande, légumes et féculents séparés — grammes estimés</option></select></label>
             <p id="serving-assignment-status" class="hint hidden" role="status"></p>
             <div id="cooking-factors" class="yield-row hidden">
               <label>Coefficient du plat / de la préparation<input name="mainCookingFactor" type="number" min="0.1" max="10" step="0.05" value="1"></label>
@@ -208,6 +208,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.37"></script>
+    <script type="module" src="/app.js?v=0.2.38"></script>
   </body>
 </html>

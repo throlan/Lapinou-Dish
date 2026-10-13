@@ -2,18 +2,20 @@ import { randomUUID } from 'node:crypto';
 import { toGrams } from '../domain/foods.ts';
 
 export function validateServingParts(input, recipeType) {
-  if (input.servingMode != null && (!['original','whole','separate'].includes(input.servingMode)
+  if (input.servingMode != null && (!['original','whole','separate','three'].includes(input.servingMode)
     || (input.servingMode === 'original' ? input.separateStarch === true : input.separateStarch !== true))) return {error:'invalid-serving-parts'};
   if (input.separateStarch == null || input.separateStarch === false) return { data: { separateStarch: false, servingWeights: {}, cookingFactors: { main: 1, starch: 3 } } };
   if (input.separateStarch !== true) return { error: 'invalid-serving-parts' };
   const groups = new Set((input.lines ?? []).map(line => line?.servingPart ?? 'main'));
-  if (input.servingMode === 'separate' && !groups.has('starch')) return {error:'starch-ingredients-required'};
-  if (input.servingMode === 'whole' && groups.has('starch')) return {error:'invalid-serving-parts'};
-  if (!groups.has('main') || [...groups].some(key => !['main','starch'].includes(key))) return { error: 'invalid-serving-parts' };
+  if (['separate','three'].includes(input.servingMode) && !groups.has('starch')) return {error:'starch-ingredients-required'};
+  if (input.servingMode === 'three' && !groups.has('vegetables')) return {error:'vegetable-ingredients-required'};
+  if (input.servingMode === 'whole' && groups.size !== 1) return {error:'invalid-serving-parts'};
+  if (input.servingMode === 'separate' && groups.has('vegetables')) return {error:'invalid-serving-parts'};
+  if (!groups.has('main') || [...groups].some(key => !['main','starch','vegetables'].includes(key))) return { error: 'invalid-serving-parts' };
   if (groups.has('starch') && recipeType !== 'dish') return { error: 'invalid-serving-parts' };
   const factors = {};
   for (const key of groups) {
-    const factor = input.cookingFactors?.[key] ?? (key === 'main' ? 1 : 3);
+    const factor = input.cookingFactors?.[key] ?? (key === 'starch' ? 3 : 1);
     if (typeof factor !== 'number' || !Number.isFinite(factor) || factor <= 0 || factor > 10) return { error: 'invalid-cooking-factor' };
     factors[key] = factor;
   }
@@ -41,7 +43,7 @@ export async function syncServingParts(client, id, data) {
   for (const [part, weight] of Object.entries(data.servingWeights)) {
     const childId = old.rows.find(row => row.serving_part === part)?.id ?? randomUUID();
     childParts.push({id:childId,part,weight});
-    const label = part === 'main' ? (Object.hasOwn(data.servingWeights,'starch') ? 'Viande et légumes' : 'Préparation entière') : 'Féculents';
+    const label = part === 'main' ? (Object.hasOwn(data.servingWeights,'vegetables') ? 'Viande / protéines' : Object.hasOwn(data.servingWeights,'starch') ? 'Viande et légumes' : 'Préparation entière') : part === 'vegetables' ? 'Légumes' : 'Féculents';
     await client.query(
       `INSERT INTO recipes(id,household_id,name,description,yield_amount,yield_unit_id,recipe_type,production_type,meal_moments,parent_recipe_id,serving_part)
        VALUES($1,$2,$3,$4,$5,'g',$6,$7,$8,$9,$10)
@@ -53,8 +55,10 @@ export async function syncServingParts(client, id, data) {
       await client.query('INSERT INTO recipe_lines(id,recipe_id,food_id,quantity,unit_id,sort_order) VALUES($1,$2,$3,$4,$5,$6)', [randomUUID(),childId,line.foodId,line.quantity,line.unitId,index]);
     }
   }
-  if (old.rows.length === 1 && old.rows[0].serving_part === 'main' && childParts.some(part=>part.part === 'starch')) {
-    await splitExistingWholePreparation(client,old.rows[0],childParts,data.householdId);
+  const added = childParts.filter(part => !old.rows.some(row=>row.serving_part === part.part));
+  const oldMain = old.rows.find(row=>row.serving_part === 'main');
+  if (oldMain && added.length) {
+    await splitExistingWholePreparation(client,oldMain,[childParts.find(part=>part.part === 'main'),...added],data.householdId);
   }
   // Convert whole-recipe reservations and lots once; no ingredient deduction is repeated.
   const planned = await client.query('SELECT id,meal_id,sort_order,role FROM planned_meal_items WHERE recipe_id=$1 FOR UPDATE',[id]);
@@ -63,7 +67,7 @@ export async function syncServingParts(client, id, data) {
     await client.query('DELETE FROM planned_meal_items WHERE id=$1',[item.id]);
     for (const child of childParts) {
       const itemId = randomUUID();
-      await client.query('INSERT INTO planned_meal_items(id,meal_id,recipe_id,sort_order,role) VALUES($1,$2,$3,$4,$5)',[itemId,item.meal_id,child.id,item.sort_order,child.part === 'starch' ? 'accompaniment' : item.role]);
+      await client.query('INSERT INTO planned_meal_items(id,meal_id,recipe_id,sort_order,role) VALUES($1,$2,$3,$4,$5)',[itemId,item.meal_id,child.id,item.sort_order,child.part !== 'main' ? 'accompaniment' : item.role]);
       for (const amount of amounts.rows) await client.query('INSERT INTO planned_amounts(planned_item_id,person_id,quantity) VALUES($1,$2,$3)',[itemId,amount.person_id,Number(amount.quantity)/data.yield.amount*child.weight]);
     }
   }
@@ -76,17 +80,20 @@ export async function syncServingParts(client, id, data) {
 
 async function splitExistingWholePreparation(client, oldMain, parts, householdId) {
   const main = parts.find(part=>part.part === 'main');
-  const starch = parts.find(part=>part.part === 'starch');
+  const extraParts = parts.filter(part=>part.part !== 'main');
   const oldWeight = Number(oldMain.yield_amount);
   const items = await client.query('SELECT id,meal_id,sort_order FROM planned_meal_items WHERE recipe_id=$1 FOR UPDATE',[oldMain.id]);
   for (const item of items.rows) {
     const amounts = await client.query('SELECT person_id,quantity FROM planned_amounts WHERE planned_item_id=$1',[item.id]);
-    const itemId = randomUUID();
-    await client.query('INSERT INTO planned_meal_items(id,meal_id,recipe_id,sort_order,role) VALUES($1,$2,$3,$4,\'accompaniment\')',[itemId,item.meal_id,starch.id,item.sort_order+1]);
     for (const amount of amounts.rows) {
       const fraction = Number(amount.quantity)/oldWeight;
       await client.query('UPDATE planned_amounts SET quantity=$3 WHERE planned_item_id=$1 AND person_id=$2',[item.id,amount.person_id,fraction*main.weight]);
-      await client.query('INSERT INTO planned_amounts(planned_item_id,person_id,quantity) VALUES($1,$2,$3)',[itemId,amount.person_id,fraction*starch.weight]);
+    }
+    const lastOrder = await client.query('SELECT COALESCE(MAX(sort_order),0) AS last_order FROM planned_meal_items WHERE meal_id=$1',[item.meal_id]);
+    for (const [index,part] of extraParts.entries()) {
+      const itemId = randomUUID();
+      await client.query('INSERT INTO planned_meal_items(id,meal_id,recipe_id,sort_order,role) VALUES($1,$2,$3,$4,\'accompaniment\')',[itemId,item.meal_id,part.id,Number(lastOrder.rows[0].last_order)+1+index]);
+      for (const amount of amounts.rows) await client.query('INSERT INTO planned_amounts(planned_item_id,person_id,quantity) VALUES($1,$2,$3)',[itemId,amount.person_id,Number(amount.quantity)/oldWeight*part.weight]);
     }
   }
   const lots = await client.query('SELECT id,parent_lot_id,produced_on::text AS produced_on,quantity,storage,note FROM stock_lots WHERE recipe_id=$1 AND household_id=$2 AND cancelled_at IS NULL AND NOT is_serving_bundle FOR UPDATE',[oldMain.id,householdId]);
@@ -100,6 +107,6 @@ async function splitExistingWholePreparation(client, oldMain, parts, householdId
       await client.query('UPDATE stock_lots SET is_serving_bundle=true WHERE id=$1',[lot.id]);
       await client.query('INSERT INTO stock_lots(id,household_id,recipe_id,produced_on,quantity,storage,note,parent_lot_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[randomUUID(),householdId,main.id,lot.produced_on,fraction*main.weight,lot.storage,lot.note,parentId]);
     }
-    await client.query('INSERT INTO stock_lots(id,household_id,recipe_id,produced_on,quantity,storage,note,parent_lot_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[randomUUID(),householdId,starch.id,lot.produced_on,fraction*starch.weight,lot.storage,lot.note,parentId]);
+    for (const part of extraParts) await client.query('INSERT INTO stock_lots(id,household_id,recipe_id,produced_on,quantity,storage,note,parent_lot_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[randomUUID(),householdId,part.id,lot.produced_on,fraction*part.weight,lot.storage,lot.note,parentId]);
   }
 }

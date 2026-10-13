@@ -4,7 +4,7 @@ const NATURAL_STEPS = Object.freeze({ piece: 1, portion: 0.5, g: 10 });
 
 // A calorie envelope is a ceiling, not a reason to enlarge a batch serving.
 export function mainServingLimit(recipe, parent) {
-  if (recipe?.servingPart !== 'main' || recipe?.yield?.unitId !== 'g' ||
+  if (!['main','vegetables'].includes(recipe?.servingPart) || recipe?.yield?.unitId !== 'g' ||
       parent?.yield?.unitId !== 'portion' || !(Number(parent.yield.amount) > 0)) return Infinity;
   const average = Number(recipe.yield.amount) / Number(parent.yield.amount);
   if (!Number.isFinite(average) || average <= 0) return Infinity;
@@ -32,6 +32,21 @@ export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, r
 
 
 export const MIN_PROTEIN_G_PER_MEAL = 40;
+
+export function calculatePersonEnergy(meal, personId) {
+  let kcal = 0, hasPortions = false;
+  for (const item of meal?.items ?? []) {
+    const amount = item.amounts?.find(entry => entry.personId === personId);
+    if (!amount) continue;
+    const quantity = Number(amount.quantity), energy = item.recipe?.nutrition?.perYieldUnit?.energyKcal;
+    if (!Number.isFinite(quantity) || quantity < 0) return { kcal:null, known:false };
+    if (!quantity) continue;
+    hasPortions = true;
+    if (energy == null || !Number.isFinite(Number(energy))) return { kcal:null, known:false };
+    kcal += quantity * Number(energy);
+  }
+  return { kcal:hasPortions ? kcal : null, known:hasPortions };
+}
 
 export function calculatePersonProtein(meal, personId) {
   let grams = 0;
