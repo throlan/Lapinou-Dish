@@ -1,4 +1,5 @@
-export const SLOT_RATIOS = Object.freeze({ breakfast: 0.2, lunch: 0.4, dinner: 0.3, snack: 0.1 });
+import { DEFAULT_MEAL_RATIOS } from './meal-config.js';
+export const SLOT_RATIOS = DEFAULT_MEAL_RATIOS;
 
 const NATURAL_STEPS = Object.freeze({ piece: 1, portion: 0.5, g: 10 });
 
@@ -11,15 +12,16 @@ export function mainServingLimit(recipe, parent) {
   return Math.floor(average / NATURAL_STEPS.g) * NATURAL_STEPS.g || average;
 }
 
-export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, recipeKcal, recipeUnit = 'portion', recipeCount = 1, budgetShare = 1 }) {
+export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, recipeKcal, recipeUnit = 'portion', recipeCount = 1, budgetShare = 1, slotRatios = SLOT_RATIOS }) {
   const target = Number(dailyTargetKcal);
   const recipeEnergy = Number(recipeKcal);
   if (!Number.isFinite(target) || target <= 0) return { quantity: null, reason: 'daily-target-missing' };
   if (!Number.isFinite(recipeEnergy) || recipeEnergy <= 0) return { quantity: null, reason: 'recipe-energy-missing' };
-  if (!Object.hasOwn(SLOT_RATIOS, slot)) return { quantity: null, reason: 'invalid-slot' };
+  if (!Object.hasOwn(slotRatios, slot)) return { quantity: null, reason: 'invalid-slot' };
+  if (!(slotRatios[slot]>0)) return {quantity:null,reason:'no-slot-budget',slotBudgetKcal:0};
   const remaining = Math.max(0, target - Math.max(0, Number(plannedOtherKcal) || 0));
   if (!remaining) return { quantity: null, reason: 'daily-budget-used' };
-  const slotBudget = Math.min(target * SLOT_RATIOS[slot] + 100, remaining);
+  const slotBudget = Math.min(target * slotRatios[slot] + 100, remaining);
   const count = Math.max(1, Math.floor(Number(recipeCount) || 1));
   const share = Math.max(0, Math.min(1, Number(budgetShare) || 0));
   const energyPerRecipe = slotBudget * share / count;

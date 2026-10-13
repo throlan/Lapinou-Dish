@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { readRecipe } from './recipes.mjs';
 import { lockHouseholdInventory } from './ingredient-stock.mjs';
 
-const slots = new Set(['breakfast', 'lunch', 'dinner', 'snack']);
+const slots = new Set(['breakfast', 'lunch', 'dinner', 'snack', 'evening_snack']);
 
 export function validatePlannedMeal(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return { error: 'invalid-body' };
@@ -39,7 +39,7 @@ export function validatePlannedMeal(input) {
 
 export async function listPlannedMeals(pool, householdId, weekStart) {
   const result = await pool.query(
-    'SELECT id, meal_date::text AS meal_date, slot, notes FROM planned_meals WHERE household_id = $1 AND meal_date >= $2::date AND meal_date < $2::date + 7 ORDER BY meal_date, CASE slot WHEN \'breakfast\' THEN 1 WHEN \'lunch\' THEN 2 WHEN \'snack\' THEN 3 ELSE 4 END, created_at',
+    'SELECT id, meal_date::text AS meal_date, slot, notes FROM planned_meals WHERE household_id = $1 AND meal_date >= $2::date AND meal_date < $2::date + 7 ORDER BY meal_date, CASE slot WHEN \'breakfast\' THEN 1 WHEN \'lunch\' THEN 2 WHEN \'snack\' THEN 3 WHEN \'dinner\' THEN 4 ELSE 5 END, created_at',
     [householdId, weekStart],
   );
   const meals = [];

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=recipe-filters-4">
+    <link rel="stylesheet" href="/style.css?v=0.2.39">
   </head>
   <body>
     <header class="topbar">
@@ -16,6 +16,7 @@
         <button class="nav-button" data-view="calendar">Calendrier</button>
         <button class="nav-button" data-view="profiles">Profils</button>
         <button class="nav-button" data-view="shopping">Courses & stocks</button>
+        <button class="nav-button" data-view="admin">Administration</button>
       </nav>
       <span class="connection" id="connection">Connexion…</span>
     </header>
@@ -27,6 +28,23 @@
       </section>
 
       <section id="home-view" class="view"><div id="dashboard-content"><p class="empty">Chargement du tableau de bord…</p></div></section>
+      <section id="admin-view" class="view hidden">
+        <div class="section-heading"><div><h2>Répartition des kcal du foyer</h2><p>Ces pourcentages s’appliquent au besoin quotidien de chaque profil.</p></div></div>
+        <form id="meal-ratios-form" class="card">
+          <div class="form-grid">
+            <label>Petit-déjeuner (%)<input name="breakfast" type="number" min="0" max="100" step="0.1" required></label>
+            <label>Déjeuner (%)<input name="lunch" type="number" min="0" max="100" step="0.1" required></label>
+            <label>Collation après-midi (%)<input name="snack" type="number" min="0" max="100" step="0.1" required></label>
+            <label>Dîner (%)<input name="dinner" type="number" min="0" max="100" step="0.1" required></label>
+            <label>Collation du soir (%)<input name="evening_snack" type="number" min="0" max="100" step="0.1" required></label>
+          </div>
+          <p id="meal-ratios-total" role="status"></p>
+          <p class="muted">Le total doit être égal à 100 %. Les objectifs et les prochaines propositions de portions utiliseront la nouvelle répartition. Pour modifier les quantités d’un repas existant, ouvre-le puis clique sur « Recalculer les portions ». Le calcul automatique conserve sa marge de 100 kcal par repas, dans le budget quotidien restant.</p>
+          <button type="submit" class="primary">Enregistrer la répartition</button>
+          <p id="meal-ratios-message" class="form-message" role="status"></p>
+        </form>
+        <div id="meal-ratios-preview" class="card"></div>
+      </section>
       <section id="calendar-view" class="view hidden">
         <div class="section-heading"><div><h2>Calendrier familial</h2><p>Prévisions par personne, reliées aux recettes du catalogue.</p></div><button type="button" class="secondary" id="manage-profiles">Gérer les profils</button></div>
         <div class="calendar-toolbar">
@@ -147,7 +165,7 @@
         <div class="dialog-heading"><div><p class="eyebrow">PLANIFIER UN REPAS</p><h2 id="meal-dialog-title">Nouveau repas</h2></div><button type="button" class="icon-button" id="close-meal-dialog" aria-label="Fermer">×</button></div>
         <div class="meal-fields">
           <label>Date<input name="mealDate" type="date" required></label>
-          <label>Créneau<select name="slot"><option value="breakfast">Petit-déjeuner</option><option value="lunch">Déjeuner</option><option value="snack">Collation</option><option value="dinner">Dîner</option></select></label>
+          <label>Créneau<select name="slot"><option value="breakfast">Petit-déjeuner</option><option value="lunch">Déjeuner</option><option value="snack">Collation après-midi</option><option value="dinner">Dîner</option><option value="evening_snack">Collation du soir</option></select></label>
         </div>
         <fieldset class="attendee-fieldset"><legend>Qui sera présent ?</legend><div id="meal-attendees" class="attendee-list"></div></fieldset>
         <div class="line-heading"><h3>Recettes et quantités par personne</h3><button type="button" class="secondary" id="recalculate-portions">Recalculer les portions</button><button type="button" class="secondary" id="add-planned-item">+ Ajouter une recette</button><button type="button" class="secondary" id="add-planned-dessert">+ Dessert</button></div>
@@ -163,7 +181,7 @@
         <p id="duplicate-source" class="muted"></p>
         <p>Copie le repas enregistré avec ses personnes, recettes, boissons, quantités et note. Chaque copie sera modifiable séparément. Les repas déjà présents sont conservés.</p>
         <div class="yield-row"><label>Du<input name="startDate" type="date" required></label><label>Au<input name="endDate" type="date" required></label></div>
-        <label>Créneau des copies<select name="slot"><option value="breakfast">Petit-déjeuner</option><option value="lunch">Déjeuner</option><option value="snack">Collation</option><option value="dinner">Dîner</option></select></label>
+        <label>Créneau des copies<select name="slot"><option value="breakfast">Petit-déjeuner</option><option value="lunch">Déjeuner</option><option value="snack">Collation après-midi</option><option value="dinner">Dîner</option><option value="evening_snack">Collation du soir</option></select></label>
         <fieldset><legend>Jours à inclure</legend><div class="duplicate-weekdays">
           <label><input type="checkbox" name="weekday" value="1" checked>Lun.</label><label><input type="checkbox" name="weekday" value="2" checked>Mar.</label><label><input type="checkbox" name="weekday" value="3" checked>Mer.</label><label><input type="checkbox" name="weekday" value="4" checked>Jeu.</label><label><input type="checkbox" name="weekday" value="5" checked>Ven.</label><label><input type="checkbox" name="weekday" value="6" checked>Sam.</label><label><input type="checkbox" name="weekday" value="0" checked>Dim.</label>
         </div></fieldset>
@@ -208,6 +226,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.38"></script>
+    <script type="module" src="/app.js?v=0.2.39"></script>
   </body>
 </html>

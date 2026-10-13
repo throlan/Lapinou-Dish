@@ -24,6 +24,8 @@ test('editor shows current kcal versus the profile meal objective, including ind
   assert.equal(context.summary(items,['p']).children[1].textContent,'Bibinette : 420 / 800 kcal');
   items[0].amounts.p='300';
   assert.equal(context.summary(items,['p']).children[1].textContent,'Bibinette : 570 / 800 kcal');
+  context.state.mealRatios={lunch:0.35};
+  assert.equal(context.summary(items,['p']).children[1].textContent,'Bibinette : 570 / 700 kcal');
   context.latestProfile=()=>({dailyEnergyKcal:null});
   assert.equal(context.summary(items,['p']).children[1].textContent,'Bibinette : 570 / — kcal');
 });

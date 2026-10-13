@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { readMealSettings, saveMealSettings } from './meal-settings.mjs';
 import { listIngredientStock, saveIngredientStock, validateIngredientStock } from './ingredient-stock.mjs';
 import { createHmac, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import { createFood, fillMissingNutritionFromExternal, getFood, updateFood, validateFoodInput } from './foods.mjs';
@@ -20,6 +21,7 @@ const staticFiles = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/portion-planner.js', ['portion-planner.js', 'text/javascript; charset=utf-8']],
+  ['/meal-config.js', ['meal-config.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
 ]);
 
@@ -99,6 +101,17 @@ export async function handleRequest(request, response, pool, appPassword = null,
       return send(response, 401, { error: 'authentication-required' });
     }
 
+    if (url.pathname === '/api/meal-settings' && ['GET','PUT'].includes(request.method)) {
+      const body=request.method === 'PUT' ? await readJson(request) : null;
+      if(body?.error) return send(response,body.status ?? 400,{error:body.error});
+      const householdId=request.method === 'PUT' ? body.value?.householdId : url.searchParams.get('householdId');
+      if(!isUuid(householdId)) return send(response,400,{error:'invalid-household-id'});
+      try {
+        const result=request.method === 'GET' ? await readMealSettings(pool,householdId) : await saveMealSettings(pool,householdId,body.value?.ratios);
+        if(!result || result.error === 'household-not-found') return send(response,404,{error:'household-not-found'});
+        return send(response,result.error ? 400 : 200,result);
+      } catch { return send(response,500,{error:'meal-settings-failed'}); }
+    }
     if (request.method === 'GET' && url.pathname === '/api/households') {
       try {
         const result = await pool.query('SELECT id, name FROM households ORDER BY created_at');

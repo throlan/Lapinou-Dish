@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { SLOT_RATIOS, rebalanceNaturalPortions, suggestQuantity } from '../web/portion-planner.js';
 
 test('uses the same daily energy ratios for every profile and slot', () => {
-  assert.deepEqual(SLOT_RATIOS, { breakfast: 0.2, lunch: 0.4, dinner: 0.3, snack: 0.1 });
+  assert.deepEqual(SLOT_RATIOS, { breakfast: 0.15, lunch: 0.4, snack: 0.1, dinner: 0.25, evening_snack: 0.1 });
   assert.equal(suggestQuantity({ dailyTargetKcal: 2000, slot: 'lunch', recipeKcal: 200, recipeUnit: 'piece' }).slotBudgetKcal, 900);
   assert.equal(suggestQuantity({ dailyTargetKcal: 2500, slot: 'lunch', recipeKcal: 200, recipeUnit: 'piece' }).slotBudgetKcal, 1100);
 });
@@ -27,9 +27,9 @@ test('allocates the slot budget between main recipe and accompaniment without re
   const base = { dailyTargetKcal: 2000, slot: 'breakfast', recipeKcal: 100, recipeUnit: 'portion' };
   const main = suggestQuantity({ ...base, budgetShare: 0.7 });
   const accompaniment = suggestQuantity({ ...base, budgetShare: 0.2 });
-  assert.equal(main.slotBudgetKcal, 500);
-  assert.equal(main.estimatedKcal, 350);
-  assert.equal(accompaniment.estimatedKcal, 100);
+  assert.equal(main.slotBudgetKcal, 400);
+  assert.equal(main.estimatedKcal, 250);
+  assert.equal(accompaniment.estimatedKcal, 50);
 });
 
 
