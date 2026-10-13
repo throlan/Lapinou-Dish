@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=production-lots-2">
+    <link rel="stylesheet" href="/style.css?v=meal-copies-3">
   </head>
   <body>
     <header class="topbar">
@@ -137,7 +137,22 @@
         <div id="planned-items" class="planned-items"></div>
         <label>Note (facultatif)<textarea name="notes" rows="2" maxlength="1000" placeholder="Ex. à décongeler la veille"></textarea></label>
         <p id="meal-message" class="form-message" role="status"></p>
-        <div class="meal-actions"><button type="button" class="secondary hidden" id="delete-meal">Supprimer</button><span></span><button type="button" class="secondary" id="cancel-meal">Annuler</button><button type="button" id="save-meal" class="primary">Enregistrer le repas</button></div>
+        <div class="meal-actions"><button type="button" class="secondary hidden" id="delete-meal">Supprimer</button><button type="button" class="secondary hidden" id="duplicate-meal">Dupliquer</button><span></span><button type="button" class="secondary" id="cancel-meal">Annuler</button><button type="button" id="save-meal" class="primary">Enregistrer le repas</button></div>
+      </form>
+    </dialog>
+    <dialog id="duplicate-meal-dialog">
+      <form id="duplicate-meal-form">
+        <div class="dialog-heading"><h2>Dupliquer le repas</h2><button id="close-duplicate-meal" type="button" class="icon-button" aria-label="Fermer la duplication">×</button></div>
+        <p id="duplicate-source" class="muted"></p>
+        <p>Copie le repas enregistré avec ses personnes, recettes, boissons, quantités et note. Chaque copie sera modifiable séparément. Les repas déjà présents sont conservés.</p>
+        <div class="yield-row"><label>Du<input name="startDate" type="date" required></label><label>Au<input name="endDate" type="date" required></label></div>
+        <label>Créneau des copies<select name="slot"><option value="breakfast">Petit-déjeuner</option><option value="lunch">Déjeuner</option><option value="dinner">Dîner</option><option value="snack">Collation</option></select></label>
+        <fieldset><legend>Jours à inclure</legend><div class="duplicate-weekdays">
+          <label><input type="checkbox" name="weekday" value="1" checked>Lun.</label><label><input type="checkbox" name="weekday" value="2" checked>Mar.</label><label><input type="checkbox" name="weekday" value="3" checked>Mer.</label><label><input type="checkbox" name="weekday" value="4" checked>Jeu.</label><label><input type="checkbox" name="weekday" value="5" checked>Ven.</label><label><input type="checkbox" name="weekday" value="6" checked>Sam.</label><label><input type="checkbox" name="weekday" value="0" checked>Dim.</label>
+        </div></fieldset>
+        <p id="duplicate-preview" role="status"></p>
+        <p id="duplicate-message" class="form-message" role="status"></p>
+        <button type="submit" class="primary">Créer les copies</button>
       </form>
     </dialog>
     <dialog id="food-dialog">
@@ -176,6 +191,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.26"></script>
+    <script type="module" src="/app.js?v=0.2.27"></script>
   </body>
 </html>
