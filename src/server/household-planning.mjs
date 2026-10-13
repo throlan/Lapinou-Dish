@@ -254,8 +254,14 @@ export async function listShoppingRequirements(pool, householdId, startDate, end
   }
   return items.map(row => {
     const setting = settings.rows.find(item => item.foodId===row.foodId && item.unitId===row.unitId);
-    return {...row,groupId:setting?.groupId ?? row.groupId ?? 'bulk',checked:setting?.checked ?? false};
+    const rawQuantity = Number(row.quantity);
+    const quantity = shoppingPurchaseQuantity(rawQuantity,row.unitId);
+    return {...row,quantity,quantityRounded:quantity!==rawQuantity,groupId:setting?.groupId ?? row.groupId ?? 'bulk',checked:setting?.checked ?? false};
   }).sort((a,b)=>a.groupId.localeCompare(b.groupId)||a.name.localeCompare(b.name));
+}
+
+export function shoppingPurchaseQuantity(quantity, unitId) {
+  return unitId === 'piece' ? Math.ceil(quantity) : quantity;
 }
 
 export function validateShoppingLineState(input) {

@@ -150,6 +150,8 @@ test('ingredient inventory and shopping run against PostgreSQL, with atomic prod
     assert.equal(stocks.find(row=>row.foodId===whey).complete,false);
     const shopping=await listShoppingRequirements(pool,householdId,today,today);
     assert.equal(shopping[0].unitId,'piece');assert.match(shopping[0].warning,/Conversion/);
+    assert.equal(shopping[0].quantity,1,'fractional recipe needs must be rounded up to a purchasable whole piece');
+    assert.equal(shopping[0].quantityRounded,true);
   });
   await t.test('cancelling a lot restores recorded deductions even after editing its recipe',async()=>{
     const stock=(await listStock(pool,householdId))[0];
