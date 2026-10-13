@@ -321,3 +321,21 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
  #serving-configuration { margin: 18px 0; border: 1px solid #354865; border-radius: 12px; padding: 14px; }
  @media(max-width:800px) { #recipe-lines.serving-parts-active .recipe-line { grid-template-columns:minmax(0,1fr) 78px 86px 36px; } #recipe-lines.serving-parts-active .serving-part-choice { grid-column:1/-1; grid-row:2; } }
  .meal-serving-amounts { display: grid; gap: 4px; margin: 7px 0; font-size: 12px; }
+
+#recipe-lines { display:flex; flex-direction:column; gap:16px; }
+#recipe-lines .recipe-line, #recipe-lines.serving-parts-active .recipe-line {
+  display:flex; flex-direction:column; align-items:stretch; gap:12px;
+  margin:0; padding:16px; border:1px solid #354865; border-radius:14px; background:#142039;
+}
+.recipe-line-controls { display:flex; flex-wrap:wrap; align-items:end; gap:12px; }
+.recipe-line-controls label { display:flex; flex-direction:column; gap:5px; margin:0; font-size:13px; }
+.recipe-line-controls [hidden] { display:none !important; }
+.ingredient-quantity-field { flex:0 1 130px; }
+.ingredient-unit-field { flex:0 1 120px; }
+.ingredient-serving-field { flex:1 1 260px; }
+.ingredient-cooking-field { flex:1 1 260px; }
+.recipe-line-controls .serving-part-choice { grid-column:auto; grid-row:auto; }
+.ingredient-actions { display:flex; flex-wrap:wrap; gap:10px 22px; border-top:1px solid #354865; padding-top:10px; }
+.ingredient-actions .text-button { text-align:left; padding:0; }
+.recipe-line .food-hint:empty { display:none; }
+@media(max-width:600px) { #recipe-lines .recipe-line { padding:12px; } .recipe-line-controls { gap:10px; } .ingredient-quantity-field,.ingredient-unit-field { flex:1 1 100px; } }

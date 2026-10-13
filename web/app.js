@@ -1,6 +1,7 @@
 import { calculatePersonProtein, capAccompanimentQuantity, MIN_PROTEIN_G_PER_MEAL, rebalanceNaturalPortions, suggestQuantity } from './portion-planner.js';
 import { mainServingLimit } from './portion-planner.js';
 import { calculatePersonEnergy, SLOT_RATIOS } from './portion-planner.js';
+import { MEAL_ORDER, MEAL_LABELS, validMealRatios } from './meal-config.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -30,16 +31,18 @@ function setView(name) {
   $('#calendar-view').classList.toggle('hidden', name !== 'calendar');
   $('#profiles-view').classList.toggle('hidden', name !== 'profiles');
   $('#shopping-view').classList.toggle('hidden', name !== 'shopping');
+  $('#admin-view').classList.toggle('hidden', name !== 'admin');
   $$('.nav-button').forEach((button) => button.classList.toggle('active', button.dataset.view === name));
   if (name === 'home') refreshDashboard();
   if (name === 'recipes') refreshRecipes();
   if (name === 'calendar') refreshCalendar();
   if (name === 'profiles') refreshPeople();
   if (name === 'shopping') refreshShopping();
+  if (name === 'admin') refreshMealSettings();
 }
 
-const dashboardSlots = ['breakfast','lunch','snack','dinner'];
-const dashboardSlotLabels = { breakfast:'Petit-déjeuner', lunch:'Déjeuner', dinner:'Dîner', snack:'Collation' };
+const dashboardSlots = MEAL_ORDER;
+const dashboardSlotLabels = MEAL_LABELS;
 function dashboardPanel(title, className='dashboard-panel') {
   const panel=document.createElement('section'); panel.className=className;
   const heading=document.createElement('h2'); heading.textContent=title; panel.append(heading); return panel;
@@ -671,7 +674,7 @@ function addRecipeLine(initial = null) {
   });
   select.addEventListener('change', () => {
     incompleteTag.classList.add('hidden');
-    if (select.value) { search.value = ''; search.classList.add('hidden'); row.classList.add('has-match'); changeMatch.classList.remove('hidden'); editFood.classList.remove('hidden'); }
+    if (select.value) { search.value = ''; search.classList.add('hidden'); row.classList.add('has-match'); changeMatch.classList.remove('hidden'); editFood.classList.remove('hidden'); hint.replaceChildren(); }
     else { search.classList.remove('hidden'); row.classList.remove('has-match'); changeMatch.classList.add('hidden'); editFood.classList.add('hidden'); }
   });
   const quantity = document.createElement('input'); quantity.type = 'number'; quantity.min = '0.01'; quantity.step = 'any';
@@ -685,15 +688,28 @@ function addRecipeLine(initial = null) {
   const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-line'; remove.textContent = '×'; remove.setAttribute('aria-label', 'Supprimer cet ingrédient'); remove.addEventListener('click', () => row.remove());
   const serving = document.createElement('select'); serving.name = 'servingPart'; serving.className = 'serving-part-choice'; serving.setAttribute('aria-label','Partie servie');
   serving.add(new Option('Viande, légumes, sauce','main')); serving.add(new Option('Féculents','starch')); serving.add(new Option('Légumes','vegetables')); serving.value = initial?.servingPart ?? 'main';
-  serving.hidden = !['separate','three'].includes($('#recipe-form').elements.servingMode.value);
+  const servingMode=$('#recipe-form').elements.servingMode.value;
+  serving.hidden = servingMode === 'original';
+  if(servingMode === 'whole') {
+    serving.options[0].textContent='Autre ingrédient du plat';serving.options[1].textContent='Féculent intégré au plat';
+    if(Number(initial?.cookingFactor)>1)serving.value='starch';
+  }
   serving.options[2].hidden = $('#recipe-form').elements.servingMode.value !== 'three';
   serving.options[2].disabled = serving.options[2].hidden;
   if(!serving.options[2].hidden) serving.options[0].textContent='Viande / protéines et sauce';
   serving.addEventListener('change',updateServingConfiguration);
   const cooking = document.createElement('select'); cooking.name='cookingFactor'; cooking.className='ingredient-cooking-choice'; cooking.setAttribute('aria-label','Coefficient de cuisson de cet ingrédient');
   for (const [factor,label] of [['','Coefficient de la partie'],['1','Poids inchangé — ×1'],['3','Riz — ×3'],['2.5','Pâtes sèches / pois chiches — ×2,5'],['1.25','Pâtes fraîches — ×1,25'],['1.5','Pâtes fraîches — ×1,5'],['2.4','Lentilles / haricots — ×2,4'],['2.3','Corail / pois cassés — ×2,3']]) cooking.add(new Option(label,factor));
-  cooking.value=initial?.cookingFactor == null ? '' : String(initial.cookingFactor); cooking.hidden=$('#recipe-form').elements.servingMode.value === 'original';
-  foodBox.append(search, select, changeMatch, editFood, incompleteTag, hint,cooking); row.append(foodBox, quantity, unit, serving, remove); $('#recipe-lines').append(row);
+  cooking.value=initial?.cookingFactor == null ? '' : String(initial.cookingFactor);
+  const controls=document.createElement('div');controls.className='recipe-line-controls';
+  const field=(text,input,className)=>{const label=document.createElement('label');label.className=className;label.append(document.createTextNode(text),input);return label;};
+  const quantityField=field('Quantité',quantity,'ingredient-quantity-field'),unitField=field('Unité',unit,'ingredient-unit-field');
+  const servingField=field(servingMode === 'whole'?'Type d’ingrédient':'Partie servie',serving,'ingredient-serving-field'),cookingField=field('Coefficient de cuisson',cooking,'ingredient-cooking-field');
+  servingField.hidden=serving.hidden;
+  cooking.hidden=serving.hidden || serving.value !== 'starch';cookingField.hidden=cooking.hidden;
+  controls.append(quantityField,unitField,servingField,cookingField,remove);
+  const actions=document.createElement('div');actions.className='ingredient-actions';actions.append(changeMatch,editFood);
+  foodBox.append(search,select,incompleteTag);row.append(foodBox,controls,hint,actions);$('#recipe-lines').append(row);
   if (initial?.foodId) changeMatch.classList.remove('hidden');
   // Imported ingredient names are already a useful search query. Trigger the
   // same lookup as typing so the dropdown is populated during recipe review.
@@ -708,18 +724,24 @@ function updateServingConfiguration() {
   $('#starch-factor-label').classList.toggle('hidden',!split);
   $('#recipe-lines').classList.toggle('serving-parts-active',split);
   $$('.serving-part-choice').forEach(select => {
-    select.hidden = !split;
-    select.options[0].textContent = mode === 'three' ? 'Viande / protéines et sauce' : 'Viande, légumes, sauce';
+    select.hidden = mode === 'original';
+    select.closest('label').hidden=select.hidden;
+    select.closest('label').firstChild.textContent=mode === 'whole'?'Type d’ingrédient':'Partie servie';
+    select.options[0].textContent = mode === 'whole' ? 'Autre ingrédient du plat' : mode === 'three' ? 'Viande / protéines et sauce' : 'Viande, légumes, sauce';
+    select.options[1].textContent = mode === 'whole' ? 'Féculent intégré au plat' : 'Féculents';
     select.options[2].hidden = mode !== 'three';
     select.options[2].disabled = mode !== 'three';
     if(mode !== 'three' && select.value === 'vegetables') select.value = 'main';
   });
-  $$('.ingredient-cooking-choice').forEach(select=>{select.hidden=mode === 'original';});
+  $$('.ingredient-cooking-choice').forEach(select=>{
+    select.hidden=mode === 'original' || $('select[name="servingPart"]',select.closest('.recipe-line')).value !== 'starch';
+    select.closest('label').hidden=select.hidden;
+  });
   const status=$('#serving-assignment-status');
   status.classList.toggle('hidden',!split);
   const starchLines=$$('.serving-part-choice').filter(select=>select.value==='starch').length;
   status.textContent=starchLines ? `${starchLines} ingrédient(s) affecté(s) aux féculents. Les autres restent dans le plat.` : 'Choisis « Féculents » sur la ligne du riz, des pâtes ou des autres féculents dans les ingrédients ci-dessous. Cette affectation est nécessaire pour enregistrer deux parties.';
-  if(mode === 'three') status.textContent='Affecte chaque ingrédient à « Viande / protéines et sauce », « Légumes » ou « Féculents ». Les trois parties auront des quantités indépendantes dans le calendrier. Le coefficient des légumes est ×1, sauf coefficient individuel choisi sur leur ligne.';
+  if(mode === 'three') status.textContent='Affecte chaque ingrédient à « Viande / protéines et sauce », « Légumes » ou « Féculents ». Les trois parties auront des quantités indépendantes dans le calendrier. Les légumes utilisent le coefficient ×1 ; les coefficients de cuisson s’affichent pour les féculents.';
 }
 $('#recipe-form').elements.servingMode.addEventListener('change',updateServingConfiguration);
 $('#recipe-form').elements.recipeType.addEventListener('change', () => {
@@ -1031,6 +1053,51 @@ function nutritionIssues(recipe) {
   return list;
 }
 
+function mealRatiosFromForm() {
+  const form=$('#meal-ratios-form');
+  return Object.fromEntries(MEAL_ORDER.map(slot=>[slot,form.elements[slot].value === '' ? NaN : Number(form.elements[slot].value)/100]));
+}
+function updateMealRatiosPreview() {
+  const ratios=mealRatiosFromForm(),total=MEAL_ORDER.reduce((sum,slot)=>sum+ratios[slot],0)*100;
+  $('#meal-ratios-total').textContent=Number.isFinite(total)?`Total : ${format(total)} %${validMealRatios(ratios)?' ✓':' — ajuste les valeurs pour atteindre 100 %'}`:'Renseigne les cinq pourcentages.';
+  $('#meal-ratios-form button[type="submit"]').disabled=!validMealRatios(ratios);
+  const root=$('#meal-ratios-preview');root.replaceChildren();
+  if(!validMealRatios(ratios))return;
+  const heading=document.createElement('h3');heading.textContent='Objectifs par personne';root.append(heading);
+  for(const person of state.people){
+    const daily=latestProfile(person,localDateValue())?.dailyEnergyKcal;
+    const line=document.createElement('p');
+    line.textContent=daily?`${person.displayName} · ${format(daily)} kcal/j : `+MEAL_ORDER.map(slot=>`${MEAL_LABELS[slot]} ${format(daily*ratios[slot])} kcal`).join(' · '):`${person.displayName} : besoin quotidien à renseigner dans le profil.`;
+    root.append(line);
+  }
+}
+async function refreshMealSettings() {
+  const form=$('#meal-ratios-form');
+  $('button[type="submit"]',form).disabled=true;
+  if(!state.household)return;
+  try {
+    const settings=await api(`/api/meal-settings?householdId=${encodeURIComponent(state.household.id)}`);
+    state.mealRatios=settings.ratios;
+    for(const slot of MEAL_ORDER)form.elements[slot].value=Number((settings.ratios[slot]*100).toFixed(4));
+    await refreshPeople();updateMealRatiosPreview();
+    showMessage($('#meal-ratios-message'),'');
+  }catch(error){showMessage($('#meal-ratios-message'),`Répartition indisponible : ${error.body?.error ?? error.message}`);}
+}
+$('#meal-ratios-form').addEventListener('input',updateMealRatiosPreview);
+$('#meal-ratios-form').addEventListener('submit',async event=>{
+  event.preventDefault();const form=event.currentTarget,ratios=mealRatiosFromForm(),message=$('#meal-ratios-message');
+  if(!form.reportValidity() || !validMealRatios(ratios)){showMessage(message,'Le total doit être égal à 100 %.');return;}
+  if(!state.household)return;
+  const button=$('button[type="submit"]',form);button.disabled=true;
+  try {
+    const settings=await api('/api/meal-settings',{method:'PUT',body:JSON.stringify({householdId:state.household.id,ratios})});
+    state.mealRatios=settings.ratios;
+    await Promise.all([refreshCalendar(),refreshDashboard()]);
+    showMessage(message,'Répartition enregistrée. Les quantités déjà saisies sont conservées ; utilise « Recalculer les portions » dans les repas à ajuster.',true);
+  }catch(error){showMessage(message,`Enregistrement impossible : ${error.body?.error ?? error.message}`);}
+  finally{updateMealRatiosPreview();}
+});
+
 async function init() {
   try {
     const session = await api('/api/session');
@@ -1079,7 +1146,7 @@ init();
 
 
 
-const slotLabels = { breakfast: 'Petit-déjeuner', lunch: 'Déjeuner', dinner: 'Dîner', snack: 'Collation' };
+const slotLabels = MEAL_LABELS;
 const activityLabels = { sedentary: 'Sédentaire', light: 'Légère', moderate: 'Modérée', active: 'Importante', very_active: 'Très importante' };
 
 function dateOnly(date) {
@@ -1114,11 +1181,13 @@ async function refreshCalendar() {
   state.calendarWeekStart ??= mondayOf(today);
   grid.replaceChildren(emptyMessage('Chargement de la semaine…'));
   try {
-    const [plan, peopleResult, recipesResult] = await Promise.all([
+    const [plan, peopleResult, recipesResult, mealSettings] = await Promise.all([
       api(`/api/planning?householdId=${encodeURIComponent(state.household.id)}&weekStart=${state.calendarWeekStart}`),
       api(`/api/people?householdId=${encodeURIComponent(state.household.id)}`),
       api(`/api/recipes?householdId=${encodeURIComponent(state.household.id)}`),
+      api(`/api/meal-settings?householdId=${encodeURIComponent(state.household.id)}`),
     ]);
+    state.mealRatios=mealSettings.ratios;
     state.people = peopleResult.people;
     state.recipes = recipesResult.recipes;
     state.calendarMeals = plan.meals ?? [];
@@ -1138,7 +1207,7 @@ function renderCalendarDay(date, meals, today) {
   heading.innerHTML = `<span>${displayDate(date, { weekday: 'short' })}</span><strong>${displayDate(date, { day: '2-digit', month: 'short' })}</strong>`;
   if (date === today) { const badge = document.createElement('small'); badge.className = 'today-badge'; badge.textContent = 'AUJ.'; heading.append(badge); }
   day.append(heading);
-  for (const slot of ['breakfast', 'lunch', 'snack', 'dinner']) {
+  for (const slot of MEAL_ORDER) {
     const section = document.createElement('section'); section.className = 'calendar-slot';
     const slotHeading = document.createElement('div'); slotHeading.className = 'calendar-slot-heading';
     const label = document.createElement('span'); label.textContent = slotLabels[slot];
@@ -1328,6 +1397,7 @@ function applyAutomaticPortions(items, attendeeIds) {
         recipeUnit,
         recipeCount: roleCounts[role] || 1,
         budgetShare: activeWeight ? roleWeights[role] / activeWeight : 1,
+        slotRatios: state.mealRatios ?? SLOT_RATIOS,
       });
       item.amounts ??= {};
       const fallbackQuantity = suggestion.quantity == null && ['daily-target-missing', 'recipe-energy-missing'].includes(suggestion.reason)
@@ -1352,6 +1422,7 @@ function applyAutomaticPortions(items, attendeeIds) {
       else if (suggestion.reason === 'recipe-energy-missing') messages.add(`${recipe?.name ?? 'Une recette'} : calories inconnues, la quantité par défaut ne peut pas garantir le budget.`);
       else if (suggestion.reason === 'daily-budget-used') messages.add(`${person?.displayName ?? 'Une personne'} : enveloppe quotidienne déjà atteinte.`);
       else if (suggestion.reason === 'no-natural-portion-fits') messages.add(`${recipe?.name ?? 'Une recette'} : aucune portion entière ou demi-portion ne tient dans le budget restant.`);
+      else if (suggestion.reason === 'no-slot-budget') messages.add('Ce créneau est réglé à 0 % du budget. Tu peux ajuster la répartition dans Administration.');
       proposals.push({ item, personId, role, quantity, reason: suggestion.reason, step, recipeKcal: Number(kcal), proteinG: recipe?.nutrition?.perYieldUnit?.proteinG == null ? null : Number(recipe.nutrition.perYieldUnit.proteinG), maxQuantity, slotBudgetKcal: suggestion.slotBudgetKcal, assignment });
     }
     const budget = proposals.find((proposal) => Number.isFinite(proposal.slotBudgetKcal))?.slotBudgetKcal;
@@ -1390,8 +1461,8 @@ function mealProteinSummary(items, attendeeIds) {
     root.append(tag);
     const energy=calculatePersonEnergy(meal,personId);
     const form=$('#meal-form'),profile=person && latestProfile(person,form.elements.mealDate.value);
-    const daily=Number(profile?.dailyEnergyKcal),ratio=SLOT_RATIOS[form.elements.slot.value];
-    const objective=Number.isFinite(daily) && daily>0 && ratio ? daily*ratio : null;
+    const daily=Number(profile?.dailyEnergyKcal),ratio=(state.mealRatios ?? SLOT_RATIOS)[form.elements.slot.value];
+    const objective=Number.isFinite(daily) && daily>0 && Number.isFinite(ratio) ? daily*ratio : null;
     const energyTag=document.createElement('span');
     energyTag.className=`protein-tag ${!energy.known || objective==null?'protein-unknown':energy.kcal<=objective?'protein-sufficient':'protein-low'}`;
     energyTag.textContent=`${person?.displayName??'Personne'} : ${energy.known?format(energy.kcal):'—'} / ${objective==null?'—':format(objective)} kcal`;
@@ -1409,7 +1480,7 @@ function recipesForPlanning(slot, role, selectedIds = []) {
   const selected = new Set(selectedIds.filter(Boolean));
   const eligible = allPlanningRecipes().filter((recipe) => {
     const moments = recipe.mealMoments ?? [];
-    if (moments.length && !moments.includes(slot)) return false;
+    if (moments.length && !moments.includes(slot === 'evening_snack' ? 'snack' : slot)) return false;
     if (recipe.recipeType) {
       if (isIndividualRole(role) && recipe.recipeType !== role) return false;
       if (role === 'accompaniment' && recipe.recipeType !== 'accompaniment') return false;
