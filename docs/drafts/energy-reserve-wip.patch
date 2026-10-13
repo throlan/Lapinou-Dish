@@ -1,0 +1,403 @@
+diff --git a/src/server/app.mjs b/src/server/app.mjs
+index 55e93f6..7399718 100644
+--- a/src/server/app.mjs
++++ b/src/server/app.mjs
+@@ -7,6 +7,7 @@ import { createRecipe, listRecipes, readRecipe, updateRecipe, validateRecipeInpu
+ import { listImportDrafts, saveImportDrafts } from './recipe-imports.mjs';
+ import { extractRecipeWithOpenAI } from './openai-recipe-import.mjs';
+ import { retrieveInstagramCaption, instagramPostUrl } from './instagram-caption.mjs';
++import { applyReservePortions,isReserveDate,listReservePeriods,removeReservePeriod,reservePortionPreview,saveReservePeriod,validateReservePeriod } from './energy-reserve.mjs';
+ import { addProfileHistory, addWeightEntry, createPerson, listPeople, validatePersonInput, validateProfileHistoryInput, validateWeightInput } from './people.mjs';
+ import { deletePlannedMeal, duplicatePlannedMeal, listPlannedMeals, savePlannedMeal, validateMealDuplication, validatePlannedMeal } from './planning.mjs';
+ import { addStockLot, cancelStockLot, completeRoutine, getRoutineSettings, listShoppingRequirements, listStock, saveRoutineSettings, saveShoppingLineState, validateProductionInput, validateRoutineSettings, validateShoppingLineState } from './household-planning.mjs';
+@@ -20,6 +21,7 @@ const staticFiles = new Map([
+   ['/', ['index.html', 'text/html; charset=utf-8']],
+   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
+   ['/portion-planner.js', ['portion-planner.js', 'text/javascript; charset=utf-8']],
++  ['/energy-budget.js', ['energy-budget.js', 'text/javascript; charset=utf-8']],
+   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
+ ]);
+ 
+@@ -99,6 +101,29 @@ export async function handleRequest(request, response, pool, appPassword = null,
+       return send(response, 401, { error: 'authentication-required' });
+     }
+ 
++    if (request.method === 'GET' && url.pathname === '/api/energy-reserves') {
++      const householdId=url.searchParams.get('householdId'),start=url.searchParams.get('start'),end=url.searchParams.get('end');
++      if(!isUuid(householdId)||!isReserveDate(start)||!isReserveDate(end)||end<start||Date.parse(end)-Date.parse(start)>366*86400000)return send(response,400,{error:'invalid-reserve-period'});
++      try{return send(response,200,{periods:await listReservePeriods(pool,householdId,start,end)});}catch{return send(response,500,{error:'energy-reserve-read-failed'});}
++    }
++    if (request.method === 'POST' && url.pathname === '/api/energy-reserves') {
++      const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
++      const validation=validateReservePeriod(body.value);if(validation.error)return send(response,400,{error:validation.error});
++      try{const result=await saveReservePeriod(pool,validation.data);return send(response,result.error?400:201,result);}catch{return send(response,500,{error:'energy-reserve-save-failed'});}
++    }
++    const reserveAction=url.pathname.match(/^\/api\/energy-reserves\/([\da-f-]{36})(?:\/(preview|apply))?$/i);
++    if(reserveAction){
++      const householdId=url.searchParams.get('householdId');if(!isUuid(householdId)||!isUuid(reserveAction[1]))return send(response,400,{error:'invalid-energy-reserve'});
++      const today=(await pool.query('SELECT CURRENT_DATE::text AS today')).rows[0].today;
++      try{
++        if(request.method==='DELETE'&&!reserveAction[2])return send(response,200,{removed:await removeReservePeriod(pool,householdId,reserveAction[1])});
++        if(request.method==='GET'&&reserveAction[2]==='preview'){const result=await reservePortionPreview(pool,householdId,reserveAction[1],today);return send(response,result.error?400:200,result);}
++        if(request.method==='POST'&&reserveAction[2]==='apply'){
++          const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
++          const result=await applyReservePortions(pool,householdId,reserveAction[1],today,body.value?.changes);return send(response,result.error?409:200,result);
++        }
++      }catch{return send(response,500,{error:'energy-reserve-update-failed'});}
++    }
+     if (request.method === 'GET' && url.pathname === '/api/households') {
+       try {
+         const result = await pool.query('SELECT id, name FROM households ORDER BY created_at');
+diff --git a/src/server/planning.mjs b/src/server/planning.mjs
+index 69dc64c..f37c652 100644
+--- a/src/server/planning.mjs
++++ b/src/server/planning.mjs
+@@ -14,6 +14,17 @@ export function validatePlannedMeal(input) {
+   if (!Array.isArray(input.attendeeIds) || input.attendeeIds.length < 1 || input.attendeeIds.length > 30) return { error: 'attendees-required' };
+   const attendeeIds = [...new Set(input.attendeeIds)];
+   if (attendeeIds.length !== input.attendeeIds.length || attendeeIds.some((id) => !isUuid(id))) return { error: 'invalid-attendee-ids' };
++  if(input.isOccasion != null && typeof input.isOccasion!=='boolean')return {error:'invalid-occasion'};
++  if(input.isOccasion){
++    const title=typeof input.occasionTitle==='string'?input.occasionTitle.trim():'';
++    if(!title || title.length>120 || !Array.isArray(input.occasionEnergy)||input.occasionEnergy.length>attendeeIds.length)return {error:'invalid-occasion'};
++    const seen=new Set();
++    for(const entry of input.occasionEnergy){
++      if(!entry || !attendeeIds.includes(entry.personId)||seen.has(entry.personId)||typeof entry.energyKcal!=='number'||!Number.isFinite(entry.energyKcal)||entry.energyKcal<0||entry.energyKcal>100000)return {error:'invalid-occasion-energy'};
++      seen.add(entry.personId);
++    }
++    return {data:{householdId:input.householdId,mealDate:input.mealDate,slot:input.slot,notes,attendeeIds,items:[],isOccasion:true,occasionTitle:title,occasionEnergy:input.occasionEnergy.map(entry=>({...entry}))}};
++  }
+   if (!Array.isArray(input.items) || input.items.length < 1 || input.items.length > 30) return { error: 'planned-items-required' };
+   const items = [];
+   for (const item of input.items) {
+@@ -39,7 +50,7 @@ export function validatePlannedMeal(input) {
+ 
+ export async function listPlannedMeals(pool, householdId, weekStart) {
+   const result = await pool.query(
+-    'SELECT id, meal_date::text AS meal_date, slot, notes FROM planned_meals WHERE household_id = $1 AND meal_date >= $2::date AND meal_date < $2::date + 7 ORDER BY meal_date, CASE slot WHEN \'breakfast\' THEN 1 WHEN \'lunch\' THEN 2 WHEN \'snack\' THEN 3 ELSE 4 END, created_at',
++    'SELECT id, meal_date::text AS meal_date, slot, notes,is_occasion,occasion_title FROM planned_meals WHERE household_id = $1 AND meal_date >= $2::date AND meal_date < $2::date + 7 ORDER BY meal_date, CASE slot WHEN \'breakfast\' THEN 1 WHEN \'lunch\' THEN 2 WHEN \'snack\' THEN 3 ELSE 4 END, created_at',
+     [householdId, weekStart],
+   );
+   const meals = [];
+@@ -81,16 +92,16 @@ export async function savePlannedMeal(pool, id, data) {
+     if (normalizedItems.some(item=>item.amounts.some(amount=>!Number.isFinite(amount.quantity) || amount.quantity > 100000))) { await client.query('ROLLBACK'); return {error:'invalid-planned-quantity'}; }
+     if (id) {
+       const updated = await client.query(
+-        'UPDATE planned_meals SET meal_date = $3, slot = $4, notes = $5, updated_at = now() WHERE id = $1 AND household_id = $2 RETURNING id',
+-        [id, data.householdId, data.mealDate, data.slot, data.notes],
++        'UPDATE planned_meals SET meal_date = $3, slot = $4, notes = $5,is_occasion=$6,occasion_title=$7, updated_at = now() WHERE id = $1 AND household_id = $2 RETURNING id',
++        [id, data.householdId, data.mealDate, data.slot, data.notes,data.isOccasion??false,data.occasionTitle??''],
+       );
+       if (!updated.rowCount) { await client.query('ROLLBACK'); return null; }
+       await client.query('DELETE FROM planned_meal_attendees WHERE meal_id = $1', [id]);
+       await client.query('DELETE FROM planned_meal_items WHERE meal_id = $1', [id]);
+     } else {
+       await client.query(
+-        'INSERT INTO planned_meals (id, household_id, meal_date, slot, notes) VALUES ($1,$2,$3,$4,$5)',
+-        [mealId, data.householdId, data.mealDate, data.slot, data.notes],
++        'INSERT INTO planned_meals (id, household_id, meal_date, slot, notes,is_occasion,occasion_title) VALUES ($1,$2,$3,$4,$5,$6,$7)',
++        [mealId, data.householdId, data.mealDate, data.slot, data.notes,data.isOccasion??false,data.occasionTitle??''],
+       );
+     }
+     for (const personId of data.attendeeIds) {
+@@ -103,6 +114,8 @@ export async function savePlannedMeal(pool, id, data) {
+         await client.query('INSERT INTO planned_amounts (planned_item_id, person_id, quantity) VALUES ($1,$2,$3)', [itemId, amount.personId, amount.quantity]);
+       }
+     }
++    await client.query('DELETE FROM planned_occasion_energy WHERE meal_id=$1',[mealId]);
++    for(const energy of data.occasionEnergy??[])await client.query('INSERT INTO planned_occasion_energy(meal_id,person_id,energy_kcal) VALUES($1,$2,$3)',[mealId,energy.personId,energy.energyKcal]);
+     const saved = await readPlannedMeal(client, { id: mealId }, data.householdId);
+     await client.query('COMMIT');
+     return saved;
+@@ -139,7 +152,7 @@ export async function duplicatePlannedMeal(pool, sourceId, input) {
+       if(saved.source_meal_id!==sourceId || saved.slot!==input.slot || JSON.stringify(saved.dates)!==JSON.stringify(input.dates))return {error:'duplication-request-conflict'};
+       return {mealIds:saved.meal_ids,replayed:true};
+     }
+-    const source=await client.query('SELECT meal_date::text AS date, slot, notes FROM planned_meals WHERE id=$1 AND household_id=$2 FOR SHARE',[sourceId,input.householdId]);
++    const source=await client.query('SELECT meal_date::text AS date, slot, notes,is_occasion,occasion_title FROM planned_meals WHERE id=$1 AND household_id=$2 FOR SHARE',[sourceId,input.householdId]);
+     if(!source.rowCount){await client.query('ROLLBACK');return {error:'source-meal-not-found'};}
+     if(input.slot===source.rows[0].slot && input.dates.includes(source.rows[0].date)){
+       await client.query('ROLLBACK');return {error:'source-date-selected'};
+@@ -148,7 +161,8 @@ export async function duplicatePlannedMeal(pool, sourceId, input) {
+     const mealIds=[];
+     for(const date of input.dates){
+       const id=randomUUID();mealIds.push(id);
+-      await client.query('INSERT INTO planned_meals(id,household_id,meal_date,slot,notes) VALUES($1,$2,$3,$4,$5)',[id,input.householdId,date,input.slot,source.rows[0].notes]);
++      await client.query('INSERT INTO planned_meals(id,household_id,meal_date,slot,notes,is_occasion,occasion_title) VALUES($1,$2,$3,$4,$5,$6,$7)',[id,input.householdId,date,input.slot,source.rows[0].notes,source.rows[0].is_occasion??false,source.rows[0].occasion_title??'']);
++      await client.query('INSERT INTO planned_occasion_energy(meal_id,person_id,energy_kcal) SELECT $1,person_id,energy_kcal FROM planned_occasion_energy WHERE meal_id=$2',[id,sourceId]);
+       await client.query('INSERT INTO planned_meal_attendees(meal_id,person_id) SELECT $1,person_id FROM planned_meal_attendees WHERE meal_id=$2',[id,sourceId]);
+       for(const item of items.rows){
+         const newId=randomUUID();
+@@ -164,7 +178,7 @@ export async function duplicatePlannedMeal(pool, sourceId, input) {
+ async function readPlannedMeal(client, meal, householdId) {
+   let row = meal;
+   if (meal.meal_date == null) {
+-    const result = await client.query('SELECT id, meal_date::text AS meal_date, slot, notes FROM planned_meals WHERE id = $1 AND household_id = $2', [meal.id, householdId]);
++    const result = await client.query('SELECT id, meal_date::text AS meal_date, slot, notes,is_occasion,occasion_title FROM planned_meals WHERE id = $1 AND household_id = $2', [meal.id, householdId]);
+     row = result.rows[0];
+   }
+   if (!row) return null;
+@@ -189,6 +203,8 @@ async function readPlannedMeal(client, meal, householdId) {
+   return {
+     id: row.id, mealDate: typeof row.meal_date === 'string' ? row.meal_date.slice(0, 10) : row.meal_date.toISOString().slice(0, 10),
+     slot: row.slot, notes: row.notes,
++    isOccasion:row.is_occasion??false,occasionTitle:row.occasion_title??'',
++    occasionEnergy:row.is_occasion?(await client.query('SELECT person_id,energy_kcal FROM planned_occasion_energy WHERE meal_id=$1',[row.id])).rows.map(entry=>({personId:entry.person_id,energyKcal:Number(entry.energy_kcal)})):[],
+     attendees: attendeesResult.rows.map((person) => ({ id: person.id, displayName: person.display_name })),
+     items,
+   };
+diff --git a/web/index.html b/web/index.html
+index fd3a37b..d78f367 100644
+--- a/web/index.html
++++ b/web/index.html
+@@ -37,6 +37,14 @@
+           <div id="calendar-grid" class="calendar-grid"><p class="empty">Chargement de la semaine…</p></div>
+           <aside id="calendar-summary" class="calendar-summary"><h3>Prévisions par personne</h3><p class="muted">Aucune donnée à afficher.</p></aside>
+         </div>
++        <details class="card reserve-panel"><summary>Réserve kcal — semaine ou mois</summary>
++          <p class="hint">Réserve de planning pour les adultes sélectionnés. Ce compteur ne mesure pas les calories réellement consommées. Les périodes se terminent sans report automatique.</p>
++          <form id="reserve-form"><div class="yield-row">
++            <label>Adulte<select name="personId" required></select></label><label>Période<select name="periodType"><option value="week">Semaine</option><option value="month">Mois</option></select></label>
++            <label>Début<input name="startsOn" type="date" required></label><label>Réserve par jour (kcal)<input name="dailyKcal" type="number" min="1" max="100000" step="any" value="100" required></label>
++          </div><label class="recipe-ai-option"><input name="adultConfirmed" type="checkbox" required> Je confirme que ce profil est adulte</label><button type="submit" class="primary">Programmer la réserve</button></form>
++          <p id="reserve-message" role="status"></p><div id="reserve-list"></div>
++        </details>
+       </section>
+       <section id="foods-view" class="view hidden">
+         <div class="section-heading"><div><h2>Catalogue alimentaire</h2><p>Une fiche canonique par aliment, enrichie par Ciqual et modifiable.</p></div><button class="primary" id="add-food">+ Nouvel aliment</button></div>
+@@ -150,13 +158,18 @@
+           <label>Créneau<select name="slot"><option value="breakfast">Petit-déjeuner</option><option value="lunch">Déjeuner</option><option value="snack">Collation</option><option value="dinner">Dîner</option></select></label>
+         </div>
+         <fieldset class="attendee-fieldset"><legend>Qui sera présent ?</legend><div id="meal-attendees" class="attendee-list"></div></fieldset>
+-        <div class="line-heading"><h3>Recettes et quantités par personne</h3><button type="button" class="secondary" id="recalculate-portions">Recalculer les portions</button><button type="button" class="secondary" id="add-planned-item">+ Ajouter une recette</button><button type="button" class="secondary" id="add-planned-dessert">+ Dessert</button></div>
++        <label class="recipe-ai-option"><input name="isOccasion" type="checkbox"> Occasion — portions libres, sans calcul nutritionnel détaillé</label>
++        <section id="occasion-fields" class="hidden"><label>Occasion<input name="occasionTitle" maxlength="120" placeholder="Raclette, fondue, crêpes…"></label><p class="hint">Saisis une estimation globale par adulte, boissons comprises. Le supplément par rapport au repas habituel est affecté à la réserve. Une estimation absente reste inconnue.</p><div id="occasion-amounts" class="planned-amounts"></div></section>
++        <div id="meal-recipes">
++        <div class="line-heading"><h3>Recettes et quantités par personne</h3><button type="button" class="secondary" id="recalculate-portions">Recalculer les portions</button><button type="button" class="secondary" id="add-planned-item">+ Ajouter une recette</button><button type="button" class="secondary" id="add-planned-dessert">+ Dessert</button></div>
+         <div id="planned-items" class="planned-items"></div>
++        </div>
+         <label>Note (facultatif)<textarea name="notes" rows="2" maxlength="1000" placeholder="Ex. à décongeler la veille"></textarea></label>
+         <p id="meal-message" class="form-message" role="status"></p>
+         <div class="meal-actions"><button type="button" class="secondary hidden" id="delete-meal">Supprimer</button><button type="button" class="secondary hidden" id="duplicate-meal">Dupliquer</button><span></span><button type="button" class="secondary" id="cancel-meal">Annuler</button><button type="button" id="save-meal" class="primary">Enregistrer le repas</button></div>
+       </form>
+     </dialog>
++    <dialog id="reserve-preview"><div class="meal-form"><h2>Ajustement des repas prévus</h2><p id="reserve-preview-message" role="status"></p><div id="reserve-preview-list"></div><div class="form-actions"><button type="button" id="close-reserve-preview" class="secondary">Fermer</button><button type="button" id="apply-reserve-preview" class="primary">Appliquer ces quantités</button></div></div></dialog>
+     <dialog id="duplicate-meal-dialog">
+       <form id="duplicate-meal-form">
+         <div class="dialog-heading"><h2>Dupliquer le repas</h2><button id="close-duplicate-meal" type="button" class="icon-button" aria-label="Fermer la duplication">×</button></div>
+diff --git a/web/portion-planner.js b/web/portion-planner.js
+index 25b6ee7..0e1b2ef 100644
+--- a/web/portion-planner.js
++++ b/web/portion-planner.js
+@@ -11,15 +11,15 @@ export function mainServingLimit(recipe, parent) {
+   return Math.floor(average / NATURAL_STEPS.g) * NATURAL_STEPS.g || average;
+ }
+ 
+-export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, recipeKcal, recipeUnit = 'portion', recipeCount = 1, budgetShare = 1 }) {
++export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, recipeKcal, recipeUnit = 'portion', recipeCount = 1, budgetShare = 1, reservedDailyKcal = 0, reservedSlotKcal = 0 }) {
+   const target = Number(dailyTargetKcal);
+   const recipeEnergy = Number(recipeKcal);
+   if (!Number.isFinite(target) || target <= 0) return { quantity: null, reason: 'daily-target-missing' };
+   if (!Number.isFinite(recipeEnergy) || recipeEnergy <= 0) return { quantity: null, reason: 'recipe-energy-missing' };
+   if (!Object.hasOwn(SLOT_RATIOS, slot)) return { quantity: null, reason: 'invalid-slot' };
+-  const remaining = Math.max(0, target - Math.max(0, Number(plannedOtherKcal) || 0));
++  const remaining = Math.max(0, target - Math.max(0,Number(reservedDailyKcal)||0) - Math.max(0, Number(plannedOtherKcal) || 0));
+   if (!remaining) return { quantity: null, reason: 'daily-budget-used' };
+-  const slotBudget = Math.min(target * SLOT_RATIOS[slot] + 100, remaining);
++  const slotBudget = Math.max(0,Math.min(target * SLOT_RATIOS[slot] + 100 - Math.max(0,Number(reservedSlotKcal)||0), remaining));
+   const count = Math.max(1, Math.floor(Number(recipeCount) || 1));
+   const share = Math.max(0, Math.min(1, Number(budgetShare) || 0));
+   const energyPerRecipe = slotBudget * share / count;
+diff --git a/db/migrations/20261013_weekly_energy_reserve.sql b/db/migrations/20261013_weekly_energy_reserve.sql
+new file mode 100644
+index 0000000..fc90c91
+--- /dev/null
++++ b/db/migrations/20261013_weekly_energy_reserve.sql
+@@ -0,0 +1,17 @@
++CREATE TABLE IF NOT EXISTS energy_reserve_periods (
++  id uuid PRIMARY KEY, household_id uuid NOT NULL REFERENCES households(id) ON DELETE CASCADE,
++  person_id uuid NOT NULL REFERENCES people(id) ON DELETE CASCADE,
++  period_type text NOT NULL CHECK(period_type IN ('week','month')),
++  starts_on date NOT NULL, ends_on date NOT NULL CHECK(ends_on >= starts_on),
++  daily_kcal numeric(10,2) NOT NULL CHECK(daily_kcal > 0),
++  adult_confirmed boolean NOT NULL DEFAULT false,
++  UNIQUE(person_id,starts_on)
++);
++ALTER TABLE planned_meals ADD COLUMN IF NOT EXISTS is_occasion boolean NOT NULL DEFAULT false;
++ALTER TABLE planned_meals ADD COLUMN IF NOT EXISTS occasion_title text NOT NULL DEFAULT '';
++CREATE TABLE IF NOT EXISTS planned_occasion_energy (
++  meal_id uuid NOT NULL REFERENCES planned_meals(id) ON DELETE CASCADE,
++  person_id uuid NOT NULL REFERENCES people(id) ON DELETE CASCADE,
++  energy_kcal numeric(10,2) NOT NULL CHECK(energy_kcal >= 0 AND energy_kcal <= 100000),
++  PRIMARY KEY(meal_id,person_id)
++);
+diff --git a/src/server/energy-reserve.mjs b/src/server/energy-reserve.mjs
+new file mode 100644
+index 0000000..37ac852
+--- /dev/null
++++ b/src/server/energy-reserve.mjs
+@@ -0,0 +1,116 @@
++import { randomUUID } from 'node:crypto';
++import { lockHouseholdInventory } from './ingredient-stock.mjs';
++import { readRecipe } from './recipes.mjs';
++
++export const RESERVE_SLOT_SHARES = { lunch:0.5,dinner:0.375,snack:0.125,breakfast:0 };
++const ratios={breakfast:0.2,lunch:0.4,dinner:0.3,snack:0.1};
++export const isReserveUuid = v=>typeof v==='string' && /^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(v);
++export const isReserveDate = v=>typeof v==='string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)) && new Date(v).toISOString().slice(0,10)===v;
++const addDays=(v,n)=>{const d=new Date(v+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
++export function reservePeriodEnd(start,type){
++  if(type==='week')return addDays(start,6);
++  const d=new Date(start+'T12:00:00Z');d.setUTCMonth(d.getUTCMonth()+1);d.setUTCDate(0);return d.toISOString().slice(0,10);
++}
++export function reserveSlotReduction(daily,slot){return Number(daily)*(RESERVE_SLOT_SHARES[slot]??0);}
++export function isAdultAt(birthDate,date){
++  if(!birthDate)return null;
++  const born=String(birthDate).slice(0,10);const cutoff=new Date(date+'T12:00:00Z');cutoff.setUTCFullYear(cutoff.getUTCFullYear()-18);
++  return born<=cutoff.toISOString().slice(0,10);
++}
++export function validateReservePeriod(input){
++  if(!input || !isReserveUuid(input.householdId)||!isReserveUuid(input.personId)||!isReserveDate(input.startsOn)
++    || !['week','month'].includes(input.periodType)||input.adultConfirmed!==true
++    || typeof input.dailyKcal!=='number'||!Number.isFinite(input.dailyKcal)||input.dailyKcal<=0||input.dailyKcal>100000
++    || (input.periodType==='week'?new Date(input.startsOn+'T12:00:00Z').getUTCDay()!==1:input.startsOn.slice(8)!=='01'))return {error:'invalid-energy-reserve'};
++  return {data:{...input,endsOn:reservePeriodEnd(input.startsOn,input.periodType)}};
++}
++
++export async function saveReservePeriod(pool,data){
++  const client=await pool.connect();
++  try{
++    await client.query('BEGIN');await lockHouseholdInventory(client,data.householdId);
++    const person=(await client.query('SELECT birth_date::text AS birth_date FROM people WHERE id=$1 AND household_id=$2 AND active=true',[data.personId,data.householdId])).rows[0];
++    if(!person || isAdultAt(person.birth_date,data.startsOn)===false){await client.query('ROLLBACK');return {error:person?'energy-reserve-adults-only':'person-not-in-household'};}
++    const profile=(await client.query('SELECT daily_energy_kcal FROM person_profile_history WHERE person_id=$1 AND effective_from<=$2 ORDER BY effective_from DESC LIMIT 1',[data.personId,data.startsOn])).rows[0];
++    if(!profile?.daily_energy_kcal || data.dailyKcal>=Number(profile.daily_energy_kcal)){await client.query('ROLLBACK');return {error:'energy-reserve-target-required'};}
++    const overlaps=await client.query('SELECT id FROM energy_reserve_periods WHERE person_id=$1 AND starts_on<=$3 AND ends_on>=$2 AND NOT(starts_on=$2 AND ends_on=$3)',[data.personId,data.startsOn,data.endsOn]);
++    if(overlaps.rows.length){await client.query('ROLLBACK');return {error:'energy-reserve-period-overlap'};}
++    const saved=await client.query(`INSERT INTO energy_reserve_periods(id,household_id,person_id,period_type,starts_on,ends_on,daily_kcal,adult_confirmed)
++      VALUES($1,$2,$3,$4,$5,$6,$7,true) ON CONFLICT(person_id,starts_on) DO UPDATE SET daily_kcal=EXCLUDED.daily_kcal,period_type=EXCLUDED.period_type,ends_on=EXCLUDED.ends_on RETURNING id`,[randomUUID(),data.householdId,data.personId,data.periodType,data.startsOn,data.endsOn,data.dailyKcal]);
++    await client.query('COMMIT');return {id:saved.rows[0].id};
++  }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
++}
++
++export async function listReservePeriods(pool,householdId,start,end){
++  const periods=(await pool.query(`SELECT r.id,r.person_id AS "personId",p.display_name AS name,r.period_type AS "periodType",r.starts_on::text AS "startsOn",r.ends_on::text AS "endsOn",r.daily_kcal AS "dailyKcal"
++    FROM energy_reserve_periods r JOIN people p ON p.id=r.person_id WHERE r.household_id=$1 AND r.starts_on<=$3 AND r.ends_on>=$2 ORDER BY p.display_name,r.starts_on`,[householdId,start,end])).rows;
++  for(const period of periods){
++    period.dailyKcal=Number(period.dailyKcal);
++    const days=Math.round((Date.parse(period.endsOn)-Date.parse(period.startsOn))/86400000)+1;
++    period.programmedKcal=days*period.dailyKcal;
++    const occasions=(await pool.query(`SELECT m.id,m.meal_date::text AS date,m.slot,m.occasion_title AS title,e.energy_kcal,
++      (SELECT daily_energy_kcal FROM person_profile_history WHERE person_id=$2 AND effective_from<=m.meal_date ORDER BY effective_from DESC LIMIT 1) AS daily_target
++      FROM planned_meals m JOIN planned_meal_attendees a ON a.meal_id=m.id AND a.person_id=$2
++      LEFT JOIN planned_occasion_energy e ON e.meal_id=m.id AND e.person_id=$2
++      WHERE m.household_id=$1 AND m.is_occasion AND m.meal_date BETWEEN $3 AND $4`,[householdId,period.personId,period.startsOn,period.endsOn])).rows;
++    period.complete=occasions.every(o=>o.energy_kcal!=null && o.daily_target!=null);
++    period.occasions=occasions.map(o=>({id:o.id,date:o.date,title:o.title,energyKcal:o.energy_kcal==null?null:Number(o.energy_kcal),extraKcal:o.energy_kcal==null||o.daily_target==null?null:Math.max(0,Number(o.energy_kcal)-Number(o.daily_target)*ratios[o.slot])}));
++    period.usedKcal=period.complete?period.occasions.reduce((sum,o)=>sum+o.extraKcal,0):null;
++    period.availableKcal=period.usedKcal==null?null:period.programmedKcal-period.usedKcal;
++  }
++  return periods;
++}
++
++export async function removeReservePeriod(pool,householdId,id){
++  const result=await pool.query('DELETE FROM energy_reserve_periods WHERE household_id=$1 AND id=$2 RETURNING id',[householdId,id]);return Boolean(result.rowCount);
++}
++
++// Preview existing future meals. Manual confirmation applies only the exact quantities previewed.
++export async function reservePortionPreview(pool,householdId,id,today){
++  const recipeCache=new Map();
++  const period=(await pool.query(`SELECT r.*,r.starts_on::text AS starts_on,r.ends_on::text AS ends_on,p.birth_date::text AS birth_date FROM energy_reserve_periods r JOIN people p ON p.id=r.person_id WHERE r.id=$1 AND r.household_id=$2`,[id,householdId])).rows[0];
++  if(!period)return {error:'energy-reserve-not-found'};
++  if(isAdultAt(period.birth_date,today)===false)return {error:'energy-reserve-adults-only'};
++  const meals=(await pool.query(`SELECT m.id,m.meal_date::text AS date,m.slot,
++    (SELECT daily_energy_kcal FROM person_profile_history WHERE person_id=$2 AND effective_from<=m.meal_date ORDER BY effective_from DESC LIMIT 1) AS target
++    FROM planned_meals m JOIN planned_meal_attendees a ON a.meal_id=m.id AND a.person_id=$2
++    WHERE m.household_id=$1 AND NOT m.is_occasion AND m.meal_date BETWEEN GREATEST($3::date,$5::date) AND $4::date ORDER BY m.meal_date,m.slot`,[householdId,period.person_id,period.starts_on,period.ends_on,today])).rows;
++  const changes=[],warnings=[];
++  const groups=new Map();for(const meal of meals){const key=meal.date+':'+meal.slot;groups.set(key,[...(groups.get(key)??[]),meal]);}
++  for(const group of groups.values()){
++    const first=group[0];const reduction=reserveSlotReduction(period.daily_kcal,first.slot);if(!reduction)continue;
++    const desired=Math.max(0,Number(first.target)*ratios[first.slot]-reduction);
++    const rows=[];let known=first.target!=null;
++    for(const meal of group){
++      const amounts=(await pool.query('SELECT i.id,i.recipe_id,i.role,a.quantity FROM planned_meal_items i JOIN planned_amounts a ON a.planned_item_id=i.id AND a.person_id=$2 WHERE i.meal_id=$1 ORDER BY i.id',[meal.id,period.person_id])).rows;
++      for(const row of amounts){if(!recipeCache.has(row.recipe_id))recipeCache.set(row.recipe_id,await readRecipe(pool,row.recipe_id));row.recipe=recipeCache.get(row.recipe_id);row.quantity=Number(row.quantity);row.mealId=meal.id;rows.push(row);if(row.recipe?.nutrition?.perYieldUnit?.energyKcal==null || row.recipe?.nutrition?.perYieldUnit?.proteinG==null)known=false;}
++    }
++    if(!known){warnings.push(`${first.date} ${first.slot} : données nutritionnelles manquantes, portions conservées.`);continue;}
++    const kcal=row=>row.quantity*row.recipe.nutrition.perYieldUnit.energyKcal;
++    const total=rows.reduce((sum,row)=>sum+kcal(row),0);
++    if(total<=desired+0.01)continue;
++    const shared=rows.filter(row=>['main','accompaniment'].includes(row.role??'main'));
++    const fixed=total-shared.reduce((sum,row)=>sum+kcal(row),0);
++    const adjustable=total-fixed;
++    const factor=adjustable>0?Math.max(0,(desired-fixed)/adjustable):0;
++    if(!factor){warnings.push(`${first.date} ${first.slot} : réserve incompatible avec les choix fixes, portions conservées.`);continue;}
++    const proposed=shared.map(row=>{const raw=row.quantity*factor,unit=row.recipe.yield.unitId;return {...row,next:unit==='g'||unit==='ml'?Math.floor(raw*100)/100:Math.floor(raw/(unit==='piece'?1:0.5))*(unit==='piece'?1:0.5)};});
++    const protein=rows.reduce((sum,row)=>sum+row.quantity*row.recipe.nutrition.perYieldUnit.proteinG,0);
++    const nextProtein=rows.filter(row=>!shared.includes(row)).reduce((sum,row)=>sum+row.quantity*row.recipe.nutrition.perYieldUnit.proteinG,0)+proposed.reduce((sum,row)=>sum+row.next*row.recipe.nutrition.perYieldUnit.proteinG,0);
++    if(proposed.some(row=>row.next<=0) || nextProtein<Math.min(40,protein)-0.01){warnings.push(`${first.date} ${first.slot} : portions conservées pour garder les protéines et des quantités positives.`);continue;}
++    changes.push(...proposed.filter(row=>row.next<row.quantity).map(row=>({itemId:row.id,mealId:row.mealId,personId:period.person_id,before:row.quantity,after:row.next,name:row.recipe.name,date:first.date,slot:first.slot,unitId:row.recipe.yield.unitId})));
++  }
++  return {changes,warnings};
++}
++
++export async function applyReservePortions(pool,householdId,id,today,expected){
++  if(!Array.isArray(expected)||expected.length>500)return {error:'invalid-reserve-adjustments'};
++  const client=await pool.connect();
++  try{
++    await client.query('BEGIN');await lockHouseholdInventory(client,householdId);
++    const preview=await reservePortionPreview(client,householdId,id,today);if(preview.error){await client.query('ROLLBACK');return preview;}
++    if(JSON.stringify(preview.changes)!==JSON.stringify(expected)){await client.query('ROLLBACK');return {error:'reserve-preview-changed'};}
++    for(const change of preview.changes)await client.query('UPDATE planned_amounts SET quantity=$3 WHERE planned_item_id=$1 AND person_id=$2',[change.itemId,change.personId,change.after]);
++    await client.query('COMMIT');return {changed:preview.changes.length,warnings:preview.warnings};
++  }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
++}
+diff --git a/web/energy-budget.js b/web/energy-budget.js
+new file mode 100644
+index 0000000..0371fa2
+--- /dev/null
++++ b/web/energy-budget.js
+@@ -0,0 +1,42 @@
++export const RESERVE_SHARES={lunch:0.5,dinner:0.375,snack:0.125,breakfast:0};
++export function reserveFor(periods,personId,date,slot){const p=periods.find(p=>p.personId===personId&&p.startsOn<=date&&p.endsOn>=date);const daily=Number(p?.dailyKcal)||0;return {daily,slot:daily*(RESERVE_SHARES[slot]??0)};}
++export function minorAt(person,date){if(!person.birthDate)return false;const cutoff=new Date(date+'T12:00:00Z');cutoff.setUTCFullYear(cutoff.getUTCFullYear()-18);return String(person.birthDate).slice(0,10)>cutoff.toISOString().slice(0,10);}
++export function mountEnergyBudget({state,api,refreshCalendar}){
++  const $=s=>document.querySelector(s),form=$('#reserve-form');let pending=null;
++  function resetStart(){form.elements.startsOn.value=form.elements.periodType.value==='month'?state.calendarWeekStart.slice(0,7)+'-01':state.calendarWeekStart;}
++  form.elements.periodType.addEventListener('change',resetStart);
++  form.addEventListener('submit',async event=>{
++    event.preventDefault();const button=form.querySelector('button[type="submit"]');button.disabled=true;
++    try{await api('/api/energy-reserves',{method:'POST',body:JSON.stringify({householdId:state.household.id,personId:form.elements.personId.value,periodType:form.elements.periodType.value,startsOn:form.elements.startsOn.value,dailyKcal:Number(form.elements.dailyKcal.value),adultConfirmed:form.elements.adultConfirmed.checked})});$('#reserve-message').textContent='Réserve programmée. Les nouvelles propositions en tiennent compte ; tu peux prévisualiser les repas déjà prévus.';await refreshCalendar();}
++    catch(error){const messages={'energy-reserve-adults-only':'La réserve est réservée aux adultes.','energy-reserve-target-required':'Renseigne un repère kcal/j valide au début de la période, supérieur à la réserve quotidienne.','energy-reserve-period-overlap':'Une réserve couvre déjà ces dates. Désactive-la avant de changer de période.','invalid-energy-reserve':'Choisis un lundi pour une semaine, ou le premier du mois, et confirme que le profil est adulte.'};$('#reserve-message').textContent=messages[error.body?.error]??`Réserve non enregistrée : ${error.message}`;}
++    finally{button.disabled=false;}
++  });
++  $('#close-reserve-preview').addEventListener('click',()=>$('#reserve-preview').close());
++  $('#apply-reserve-preview').addEventListener('click',async()=>{
++    if(!pending)return;const button=$('#apply-reserve-preview');button.disabled=true;
++    try{await api(`/api/energy-reserves/${pending.id}/apply?householdId=${state.household.id}`,{method:'POST',body:JSON.stringify({changes:pending.changes}),signal:AbortSignal.timeout(60000)});$('#reserve-preview').close();pending=null;$('#reserve-message').textContent='Portions appliquées aux repas futurs de cet adulte.';await refreshCalendar();}
++    catch(error){$('#reserve-preview-message').textContent=error.body?.error==='reserve-preview-changed'?'Le planning a changé. Ferme cette fenêtre et relance la prévisualisation.':`Application impossible : ${error.message}`;}
++    finally{button.disabled=false;}
++  });
++  return function render(){
++    const selected=form.elements.personId.value;form.elements.personId.replaceChildren(new Option('Choisir un adulte',''));
++    for(const person of state.people){const option=new Option(person.displayName,person.id);option.disabled=minorAt(person,state.calendarWeekStart);form.elements.personId.add(option);}form.elements.personId.value=selected;
++    if(!form.elements.startsOn.value)resetStart();const root=$('#reserve-list');root.replaceChildren();
++    for(const period of state.energyReserves??[]){
++      const card=document.createElement('article');card.className='reserve-card';const title=document.createElement('strong');title.textContent=`${period.name} · ${period.startsOn} → ${period.endsOn}`;
++      const balance=document.createElement('p');balance.textContent=`Programmée : ${period.programmedKcal} kcal · Occasions : ${period.usedKcal??'inconnu'} · Disponible : ${period.availableKcal??'bilan incomplet'} kcal`;
++      const detail=document.createElement('small');detail.textContent=`${period.dailyKcal} kcal/j · déjeuner ${period.dailyKcal/2}, dîner ${period.dailyKcal*.375}, collation ${period.dailyKcal*.125} kcal en réserve.`;
++      const preview=document.createElement('button');preview.type='button';preview.className='secondary';preview.textContent='Prévisualiser les repas à ajuster';
++      preview.addEventListener('click',async()=>{
++        preview.disabled=true;try{const result=await api(`/api/energy-reserves/${period.id}/preview?householdId=${state.household.id}`,{signal:AbortSignal.timeout(60000)});pending={id:period.id,changes:result.changes};$('#reserve-preview-list').replaceChildren();
++          for(const change of result.changes){const line=document.createElement('p');line.textContent=`${change.date} · ${change.name} : ${change.before} → ${change.after} ${change.unitId}`;$('#reserve-preview-list').append(line);}
++          for(const warning of result.warnings){const line=document.createElement('p');line.textContent=warning;$('#reserve-preview-list').append(line);}
++          $('#reserve-preview-message').textContent=result.changes.length?`${result.changes.length} quantité(s) à modifier pour ${period.name}. Les autres personnes, les occasions et les repas passés sont conservés.`:'Aucune portion à modifier. Les repas sont déjà dans le budget ou nécessitent un ajustement manuel.';$('#apply-reserve-preview').disabled=!result.changes.length;$('#reserve-preview').showModal();
++        }catch(error){$('#reserve-message').textContent=`Prévisualisation impossible : ${error.message}`;}finally{preview.disabled=false;}
++      });
++      const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='Désactiver';remove.addEventListener('click',async()=>{remove.disabled=true;try{await api(`/api/energy-reserves/${period.id}?householdId=${state.household.id}`,{method:'DELETE'});$('#reserve-message').textContent='Réserve désactivée. Les quantités enregistrées sont conservées.';await refreshCalendar();}catch(error){$('#reserve-message').textContent=error.message;remove.disabled=false;}});
++      card.append(title,balance,detail,preview,remove);root.append(card);
++    }
++    if(!root.children.length)root.textContent='Aucune réserve programmée pour cette période.';
++  };
++}

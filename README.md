@@ -6,7 +6,7 @@ Ce dépôt est une application neuve. Il ne dépend pas du code, du schéma, des
 
 ## Produit
 
-Lire [le cahier produit](docs/PRODUCT.md), [le modèle métier](docs/DOMAIN.md) et [les décisions techniques](docs/ARCHITECTURE.md).
+Lire [le cahier de reprise](docs/REPRISE.md), [l'état actuel](docs/STATUS.md) et [le journal de session](docs/SESSION-2026-10-13.md), puis [le cahier produit](docs/PRODUCT.md), [le modèle métier](docs/DOMAIN.md) et [les décisions techniques](docs/ARCHITECTURE.md).
 
 ## Principes
 
@@ -20,7 +20,11 @@ Lire [le cahier produit](docs/PRODUCT.md), [le modèle métier](docs/DOMAIN.md) 
 
 ## État
 
-Le parcours catalogue → recette → calcul est en place. L'import de légendes/texte et d'archives Norish ou Tandoor crée des brouillons à vérifier; les ingrédients doivent être associés aux aliments canoniques avant qu'une recette soit enregistrée. Les liens Instagram/YouTube sont conservés comme source, mais leur légende ou transcription doit être collée avec le lien. Le conteneur applique les migrations et le catalogue Ciqual à son premier démarrage. Aucun service Unraid existant n'est modifié par ce dépôt.
+Version applicative de référence : **0.2.41**. Catalogue et recettes, calendrier à cinq créneaux, duplication, desserts/boissons individuels, parties de service en grammes estimés, stocks et courses, profils compacts, objectifs kcal administrables et rééquilibrage avec aperçu sont implémentés. Voir [les règles kcal et portions](docs/MEAL-ENERGY.md).
+
+L'import de texte et d'archives crée des brouillons à vérifier. Avec l'analyse OpenAI optionnelle, un lien Instagram peut permettre de récupérer sa description ; si la lecture est bloquée, coller le texte. Une transcription YouTube doit être fournie. Les ingrédients sont associés au catalogue avant enregistrement et les valeurs nutritionnelles sont recalculées depuis celui-ci.
+
+Le conteneur applique les migrations et le catalogue Ciqual au démarrage. **L'agent ne doit jamais accéder, vérifier, modifier ou déployer sur Unraid ; l'utilisateur effectue lui-même toutes les mises à jour.** La réserve kcal et les occasions restent en [brouillon archivé](docs/drafts/ENERGY-RESERVE.md).
 
 ## Démarrage de test avec Docker Compose
 
@@ -68,4 +72,4 @@ Les migrations et l'import Ciqual sont relancés sans créer de doublons. Les mo
 npm test
 ```
 
-Le contrôle actuel couvre le calcul nutritionnel, l'import Ciqual et l'API avec une base simulée. Le démarrage réel contre PostgreSQL et l'installation sur Unraid doivent encore être exécutés sur une machine qui dispose de Docker/PostgreSQL.
+La version 0.2.41 passe **138 tests**, dont des intégrations PostgreSQL/PGlite avec les migrations et requêtes réelles. Les parcours ont aussi été vérifiés dans Chrome sur données synthétiques. Aucun contrôle de l'installation Unraid de l'utilisateur n'a été réalisé par l'agent.

@@ -1,0 +1,2 @@
+# Preserve the archived draft patch exactly, including original context endings.
+docs/drafts/energy-reserve-wip.patch -text whitespace=-blank-at-eol,cr-at-eol
