@@ -32,10 +32,11 @@ Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réel
 
 ## À terminer
 
-1. Réserve kcal hebdomadaire/mensuelle et occasions avec estimation globale par adulte : [brouillon archivé et intégration restante](drafts/ENERGY-RESERVE.md).
-2. Journal des consommations réelles, confirmation/ajustement des repas consommés et instantanés nutritionnels historiques.
-3. Variantes et composants métier plus complets, au-delà des parties de service déjà implémentées.
-4. Continuer les validations sur les données et parcours de l'utilisateur à partir de ses retours, sans accès de l'agent à son serveur.
+1. Réserve kcal glissante et occasions avec estimation globale par adulte : [décisions, brouillon et intégration restante](drafts/ENERGY-RESERVE.md).
+2. Enrichir les composants indépendants et variantes de recettes, au-delà des parties de service déjà implémentées.
+3. Continuer les validations sur les données et parcours de l'utilisateur à partir de ses retours, sans accès de l'agent à son serveur.
+
+Les totaux du calendrier restent prévisionnels. L'utilisateur ne souhaite pas de journal de consommation réelle ni de saisie après repas.
 
 ## Guides actuels
 

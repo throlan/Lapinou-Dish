@@ -45,3 +45,9 @@ test('daily energy counts all five slots and individual additions, excluding oth
   assert.ok(Math.abs(partial.kcal-1780.5)<1e-8);assert.equal(partial.incomplete,true);
   assert.equal(planner.calculateDailyEnergy([meals[4]],'p',date).kcal,null);
 });
+
+test('daily energy includes a quota-exempt occasion estimate per person',()=>{
+  const meals=[{mealDate:'2026-10-20',isOccasion:true,occasionEnergy:[{personId:'p',kcal:2450} ],items:[]}];
+  assert.deepEqual(planner.calculateDailyEnergy(meals,'p','2026-10-20'),{kcal:2450,incomplete:false,hasPlan:true});
+  assert.deepEqual(planner.calculateDailyEnergy(meals,'other','2026-10-20'),{kcal:null,incomplete:true,hasPlan:true});
+});

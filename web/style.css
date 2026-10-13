@@ -204,6 +204,13 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
 .person-forecast strong { display:block; color:#edf4ff; font-size:11px; }
 .person-forecast span,.person-forecast small { display:block; margin-top:4px; color:#9fb2d2; font-size:10px; }
 .person-forecast b { color:#c6ed75; font-size:13px; }
+.person-forecast .reserve-negative,.dashboard-profile .reserve-negative { color:#ffb7c2; }
+.reserve-plan-form { display:grid; gap:9px; padding:12px; border:1px solid #30415f; border-radius:10px; background:#202e49; }
+.reserve-plan-form h3 { margin:0; color:#c9f8fb; font-size:13px; }
+.reserve-plan-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.occasion-toggle { display:flex; align-items:center; gap:9px; padding:12px; border:1px solid #806330; border-radius:10px; background:#302b25; color:#ffd071; }
+.occasion-toggle input { accent-color:#ffc54e; }
+.occasion-fields { display:grid; gap:10px; padding:14px; border:1px solid #806330; border-radius:11px; background:#252b3a; }
 #meal-dialog { width:min(860px,calc(100vw - 28px)); max-height:90vh; overflow:auto; }
 #meal-form { display:grid; gap:13px; }
 .meal-fields { display:grid; grid-template-columns:1fr 1fr; gap:12px; }

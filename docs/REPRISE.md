@@ -41,11 +41,19 @@ Le chemin du checkout sur le PC de cette session est `C:\Users\Plex\OneDrive\Doc
 
 ## Travail restant : réserve kcal et occasions
 
-L'utilisateur a accepté une réserve hebdomadaire/mensuelle pour les adultes et un mode Occasion sans détail nutritionnel, avec **estimation globale des kcal par adulte**. Ce chantier n'est **pas livré** en 0.2.41.
+L'utilisateur a précisé le fonctionnement attendu de la réserve et des occasions ; ce chantier n'est **pas livré** en 0.2.41. Les décisions détaillées et exemples sont consignés dans [le brouillon de réserve](drafts/ENERGY-RESERVE.md). Règles essentielles :
 
-Un brouillon de code est archivé dans [drafts/ENERGY-RESERVE.md](drafts/ENERGY-RESERVE.md) avec un patch récupérable sur l'autre PC. Il n'est pas intégré à l'application et ne doit pas être présenté comme terminé. Il faut notamment adapter les parts aux cinq créneaux, terminer l'intégration frontend, ajouter les tests et tenir compte du rééquilibrage publié depuis.
+- Le solde adulte est calculé depuis les repas planifiés, jour par jour, sur une fenêtre glissante de 30 jours par défaut. Sous l'objectif quotidien daté : crédit de la différence ; au-dessus : débit du solde, en utilisant les crédits les plus anciens d'abord.
+- Exemple validé : objectif de 1 850 kcal et menu planifié à 1 760 kcal = +90 kcal ; le lendemain, 1 870 kcal = −20 kcal ; solde : 70 kcal.
+- Une épargne supplémentaire choisie par l'utilisateur réduit le budget servant à recalculer les portions. Le crédit réel reste calculé une seule fois depuis l'objectif initial (1 850 − menu à 1 750 = +100, et non +200).
+- Une occasion (ex. raclette, vin et dessert) reçoit une estimation globale par adulte, contourne les limites kcal ordinaires et le rééquilibrage, puis débite la réserve. Les règles de dépassement d'un solde insuffisant restent à décider.
+- Pas de saisie après repas ni de journal du consommé : le calendrier porte des prévisions et doit rester léger.
 
-Le journal des consommations réelles reste également à développer. Les totaux affichés actuellement sont des prévisions.
+Le chantier inclut l'intégration au calendrier et aux cinq créneaux, un aperçu contrôlé des recalculs, les tests et une vérification navigateur sur données synthétiques. Le brouillon existant a été préparé sur 0.2.37 : ne pas l'appliquer directement à la version 0.2.41.
+
+Un brouillon de code est archivé dans [drafts/ENERGY-RESERVE.md](drafts/ENERGY-RESERVE.md) avec un patch récupérable sur l'autre PC. Il n'est pas intégré à l'application et ne doit pas être présenté comme terminé. Voir ce document pour les décisions et le travail restant détaillés.
+
+Les totaux affichés actuellement sont des prévisions ; aucune saisie de consommation réelle après repas n'est souhaitée.
 
 ## Validation et livraison
 

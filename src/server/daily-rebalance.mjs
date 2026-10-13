@@ -72,6 +72,8 @@ export async function previewDailyRebalance(pool,householdId,date) {
   const peopleResult=await pool.query(`SELECT p.id,p.display_name,p.birth_date::text AS birth_date,p.active,
     (SELECT daily_energy_kcal FROM person_profile_history ph WHERE ph.person_id=p.id AND ph.effective_from<=$2 ORDER BY effective_from DESC LIMIT 1) AS target
     FROM people p WHERE p.household_id=$1 ORDER BY p.id`,[householdId,date]);
+  const savingResult=await pool.query('SELECT person_id,daily_kcal FROM energy_saving_plans WHERE household_id=$1 AND starts_on<=$2 AND ends_on>=$2',[householdId,date]);
+  const extraSavings=new Map(savingResult.rows.map(row=>[row.person_id,Number(row.daily_kcal)]));
   const recipes=new Map(),rows=[];
   for(const item of amounts.rows) {
     if(!recipes.has(item.recipe_id))recipes.set(item.recipe_id,await readRecipe(pool,item.recipe_id));
@@ -83,7 +85,7 @@ export async function previewDailyRebalance(pool,householdId,date) {
     }
     rows.push({itemId:item.item_id,mealId:item.meal_id,personId:item.person_id,slot:item.slot,role:item.role ?? 'main',quantity:Number(item.quantity),recipeName:recipe?.name ?? 'Recette supprimée',unitId:recipe?.yield.unitId,energyKcal:nutrition?.perYieldUnit.energyKcal ?? null,proteinG:nutrition?.perYieldUnit.proteinG ?? null,complete:nutrition?.complete ?? false,breakfastLimit:breakfastServingLimit(recipe,parent)});
   }
-  const people=peopleResult.rows.filter(person=>amounts.rows.some(row=>row.person_id===person.id)).map(person=>({id:person.id,name:person.display_name,targetKcal:person.target==null?null:Number(person.target),reason:!person.active?'inactive-profile':!person.birth_date?'age-missing':!isAdultOn(person.birth_date,date)?'minor-profile':!(Number(person.target)>0)?'target-missing':null}));
+  const people=peopleResult.rows.filter(person=>amounts.rows.some(row=>row.person_id===person.id)).map(person=>({id:person.id,name:person.display_name,targetKcal:person.target==null?null:Number(person.target)-Number(extraSavings.get(person.id)??0),reason:!person.active?'inactive-profile':!person.birth_date?'age-missing':!isAdultOn(person.birth_date,date)?'minor-profile':!(Number(person.target)>Number(extraSavings.get(person.id)??0))?'target-missing':null}));
   const preview=rebalanceDailyEnergy(rows,people);
   const token=createHash('sha256').update(JSON.stringify({householdId,date,rows,people,preview})).digest('hex');
   return {date,...preview,token};

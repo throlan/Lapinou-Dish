@@ -11,10 +11,23 @@ export function validatePlannedMeal(input) {
   if (!slots.has(input.slot)) return { error: 'invalid-meal-slot' };
   const notes = typeof input.notes === 'string' ? input.notes.trim() : '';
   if (notes.length > 1000) return { error: 'notes-too-long' };
+  const isOccasion = input.isOccasion === true;
+  const occasionTitle = typeof input.occasionTitle === 'string' ? input.occasionTitle.trim() : '';
+  if (isOccasion && (!occasionTitle || occasionTitle.length > 200)) return { error: 'occasion-title-required' };
   if (!Array.isArray(input.attendeeIds) || input.attendeeIds.length < 1 || input.attendeeIds.length > 30) return { error: 'attendees-required' };
   const attendeeIds = [...new Set(input.attendeeIds)];
   if (attendeeIds.length !== input.attendeeIds.length || attendeeIds.some((id) => !isUuid(id))) return { error: 'invalid-attendee-ids' };
-  if (!Array.isArray(input.items) || input.items.length < 1 || input.items.length > 30) return { error: 'planned-items-required' };
+  if (!Array.isArray(input.items) || input.items.length > 30 || (!isOccasion && input.items.length < 1) || (isOccasion && input.items.length)) return { error: isOccasion ? 'occasion-cannot-have-recipes' : 'planned-items-required' };
+  const occasionEnergy = [];
+  if (isOccasion) {
+    if (!Array.isArray(input.occasionEnergy) || input.occasionEnergy.length !== attendeeIds.length) return { error: 'occasion-energy-required' };
+    const seenEnergy = new Set();
+    for (const entry of input.occasionEnergy) {
+      const kcal = Number(entry?.kcal);
+      if (!isUuid(entry?.personId) || !attendeeIds.includes(entry.personId) || seenEnergy.has(entry.personId) || !Number.isFinite(kcal) || kcal < 0 || kcal > 100000) return { error: 'invalid-occasion-energy' };
+      seenEnergy.add(entry.personId); occasionEnergy.push({ personId: entry.personId, kcal });
+    }
+  }
   const items = [];
   for (const item of input.items) {
     if (!item || !isUuid(item.recipeId) || !Array.isArray(item.amounts)) return { error: 'invalid-planned-item' };
@@ -34,12 +47,12 @@ export function validatePlannedMeal(input) {
     if (!['beverage','dessert'].includes(role) && seen.size !== attendeeIds.length) return { error: 'amounts-must-match-attendees' };
     items.push({ recipeId: item.recipeId, role, amounts });
   }
-  return { data: { householdId: input.householdId, mealDate: input.mealDate, slot: input.slot, notes, attendeeIds, items } };
+  return { data: { householdId: input.householdId, mealDate: input.mealDate, slot: input.slot, notes, attendeeIds, items, isOccasion, occasionTitle, occasionEnergy } };
 }
 
 export async function listPlannedMeals(pool, householdId, weekStart) {
   const result = await pool.query(
-    'SELECT id, meal_date::text AS meal_date, slot, notes FROM planned_meals WHERE household_id = $1 AND meal_date >= $2::date AND meal_date < $2::date + 7 ORDER BY meal_date, CASE slot WHEN \'breakfast\' THEN 1 WHEN \'lunch\' THEN 2 WHEN \'snack\' THEN 3 WHEN \'dinner\' THEN 4 ELSE 5 END, created_at',
+    'SELECT id, meal_date::text AS meal_date, slot, notes, is_occasion, occasion_title FROM planned_meals WHERE household_id = $1 AND meal_date >= $2::date AND meal_date < $2::date + 7 ORDER BY meal_date, CASE slot WHEN \'breakfast\' THEN 1 WHEN \'lunch\' THEN 2 WHEN \'snack\' THEN 3 WHEN \'dinner\' THEN 4 ELSE 5 END, created_at',
     [householdId, weekStart],
   );
   const meals = [];
@@ -81,21 +94,23 @@ export async function savePlannedMeal(pool, id, data) {
     if (normalizedItems.some(item=>item.amounts.some(amount=>!Number.isFinite(amount.quantity) || amount.quantity > 100000))) { await client.query('ROLLBACK'); return {error:'invalid-planned-quantity'}; }
     if (id) {
       const updated = await client.query(
-        'UPDATE planned_meals SET meal_date = $3, slot = $4, notes = $5, updated_at = now() WHERE id = $1 AND household_id = $2 RETURNING id',
-        [id, data.householdId, data.mealDate, data.slot, data.notes],
+        'UPDATE planned_meals SET meal_date = $3, slot = $4, notes = $5, is_occasion=$6, occasion_title=$7, updated_at = now() WHERE id = $1 AND household_id = $2 RETURNING id',
+        [id, data.householdId, data.mealDate, data.slot, data.notes, data.isOccasion ?? false, data.occasionTitle ?? ''],
       );
       if (!updated.rowCount) { await client.query('ROLLBACK'); return null; }
       await client.query('DELETE FROM planned_meal_attendees WHERE meal_id = $1', [id]);
       await client.query('DELETE FROM planned_meal_items WHERE meal_id = $1', [id]);
+      await client.query('DELETE FROM planned_occasion_energy WHERE meal_id=$1',[id]);
     } else {
       await client.query(
-        'INSERT INTO planned_meals (id, household_id, meal_date, slot, notes) VALUES ($1,$2,$3,$4,$5)',
-        [mealId, data.householdId, data.mealDate, data.slot, data.notes],
+        'INSERT INTO planned_meals (id, household_id, meal_date, slot, notes, is_occasion, occasion_title) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+        [mealId, data.householdId, data.mealDate, data.slot, data.notes, data.isOccasion ?? false, data.occasionTitle ?? ''],
       );
     }
     for (const personId of data.attendeeIds) {
       await client.query('INSERT INTO planned_meal_attendees (meal_id, person_id) VALUES ($1,$2)', [mealId, personId]);
     }
+    for (const entry of data.occasionEnergy ?? []) await client.query('INSERT INTO planned_occasion_energy(meal_id,person_id,energy_kcal) VALUES($1,$2,$3)',[mealId,entry.personId,entry.kcal]);
     for (const [index, item] of normalizedItems.entries()) {
       const itemId = randomUUID();
       await client.query('INSERT INTO planned_meal_items (id, meal_id, recipe_id, sort_order, role) VALUES ($1,$2,$3,$4,$5)', [itemId, mealId, item.recipeId, index, item.role]);
@@ -139,7 +154,7 @@ export async function duplicatePlannedMeal(pool, sourceId, input) {
       if(saved.source_meal_id!==sourceId || saved.slot!==input.slot || JSON.stringify(saved.dates)!==JSON.stringify(input.dates))return {error:'duplication-request-conflict'};
       return {mealIds:saved.meal_ids,replayed:true};
     }
-    const source=await client.query('SELECT meal_date::text AS date, slot, notes FROM planned_meals WHERE id=$1 AND household_id=$2 FOR SHARE',[sourceId,input.householdId]);
+    const source=await client.query('SELECT meal_date::text AS date, slot, notes, is_occasion, occasion_title FROM planned_meals WHERE id=$1 AND household_id=$2 FOR SHARE',[sourceId,input.householdId]);
     if(!source.rowCount){await client.query('ROLLBACK');return {error:'source-meal-not-found'};}
     if(input.slot===source.rows[0].slot && input.dates.includes(source.rows[0].date)){
       await client.query('ROLLBACK');return {error:'source-date-selected'};
@@ -148,8 +163,9 @@ export async function duplicatePlannedMeal(pool, sourceId, input) {
     const mealIds=[];
     for(const date of input.dates){
       const id=randomUUID();mealIds.push(id);
-      await client.query('INSERT INTO planned_meals(id,household_id,meal_date,slot,notes) VALUES($1,$2,$3,$4,$5)',[id,input.householdId,date,input.slot,source.rows[0].notes]);
+      await client.query('INSERT INTO planned_meals(id,household_id,meal_date,slot,notes,is_occasion,occasion_title) VALUES($1,$2,$3,$4,$5,$6,$7)',[id,input.householdId,date,input.slot,source.rows[0].notes,source.rows[0].is_occasion,source.rows[0].occasion_title]);
       await client.query('INSERT INTO planned_meal_attendees(meal_id,person_id) SELECT $1,person_id FROM planned_meal_attendees WHERE meal_id=$2',[id,sourceId]);
+      if(source.rows[0].is_occasion)await client.query('INSERT INTO planned_occasion_energy(meal_id,person_id,energy_kcal) SELECT $1,person_id,energy_kcal FROM planned_occasion_energy WHERE meal_id=$2',[id,sourceId]);
       for(const item of items.rows){
         const newId=randomUUID();
         await client.query('INSERT INTO planned_meal_items(id,meal_id,recipe_id,sort_order,role) VALUES($1,$2,$3,$4,$5)',[newId,id,item.recipe_id,item.sort_order,item.role]);
@@ -164,7 +180,7 @@ export async function duplicatePlannedMeal(pool, sourceId, input) {
 async function readPlannedMeal(client, meal, householdId) {
   let row = meal;
   if (meal.meal_date == null) {
-    const result = await client.query('SELECT id, meal_date::text AS meal_date, slot, notes FROM planned_meals WHERE id = $1 AND household_id = $2', [meal.id, householdId]);
+    const result = await client.query('SELECT id, meal_date::text AS meal_date, slot, notes, is_occasion, occasion_title FROM planned_meals WHERE id = $1 AND household_id = $2', [meal.id, householdId]);
     row = result.rows[0];
   }
   if (!row) return null;
@@ -186,9 +202,10 @@ async function readPlannedMeal(client, meal, householdId) {
       amounts: amounts.rows.map((amount) => ({ personId: amount.person_id, quantity: Number(amount.quantity) })),
     });
   }
+  const occasionEnergy = row.is_occasion ? (await client.query('SELECT person_id,energy_kcal FROM planned_occasion_energy WHERE meal_id=$1',[row.id])).rows.map((entry)=>({personId:entry.person_id,kcal:Number(entry.energy_kcal)})) : [];
   return {
     id: row.id, mealDate: typeof row.meal_date === 'string' ? row.meal_date.slice(0, 10) : row.meal_date.toISOString().slice(0, 10),
-    slot: row.slot, notes: row.notes,
+    slot: row.slot, notes: row.notes, isOccasion: Boolean(row.is_occasion), occasionTitle: row.occasion_title ?? '', occasionEnergy,
     attendees: attendeesResult.rows.map((person) => ({ id: person.id, displayName: person.display_name })),
     items,
   };

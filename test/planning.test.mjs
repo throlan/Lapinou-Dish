@@ -73,6 +73,14 @@ test('accepts meal item categories and rejects unsupported categories', () => {
   assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, amounts: [{ personId: personA, quantity: 0 }, { personId: personB, quantity: 1 }] }] })).error, 'invalid-planned-quantity');
 });
 
+test('accepts a quota-exempt occasion with a kcal estimate per attendee and no recipes',()=>{
+  const result=validatePlannedMeal(valid({isOccasion:true,occasionTitle:'Raclette',items:[],occasionEnergy:[{personId:personA,kcal:1800},{personId:personB,kcal:1450}]}));
+  assert.equal(result.error,undefined);assert.equal(result.data.isOccasion,true);assert.equal(result.data.occasionEnergy[0].kcal,1800);
+  assert.equal(validatePlannedMeal(valid({isOccasion:true,occasionTitle:'Raclette',items:[]})).error,'occasion-energy-required');
+  assert.equal(validatePlannedMeal(valid({isOccasion:true,occasionTitle:'',items:[],occasionEnergy:[{personId:personA,kcal:1},{personId:personB,kcal:1}]})).error,'occasion-title-required');
+  assert.equal(validatePlannedMeal(valid({isOccasion:true,occasionTitle:'Raclette',items:[{recipeId,amounts:[{personId:personA,quantity:1},{personId:personB,quantity:1}]}],occasionEnergy:[{personId:personA,kcal:1},{personId:personB,kcal:1}]})).error,'occasion-cannot-have-recipes');
+});
+
 test('rejects invalid dates, slots and people outside the attendee set', () => {
   assert.equal(validatePlannedMeal(valid({ mealDate: '2026-02-30' })).error, 'invalid-meal-date');
   assert.equal(validatePlannedMeal(valid({ slot: 'midnight' })).error, 'invalid-meal-slot');

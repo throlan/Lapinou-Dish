@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { previewDailyRebalance, applyDailyRebalance } from './daily-rebalance.mjs';
 import { readMealSettings, saveMealSettings } from './meal-settings.mjs';
+import { deleteSavingPlan, getEnergyReserveOverview, saveSavingPlan, validateSavingPlan } from './energy-reserve.mjs';
 import { listIngredientStock, saveIngredientStock, validateIngredientStock } from './ingredient-stock.mjs';
 import { createHmac, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import { createFood, fillMissingNutritionFromExternal, getFood, updateFood, validateFoodInput } from './foods.mjs';
@@ -123,6 +124,24 @@ export async function handleRequest(request, response, pool, appPassword = null,
         if(!result || result.error === 'household-not-found') return send(response,404,{error:'household-not-found'});
         return send(response,result.error ? 400 : 200,result);
       } catch { return send(response,500,{error:'meal-settings-failed'}); }
+    }
+    if (url.pathname === '/api/energy-reserve' && request.method === 'GET') {
+      const householdId=url.searchParams.get('householdId'),asOf=url.searchParams.get('asOf');
+      if(!isUuid(householdId) || !isValidDate(asOf)) return send(response,400,{error:'invalid-energy-reserve-query'});
+      try { const result=await getEnergyReserveOverview(pool,householdId,asOf);return send(response,result.error?400:200,result); }
+      catch { return send(response,500,{error:'energy-reserve-read-failed'}); }
+    }
+    if (url.pathname === '/api/energy-reserve/plans' && request.method === 'POST') {
+      const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
+      const validation=validateSavingPlan(body.value);if(validation.error)return send(response,400,{error:validation.error});
+      try { const result=await saveSavingPlan(pool,validation.data);return send(response,result.error?400:201,result); }
+      catch { return send(response,500,{error:'saving-plan-save-failed'}); }
+    }
+    const savingPlanId=url.pathname.match(/^\/api\/energy-reserve\/plans\/([0-9a-f-]{36})$/i)?.[1];
+    if(savingPlanId && request.method==='DELETE') {
+      const householdId=url.searchParams.get('householdId');if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});
+      try { return await deleteSavingPlan(pool,householdId,savingPlanId)?send(response,200,{deleted:true}):send(response,404,{error:'saving-plan-not-found'}); }
+      catch { return send(response,500,{error:'saving-plan-delete-failed'}); }
     }
     if (request.method === 'GET' && url.pathname === '/api/households') {
       try {
