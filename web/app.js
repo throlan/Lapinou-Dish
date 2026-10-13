@@ -815,9 +815,11 @@ $('#person-form').addEventListener('submit', async (event) => {
 
 $('#login-form').addEventListener('submit', async (event) => {
   event.preventDefault();
+  const form = event.currentTarget;
+  showMessage($('#login-message'), '');
   try {
-    await api('/api/login', { method: 'POST', body: JSON.stringify({ password: event.currentTarget.elements.password.value }) });
-    event.currentTarget.reset();
+    await api('/api/login', { method: 'POST', body: JSON.stringify({ password: form.elements.password.value }) });
+    form.reset();
     $('#login-dialog').close();
     await init();
   } catch (error) {
