@@ -84,6 +84,16 @@ test('Instagram extracts a complete quoted caption and decodes metadata entities
   assert.equal(captionFromHtml(html().replace('4 heures.', '4 heures.…')), null);
 });
 
+test('Instagram metadata accepts whitespace after its closing quote and period', () => {
+  const caption = 'RECETTE DE TEST\nPour 10 barres :\n100 g de poudre d’amandes\nMélanger.';
+  const metadata = '<meta property="og:description" content="42 likes, 3 comments - author on September 23, 2026: &quot;RECETTE DE TEST\nPour 10 barres :&#x2028;100 g de poudre d&#x2019;amandes\nMélanger.&quot;. " />';
+  assert.equal(captionFromHtml(metadata), caption.replace(' :\n', ' :\u2028'));
+  for (const ending of ['&quot;.', '&quot;. ', '&quot;.\n', '&quot;  ', '&quot; .  ']) {
+    assert.equal(captionFromHtml(`<meta content="42 likes - author: &quot;${text}${ending}" property="og:description">`), text);
+  }
+  assert.equal(captionFromHtml(metadata.replace('Mélanger.', 'Mélanger…')), null);
+});
+
 test('URL normalization refuses private hosts, credentials, ports and unsupported pages', () => {
   assert.equal(instagramPostUrl(post + '?igsh=abc'), post);
   for (const url of ['http://www.instagram.com/p/abc/', 'https://localhost/p/abc/', 'https://www.instagram.com.evil.test/p/abc/', 'https://user:pass@www.instagram.com/p/abc/', 'https://www.instagram.com:8443/p/abc/', 'https://www.instagram.com/accounts/login/', 'https://www.instagram.com/author/']) assert.equal(instagramPostUrl(url), null);

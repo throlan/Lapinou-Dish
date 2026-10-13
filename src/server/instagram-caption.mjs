@@ -13,7 +13,7 @@ export function captionFromHtml(html) {
     const attrs = Object.fromEntries([...tag.matchAll(/([\w:-]+)\s*=\s*(["'])([\s\S]*?)\2/g)].map((m) => [m[1].toLowerCase(), decodeEntities(m[3])]));
     if (attrs.property !== 'og:description') continue;
     // Instagram commonly wraps the caption in quotes after author/date/like metadata.
-    const match = attrs.content?.match(/:\s*["“]([\s\S]+)["”]\s*\.?$/);
+    const match = attrs.content?.match(/:\s*["“]([\s\S]+)["”]\s*\.?\s*$/);
     const caption = match?.[1]?.trim();
     if (caption && caption.length >= 40 && caption.length <= 30_000 && !/(?:…|\.{3})\s*$/.test(caption)) return caption;
   }
