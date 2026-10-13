@@ -7,7 +7,7 @@ import { createRecipe, listRecipes, readRecipe, updateRecipe, validateRecipeInpu
 import { listImportDrafts, saveImportDrafts } from './recipe-imports.mjs';
 import { addProfileHistory, addWeightEntry, createPerson, listPeople, validatePersonInput, validateProfileHistoryInput, validateWeightInput } from './people.mjs';
 import { deletePlannedMeal, listPlannedMeals, savePlannedMeal, validatePlannedMeal } from './planning.mjs';
-import { addStockLot, completeRoutine, getRoutineSettings, listShoppingRequirements, listStock, saveRoutineSettings, saveShoppingLineState, validateProductionInput, validateRoutineSettings, validateShoppingLineState } from './household-planning.mjs';
+import { addStockLot, cancelStockLot, completeRoutine, getRoutineSettings, listShoppingRequirements, listStock, saveRoutineSettings, saveShoppingLineState, validateProductionInput, validateRoutineSettings, validateShoppingLineState } from './household-planning.mjs';
 import { parseRecipeArchive, parseRecipeText } from '../domain/recipe-import.mjs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -196,11 +196,20 @@ export async function handleRequest(request, response, pool, appPassword = null)
       if (validation.error) return send(response, 400, { error: validation.error });
       try {
         const lot = await addStockLot(pool, validation.data);
-        if (lot?.error?.startsWith('ingredient-') || lot?.error === 'production-request-conflict') return send(response, 409, lot);
+        if (lot?.error?.startsWith('ingredient-') || lot?.error?.startsWith('production-request-')) return send(response, 409, lot);
         if (lot?.error === 'recipe-not-for-production') return send(response, 400, { error: lot.error });
         if (lot?.error) return send(response, 404, { error: lot.error });
         return send(response, 201, { lot });
       } catch { return send(response, 500, { error: 'production-stock-save-failed' }); }
+    }
+    const cancelledLotId = url.pathname.match(/^\/api\/household-planning\/production\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i)?.[1];
+    if (cancelledLotId && request.method === 'DELETE') {
+      const householdId = url.searchParams.get('householdId');
+      if (!isUuid(householdId)) return send(response,400,{error:'invalid-household-id'});
+      try {
+        const result = await cancelStockLot(pool,householdId,cancelledLotId);
+        return send(response,result.error ? 404 : 200,result);
+      } catch { return send(response,500,{error:'production-lot-cancel-failed'}); }
     }
     if (url.pathname === '/api/shopping-list' && request.method === 'GET') {
       const householdId = url.searchParams.get('householdId');

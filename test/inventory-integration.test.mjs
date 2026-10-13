@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 import { saveIngredientStock, listIngredientStock } from '../src/server/ingredient-stock.mjs';
-import { addStockLot, listShoppingRequirements, listStock } from '../src/server/household-planning.mjs';
+import { addStockLot, cancelStockLot, listShoppingRequirements, listStock } from '../src/server/household-planning.mjs';
 
 const householdId='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const whey='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -102,5 +102,32 @@ test('ingredient inventory and shopping run against PostgreSQL, with atomic prod
     assert.equal(stocks.find(row=>row.foodId===whey).complete,false);
     const shopping=await listShoppingRequirements(pool,householdId,today,today);
     assert.equal(shopping[0].unitId,'piece');assert.match(shopping[0].warning,/Conversion/);
+  });
+  await t.test('cancelling a lot restores recorded deductions even after editing its recipe',async()=>{
+    const stock=(await listStock(pool,householdId))[0];
+    assert.equal(stock.lots.length,1);
+    const lotId=stock.lots[0].id;
+    assert.equal((await cancelStockLot(pool,'99999999-9999-4999-8999-999999999999',lotId)).error,'production-lot-not-found');
+    await pool.query("UPDATE recipe_lines SET quantity=999,unit_id='g' WHERE recipe_id=$1",[recipeId]);
+    const result=await cancelStockLot(pool,householdId,lotId);
+    assert.equal(result.cancelled,true);
+    assert.equal(result.restored.find(row=>row.foodId===whey).quantityG,240);
+    assert.equal((await listIngredientStock(pool,householdId)).find(row=>row.foodId===whey).quantityG,500);
+    assert.equal((await listIngredientStock(pool,householdId)).find(row=>row.foodId===flour).quantityG,2000);
+    const remaining=(await listStock(pool,householdId))[0];
+    assert.equal(remaining.producedQuantity,0);assert.deepEqual(remaining.lots,[]);
+    assert.equal((await cancelStockLot(pool,householdId,lotId)).replayed,true);
+    assert.equal((await listIngredientStock(pool,householdId)).find(row=>row.foodId===whey).quantityG,500);
+    assert.equal((await addStockLot(pool,production)).error,'production-request-cancelled');
+  });
+  await t.test('legacy test lots can be removed without inventing ingredient credits',async()=>{
+    const legacy='77777777-7777-4777-8777-777777777777';
+    await pool.query('INSERT INTO stock_lots(id,household_id,recipe_id,produced_on,quantity,storage) VALUES ($1,$2,$3,$4,8,\'freezer\')',[legacy,householdId,recipeId,today]);
+    const result=await cancelStockLot(pool,householdId,legacy);
+    assert.deepEqual(result.restored,[]);
+    assert.equal((await listIngredientStock(pool,householdId)).find(row=>row.foodId===whey).quantityG,500);
+    await pool.query('DELETE FROM planned_meals WHERE id=$1',[meal]);
+    assert.deepEqual(await listStock(pool,householdId),[]);
+    assert.equal((await cancelStockLot(pool,householdId,'88888888-8888-4888-8888-888888888888')).error,'production-lot-not-found');
   });
 });

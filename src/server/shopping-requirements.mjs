@@ -11,7 +11,7 @@ export async function rawShoppingRequirements(pool, householdId, startDate, endD
        WHERE m.household_id = $1 AND m.meal_date <= $3::date GROUP BY i.recipe_id
      ), produced AS (
        SELECT recipe_id, sum(quantity) AS quantity FROM stock_lots
-       WHERE household_id = $1 GROUP BY recipe_id
+       WHERE household_id = $1 AND cancelled_at IS NULL GROUP BY recipe_id
      ), needed AS (
        SELECT p.recipe_id, GREATEST(COALESCE(p.wanted, 0) - GREATEST(COALESCE(s.quantity, 0) - p.earlier, 0), 0) AS quantity
        FROM planned p LEFT JOIN produced s ON s.recipe_id = p.recipe_id
