@@ -2,6 +2,15 @@ export const SLOT_RATIOS = Object.freeze({ breakfast: 0.2, lunch: 0.4, dinner: 0
 
 const NATURAL_STEPS = Object.freeze({ piece: 1, portion: 0.5, g: 10 });
 
+// A calorie envelope is a ceiling, not a reason to enlarge a batch serving.
+export function mainServingLimit(recipe, parent) {
+  if (recipe?.servingPart !== 'main' || recipe?.yield?.unitId !== 'g' ||
+      parent?.yield?.unitId !== 'portion' || !(Number(parent.yield.amount) > 0)) return Infinity;
+  const average = Number(recipe.yield.amount) / Number(parent.yield.amount);
+  if (!Number.isFinite(average) || average <= 0) return Infinity;
+  return Math.floor(average / NATURAL_STEPS.g) * NATURAL_STEPS.g || average;
+}
+
 export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, recipeKcal, recipeUnit = 'portion', recipeCount = 1, budgetShare = 1 }) {
   const target = Number(dailyTargetKcal);
   const recipeEnergy = Number(recipeKcal);
