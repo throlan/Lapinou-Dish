@@ -114,7 +114,7 @@ export async function addStockLot(pool, input) {
       }
     }
     const recipe = await client.query(
-      'SELECT id, yield_amount, yield_unit_id, production_type FROM recipes WHERE id = $1 AND household_id = $2 FOR SHARE',
+      'SELECT id, yield_amount, yield_unit_id, production_type,separate_starch FROM recipes WHERE id = $1 AND household_id = $2 FOR SHARE',
       [input.recipeId, input.householdId],
     );
     if (!recipe.rowCount || recipe.rows[0].production_type === 'none') {
@@ -134,6 +134,17 @@ export async function addStockLot(pool, input) {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
       [id, input.householdId, input.recipeId, input.producedOn, input.quantity, input.storage, input.note,input.requestId],
     );
+    if (recipe.rows[0].separate_starch) {
+      const parts = await client.query('SELECT id,yield_amount FROM recipes WHERE parent_recipe_id=$1 FOR SHARE', [input.recipeId]);
+      if (!parts.rows.length) throw new Error('serving-parts-missing');
+      await client.query('UPDATE stock_lots SET is_serving_bundle=true WHERE id=$1', [id]);
+      for (const part of parts.rows) {
+        const grams = input.quantity / Number(recipe.rows[0].yield_amount) * Number(part.yield_amount);
+        await client.query(
+          'INSERT INTO stock_lots(id,household_id,recipe_id,produced_on,quantity,storage,note,parent_lot_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
+          [randomUUID(),input.householdId,part.id,input.producedOn,grams,input.storage,input.note,id]);
+      }
+    }
     for (const item of deductions.items) {
       await client.query('UPDATE household_ingredient_stock SET quantity_g=quantity_g-$3,version=version+1,updated_at=now() WHERE household_id=$1 AND food_id=$2', [input.householdId,item.foodId,item.usedG]);
       await client.query("INSERT INTO ingredient_stock_movements(id,household_id,food_id,delta_g,reason,stock_lot_id) VALUES ($1,$2,$3,$4,'production',$5)", [randomUUID(),input.householdId,item.foodId,-item.usedG,id]);
@@ -152,8 +163,12 @@ export async function cancelStockLot(pool, householdId, lotId) {
   try {
     await client.query('BEGIN');
     await lockHouseholdInventory(client, householdId);
-    const result = await client.query('SELECT id, cancelled_at FROM stock_lots WHERE id=$1 AND household_id=$2 FOR UPDATE', [lotId,householdId]);
+    let result = await client.query('SELECT id, cancelled_at,parent_lot_id FROM stock_lots WHERE id=$1 AND household_id=$2 FOR UPDATE', [lotId,householdId]);
     if (!result.rowCount) { await client.query('ROLLBACK'); return { error:'production-lot-not-found' }; }
+    if (result.rows[0].parent_lot_id) {
+      lotId = result.rows[0].parent_lot_id;
+      result = await client.query('SELECT id,cancelled_at FROM stock_lots WHERE id=$1 AND household_id=$2 FOR UPDATE',[lotId,householdId]);
+    }
     if (result.rows[0].cancelled_at) { await client.query('ROLLBACK'); return { cancelled:true,replayed:true,restored:[] }; }
     const movements = await client.query(
       `SELECT m.food_id AS "foodId", f.canonical_name AS name, -sum(m.delta_g) AS "quantityG"
@@ -166,7 +181,7 @@ export async function cancelStockLot(pool, householdId, lotId) {
         "INSERT INTO ingredient_stock_movements(id,household_id,food_id,delta_g,reason,stock_lot_id) VALUES ($1,$2,$3,$4,'production-cancelled',$5)",
         [randomUUID(),householdId,movement.foodId,movement.quantityG,lotId]);
     }
-    await client.query('UPDATE stock_lots SET cancelled_at=now() WHERE id=$1', [lotId]);
+    await client.query('UPDATE stock_lots SET cancelled_at=now() WHERE id=$1 OR parent_lot_id=$1', [lotId]);
     await client.query('COMMIT');
     return { cancelled:true,restored:movements.rows.map(row=>({...row,quantityG:Number(row.quantityG)})) };
   } catch (error) { await client.query('ROLLBACK'); throw error; }
@@ -178,7 +193,7 @@ export async function listStock(pool, householdId) {
     `WITH produced AS (
        SELECT recipe_id, sum(quantity) AS quantity,
               max(produced_on) AS latest_production, array_agg(DISTINCT storage) AS storage
-         FROM stock_lots WHERE household_id = $1 AND cancelled_at IS NULL GROUP BY recipe_id
+         FROM stock_lots WHERE household_id = $1 AND cancelled_at IS NULL AND NOT is_serving_bundle GROUP BY recipe_id
      ), planned AS (
        SELECT i.recipe_id, sum(a.quantity) AS quantity
          FROM planned_meal_items i
@@ -204,8 +219,8 @@ export async function listStock(pool, householdId) {
     [householdId],
   );
   const lots = await pool.query(
-    `SELECT id, recipe_id AS "recipeId", produced_on::text AS "producedOn", quantity, storage, note
-     FROM stock_lots WHERE household_id=$1 AND cancelled_at IS NULL ORDER BY produced_on DESC, created_at DESC`, [householdId]);
+    `SELECT id, recipe_id AS "recipeId", produced_on::text AS "producedOn", quantity, storage, note,parent_lot_id AS "parentLotId"
+     FROM stock_lots WHERE household_id=$1 AND cancelled_at IS NULL AND NOT is_serving_bundle ORDER BY produced_on DESC, created_at DESC`, [householdId]);
   return result.rows.map((row) => ({
     ...row,
     lots: lots.rows.filter(lot=>lot.recipeId===row.recipeId).map(lot=>({...lot,quantity:Number(lot.quantity)})),

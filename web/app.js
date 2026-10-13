@@ -214,9 +214,9 @@ async function refreshShopping() {
       for(const lot of item.lots??[]){
         const row=document.createElement('div');row.className='production-lot';
         const label=document.createElement('span');label.textContent=`Lot du ${displayDate(lot.producedOn)} · ${formatQty(lot.quantity)} ${item.unitId}${lot.note?' · '+lot.note:''}`;
-        const cancel=document.createElement('button');cancel.type='button';cancel.className='secondary';cancel.textContent='Annuler le lot';
+        const cancel=document.createElement('button');cancel.type='button';cancel.className='secondary';cancel.textContent=lot.parentLotId?'Annuler le batch complet':'Annuler le lot';
         cancel.addEventListener('click',async()=>{
-          if(!confirm(`Annuler cette saisie de ${formatQty(lot.quantity)} ${item.unitId} de « ${item.name} » ? Le lot sera retiré du stock et les ingrédients qui avaient été déduits seront remis en réserve.`))return;
+          if(!confirm((lot.parentLotId?'Les deux parties de ce batch seront annulées ensemble. ' : '')+`Annuler cette saisie de ${formatQty(lot.quantity)} ${item.unitId} de « ${item.name} » ? Le lot sera retiré du stock et les ingrédients qui avaient été déduits seront remis en réserve.`))return;
           cancel.disabled=true;
           try{
             const result=await api(`/api/household-planning/production/${lot.id}?householdId=${encodeURIComponent(state.household.id)}`,{method:'DELETE'});
@@ -681,7 +681,13 @@ function addRecipeLine(initial = null) {
   if (initial?.unknownUnit) { unit.add(new Option('Unité à préciser', ''), 0); unit.value = ''; unit.required = true; }
   unit.addEventListener('change', () => { if (search.value.trim().length >= 2) search.dispatchEvent(new Event('input')); });
   const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-line'; remove.textContent = '×'; remove.setAttribute('aria-label', 'Supprimer cet ingrédient'); remove.addEventListener('click', () => row.remove());
-  foodBox.append(search, select, changeMatch, editFood, incompleteTag, hint); row.append(foodBox, quantity, unit, remove); $('#recipe-lines').append(row);
+  const serving = document.createElement('select'); serving.name = 'servingPart'; serving.className = 'serving-part-choice'; serving.setAttribute('aria-label','Partie servie');
+  serving.add(new Option('Viande, légumes, sauce','main')); serving.add(new Option('Féculents','starch')); serving.value = initial?.servingPart ?? 'main';
+  serving.hidden = $('#recipe-form').elements.servingMode.value !== 'separate';
+  const cooking = document.createElement('select'); cooking.name='cookingFactor'; cooking.className='ingredient-cooking-choice'; cooking.setAttribute('aria-label','Coefficient de cuisson de cet ingrédient');
+  for (const [factor,label] of [['','Coefficient de la partie'],['1','Poids inchangé — ×1'],['3','Riz — ×3'],['2.5','Pâtes sèches / pois chiches — ×2,5'],['1.25','Pâtes fraîches — ×1,25'],['1.5','Pâtes fraîches — ×1,5'],['2.4','Lentilles / haricots — ×2,4'],['2.3','Corail / pois cassés — ×2,3']]) cooking.add(new Option(label,factor));
+  cooking.value=initial?.cookingFactor == null ? '' : String(initial.cookingFactor); cooking.hidden=$('#recipe-form').elements.servingMode.value === 'original';
+  foodBox.append(search, select, changeMatch, editFood, incompleteTag, hint,cooking); row.append(foodBox, quantity, unit, serving, remove); $('#recipe-lines').append(row);
   if (initial?.foodId) changeMatch.classList.remove('hidden');
   // Imported ingredient names are already a useful search query. Trigger the
   // same lookup as typing so the dropdown is populated during recipe review.
@@ -689,6 +695,21 @@ function addRecipeLine(initial = null) {
 }
 
 $('#add-line').addEventListener('click', addRecipeLine);
+function updateServingConfiguration() {
+  const form = $('#recipe-form'); const mode = form.elements.servingMode.value;
+  $('#cooking-factors').classList.toggle('hidden',mode === 'original');
+  $('#starch-factor-label').classList.toggle('hidden',mode !== 'separate');
+  $('#recipe-lines').classList.toggle('serving-parts-active',mode === 'separate');
+  $$('.serving-part-choice').forEach(select => { select.hidden = mode !== 'separate'; });
+  $$('.ingredient-cooking-choice').forEach(select=>{select.hidden=mode === 'original';});
+}
+$('#recipe-form').elements.servingMode.addEventListener('change',updateServingConfiguration);
+$('#recipe-form').elements.recipeType.addEventListener('change', () => {
+  const form = $('#recipe-form');
+  if (form.elements.recipeType.value !== 'dish' && form.elements.servingMode.value === 'separate') form.elements.servingMode.value = 'whole';
+  if (['dessert','beverage'].includes(form.elements.recipeType.value)) form.elements.servingMode.value = 'original';
+  updateServingConfiguration();
+});
 $('#new-recipe').addEventListener('click', () => openRecipeEditor());
 $('#cancel-recipe').addEventListener('click', () => { $('#recipe-form').classList.add('hidden'); $('#recipe-result').classList.add('hidden'); });
 $('#recipe-form').addEventListener('submit', async (event) => {
@@ -705,10 +726,13 @@ $('#recipe-form').addEventListener('submit', async (event) => {
     return;
   }
   const form = event.currentTarget;
+  const servingMode = form.elements.servingMode.value;
+  const servingOptions = { separateStarch: servingMode !== 'original', cookingFactors: { main: Number(form.elements.mainCookingFactor.value), starch: Number(form.elements.starchCookingFactor.value) } };
+  $$('.recipe-line').forEach((row,index) => { lines[index].servingPart = servingMode === 'separate' ? $('select[name="servingPart"]',row).value : 'main'; const factor=$('select[name="cookingFactor"]',row).value; lines[index].cookingFactor=factor === '' ? null : Number(factor); });
   try {
     const path = state.editingRecipeId ? `/api/recipes/${state.editingRecipeId}` : '/api/recipes';
     const method = state.editingRecipeId ? 'PUT' : 'POST';
-    const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, productionType: form.elements.productionType.value, recipeType: form.elements.recipeType.value, mealMoments: [...form.querySelectorAll('input[name="mealMoments"]:checked')].map((input) => input.value), instructions: form.elements.instructions.value, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, lines }) });
+    const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, productionType: form.elements.productionType.value, recipeType: form.elements.recipeType.value, mealMoments: [...form.querySelectorAll('input[name="mealMoments"]:checked')].map((input) => input.value), instructions: form.elements.instructions.value, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, ...servingOptions, lines }) });
     if (state.importingDraftId) {
       await api(`/api/recipe-imports/${state.importingDraftId}/converted`, { method: 'POST', body: JSON.stringify({ householdId: state.household.id }) });
       state.importingDraftId = null;
@@ -718,7 +742,16 @@ $('#recipe-form').addEventListener('submit', async (event) => {
     $('#recipe-form-title').textContent = 'Nouvelle recette';
     $('#recipe-form').classList.add('hidden');
     await refreshRecipes();
-  } catch (error) { showMessage(message, `Enregistrement impossible : ${error.body?.error ?? error.message}`); }
+  } catch (error) {
+    const servingErrors={
+      'serving-weight-conversion-required':'Pour estimer les grammes, complète la conversion en grammes des ingrédients exprimés en ml, cuillères ou pièces dans leurs fiches aliments.',
+      'invalid-serving-parts':'La séparation des féculents est réservée aux plats. Garde au moins un ingrédient dans la partie principale.',
+      'invalid-cooking-factor':'Le coefficient de cuisson doit être un nombre positif, au maximum 10.',
+      'serving-parts-cannot-be-disabled':'Cette recette possède déjà des portions en grammes. Conserve ce mode pour protéger les repas et stocks liés.',
+      'serving-part-removal-not-supported':'Une partie déjà utilisée ne peut pas être supprimée implicitement. Conserve les parties existantes pour protéger le planning et le stock.',
+    };
+    showMessage(message,servingErrors[error.body?.error] ?? `Enregistrement impossible : ${error.body?.error ?? error.message}`);
+  }
 });
 
 async function openRecipeEditor(id = null) {
@@ -743,6 +776,11 @@ async function openRecipeEditor(id = null) {
       form.elements.instructions.value = recipe.instructions ?? '';
       form.elements.yieldAmount.value = recipe.yield.amount;
       form.elements.yieldUnit.value = recipe.yield.unitId;
+      if (form.elements.servingMode) {
+        form.elements.servingMode.value = recipe.separateStarch ? (recipe.servingParts?.some(part=>part.servingPart==='starch') ? 'separate' : 'whole') : 'original';
+        form.elements.mainCookingFactor.value = recipe.cookingFactors?.main ?? 1;
+        form.elements.starchCookingFactor.value = recipe.cookingFactors?.starch ?? 3;
+      }
       const incompleteLines = new Set((recipe.nutrition.lineIssues ?? []).map((issue) => issue.lineIndex));
       recipe.lines.forEach((line, index) => addRecipeLine({ ...line, incomplete: incompleteLines.has(index) }));
     } catch (error) {
@@ -750,7 +788,8 @@ async function openRecipeEditor(id = null) {
       form.classList.remove('hidden');
       return;
     }
-  } else addRecipeLine();
+  } else { form.elements.servingMode && (form.elements.servingMode.value = 'whole'); addRecipeLine(); }
+  if (form.elements.servingMode) updateServingConfiguration();
   form.classList.remove('hidden');
   form.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -824,6 +863,7 @@ function openImportDraft(draft) {
   form.elements.yieldAmount.value = draft.extractionMethod === 'openai' && draft.yieldAmount == null ? '' : draft.yieldAmount || 1;
   form.elements.yieldUnit.value = draft.yieldUnitId || 'portion';
   form.elements.sourceUrl.value = draft.sourceUrl || '';
+  form.elements.servingMode.value = 'original'; updateServingConfiguration();
   for (const line of draft.ingredients) addRecipeLine({ foodName: line.foodName || line.rawText, quantity: line.quantity, unitId: line.unitId || (draft.extractionMethod === 'openai' ? null : toUnitId(line.rawText)), unknownUnit: draft.extractionMethod === 'openai' && !line.unitId });
   const reviewNotes = [...(draft.warnings ?? [])];
   if (draft.variants?.length) reviewNotes.push('Choisis une variante et ajoute ses ingrédients avant d’enregistrer la recette.');
@@ -913,6 +953,9 @@ function recipeCard(recipe) {
   const tags = [typeLabels[recipe.recipeType], ...(recipe.mealMoments ?? []).map((moment) => momentLabels[moment]).filter(Boolean)];
   if (tags.length) { taxonomy.textContent = tags.join(' · '); details.append(taxonomy); }
   const subtitle = document.createElement('p'); subtitle.textContent = `${recipe.lines.length} ingrédient${recipe.lines.length === 1 ? '' : 's'} · rendement ${format(recipe.yield.amount)} ${recipe.yield.unitId}`; details.append(subtitle);
+  if (recipe.servingParts?.length) {
+    const weights=document.createElement('p'); weights.className='muted'; weights.textContent='Poids estimés du batch : '+recipe.servingParts.map(part=>`${part.servingPart==='starch'?'féculents':recipe.servingParts.length>1?'viande et légumes':'plat entier'} ${formatQty(part.yield.amount)} g`).join(' · '); details.append(weights);
+  }
   const nutrition = document.createElement('p'); nutrition.className = 'recipe-nutrition';
   nutrition.textContent = `${format(recipe.nutrition.perYieldUnit.energyKcal)} kcal · P ${format(recipe.nutrition.perYieldUnit.proteinG)} g · G ${format(recipe.nutrition.perYieldUnit.carbohydrateG)} g · L ${format(recipe.nutrition.perYieldUnit.fatG)} g / ${recipe.yield.unitId}`;
   details.append(nutrition);
@@ -1098,7 +1141,7 @@ function mealCalories(meal) {
 function renderMealCard(meal) {
   const card = document.createElement('article'); card.className = 'planned-meal-card';
   const edit = document.createElement('button'); edit.type = 'button';
-  edit.textContent = meal.items?.filter((item) => ['main', 'accompaniment'].includes(item.role ?? 'main')).map((item) => item.recipe?.name ?? 'Recette supprimée').join(' + ') || 'Repas';
+  edit.textContent = [...new Set(meal.items?.filter(item => ['main','accompaniment'].includes(item.role ?? 'main')).map(item => item.recipe?.parentRecipeId ? item.recipe.name.split(' — ')[0] : item.recipe?.name ?? 'Recette supprimée'))].join(' + ') || 'Repas';
   const attendee = document.createElement('small'); attendee.textContent = meal.attendees?.map((person) => person.displayName).join(', ') || 'Aucune personne sélectionnée';
   const kcal = mealCalories(meal);
   const partial = meal.items?.some((item) => !item.recipe?.nutrition?.complete) ?? false;
@@ -1115,7 +1158,17 @@ function renderMealCard(meal) {
         : `${person.displayName} · ${format(result.grams)} / ${MIN_PROTEIN_G_PER_MEAL} g`;
     proteinTags.append(tag);
   }
-  card.append(edit, attendee, total, proteinTags);
+  const servingAmounts=document.createElement('div'); servingAmounts.className='meal-serving-amounts';
+  for(const person of meal.attendees ?? []) {
+    const parts=(meal.items ?? []).filter(item=>['main','accompaniment'].includes(item.role ?? 'main')).map(item=>{
+      const amount=item.amounts.find(amount=>amount.personId===person.id);
+      if(!amount)return null;
+      const name=item.recipe?.servingPart === 'starch' ? 'féculents' : item.role === 'accompaniment' ? 'accompagnement' : 'plat';
+      return `${name} ${formatQty(amount.quantity)} ${item.recipe?.yield.unitId ?? 'portion'}`;
+    }).filter(Boolean);
+    if(parts.length){const line=document.createElement('small');line.textContent=`${person.displayName} : ${parts.join(' + ')}`;servingAmounts.append(line);}
+  }
+  card.append(edit, attendee, total, proteinTags,servingAmounts);
   const duplicate=document.createElement('button');duplicate.type='button';duplicate.className='text-button';duplicate.textContent='Dupliquer';duplicate.addEventListener('click',()=>openMealDuplication(meal));card.append(duplicate);
   edit.addEventListener('click', () => openMealEditor(meal.mealDate, meal.slot, meal));
   return card;
@@ -1228,7 +1281,7 @@ function applyAutomaticPortions(items, attendeeIds) {
       const assignment = isIndividualRole(role) ? item.assignments?.[personId] : null;
       const recipeId = isIndividualRole(role) ? assignment?.recipeId : item.recipeId;
       if (!recipeId) continue;
-      const recipe = state.recipes.find((entry) => entry.id === recipeId);
+      const recipe = allPlanningRecipes().find((entry) => entry.id === recipeId);
       const kcal = recipe?.nutrition?.perYieldUnit?.energyKcal;
       const recipeUnit = recipe?.yield.unitId ?? 'portion';
       const step = recipeUnit === 'piece' ? 1 : recipeUnit === 'g' ? 10 : 0.5;
@@ -1252,12 +1305,12 @@ function applyAutomaticPortions(items, attendeeIds) {
         ? (recipeUnit === 'g' ? 10 : 1)
         : null;
       const proposedQuantity = suggestion.quantity ?? fallbackQuantity;
-      const maxQuantity = role === 'accompaniment' && recipeUnit === 'g'
+      const maxQuantity = role === 'accompaniment' && recipeUnit === 'g' && !recipe?.parentRecipeId
         ? Math.min(200, Number(recipe?.yield?.amount) * 1.5)
         : Infinity;
       const quantity = proposedQuantity == null ? null : Math.min(
         proposedQuantity,
-        capAccompanimentQuantity(proposedQuantity, { recipeUnit, recipeYieldAmount: recipe?.yield?.amount }),
+        recipe?.parentRecipeId ? proposedQuantity : capAccompanimentQuantity(proposedQuantity, { recipeUnit, recipeYieldAmount: recipe?.yield?.amount }),
       );
       item.amounts[personId] = quantity == null ? '' : String(quantity);
       if (Number.isFinite(maxQuantity) && proposedQuantity > maxQuantity) {
@@ -1293,9 +1346,9 @@ function mealProteinSummary(items, attendeeIds) {
   const root=document.createElement('div');root.id='meal-protein-summary';root.className='meal-protein-tags';root.setAttribute('role','status');
   const meal={items:Object.values(items).flatMap(item=>{
     if(isIndividualRole(item.role)) return Object.entries(item.assignments??{}).map(([personId,assignment])=>({
-      recipe:state.recipes.find(recipe=>recipe.id===assignment.recipeId),amounts:[{personId,quantity:Number(assignment.quantity)}],
+      recipe:allPlanningRecipes().find(recipe=>recipe.id===assignment.recipeId),amounts:[{personId,quantity:Number(assignment.quantity)}],
     }));
-    return [{recipe:state.recipes.find(recipe=>recipe.id===item.recipeId),amounts:Object.entries(item.amounts??{}).map(([personId,quantity])=>({personId,quantity:Number(quantity)}))}];
+    return [{recipe:allPlanningRecipes().find(recipe=>recipe.id===item.recipeId),amounts:Object.entries(item.amounts??{}).map(([personId,quantity])=>({personId,quantity:Number(quantity)}))}];
   })};
   for(const personId of attendeeIds){
     const person=state.people.find(person=>person.id===personId),result=calculatePersonProtein(meal,personId);
@@ -1310,9 +1363,10 @@ function updateMealProteinSummary() {
   $('#meal-protein-summary')?.replaceWith(mealProteinSummary(currentFormAmounts(),$$('#meal-attendees input:checked').map(input=>input.value)));
 }
 
+function allPlanningRecipes() { return state.recipes.flatMap(recipe => [recipe,...(recipe.servingParts ?? [])]); }
 function recipesForPlanning(slot, role, selectedIds = []) {
   const selected = new Set(selectedIds.filter(Boolean));
-  const eligible = state.recipes.filter((recipe) => {
+  const eligible = allPlanningRecipes().filter((recipe) => {
     const moments = recipe.mealMoments ?? [];
     if (moments.length && !moments.includes(slot)) return false;
     if (recipe.recipeType) {
@@ -1320,12 +1374,13 @@ function recipesForPlanning(slot, role, selectedIds = []) {
       if (role === 'accompaniment' && recipe.recipeType !== 'accompaniment') return false;
       if (role === 'main' && ['beverage', 'accompaniment', 'dessert'].includes(recipe.recipeType)) return false;
     }
+    if (recipe.parentRecipeId && recipe.servingPart === 'main') return false;
     return true;
   });
   const kept = new Set(eligible.map((recipe) => recipe.id));
   for (const id of selected) {
     if (!kept.has(id)) {
-      const recipe = state.recipes.find((entry) => entry.id === id);
+      const recipe = allPlanningRecipes().find((entry) => entry.id === id);
       if (recipe) eligible.push(recipe);
     }
   }
@@ -1348,7 +1403,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     [['main', 'Recette principale · 70 %'], ['accompaniment', 'Accompagnement · 20 %'], ['beverage', 'Boisson · choix individuel'], ['dessert', 'Dessert · choix individuel']].forEach(([value, label]) => role.add(new Option(label, value)));
     role.value = item.role ?? 'main';
     const slot = $('#meal-form').elements.slot.value;
-    recipesForPlanning(slot, role.value, [item.recipeId]).forEach((recipe) => select.add(new Option(`${recipe.name} · ${recipe.yield.amount} ${recipe.yield.unitId}`, recipe.id)));
+    recipesForPlanning(slot, role.value, [item.recipeId]).forEach((recipe) => select.add(new Option(`${recipe.name} · ${recipe.servingParts?.length?'portions en grammes estimés':`${recipe.yield.amount} ${recipe.yield.unitId}`}`, recipe.id)));
     select.value = item.recipeId ?? '';
     role.addEventListener('change', () => {
       const data=currentFormAmounts();data[index]={recipeId:'',role:role.value,...(isIndividualRole(role.value)?{assignments:{}}:{amounts:{}})};
@@ -1371,7 +1426,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
         personSelect.add(new Option(role.value==='dessert'?'Aucun dessert':'Aucune boisson', ''));
         recipesForPlanning(slot, role.value, [assignment.recipeId]).forEach((recipe) => personSelect.add(new Option(`${recipe.name} · ${recipe.yield.amount} ${recipe.yield.unitId}`, recipe.id)));
         personSelect.value = assignment.recipeId ?? '';
-        const recipe = state.recipes.find((entry) => entry.id === personSelect.value);
+        const recipe = allPlanningRecipes().find((entry) => entry.id === personSelect.value);
         const unit = recipe?.yield.unitId ?? 'portion';
         const step = role.value==='dessert' && ['g','ml'].includes(unit) ? 'any' : unit === 'piece' ? '1' : unit === 'g' ? '10' : '0.5';
         const input = document.createElement('input'); input.type = 'number'; input.min = '0'; input.step = step; input.dataset.personId = personId;
@@ -1387,7 +1442,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
             const quantity = $('input[data-person-id]', personRow).value;
             rowData.assignments[personId] = {
               recipeId,
-              quantity: assignment.recipeId === recipeId && quantity !== '' ? quantity : String(individualDefaultQuantity(state.recipes.find(recipe=>recipe.id===recipeId),role.value)),
+              quantity: assignment.recipeId === recipeId && quantity !== '' ? quantity : String(individualDefaultQuantity(allPlanningRecipes().find(recipe=>recipe.id===recipeId),role.value)),
             };
           } else {
             delete rowData.assignments[personId];
@@ -1402,18 +1457,32 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     } else {
       for (const personId of attendees) {
         const person = state.people.find((entry) => entry.id === personId);
-        const label = document.createElement('label'); label.textContent = `${person?.displayName ?? 'Personne'} · ${state.recipes.find((recipe) => recipe.id === item.recipeId)?.yield.unitId ?? 'portion'}`;
-        const recipe = state.recipes.find((entry) => entry.id === item.recipeId);
+        const label = document.createElement('label'); label.textContent = `${person?.displayName ?? 'Personne'} · ${allPlanningRecipes().find((recipe) => recipe.id === item.recipeId)?.yield.unitId ?? 'portion'}`;
+        const recipe = allPlanningRecipes().find((entry) => entry.id === item.recipeId);
         const unit = recipe?.yield.unitId ?? 'portion';
         const step = unit === 'piece' ? '1' : unit === 'g' ? '10' : '0.5';
-        const input = document.createElement('input'); input.type = 'number'; input.min = step; input.step = step; input.required = true; input.dataset.personId = personId;
+        const input = document.createElement('input'); input.type = 'number'; input.min = unit === 'g' ? '0.01' : step; input.step = unit === 'g' ? 'any' : step; input.required = true; input.dataset.personId = personId;
         input.value = item.amounts?.[personId] ?? ''; input.placeholder = 'Ex. 1'; input.setAttribute('aria-label', `Quantité pour ${person?.displayName ?? 'personne'}`);
         input.addEventListener('input',updateMealProteinSummary);
         label.append(input); quantities.append(label);
       }
-      select.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
+      select.addEventListener('change', () => {
+        const data = currentFormAmounts();
+        const recipe = state.recipes.find(recipe => recipe.id === select.value);
+        if (recipe?.servingParts?.length) {
+          const main = recipe.servingParts.find(part => part.servingPart === 'main');
+          const starch = recipe.servingParts.find(part => part.servingPart === 'starch');
+          data[index] = {recipeId:main.id,role:role.value,amounts:{}};
+          if (starch) data[Math.max(-1,...Object.keys(data).map(Number))+1] = {recipeId:starch.id,role:'accompaniment',amounts:{}};
+        }
+        renderPlannedItems(data,{autoSuggest:true});
+      });
     }
-    row.append(top, quantities); return row;
+    row.append(top, quantities);
+    if (allPlanningRecipes().find(recipe=>recipe.id===item.recipeId)?.parentRecipeId) {
+      const estimate=document.createElement('small'); estimate.className='muted'; estimate.textContent='Grammes estimés à partir des ingrédients et du coefficient de cuisson.'; row.append(estimate);
+    }
+    return row;
   });
   const summary=mealProteinSummary(source,attendees);
   if (suggestionNotice) root.replaceChildren(summary, suggestionNotice, ...editorRows);
