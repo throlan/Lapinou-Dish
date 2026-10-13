@@ -6,7 +6,7 @@ import { getOpenFoodFactsProduct, searchOpenFoodFacts } from './open-food-facts.
 import { createRecipe, listRecipes, readRecipe, updateRecipe, validateRecipeInput } from './recipes.mjs';
 import { listImportDrafts, saveImportDrafts } from './recipe-imports.mjs';
 import { addProfileHistory, addWeightEntry, createPerson, listPeople, validatePersonInput, validateProfileHistoryInput, validateWeightInput } from './people.mjs';
-import { deletePlannedMeal, listPlannedMeals, savePlannedMeal, validatePlannedMeal } from './planning.mjs';
+import { deletePlannedMeal, duplicatePlannedMeal, listPlannedMeals, savePlannedMeal, validateMealDuplication, validatePlannedMeal } from './planning.mjs';
 import { addStockLot, cancelStockLot, completeRoutine, getRoutineSettings, listShoppingRequirements, listStock, saveRoutineSettings, saveShoppingLineState, validateProductionInput, validateRoutineSettings, validateShoppingLineState } from './household-planning.mjs';
 import { parseRecipeArchive, parseRecipeText } from '../domain/recipe-import.mjs';
 import { readFile } from 'node:fs/promises';
@@ -251,6 +251,15 @@ export async function handleRequest(request, response, pool, appPassword = null)
         if (meal?.error) return send(response, 400, { error: meal.error });
         return send(response, 201, { meal });
       } catch { return send(response, 500, { error: 'planning-save-failed' }); }
+    }
+    const duplicateSourceId=url.pathname.match(/^\/api\/planning\/meals\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/duplicate$/i)?.[1];
+    if(duplicateSourceId && request.method==='POST'){
+      const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
+      const validation=validateMealDuplication(body.value);if(validation.error)return send(response,400,validation);
+      try{
+        const result=await duplicatePlannedMeal(pool,duplicateSourceId,validation.data);
+        return send(response,result.error?(result.error==='source-meal-not-found'?404:409):201,result);
+      }catch{return send(response,500,{error:'meal-duplication-failed'});}
     }
     const plannedMealId = url.pathname.match(/^\/api\/planning\/meals\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i)?.[1];
     if (plannedMealId && request.method === 'PUT') {

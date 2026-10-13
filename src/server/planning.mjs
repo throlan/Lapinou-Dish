@@ -108,6 +108,46 @@ export async function deletePlannedMeal(pool, id, householdId) {
   return Boolean(result.rowCount);
 }
 
+export function validateMealDuplication(input) {
+  if (!input || !isUuid(input.householdId) || !isUuid(input.requestId)
+    || !slots.has(input.slot) || !Array.isArray(input.dates) || !input.dates.length || input.dates.length > 62
+    || input.dates.some(date=>!isDate(date)) || new Set(input.dates).size !== input.dates.length) return { error:'invalid-meal-duplication' };
+  return {data:{householdId:input.householdId,requestId:input.requestId,slot:input.slot,dates:[...input.dates].sort()}};
+}
+
+export async function duplicatePlannedMeal(pool, sourceId, input) {
+  const client=await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',['meal-copy:'+input.householdId+':'+input.requestId]);
+    const previous=await client.query('SELECT source_meal_id, target_dates::text[] AS dates, slot, meal_ids FROM planned_meal_duplications WHERE household_id=$1 AND request_id=$2',[input.householdId,input.requestId]);
+    if(previous.rowCount){
+      const saved=previous.rows[0];await client.query('ROLLBACK');
+      if(saved.source_meal_id!==sourceId || saved.slot!==input.slot || JSON.stringify(saved.dates)!==JSON.stringify(input.dates))return {error:'duplication-request-conflict'};
+      return {mealIds:saved.meal_ids,replayed:true};
+    }
+    const source=await client.query('SELECT meal_date::text AS date, slot, notes FROM planned_meals WHERE id=$1 AND household_id=$2 FOR SHARE',[sourceId,input.householdId]);
+    if(!source.rowCount){await client.query('ROLLBACK');return {error:'source-meal-not-found'};}
+    if(input.slot===source.rows[0].slot && input.dates.includes(source.rows[0].date)){
+      await client.query('ROLLBACK');return {error:'source-date-selected'};
+    }
+    const items=await client.query('SELECT id,recipe_id,sort_order,role FROM planned_meal_items WHERE meal_id=$1 ORDER BY sort_order',[sourceId]);
+    const mealIds=[];
+    for(const date of input.dates){
+      const id=randomUUID();mealIds.push(id);
+      await client.query('INSERT INTO planned_meals(id,household_id,meal_date,slot,notes) VALUES($1,$2,$3,$4,$5)',[id,input.householdId,date,input.slot,source.rows[0].notes]);
+      await client.query('INSERT INTO planned_meal_attendees(meal_id,person_id) SELECT $1,person_id FROM planned_meal_attendees WHERE meal_id=$2',[id,sourceId]);
+      for(const item of items.rows){
+        const newId=randomUUID();
+        await client.query('INSERT INTO planned_meal_items(id,meal_id,recipe_id,sort_order,role) VALUES($1,$2,$3,$4,$5)',[newId,id,item.recipe_id,item.sort_order,item.role]);
+        await client.query('INSERT INTO planned_amounts(planned_item_id,person_id,quantity) SELECT $1,person_id,quantity FROM planned_amounts WHERE planned_item_id=$2',[newId,item.id]);
+      }
+    }
+    await client.query('INSERT INTO planned_meal_duplications(household_id,request_id,source_meal_id,target_dates,slot,meal_ids) VALUES($1,$2,$3,$4,$5,$6)',[input.householdId,input.requestId,sourceId,input.dates,input.slot,mealIds]);
+    await client.query('COMMIT');return {mealIds};
+  }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+}
+
 async function readPlannedMeal(client, meal, householdId) {
   let row = meal;
   if (meal.meal_date == null) {

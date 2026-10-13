@@ -4,6 +4,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 import { saveIngredientStock, listIngredientStock } from '../src/server/ingredient-stock.mjs';
 import { addStockLot, cancelStockLot, listShoppingRequirements, listStock } from '../src/server/household-planning.mjs';
+import { duplicatePlannedMeal, validateMealDuplication } from '../src/server/planning.mjs';
 
 const householdId='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const whey='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -75,6 +76,30 @@ test('ingredient inventory and shopping run against PostgreSQL, with atomic prod
     assert.deepEqual(await listShoppingRequirements(pool,householdId,today,today),[]);
   });
   await pool.query('UPDATE planned_amounts SET quantity=48 WHERE planned_item_id=$1',[item]);
+  await t.test('copying complete meals preserves people, roles, quantities and notes on several dates',async()=>{
+    // Include a personal beverage and an accompaniment in the stored meal.
+    await pool.query('INSERT INTO planned_meal_attendees(meal_id,person_id) VALUES($1,$2)',[meal,person]);
+    await pool.query("UPDATE planned_meals SET notes='Synthetic batch note' WHERE id=$1",[meal]);
+    await pool.query("INSERT INTO planned_meal_items(id,meal_id,recipe_id,role,sort_order) VALUES ('99999999-9999-4999-8999-999999999999',$1,$2,'beverage',1),('aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa',$1,$2,'accompaniment',2)",[meal,recipeId]);
+    await pool.query("INSERT INTO planned_amounts(planned_item_id,person_id,quantity) VALUES ('99999999-9999-4999-8999-999999999999',$1,3),('aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa',$1,150)",[person]);
+    const input={householdId,requestId:'aaaaaaaa-2222-4222-8222-aaaaaaaaaaaa',dates:['2027-01-04','2027-01-11'],slot:'breakfast'};
+    assert.ok(validateMealDuplication(input).data);
+    assert.equal(validateMealDuplication({...input,dates:['2027-02-30']}).error,'invalid-meal-duplication');
+    assert.equal(validateMealDuplication({...input,dates:['2027-01-04','2027-01-04']}).error,'invalid-meal-duplication');
+    const result=await duplicatePlannedMeal(pool,meal,input);assert.equal(result.mealIds.length,2);
+    for(const id of result.mealIds){
+      const copied=await pool.query('SELECT notes,slot FROM planned_meals WHERE id=$1',[id]);assert.equal(copied.rows[0].notes,'Synthetic batch note');
+      assert.equal((await pool.query('SELECT person_id FROM planned_meal_attendees WHERE meal_id=$1',[id])).rows[0].person_id,person);
+      const amounts=await pool.query('SELECT i.role,a.quantity FROM planned_meal_items i JOIN planned_amounts a ON a.planned_item_id=i.id WHERE i.meal_id=$1 ORDER BY i.sort_order',[id]);
+      assert.deepEqual(amounts.rows.map(row=>[row.role,Number(row.quantity)]),[['main',48],['beverage',3],['accompaniment',150]]);
+    }
+    assert.equal((await duplicatePlannedMeal(pool,meal,input)).replayed,true);
+    assert.equal((await duplicatePlannedMeal(pool,meal,{...input,slot:'lunch'})).error,'duplication-request-conflict');
+    assert.equal((await duplicatePlannedMeal(pool,meal,{...input,requestId:'aaaaaaaa-3333-4333-8333-aaaaaaaaaaaa',dates:[today]})).error,'source-date-selected');
+    assert.equal((await duplicatePlannedMeal(pool,meal,{...input,householdId:'aaaaaaaa-4444-4444-8444-aaaaaaaaaaaa'})).error,'source-meal-not-found');
+    await pool.query('DELETE FROM planned_meals WHERE id=ANY($1::uuid[])',[result.mealIds]);
+    await pool.query("DELETE FROM planned_meal_items WHERE meal_id=$1 AND role<>'main'",[meal]);
+  });
   await t.test('planned shortage anticipates ordering within the delivery lead time',async()=>{
     const stocks=await listIngredientStock(pool,householdId);
     const wheyStock=stocks.find(row=>row.foodId===whey);

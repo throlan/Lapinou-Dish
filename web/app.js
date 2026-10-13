@@ -1056,6 +1056,7 @@ function renderMealCard(meal) {
     proteinTags.append(tag);
   }
   card.append(edit, attendee, total, proteinTags);
+  const duplicate=document.createElement('button');duplicate.type='button';duplicate.className='text-button';duplicate.textContent='Dupliquer';duplicate.addEventListener('click',()=>openMealDuplication(meal));card.append(duplicate);
   edit.addEventListener('click', () => openMealEditor(meal.mealDate, meal.slot, meal));
   return card;
 }
@@ -1354,6 +1355,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
 async function openMealEditor(date, slot, meal = null) {
   if (!state.people.length || !state.recipes.length) await refreshCalendar();
   state.calendarMealId = meal?.id ?? null;
+  state.duplicationMeal = meal;
   const form = $('#meal-form'); form.reset();
   $('#meal-message').textContent = '';
   $('#meal-dialog-title').textContent = meal ? 'Modifier le repas' : 'Planifier un repas';
@@ -1361,6 +1363,7 @@ async function openMealEditor(date, slot, meal = null) {
   form.elements.slot.value = slot;
   form.elements.notes.value = meal?.notes ?? '';
   $('#delete-meal').classList.toggle('hidden', !meal);
+  $('#duplicate-meal').classList.toggle('hidden', !meal);
   const attendeeRoot = $('#meal-attendees');
   attendeeRoot.replaceChildren(...state.people.map((person) => {
     const label = document.createElement('label'); label.className = 'attendee-option';
@@ -1385,9 +1388,50 @@ async function openMealEditor(date, slot, meal = null) {
   }
   if (beverageRow) items[nextItemIndex++] = beverageRow;
   if (!Object.keys(items).length) items[0] = { recipeId: '', amounts: {} };
-  renderPlannedItems(items, { autoSuggest: true });
+  renderPlannedItems(items, { autoSuggest: !meal });
   $('#meal-dialog').showModal();
 }
+
+let duplicationSource=null, pendingDuplication=null;
+function openMealDuplication(meal){
+  duplicationSource=meal;pendingDuplication=null;
+  const form=$('#duplicate-meal-form');form.reset();
+  form.elements.startDate.value=addDays(meal.mealDate,1);form.elements.endDate.value=form.elements.startDate.value;form.elements.slot.value=meal.slot;
+  $('#duplicate-source').textContent=`Repas du ${displayDate(meal.mealDate)} · ${slotLabels[meal.slot]}`;
+  $('#duplicate-message').textContent='';$('#meal-dialog').close();updateDuplicationPreview();$('#duplicate-meal-dialog').showModal();
+}
+function duplicationDates(){
+  const form=$('#duplicate-meal-form'),start=form.elements.startDate.value,end=form.elements.endDate.value;
+  if(!start||!end||end<start||Number.isNaN(new Date(start).getTime())||Number.isNaN(new Date(end).getTime()))return [];
+  const weekdays=new Set($$('input[name="weekday"]:checked',form).map(input=>Number(input.value))),dates=[];
+  let date=start;
+  for(let count=0;date<=end&&count<=366;count++,date=addDays(date,1)){
+    if(weekdays.has(new Date(date+'T12:00:00').getDay()) && !(date===duplicationSource.mealDate&&form.elements.slot.value===duplicationSource.slot))dates.push(date);
+  }
+  if(date<=end||dates.length>62)return null;
+  return dates;
+}
+function updateDuplicationPreview(){
+  const dates=duplicationDates();$('#duplicate-preview').textContent=dates===null?'Choisis au maximum 62 dates sur une période d’un an.':dates.length?`${dates.length} repas à ajouter : ${dates.map(date=>displayDate(date,{day:'numeric',month:'short'})).join(' · ')}`:'Aucune date à copier. Choisis une période et des jours.';
+}
+$('#duplicate-meal').addEventListener('click',()=>{
+  const meal=state.duplicationMeal;if(meal)openMealDuplication(meal);
+});
+$('#close-duplicate-meal').addEventListener('click',()=>$('#duplicate-meal-dialog').close());
+$('#duplicate-meal-form').addEventListener('change',updateDuplicationPreview);
+$('#duplicate-meal-form').addEventListener('submit',async event=>{
+  event.preventDefault();const form=event.currentTarget,button=$('button[type="submit"]',form),dates=duplicationDates();
+  if(button.disabled)return;
+  if(!dates?.length){showMessage($('#duplicate-message'),'Choisis de 1 à 62 dates valides.');return;}
+  const payload={householdId:state.household.id,dates,slot:form.elements.slot.value},fingerprint=JSON.stringify(payload);
+  if(pendingDuplication?.fingerprint!==fingerprint)pendingDuplication={fingerprint,requestId:newProductionRequestId()};
+  button.disabled=true;showMessage($('#duplicate-message'),'Création des copies…');
+  try{
+    await api(`/api/planning/meals/${duplicationSource.id}/duplicate`,{method:'POST',body:JSON.stringify({...payload,requestId:pendingDuplication.requestId})});
+    $('#duplicate-meal-dialog').close();state.calendarWeekStart=mondayOf(dates[0]);setView('calendar');await refreshCalendar();await refreshDashboard();
+  }catch(error){showMessage($('#duplicate-message'),error.body?.error==='source-meal-not-found'?'Le repas source n’existe plus. Actualise le calendrier.':'Copies non créées : '+(error.body?.error??error.message));}
+  finally{button.disabled=false;}
+});
 
 $('#previous-week').addEventListener('click', () => { state.calendarWeekStart = addDays(state.calendarWeekStart, -7); refreshCalendar(); });
 $('#next-week').addEventListener('click', () => { state.calendarWeekStart = addDays(state.calendarWeekStart, 7); refreshCalendar(); });
