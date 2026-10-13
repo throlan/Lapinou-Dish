@@ -289,6 +289,8 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
 .shopping-detail { display:block; color:var(--muted); font-size:.8rem; margin-top:4px; }
 .shopping-recipes summary { cursor:pointer; }
 .shopping-recipe-links { display:flex; flex-wrap:wrap; gap:4px 10px; margin-top:4px; }
+.shopping-recipe-source { display:inline-flex; align-items:baseline; gap:5px; }
+.shopping-recipe-amount { color:var(--muted); font-size:.8rem; }
 .shopping-recipe-links button { border:0; padding:0; background:none; color:var(--accent,#27d3df); font:inherit; text-align:left; text-decoration:underline; cursor:pointer; }
 @media(max-width:900px){.ingredient-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.ingredient-fields{grid-template-columns:1fr}}

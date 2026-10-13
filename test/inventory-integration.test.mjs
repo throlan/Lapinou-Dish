@@ -108,7 +108,7 @@ test('ingredient inventory and shopping run against PostgreSQL, with atomic prod
     const shopping=await listShoppingRequirements(pool,householdId,today,today);
     assert.equal(shopping.length,1);assert.equal(shopping[0].foodId,whey);
     assert.equal(shopping[0].quantity,740);assert.equal(shopping[0].unitId,'g');
-    assert.deepEqual(shopping[0].recipes,[{id:recipeId,name:'Test muffins'}]);
+    assert.deepEqual(shopping[0].recipes,[{id:recipeId,name:'Test muffins',quantity:0.24,unitId:'kg'}]);
   });
   await t.test('finished batches reserved for earlier meals cannot cover later meals a second time',async()=>{
     await db.exec(`

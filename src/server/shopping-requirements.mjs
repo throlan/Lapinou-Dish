@@ -27,14 +27,17 @@ export async function rawShoppingRequirements(pool, householdId, startDate, endD
        GROUP BY f.id, rl.unit_id, r.id
      )
      SELECT food_id AS "foodId", name, unit_id AS "unitId", sum(quantity) AS quantity,
-            jsonb_agg(jsonb_build_object('id', recipe_id, 'name', recipe_name) ORDER BY recipe_name) AS recipes,
+            jsonb_agg(jsonb_build_object('id', recipe_id, 'name', recipe_name,
+              'quantity', quantity, 'unitId', unit_id) ORDER BY recipe_name) AS recipes,
             grams_per_millilitre AS "gramsPerMillilitre", grams_per_unit AS "gramsPerUnit"
      FROM ingredient_requirements
      GROUP BY food_id, name, unit_id, grams_per_millilitre, grams_per_unit
      ORDER BY name, "unitId"`,
     [householdId, startDate, endDate],
   );
-  return result.rows.map(row => ({ ...row, quantity: Number(row.quantity), recipes: row.recipes ?? [],
+  return result.rows.map(row => ({ ...row, quantity: Number(row.quantity), recipes: (row.recipes ?? []).map(recipe => ({
+    ...recipe, quantity: Number(recipe.quantity),
+  })),
     gramsPerMillilitre: row.gramsPerMillilitre == null ? null : Number(row.gramsPerMillilitre),
     gramsPerUnit: Object.fromEntries(Object.entries(row.gramsPerUnit).map(([key,value]) => [key,Number(value)])),
   }));
