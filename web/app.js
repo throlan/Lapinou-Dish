@@ -1216,13 +1216,33 @@ function applyAutomaticPortions(items, attendeeIds) {
       else if (!result.proteinTargetMet) messages.add(`${person?.displayName ?? 'Une personne'} : impossible d’atteindre ${MIN_PROTEIN_G_PER_MEAL} g de protéines sans dépasser l’enveloppe ou les portions maximales.`);
     }
   }
-  const notice = document.createElement('p');
-  notice.className = messages.size ? 'form-message warning' : 'form-message';
-  notice.setAttribute('role', 'status');
-  notice.textContent = messages.size
-    ? [...messages].join(' ')
-    : 'Les portions du plat et des accompagnements sont proposées automatiquement, avec un objectif minimal de 4 g de protéines par personne et par repas. Les accompagnements en grammes sont limités à 1,5 rendement, dans la limite de 200 g. La boisson reste individuelle et facultative; ses calories comptent dans le budget.';
+  const notice = document.createElement('details');
+  const title = document.createElement('summary');title.textContent = 'Détails du calcul des portions';
+  const explanation = document.createElement('p');explanation.className = 'form-message';
+  explanation.textContent = messages.size ? [...messages].join(' ') : `Portions proposées avec un repère de ${MIN_PROTEIN_G_PER_MEAL} g de protéines par personne. Les quantités restent ajustables.`;
+  notice.append(title,explanation);
   $('#planned-items').replaceChildren(notice);
+}
+
+function mealProteinSummary(items, attendeeIds) {
+  const root=document.createElement('div');root.id='meal-protein-summary';root.className='meal-protein-tags';root.setAttribute('role','status');
+  const meal={items:Object.values(items).flatMap(item=>{
+    if(item.role==='beverage') return Object.entries(item.assignments??{}).map(([personId,assignment])=>({
+      recipe:state.recipes.find(recipe=>recipe.id===assignment.recipeId),amounts:[{personId,quantity:Number(assignment.quantity)}],
+    }));
+    return [{recipe:state.recipes.find(recipe=>recipe.id===item.recipeId),amounts:Object.entries(item.amounts??{}).map(([personId,quantity])=>({personId,quantity:Number(quantity)}))}];
+  })};
+  for(const personId of attendeeIds){
+    const person=state.people.find(person=>person.id===personId),result=calculatePersonProtein(meal,personId);
+    const tag=document.createElement('span');tag.className=`protein-tag ${!result.known?'protein-unknown':result.grams>=MIN_PROTEIN_G_PER_MEAL?'protein-sufficient':'protein-low'}`;
+    tag.textContent=`${person?.displayName??'Personne'} : ${result.known?format(result.grams):'—'} / ${MIN_PROTEIN_G_PER_MEAL} g de protéines`;
+    if(!result.known)tag.title='Quantités ou données protéiques à compléter';
+    root.append(tag);
+  }
+  return root;
+}
+function updateMealProteinSummary() {
+  $('#meal-protein-summary')?.replaceWith(mealProteinSummary(currentFormAmounts(),$$('#meal-attendees input:checked').map(input=>input.value)));
 }
 
 function recipesForPlanning(slot, role, selectedIds = []) {
@@ -1287,6 +1307,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
         const step = unit === 'piece' ? '1' : unit === 'g' ? '10' : '0.5';
         const input = document.createElement('input'); input.type = 'number'; input.min = '0'; input.step = step; input.dataset.personId = personId;
         input.value = assignment.quantity == null || assignment.quantity === '' ? (personSelect.value ? '1' : '') : assignment.quantity; input.placeholder = 'Quantité (0 si aucune)'; input.setAttribute('aria-label', `Quantité de boisson pour ${person?.displayName ?? 'personne'}`);
+        input.addEventListener('input',updateMealProteinSummary);
         if (!personSelect.value) input.disabled = true;
         personSelect.addEventListener('change', () => {
           const data = currentFormAmounts();
@@ -1318,14 +1339,16 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
         const step = unit === 'piece' ? '1' : unit === 'g' ? '10' : '0.5';
         const input = document.createElement('input'); input.type = 'number'; input.min = step; input.step = step; input.required = true; input.dataset.personId = personId;
         input.value = item.amounts?.[personId] ?? ''; input.placeholder = 'Ex. 1'; input.setAttribute('aria-label', `Quantité pour ${person?.displayName ?? 'personne'}`);
+        input.addEventListener('input',updateMealProteinSummary);
         label.append(input); quantities.append(label);
       }
       select.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
     }
     row.append(top, quantities); return row;
   });
-  if (suggestionNotice) root.replaceChildren(suggestionNotice, ...editorRows);
-  else root.replaceChildren(...editorRows);
+  const summary=mealProteinSummary(source,attendees);
+  if (suggestionNotice) root.replaceChildren(summary, suggestionNotice, ...editorRows);
+  else root.replaceChildren(summary,...editorRows);
 }
 
 async function openMealEditor(date, slot, meal = null) {
