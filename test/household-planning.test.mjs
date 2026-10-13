@@ -28,6 +28,9 @@ test('shopping line changes validate period and category', () => {
   assert.equal(validateShoppingLineState(input).data.checked, true);
   assert.equal(validateShoppingLineState({...input,groupId:'unknown'}).error, 'invalid-shopping-line');
   assert.equal(validateShoppingLineState({...input,endDate:'2026-10-01'}).error, 'invalid-shopping-line');
+  assert.equal(validateShoppingLineState({...input,packageQuantity:500}).data.packageQuantity,500);
+  assert.equal(validateShoppingLineState({...input,packageQuantity:0}).error,'invalid-shopping-line');
+  assert.equal(validateShoppingLineState({...input,packageQuantity:null}).data.packageQuantity,null);
 });
 
 test('shopping quantities sum recipe needs and round fractional pieces up for purchase', () => {

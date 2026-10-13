@@ -52,6 +52,7 @@ textarea { resize:vertical; }
 .recipe-line .food-hint { grid-column:1/-1; }
 .remove-line,.icon-button { border:0; border-radius:50%; width:38px; height:38px; background:#f2f0e9; color:#526157; font-size:20px; }
 .food-actions { display:flex; flex-wrap:wrap; gap:7px; white-space:nowrap; }
+.danger-button { color:#ff8b9a; }
 #food-dialog { width:min(760px,calc(100vw - 28px)); }
 #food-form>label { margin:12px 0; }
 #food-form fieldset { border:1px solid #e5e1d7; border-radius:12px; margin:15px 0; padding:13px; }
@@ -267,7 +268,8 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
 .shopping-groups { display:grid; gap:14px; }
 .shopping-group { border:1px solid var(--line,#344766); border-radius:14px; overflow:hidden; }
 .shopping-group h4 { margin:0; padding:12px 14px; background:var(--surface-raised,#202f4b); }
-.shopping-item { display:grid; grid-template-columns:24px minmax(100px,1fr) auto minmax(125px,.6fr); gap:10px; align-items:center; padding:9px 12px; border-top:1px solid var(--line,#344766); }
+.shopping-item { display:grid; grid-template-columns:24px minmax(100px,1fr) auto minmax(110px,.45fr) minmax(125px,.6fr); gap:10px; align-items:center; padding:9px 12px; border-top:1px solid var(--line,#344766); }
+.shopping-pack-input { min-width:0; padding:9px; }
 .shopping-item.checked .shopping-item-name { text-decoration:line-through; opacity:.65; }
 .shopping-quantity { white-space:nowrap; color:var(--muted,#9bb0d1); }
 .stock-row { position:relative; padding:13px; margin:10px 0; border:1px solid var(--line,#344766); border-radius:14px; background:var(--surface-raised,#202f4b); }
@@ -275,7 +277,7 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
 .stock-status { font-size:.82rem; font-weight:700; color:var(--accent,#27d3df); }
 #shopping-view .card h3 { margin-top:0; }
 @media (max-width:900px) { .shopping-columns { grid-template-columns:1fr; } .routine-row { grid-template-columns:1fr 1fr; } }
-@media (max-width:560px) { .routine-row { grid-template-columns:1fr; } .shopping-range { flex-wrap:wrap; } .shopping-item { grid-template-columns:24px 1fr auto; } .shopping-item select { grid-column:2 / 4; } }
+@media (max-width:560px) { .routine-row { grid-template-columns:1fr; } .shopping-range { flex-wrap:wrap; } .shopping-item { grid-template-columns:24px 1fr auto; } .shopping-item select,.shopping-pack-input { grid-column:2 / 4; } }
 
 /* Home dashboard */
 .ingredient-section { margin-top:20px; }
