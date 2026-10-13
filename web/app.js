@@ -286,9 +286,10 @@ async function refreshShoppingList() {
       entries.forEach(item => {
         const row=document.createElement('div'); row.className='shopping-item'+(item.checked?' checked':'');
         const checkbox=document.createElement('input'); checkbox.type='checkbox'; checkbox.checked=item.checked; checkbox.setAttribute('aria-label','Acheté : '+item.name);
-        const name=document.createElement('span'); name.className='shopping-item-name'; name.textContent=item.name;
+        const name=document.createElement('div'); name.className='shopping-item-name'; name.append(document.createTextNode(item.name));
         const qty=document.createElement('span'); qty.className='shopping-quantity'; qty.textContent=`${formatQty(item.quantity)} ${item.unitId}`;
         if(item.warning){const detail=document.createElement('small');detail.className='shopping-detail';detail.textContent=item.warning;name.append(detail);}
+        if(item.recipeNames?.length){const recipes=document.createElement('details');recipes.className='shopping-detail shopping-recipes';const summary=document.createElement('summary');summary.textContent=`Dans ${item.recipeNames.length} recette${item.recipeNames.length===1?'':'s'}`;const names=document.createElement('span');names.textContent=item.recipeNames.join(' · ');recipes.append(summary,names);name.append(recipes);}
         const group=document.createElement('select'); group.setAttribute('aria-label','Catégorie de '+item.name);
         for (const [key,label] of Object.entries(groupLabels)) group.add(new Option(label,key));
         group.value=item.groupId;

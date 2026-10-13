@@ -247,7 +247,8 @@ export async function listShoppingRequirements(pool, householdId, startDate, end
       // Keep the unresolved units visible; do not silently subtract grams from pieces.
       items.push(...requirements.filter(row => row.foodId===stock.foodId).map(row => ({...row,warning:'Conversion manquante : stock non déduit'})));
     } else if (projection.orderG > 0) {
-      items.push({foodId:stock.foodId,name:stock.name,unitId:'g',quantity:projection.orderG,groupId:'whey_flour',
+      const recipeNames=[...new Set(requirements.filter(row=>row.foodId===stock.foodId).flatMap(row=>row.recipeNames??[]))].sort();
+      items.push({foodId:stock.foodId,name:stock.name,unitId:'g',quantity:projection.orderG,groupId:'whey_flour',recipeNames,
         warning:`Stock : ${stock.quantityG} g · besoin : ${projection.neededG} g · minimum : ${stock.minimumG} g`});
     }
   }
