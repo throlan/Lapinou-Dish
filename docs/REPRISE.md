@@ -65,7 +65,7 @@ La version publiée de référence est 0.2.47 (PR #58). Le correctif de ce soir 
 
 Commence par retrouver le dépôt, afficher git status, la branche, HEAD et les différences locales avant toute mise à jour. Ne réinitialise et n'écrase aucun fichier. Récupère la branche fix/shopping-list-scroll-handoff en préservant tout travail local, puis lance les 146 tests avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs`. Avant de prendre le contrôle du navigateur, demande-moi; après mon accord, teste dans Chrome la modification successive de plusieurs champs de conditionnement, en vérifiant que la page reste au même endroit et que les quantités s'actualisent. Si le parcours est bon, ouvre une PR et suis les contrôles GitHub.
 
-Règle absolue : ne jamais accéder à Unraid, le vérifier, le modifier ou y déployer. Je m'occupe moi-même de l'installation. Ne touche pas à Nginx. Ne prends pas le contrôle du navigateur sans me demander d'abord, sauf pour le test ciblé ci-dessus après m'avoir demandé.
+Règle absolue : ne jamais accéder à Unraid, le vérifier, le modifier ou y déployer. Je m'occupe moi-même de l'installation. Ne touche pas à Nginx. Ne prends pas le contrôle du navigateur sans me demander d'abord.
 ```
 
 ## Validation et livraison
