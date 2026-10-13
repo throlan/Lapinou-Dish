@@ -1100,11 +1100,15 @@ function renderCalendarSummary(meals, people, weekStart) {
   const note = document.createElement('p'); note.className = 'muted'; note.textContent = 'Estimations prévues à partir des recettes. Les données inconnues restent visibles; ce récapitulatif ne représente pas une consommation réelle.'; summary.append(note);
 }
 
+function isIndividualRole(role) { return role === 'beverage' || role === 'dessert'; }
+function individualDefaultQuantity(recipe, role) {
+  return role === 'dessert' && ['g','ml'].includes(recipe?.yield?.unitId) ? recipe.yield.amount : 1;
+}
 function currentFormAmounts() {
   const output = {};
   $$('.planned-item-editor', $('#planned-items')).forEach((row, index) => {
     const role = $('select[name="role"]', row)?.value ?? 'main';
-    if (role === 'beverage') {
+    if (isIndividualRole(role)) {
       const assignments = {};
       $$('.beverage-person', row).forEach((personRow) => {
         const personId = personRow.dataset.personId;
@@ -1148,10 +1152,10 @@ function applyAutomaticPortions(items, attendeeIds) {
   const date = $('#meal-form').elements.mealDate.value;
   const slot = $('#meal-form').elements.slot.value;
   const roleWeights = { main: 0.7, accompaniment: 0.2 };
-  const selectedItems = Object.values(items).filter((item) => item.recipeId || (item.role === 'beverage' && Object.keys(item.assignments ?? {}).length));
+  const selectedItems = Object.values(items).filter((item) => item.recipeId || (isIndividualRole(item.role) && Object.keys(item.assignments ?? {}).length));
   const messages = new Set();
   for (const personId of attendeeIds) {
-    const selectedForPerson = selectedItems.filter((item) => (item.role ?? 'main') !== 'beverage' || item.assignments?.[personId]?.recipeId);
+    const selectedForPerson = selectedItems.filter((item) => !isIndividualRole(item.role ?? 'main') || item.assignments?.[personId]?.recipeId);
     const roleCounts = Object.fromEntries(Object.keys(roleWeights).map((role) => [role, selectedForPerson.filter((item) => (item.role ?? 'main') === role).length]));
     const activeWeight = Object.entries(roleCounts).reduce((sum, [role, count]) => sum + (count ? roleWeights[role] : 0), 0);
     const person = state.people.find((entry) => entry.id === personId);
@@ -1162,14 +1166,14 @@ function applyAutomaticPortions(items, attendeeIds) {
     const proposals = [];
     for (const item of selectedForPerson) {
       const role = item.role ?? 'main';
-      const assignment = role === 'beverage' ? item.assignments?.[personId] : null;
-      const recipeId = role === 'beverage' ? assignment?.recipeId : item.recipeId;
+      const assignment = isIndividualRole(role) ? item.assignments?.[personId] : null;
+      const recipeId = isIndividualRole(role) ? assignment?.recipeId : item.recipeId;
       if (!recipeId) continue;
       const recipe = state.recipes.find((entry) => entry.id === recipeId);
       const kcal = recipe?.nutrition?.perYieldUnit?.energyKcal;
       const recipeUnit = recipe?.yield.unitId ?? 'portion';
       const step = recipeUnit === 'piece' ? 1 : recipeUnit === 'g' ? 10 : 0.5;
-      if (role === 'beverage') {
+      if (isIndividualRole(role)) {
         const quantity = Number(assignment.quantity);
         proposals.push({ item, assignment, personId, role, quantity: Number.isFinite(quantity) && quantity >= 0 ? quantity : 0, step, recipeKcal: Number(kcal), proteinG: recipe?.nutrition?.perYieldUnit?.proteinG == null ? null : Number(recipe.nutrition.perYieldUnit.proteinG), maxQuantity: Infinity });
         if (kcal == null) messages.add(`${recipe?.name ?? 'Une boisson'} : calories inconnues, le respect du budget ne peut pas être vérifié.`);
@@ -1210,7 +1214,7 @@ function applyAutomaticPortions(items, attendeeIds) {
     if (Number.isFinite(budget) && proposals.length && proposals.every((proposal) => Number.isFinite(proposal.recipeKcal) && proposal.recipeKcal > 0)) {
       const result = rebalanceNaturalPortions(proposals, budget, { minProteinG: MIN_PROTEIN_G_PER_MEAL });
       result.proposals.forEach((proposal) => {
-        if (proposal.role === 'beverage') proposal.assignment.quantity = String(proposal.quantity);
+        if (isIndividualRole(proposal.role)) proposal.assignment.quantity = String(proposal.quantity);
         else proposal.item.amounts[personId] = proposal.quantity == null ? '' : String(proposal.quantity);
       });
       if (!result.withinBudget) messages.add(`${person?.displayName ?? 'Une personne'} : le repas dépasse encore l’enveloppe avec les portions minimales; réduis une boisson ou ajuste le repas.`);
@@ -1229,7 +1233,7 @@ function applyAutomaticPortions(items, attendeeIds) {
 function mealProteinSummary(items, attendeeIds) {
   const root=document.createElement('div');root.id='meal-protein-summary';root.className='meal-protein-tags';root.setAttribute('role','status');
   const meal={items:Object.values(items).flatMap(item=>{
-    if(item.role==='beverage') return Object.entries(item.assignments??{}).map(([personId,assignment])=>({
+    if(isIndividualRole(item.role)) return Object.entries(item.assignments??{}).map(([personId,assignment])=>({
       recipe:state.recipes.find(recipe=>recipe.id===assignment.recipeId),amounts:[{personId,quantity:Number(assignment.quantity)}],
     }));
     return [{recipe:state.recipes.find(recipe=>recipe.id===item.recipeId),amounts:Object.entries(item.amounts??{}).map(([personId,quantity])=>({personId,quantity:Number(quantity)}))}];
@@ -1253,9 +1257,9 @@ function recipesForPlanning(slot, role, selectedIds = []) {
     const moments = recipe.mealMoments ?? [];
     if (moments.length && !moments.includes(slot)) return false;
     if (recipe.recipeType) {
-      if (role === 'beverage' && recipe.recipeType !== 'beverage') return false;
+      if (isIndividualRole(role) && recipe.recipeType !== role) return false;
       if (role === 'accompaniment' && recipe.recipeType !== 'accompaniment') return false;
-      if (role === 'main' && ['beverage', 'accompaniment'].includes(recipe.recipeType)) return false;
+      if (role === 'main' && ['beverage', 'accompaniment', 'dessert'].includes(recipe.recipeType)) return false;
     }
     return true;
   });
@@ -1282,17 +1286,20 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     const select = document.createElement('select'); select.name = 'recipeId'; select.setAttribute('aria-label', 'Recette');
     select.add(new Option('Choisir une recette', ''));
     const role = document.createElement('select'); role.name = 'role'; role.setAttribute('aria-label', 'Catégorie de la recette');
-    [['main', 'Recette principale · 70 %'], ['accompaniment', 'Accompagnement · 20 %'], ['beverage', 'Boisson · choix individuel']].forEach(([value, label]) => role.add(new Option(label, value)));
+    [['main', 'Recette principale · 70 %'], ['accompaniment', 'Accompagnement · 20 %'], ['beverage', 'Boisson · choix individuel'], ['dessert', 'Dessert · choix individuel']].forEach(([value, label]) => role.add(new Option(label, value)));
     role.value = item.role ?? 'main';
     const slot = $('#meal-form').elements.slot.value;
     recipesForPlanning(slot, role.value, [item.recipeId]).forEach((recipe) => select.add(new Option(`${recipe.name} · ${recipe.yield.amount} ${recipe.yield.unitId}`, recipe.id)));
     select.value = item.recipeId ?? '';
-    role.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
+    role.addEventListener('change', () => {
+      const data=currentFormAmounts();data[index]={recipeId:'',role:role.value,...(isIndividualRole(role.value)?{assignments:{}}:{amounts:{}})};
+      renderPlannedItems(data,{autoSuggest:role.value!=='dessert'});
+    });
     const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-line'; remove.textContent = '×'; remove.setAttribute('aria-label', 'Retirer cette recette');
     remove.addEventListener('click', () => { const data = currentFormAmounts(); delete data[index]; renderPlannedItems(data); });
     const top = document.createElement('div'); top.className = 'planned-item-top'; top.append(select, role, remove);
     const quantities = document.createElement('div'); quantities.className = 'planned-amounts';
-    if (role.value === 'beverage') {
+    if (isIndividualRole(role.value)) {
       select.hidden = true;
       quantities.classList.add('beverage-amounts');
       for (const personId of attendees) {
@@ -1300,35 +1307,36 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
         const assignment = item.assignments?.[personId] ?? {};
         const personRow = document.createElement('label'); personRow.className = 'beverage-person'; personRow.dataset.personId = personId;
         const caption = document.createElement('span'); caption.textContent = person?.displayName ?? 'Personne';
-        const personSelect = document.createElement('select'); personSelect.dataset.personRecipe = 'true'; personSelect.setAttribute('aria-label', `Boisson pour ${person?.displayName ?? 'personne'}`);
-        personSelect.add(new Option('Aucune boisson', ''));
-        recipesForPlanning(slot, 'beverage', [assignment.recipeId]).forEach((recipe) => personSelect.add(new Option(`${recipe.name} · ${recipe.yield.amount} ${recipe.yield.unitId}`, recipe.id)));
+        const choiceLabel=role.value==='dessert'?'Dessert':'Boisson';
+        const personSelect = document.createElement('select'); personSelect.dataset.personRecipe = 'true'; personSelect.setAttribute('aria-label', `${choiceLabel} pour ${person?.displayName ?? 'personne'}`);
+        personSelect.add(new Option(role.value==='dessert'?'Aucun dessert':'Aucune boisson', ''));
+        recipesForPlanning(slot, role.value, [assignment.recipeId]).forEach((recipe) => personSelect.add(new Option(`${recipe.name} · ${recipe.yield.amount} ${recipe.yield.unitId}`, recipe.id)));
         personSelect.value = assignment.recipeId ?? '';
         const recipe = state.recipes.find((entry) => entry.id === personSelect.value);
         const unit = recipe?.yield.unitId ?? 'portion';
-        const step = unit === 'piece' ? '1' : unit === 'g' ? '10' : '0.5';
+        const step = role.value==='dessert' && ['g','ml'].includes(unit) ? 'any' : unit === 'piece' ? '1' : unit === 'g' ? '10' : '0.5';
         const input = document.createElement('input'); input.type = 'number'; input.min = '0'; input.step = step; input.dataset.personId = personId;
-        input.value = assignment.quantity == null || assignment.quantity === '' ? (personSelect.value ? '1' : '') : assignment.quantity; input.placeholder = 'Quantité (0 si aucune)'; input.setAttribute('aria-label', `Quantité de boisson pour ${person?.displayName ?? 'personne'}`);
+        input.value = assignment.quantity == null || assignment.quantity === '' ? (personSelect.value ? String(individualDefaultQuantity(recipe,role.value)) : '') : assignment.quantity; input.placeholder = 'Quantité (0 si aucun)'; input.setAttribute('aria-label', `Quantité de ${choiceLabel.toLowerCase()} pour ${person?.displayName ?? 'personne'}`);
         input.addEventListener('input',updateMealProteinSummary);
         if (!personSelect.value) input.disabled = true;
         personSelect.addEventListener('change', () => {
           const data = currentFormAmounts();
-          const rowData = data[index] ?? { recipeId: '', role: 'beverage', assignments: {} };
+          const rowData = data[index] ?? { recipeId: '', role: role.value, assignments: {} };
           rowData.assignments ??= {};
           const recipeId = personSelect.value;
           if (recipeId) {
             const quantity = $('input[data-person-id]', personRow).value;
             rowData.assignments[personId] = {
               recipeId,
-              quantity: assignment.recipeId === recipeId && quantity !== '' ? quantity : '1',
+              quantity: assignment.recipeId === recipeId && quantity !== '' ? quantity : String(individualDefaultQuantity(state.recipes.find(recipe=>recipe.id===recipeId),role.value)),
             };
           } else {
             delete rowData.assignments[personId];
           }
           data[index] = rowData;
-          renderPlannedItems(data, { autoSuggest: true });
+          renderPlannedItems(data, { autoSuggest: role.value!=='dessert' });
         });
-        input.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
+        input.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: role.value!=='dessert' }));
         personRow.append(caption, personSelect, input); quantities.append(personRow);
       }
       top.classList.add('beverage-item-top');
@@ -1373,12 +1381,12 @@ async function openMealEditor(date, slot, meal = null) {
   }));
   const items = {};
   let nextItemIndex = 0;
-  let beverageRow = null;
+  const individualRows = {};
   for (const item of meal?.items ?? []) {
-    if (item.role === 'beverage') {
-      beverageRow ??= { recipeId: '', role: 'beverage', assignments: {} };
+    if (isIndividualRole(item.role)) {
+      const individualRow=individualRows[item.role] ??= { recipeId: '', role: item.role, assignments: {} };
       for (const amount of item.amounts) {
-        beverageRow.assignments[amount.personId] = { recipeId: item.recipeId, quantity: String(amount.quantity) };
+        individualRow.assignments[amount.personId] = { recipeId: item.recipeId, quantity: String(amount.quantity) };
       }
     } else {
       items[nextItemIndex++] = {
@@ -1387,7 +1395,7 @@ async function openMealEditor(date, slot, meal = null) {
       };
     }
   }
-  if (beverageRow) items[nextItemIndex++] = beverageRow;
+  for(const row of Object.values(individualRows)) items[nextItemIndex++] = row;
   if (!Object.keys(items).length) items[0] = { recipeId: '', amounts: {} };
   renderPlannedItems(items, { autoSuggest: !meal });
   $('#meal-dialog').showModal();
@@ -1441,6 +1449,11 @@ $('#manage-profiles').addEventListener('click', () => setView('profiles'));
 $('#add-planned-item').addEventListener('click', () => {
   const items = currentFormAmounts(); items[Math.max(-1, ...Object.keys(items).map(Number)) + 1] = { recipeId: '', amounts: {} }; renderPlannedItems(items);
 });
+$('#add-planned-dessert').addEventListener('click',()=>{
+  const items=currentFormAmounts();
+  if(!Object.values(items).some(item=>item.role==='dessert'))items[Math.max(-1,...Object.keys(items).map(Number))+1]={recipeId:'',role:'dessert',assignments:{}};
+  renderPlannedItems(items);
+});
 $('#close-meal-dialog').addEventListener('click', () => $('#meal-dialog').close());
 $('#cancel-meal').addEventListener('click', () => $('#meal-dialog').close());
 $('#delete-meal').addEventListener('click', async () => {
@@ -1483,7 +1496,7 @@ async function saveMeal(event) {
   const rows = $$('.planned-item-editor', $('#planned-items'));
   const items = rows.flatMap((row) => {
     const role = $('select[name="role"]', row).value;
-    if (role !== 'beverage') return [{
+    if (!isIndividualRole(role)) return [{
       recipeId: $('select[name="recipeId"]', row).value,
       role,
       amounts: $$('input[data-person-id]', row).map((input) => ({ personId: input.dataset.personId, quantity: Number(input.value) })),
@@ -1502,8 +1515,8 @@ async function saveMeal(event) {
   });
   if (!attendeeIds.length) { showMessage($('#meal-message'), 'Sélectionne les personnes présentes pour ce repas.'); return; }
   if (!items.length || items.some((item) => !item.recipeId)) { showMessage($('#meal-message'), 'Choisis au moins une recette pour ce repas.'); return; }
-  if (items.some((item) => item.role !== 'beverage' && item.amounts.length !== attendeeIds.length)
-    || items.some((item) => item.amounts.length < 1 || item.amounts.some((amount) => !Number.isFinite(amount.quantity) || (item.role === 'beverage' ? amount.quantity < 0 : amount.quantity <= 0)))) {
+  if (items.some((item) => !isIndividualRole(item.role) && item.amounts.length !== attendeeIds.length)
+    || items.some((item) => item.amounts.length < 1 || item.amounts.some((amount) => !Number.isFinite(amount.quantity) || (isIndividualRole(item.role) ? amount.quantity < 0 : amount.quantity <= 0)))) {
     showMessage($('#meal-message'), 'Indique une quantité positive pour chaque personne concernée par les recettes choisies.');
     return;
   }
