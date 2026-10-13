@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=dashboard-home-1">
+    <link rel="stylesheet" href="/style.css?v=ingredient-stock-1">
   </head>
   <body>
     <header class="topbar">
@@ -95,6 +95,23 @@
           <section class="card"><h3>Liste de courses</h3><div class="shopping-range"><label>Du<input id="shopping-start" type="date"></label><label>Au<input id="shopping-end" type="date"></label><button class="secondary" type="button" id="refresh-shopping">Actualiser</button></div><div id="shopping-list" class="shopping-groups"><p class="empty">Choisis une période.</p></div></section>
           <section class="card"><h3>Enregistrer une production</h3><form id="production-form"><label>Préparation<select name="recipeId" required></select></label><div class="yield-row"><label>Date<input name="producedOn" type="date" required></label><label>Quantité produite<input name="quantity" type="number" min="0.01" step="any" required></label></div><label>Conservation<select name="storage"><option value="freezer">Congélateur</option><option value="fridge">Réfrigérateur</option><option value="pantry">Placard</option></select></label><label>Note (facultatif)<input name="note" maxlength="500"></label><button class="primary" type="submit">Ajouter au stock</button><p id="production-message" class="form-message" role="status"></p></form><h3>Stock des préparations</h3><p class="hint">Le stock disponible tient compte des quantités déjà prévues dans les repas.</p><div id="stock-list"><p class="empty">Chargement…</p></div></section>
         </div>
+        <section class="card ingredient-section">
+          <h3>Ingrédients à surveiller</h3>
+          <p class="hint">Whey, farines et autres bases : renseigne le stock réellement présent. Les productions déduisent ces ingrédients automatiquement. Toutes les quantités ci-dessous sont en grammes.</p>
+          <form id="ingredient-stock-form">
+            <div class="yield-row"><label>Rechercher dans les aliments<input id="ingredient-search" type="search" placeholder="Whey, farine…" autocomplete="off"></label><label>Aliment à surveiller<select name="foodId" required><option value="">Rechercher puis choisir un aliment…</option></select></label></div>
+            <div class="ingredient-fields">
+              <label>Stock compté (g)<input name="quantityG" type="number" min="0" max="100000000" step="0.001" required></label>
+              <label>Stock minimum (g)<input name="minimumG" type="number" min="0" max="100000000" step="0.001" required></label>
+              <label>Stock cible après commande (g)<input name="targetG" type="number" min="0" max="100000000" step="0.001" required></label>
+              <label>Délai de commande (jours)<input name="leadDays" type="number" min="0" max="60" step="1" value="7" required></label>
+            </div>
+            <p class="hint">Le minimum déclenche une alerte. La cible sert à calculer la quantité à commander. Le délai permet d’anticiper les besoins des repas prévus avant livraison. Après réception, mets à jour le stock compté.</p>
+            <div class="form-actions"><button class="primary" type="submit">Enregistrer le stock et la surveillance</button><button id="cancel-ingredient-edit" class="secondary" type="button">Nouvel aliment</button></div>
+            <p id="ingredient-message" class="form-message" role="status"></p>
+          </form>
+          <div id="ingredient-stock-list"><p class="empty">Aucun ingrédient surveillé.</p></div>
+        </section>
       </section>
       <section id="profiles-view" class="view hidden">
         <div class="section-heading"><div><h2>Profils du foyer</h2><p>Mesures et activité saisies par les membres, conservées dans leur historique.</p></div></div>
@@ -159,6 +176,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.22"></script>
+    <script type="module" src="/app.js?v=0.2.23"></script>
   </body>
 </html>

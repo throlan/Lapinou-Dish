@@ -1,0 +1,106 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile, readdir } from 'node:fs/promises';
+import { PGlite } from '@electric-sql/pglite';
+import { saveIngredientStock, listIngredientStock } from '../src/server/ingredient-stock.mjs';
+import { addStockLot, listShoppingRequirements, listStock } from '../src/server/household-planning.mjs';
+
+const householdId='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const whey='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const flour='cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+const recipeId='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+const person='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+const meal='ffffffff-ffff-4fff-8fff-ffffffffffff';
+const item='11111111-1111-4111-8111-111111111111';
+
+test('ingredient inventory and shopping run against PostgreSQL, with atomic production deductions', async t => {
+  const db=new PGlite();
+  t.after(()=>db.close());
+  const pool={
+    async query(sql,params=[]) {const result=await db.query(sql,params);return {...result,rowCount:result.rows.length || result.affectedRows || 0};},
+    async connect(){return {...this,release(){}};},
+  };
+  const migrations=new URL('../db/migrations/',import.meta.url);
+  for(const file of (await readdir(migrations)).filter(file=>file.endsWith('.sql')).sort())await db.exec(await readFile(new URL(file,migrations),'utf8'));
+  // New migration can safely be repeated without changing existing stock.
+  const today=(await pool.query('SELECT CURRENT_DATE::text AS today')).rows[0].today;
+  await db.exec(`
+    INSERT INTO households(id,name) VALUES ('${householdId}','Synthetic household');
+    INSERT INTO people(id,household_id,display_name) VALUES ('${person}','${householdId}','Synthetic person');
+    INSERT INTO foods(id,canonical_name,source) VALUES ('${whey}','Test whey','manual'),('${flour}','Test flour','manual');
+    INSERT INTO recipes(id,household_id,name,yield_amount,yield_unit_id,production_type)
+      VALUES ('${recipeId}','${householdId}','Test muffins',12,'piece','pastry');
+    INSERT INTO recipe_lines(id,recipe_id,food_id,quantity,unit_id) VALUES
+      ('22222222-2222-4222-8222-222222222222','${recipeId}','${whey}',0.12,'kg'),
+      ('33333333-3333-4333-8333-333333333333','${recipeId}','${flour}',300,'g');
+  `);
+  const stockInput=(foodId,quantityG,minimumG,targetG,version=0)=>({householdId,foodId,quantityG,minimumG,targetG,leadDays:7,version});
+  assert.deepEqual(await saveIngredientStock(pool,stockInput(whey,500,100,1000)),{saved:true});
+  assert.deepEqual(await saveIngredientStock(pool,stockInput(flour,2000,500,3000)),{saved:true});
+  await db.exec(await readFile(new URL('20261013_ingredient_stock.sql',migrations),'utf8'));
+  const production={householdId,recipeId,producedOn:today,quantity:24,storage:'freezer',note:'',requestId:'44444444-4444-4444-8444-444444444444'};
+
+  await t.test('24 muffins deduct 240 g whey and 600 g flour, and add 24 finished pieces',async()=>{
+    const lot=await addStockLot(pool,production);
+    assert.equal(lot.quantity,24);
+    assert.equal(lot.deductions.find(row=>row.foodId===whey).usedG,240);
+    assert.equal(lot.deductions.find(row=>row.foodId===flour).usedG,600);
+    const stocks=await listIngredientStock(pool,householdId);
+    assert.equal(stocks.find(row=>row.foodId===whey).quantityG,260);
+    assert.equal(stocks.find(row=>row.foodId===flour).quantityG,1400);
+    assert.equal((await listStock(pool,householdId))[0].producedQuantity,24);
+  });
+  await t.test('retrying the same request does not add a second lot or deduct twice',async()=>{
+    const lot=await addStockLot(pool,production);assert.equal(lot.replayed,true);
+    assert.equal((await listStock(pool,householdId))[0].producedQuantity,24);
+    assert.equal((await listIngredientStock(pool,householdId)).find(row=>row.foodId===whey).quantityG,260);
+    assert.equal((await addStockLot(pool,{...production,quantity:25})).error,'production-request-conflict');
+  });
+  await t.test('insufficient inventory rolls back both ingredients and finished lot',async()=>{
+    const result=await addStockLot(pool,{...production,quantity:120,requestId:null});
+    assert.equal(result.error,'ingredient-stock-insufficient');
+    assert.equal((await listStock(pool,householdId))[0].producedQuantity,24);
+    assert.equal((await listIngredientStock(pool,householdId)).find(row=>row.foodId===flour).quantityG,1400);
+  });
+  await t.test('stale stock counts cannot overwrite deductions made by production',async()=>{
+    assert.equal((await saveIngredientStock(pool,stockInput(whey,500,100,1000,1))).error,'ingredient-stock-changed');
+    assert.equal((await listIngredientStock(pool,householdId)).find(row=>row.foodId===whey).quantityG,260);
+  });
+  await db.exec(`
+    INSERT INTO planned_meals(id,household_id,meal_date,slot) VALUES ('${meal}','${householdId}','${today}','breakfast');
+    INSERT INTO planned_meal_items(id,meal_id,recipe_id) VALUES ('${item}','${meal}','${recipeId}');
+    INSERT INTO planned_amounts(planned_item_id,person_id,quantity) VALUES ('${item}','${person}',24);
+  `);
+  await t.test('finished muffins cover planned meals without buying their ingredients again',async()=>{
+    assert.deepEqual(await listShoppingRequirements(pool,householdId,today,today),[]);
+  });
+  await pool.query('UPDATE planned_amounts SET quantity=48 WHERE planned_item_id=$1',[item]);
+  await t.test('planned shortage anticipates ordering within the delivery lead time',async()=>{
+    const stocks=await listIngredientStock(pool,householdId);
+    const wheyStock=stocks.find(row=>row.foodId===whey);
+    assert.equal(wheyStock.neededG,240);assert.equal(wheyStock.projectedG,20);
+    assert.equal(wheyStock.alert,true);assert.equal(wheyStock.orderG,740);
+    const shopping=await listShoppingRequirements(pool,householdId,today,today);
+    assert.equal(shopping.length,1);assert.equal(shopping[0].foodId,whey);
+    assert.equal(shopping[0].quantity,740);assert.equal(shopping[0].unitId,'g');
+  });
+  await t.test('finished batches reserved for earlier meals cannot cover later meals a second time',async()=>{
+    await db.exec(`
+      INSERT INTO planned_meals(id,household_id,meal_date,slot) VALUES ('55555555-5555-4555-8555-555555555555','${householdId}',CURRENT_DATE-1,'breakfast');
+      INSERT INTO planned_meal_items(id,meal_id,recipe_id) VALUES ('66666666-6666-4666-8666-666666666666','55555555-5555-4555-8555-555555555555','${recipeId}');
+      INSERT INTO planned_amounts(planned_item_id,person_id,quantity) VALUES ('66666666-6666-4666-8666-666666666666','${person}',12);
+    `);
+    assert.equal((await listIngredientStock(pool,householdId)).find(row=>row.foodId===whey).neededG,360);
+    await pool.query("DELETE FROM planned_meals WHERE id='55555555-5555-4555-8555-555555555555'");
+  });
+  await t.test('unknown piece conversions reject production without silently deducting grams',async()=>{
+    await pool.query("UPDATE recipe_lines SET unit_id='piece' WHERE food_id=$1",[whey]);
+    const result=await addStockLot(pool,{...production,quantity:1,requestId:null});
+    assert.equal(result.error,'ingredient-conversion-missing');
+    assert.equal((await listStock(pool,householdId))[0].producedQuantity,24);
+    const stocks=await listIngredientStock(pool,householdId);
+    assert.equal(stocks.find(row=>row.foodId===whey).complete,false);
+    const shopping=await listShoppingRequirements(pool,householdId,today,today);
+    assert.equal(shopping[0].unitId,'piece');assert.match(shopping[0].warning,/Conversion/);
+  });
+});
