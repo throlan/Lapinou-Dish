@@ -1,4 +1,5 @@
 import { calculatePersonProtein, capAccompanimentQuantity, MIN_PROTEIN_G_PER_MEAL, rebalanceNaturalPortions, suggestQuantity } from './portion-planner.js';
+import { mainServingLimit } from './portion-planner.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -1316,11 +1317,14 @@ function applyAutomaticPortions(items, attendeeIds) {
         ? (recipeUnit === 'g' ? 10 : 1)
         : null;
       const proposedQuantity = suggestion.quantity ?? fallbackQuantity;
-      const maxQuantity = role === 'accompaniment' && recipeUnit === 'g' && !recipe?.parentRecipeId
+      const maxQuantity = recipe?.parentRecipeId && role === 'main'
+        ? mainServingLimit(recipe, state.recipes.find(parent => parent.id === recipe.parentRecipeId))
+        : role === 'accompaniment' && recipeUnit === 'g' && !recipe?.parentRecipeId
         ? Math.min(200, Number(recipe?.yield?.amount) * 1.5)
         : Infinity;
       const quantity = proposedQuantity == null ? null : Math.min(
         proposedQuantity,
+        maxQuantity,
         recipe?.parentRecipeId ? proposedQuantity : capAccompanimentQuantity(proposedQuantity, { recipeUnit, recipeYieldAmount: recipe?.yield?.amount }),
       );
       item.amounts[personId] = quantity == null ? '' : String(quantity);
@@ -1588,6 +1592,7 @@ $('#manage-profiles').addEventListener('click', () => setView('profiles'));
 $('#add-planned-item').addEventListener('click', () => {
   const items = currentFormAmounts(); items[Math.max(-1, ...Object.keys(items).map(Number)) + 1] = { recipeId: '', amounts: {} }; renderPlannedItems(items);
 });
+$('#recalculate-portions').addEventListener('click', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
 $('#add-planned-dessert').addEventListener('click',()=>{
   const items=currentFormAmounts();
   if(!Object.values(items).some(item=>item.role==='dessert'))items[Math.max(-1,...Object.keys(items).map(Number))+1]={recipeId:'',role:'dessert',assignments:{}};
