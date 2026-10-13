@@ -87,6 +87,15 @@
           <label>Instructions<textarea name="instructions" rows="4" maxlength="20000" placeholder="Étapes de préparation"></textarea></label>
           <label>Production à suivre (facultatif)<select name="productionType"><option value="none">Aucune</option><option value="batch_cooking">Batch cooking</option><option value="pasta">Pâtes</option><option value="pastry">Pâtisserie</option><option value="bread">Pain</option></select></label>
           <div class="yield-row"><label>Rendement<input name="yieldAmount" required type="number" min="0.01" step="any" value="4"></label><label>Unité<select name="yieldUnit"><option value="portion">portions</option><option value="piece">pièces</option><option value="g">grammes</option><option value="ml">millilitres</option></select></label></div>
+          <fieldset id="serving-configuration">
+            <legend>Portions dans le calendrier</legend>
+            <label>Service<select name="servingMode"><option value="original">Portions actuelles de la recette</option><option value="whole">Préparation servie ensemble — grammes estimés</option><option value="separate">Viande et légumes ensemble, féculents à part — grammes estimés</option></select></label>
+            <div id="cooking-factors" class="yield-row hidden">
+              <label>Coefficient du plat / de la préparation<input name="mainCookingFactor" type="number" min="0.1" max="10" step="0.05" value="1"></label>
+              <label id="starch-factor-label">Féculents<select name="starchCookingFactor"><option value="3">Riz — ×3</option><option value="2.5">Pâtes sèches / pois chiches — ×2,5</option><option value="1.25">Pâtes fraîches — ×1,25</option><option value="1.5">Pâtes fraîches — ×1,5</option><option value="2.4">Lentilles vertes / haricots — ×2,4</option><option value="2.3">Lentilles corail / pois cassés — ×2,3</option><option value="2.5">Lentilles vertes / haricots — ×2,5</option></select></label>
+            </div>
+            <p class="hint">Aucune pesée après cuisson. Les grammes sont estimés à partir des ingrédients et des coefficients. ×1 pour le plat conserve le poids des ingrédients ; les pertes d’eau ne sont pas déduites. Pour les lasagnes et les plats mélangés, choisis « Préparation servie ensemble » et règle le coefficient des pâtes sur leur ligne d’ingrédient.</p>
+          </fieldset>
           <div class="line-heading"><h3>Ingrédients</h3><button type="button" class="secondary" id="add-line">+ Ajouter un ingrédient</button></div>
           <div id="recipe-lines"></div>
           <div class="form-actions"><button class="primary" type="submit">Enregistrer et calculer</button></div>
@@ -198,6 +207,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.34"></script>
+    <script type="module" src="/app.js?v=0.2.35"></script>
   </body>
 </html>

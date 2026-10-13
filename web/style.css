@@ -317,3 +317,7 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
 @media(max-width:560px){.dashboard-welcome{align-items:flex-start;flex-direction:column}.dashboard-stats{gap:8px}.dashboard-stat{padding:12px}.dashboard-person-meal{grid-template-columns:1fr}.dashboard-person-meal small{grid-column:1}.dashboard-profile-heading{flex-direction:column;gap:3px}}
  .recipe-ai-option { display: flex; align-items: center; gap: .6rem; }
  .recipe-ai-option input[type="checkbox"] { width: auto; margin: 0; }
+ #recipe-lines.serving-parts-active .recipe-line { grid-template-columns:minmax(220px,1fr) 105px 90px 185px 40px; }
+ #serving-configuration { margin: 18px 0; border: 1px solid #354865; border-radius: 12px; padding: 14px; }
+ @media(max-width:800px) { #recipe-lines.serving-parts-active .recipe-line { grid-template-columns:minmax(0,1fr) 78px 86px 36px; } #recipe-lines.serving-parts-active .serving-part-choice { grid-column:1/-1; grid-row:2; } }
+ .meal-serving-amounts { display: grid; gap: 4px; margin: 7px 0; font-size: 12px; }

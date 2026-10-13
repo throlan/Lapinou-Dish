@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { readRecipe } from './recipes.mjs';
+import { lockHouseholdInventory } from './ingredient-stock.mjs';
 
 const slots = new Set(['breakfast', 'lunch', 'dinner', 'snack']);
 
@@ -51,6 +52,7 @@ export async function savePlannedMeal(pool, id, data) {
   const mealId = id ?? randomUUID();
   try {
     await client.query('BEGIN');
+    await lockHouseholdInventory(client,data.householdId);
     const people = await client.query(
       'SELECT id FROM people WHERE household_id = $1 AND active = true AND id = ANY($2::uuid[])',
       [data.householdId, data.attendeeIds],
@@ -67,6 +69,16 @@ export async function savePlannedMeal(pool, id, data) {
       await client.query('ROLLBACK');
       return { error: 'recipe-not-in-household' };
     }
+    const normalizedItems = [];
+    for (const item of data.items) {
+      const recipe = await client.query('SELECT id,yield_amount,separate_starch FROM recipes WHERE id=$1',[item.recipeId]);
+      if (recipe.rows[0]?.separate_starch) {
+        const parts = await client.query('SELECT id,serving_part,yield_amount FROM recipes WHERE parent_recipe_id=$1',[item.recipeId]);
+        if (!parts.rows.length) { await client.query('ROLLBACK'); return {error:'serving-parts-missing'}; }
+        for (const part of parts.rows) normalizedItems.push({recipeId:part.id,role:part.serving_part === 'starch' ? 'accompaniment' : item.role,amounts:item.amounts.map(amount=>({personId:amount.personId,quantity:amount.quantity/Number(recipe.rows[0].yield_amount)*Number(part.yield_amount)}))});
+      } else normalizedItems.push(item);
+    }
+    if (normalizedItems.some(item=>item.amounts.some(amount=>!Number.isFinite(amount.quantity) || amount.quantity > 100000))) { await client.query('ROLLBACK'); return {error:'invalid-planned-quantity'}; }
     if (id) {
       const updated = await client.query(
         'UPDATE planned_meals SET meal_date = $3, slot = $4, notes = $5, updated_at = now() WHERE id = $1 AND household_id = $2 RETURNING id',
@@ -84,7 +96,7 @@ export async function savePlannedMeal(pool, id, data) {
     for (const personId of data.attendeeIds) {
       await client.query('INSERT INTO planned_meal_attendees (meal_id, person_id) VALUES ($1,$2)', [mealId, personId]);
     }
-    for (const [index, item] of data.items.entries()) {
+    for (const [index, item] of normalizedItems.entries()) {
       const itemId = randomUUID();
       await client.query('INSERT INTO planned_meal_items (id, meal_id, recipe_id, sort_order, role) VALUES ($1,$2,$3,$4,$5)', [itemId, mealId, item.recipeId, index, item.role]);
       for (const amount of item.amounts) {
@@ -119,6 +131,7 @@ export async function duplicatePlannedMeal(pool, sourceId, input) {
   const client=await pool.connect();
   try {
     await client.query('BEGIN');
+    await lockHouseholdInventory(client,input.householdId);
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',['meal-copy:'+input.householdId+':'+input.requestId]);
     const previous=await client.query('SELECT source_meal_id, target_dates::text[] AS dates, slot, meal_ids FROM planned_meal_duplications WHERE household_id=$1 AND request_id=$2',[input.householdId,input.requestId]);
     if(previous.rowCount){
