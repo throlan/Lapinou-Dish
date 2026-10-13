@@ -18,6 +18,7 @@ export async function rawShoppingRequirements(pool, householdId, startDate, endD
      )
      SELECT f.id AS "foodId", f.canonical_name AS name, rl.unit_id AS "unitId",
             sum(rl.quantity * n.quantity / r.yield_amount) AS quantity,
+            array_agg(DISTINCT r.name ORDER BY r.name) AS "recipeNames",
             f.grams_per_millilitre AS "gramsPerMillilitre",
             COALESCE((SELECT jsonb_object_agg(u.unit_id, u.grams_per_unit)
                       FROM food_unit_conversions u WHERE u.food_id = f.id), '{}'::jsonb) AS "gramsPerUnit"
