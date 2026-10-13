@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateProductionInput, validateRoutineSettings, validateShoppingLineState } from '../src/server/household-planning.mjs';
+import { shoppingPurchaseQuantity, validateProductionInput, validateRoutineSettings, validateShoppingLineState } from '../src/server/household-planning.mjs';
 
 const householdId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const foodId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -28,4 +28,11 @@ test('shopping line changes validate period and category', () => {
   assert.equal(validateShoppingLineState(input).data.checked, true);
   assert.equal(validateShoppingLineState({...input,groupId:'unknown'}).error, 'invalid-shopping-line');
   assert.equal(validateShoppingLineState({...input,endDate:'2026-10-01'}).error, 'invalid-shopping-line');
+});
+
+test('shopping quantities sum recipe needs and round fractional pieces up for purchase', () => {
+  assert.equal(shoppingPurchaseQuantity(2+1,'piece'),3);
+  assert.equal(shoppingPurchaseQuantity(2.1,'piece'),3);
+  assert.equal(shoppingPurchaseQuantity(3,'piece'),3);
+  assert.equal(shoppingPurchaseQuantity(2.1,'g'),2.1);
 });
