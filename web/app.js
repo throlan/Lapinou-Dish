@@ -288,15 +288,18 @@ async function refreshShoppingList() {
         const checkbox=document.createElement('input'); checkbox.type='checkbox'; checkbox.checked=item.checked; checkbox.setAttribute('aria-label','Acheté : '+item.name);
         const name=document.createElement('div'); name.className='shopping-item-name'; name.append(document.createTextNode(item.name));
         const qty=document.createElement('span'); qty.className='shopping-quantity'; qty.textContent=`${formatQty(item.quantity)} ${item.unitId}`;
+        const need=document.createElement('small');need.className='shopping-detail';need.textContent=`Besoin prévu : ${formatQty(item.neededQuantity)} ${item.unitId}`;name.append(need);
+        if(item.packageQuantity){const packageInfo=document.createElement('small');packageInfo.className='shopping-detail';packageInfo.textContent=`Achat : ${item.packageCount} × ${formatQty(item.packageQuantity)} ${item.unitId}`;name.append(packageInfo);}
         if(item.warning){const detail=document.createElement('small');detail.className='shopping-detail';detail.textContent=item.warning;name.append(detail);}
-        if(item.quantityRounded){const detail=document.createElement('small');detail.className='shopping-detail';detail.textContent='Arrondi au nombre entier supérieur pour l’achat';name.append(detail);}
+        if(item.quantityRounded){const detail=document.createElement('small');detail.className='shopping-detail';detail.textContent=item.packageQuantity?'Arrondi au format de paquet saisi':'Arrondi au nombre entier supérieur pour l’achat';name.append(detail);}
         if(item.recipes?.length){const recipeDetails=document.createElement('details');recipeDetails.className='shopping-detail shopping-recipes';const summary=document.createElement('summary');summary.textContent=`Dans ${item.recipes.length} recette${item.recipes.length===1?'':'s'}`;const links=document.createElement('span');links.className='shopping-recipe-links';for(const recipe of item.recipes){const source=document.createElement('span');source.className='shopping-recipe-source';const link=document.createElement('button');link.type='button';link.textContent=recipe.name;link.setAttribute('aria-label',`Ouvrir la recette ${recipe.name}`);link.addEventListener('click',()=>{setView('recipes');openRecipeEditor(recipe.id);});source.append(link);if(Number.isFinite(Number(recipe.quantity))&&recipe.unitId){const amount=document.createElement('small');amount.className='shopping-recipe-amount';amount.textContent=`${formatQty(recipe.quantity)} ${recipe.unitId}`;amount.setAttribute('aria-label',`Besoin prévu : ${amount.textContent}`);source.append(amount);}links.append(source);}recipeDetails.append(summary,links);name.append(recipeDetails);}
+        const pack=document.createElement('input');pack.className='shopping-pack-input';pack.type='number';pack.min='0.001';pack.step='any';pack.value=item.packageQuantity??'';pack.placeholder=`Paquet (${item.unitId})`;pack.setAttribute('aria-label',`Format d’achat pour ${item.name} en ${item.unitId}`);
         const group=document.createElement('select'); group.setAttribute('aria-label','Catégorie de '+item.name);
         for (const [key,label] of Object.entries(groupLabels)) group.add(new Option(label,key));
         group.value=item.groupId;
-        const save=async()=>{try{await api('/api/shopping-list/state',{method:'POST',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,unitId:item.unitId,startDate:start,endDate:end,groupId:group.value,checked:checkbox.checked})});row.classList.toggle('checked',checkbox.checked);}catch(error){showMessage($('#routines-message'),'Liste non enregistrée : '+(error.body?.error??error.message));}};
-        checkbox.addEventListener('change',save); group.addEventListener('change',save);
-        row.append(checkbox,name,qty,group); section.append(row);
+        const save=async()=>{try{await api('/api/shopping-list/state',{method:'POST',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,unitId:item.unitId,startDate:start,endDate:end,groupId:group.value,checked:checkbox.checked,packageQuantity:pack.value===''?null:Number(pack.value)})});row.classList.toggle('checked',checkbox.checked);return true;}catch(error){showMessage($('#routines-message'),'Liste non enregistrée : '+(error.body?.error??error.message));return false;}};
+        checkbox.addEventListener('change',save); group.addEventListener('change',save);pack.addEventListener('change',async()=>{if(await save())await refreshShoppingList();});
+        row.append(checkbox,name,qty,pack,group); section.append(row);
       });
       return section;
     }));
@@ -527,6 +530,14 @@ function foodRow(food) {
     complete.setAttribute('aria-label', `Rechercher des valeurs nutritionnelles manquantes pour ${food.name}`);
     complete.addEventListener('click', () => openFoodEditor(food.id, { searchExternal: true })); action.append(complete);
   }
+  const remove = document.createElement('button'); remove.type='button'; remove.className='secondary danger-button'; remove.textContent='Supprimer';
+  remove.setAttribute('aria-label',`Supprimer ${food.name}`);
+  remove.addEventListener('click',async()=>{
+    if(!confirm(`Supprimer « ${food.name} » du catalogue ? Cette action est définitive. Une fiche utilisée dans une recette ou un stock ne pourra pas être supprimée.`))return;
+    remove.disabled=true;
+    try{await api(`/api/foods/${food.id}`,{method:'DELETE'});showMessage($('#food-list-message'),`« ${food.name} » a été supprimé du catalogue.`,true);await refreshFoods();}
+    catch(error){const body=error.body??{};const refs=[...(body.recipes??[])];const details=refs.length?` Recettes concernées : ${refs.join(', ')}.`:'';const stocks=body.stockCount?` Fiche suivie dans ${body.stockCount} stock(s).`:'';showMessage($('#food-list-message'),body.error==='food-in-use'?`Suppression impossible : cet aliment est encore utilisé.${details}${stocks}`:`Suppression impossible : ${body.error??error.message}`);remove.disabled=false;}
+  });action.append(remove);
   row.append(name, source, values, action); return row;
 }
 

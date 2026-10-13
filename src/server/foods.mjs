@@ -149,6 +149,33 @@ export async function updateFood(pool, id, data) {
   }
 }
 
+export async function deleteFood(pool, id) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const found = await client.query('SELECT id FROM foods WHERE id=$1 FOR UPDATE', [id]);
+    if (!found.rows.length) { await client.query('ROLLBACK'); return null; }
+    const references = await client.query(
+      `SELECT count(DISTINCT r.id)::integer AS recipe_count,
+              COALESCE(array_agg(DISTINCT r.name) FILTER (WHERE r.id IS NOT NULL), '{}') AS recipe_names,
+              (SELECT count(*)::integer FROM household_ingredient_stock WHERE food_id=$1) AS stock_count
+         FROM recipe_lines rl JOIN recipes r ON r.id=rl.recipe_id WHERE rl.food_id=$1`, [id],
+    );
+    const refs = references.rows[0];
+    if (refs.recipe_count || refs.stock_count) {
+      await client.query('ROLLBACK');
+      return { error: 'food-in-use', recipes: refs.recipe_names, stockCount: refs.stock_count };
+    }
+    await client.query('DELETE FROM foods WHERE id=$1', [id]);
+    await client.query('COMMIT');
+    return { deleted: true };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    if (error.code === '23503') return { error: 'food-in-use', recipes: [], stockCount: 0 };
+    throw error;
+  } finally { client.release(); }
+}
+
 export async function fillMissingNutritionFromExternal(pool, foodId, product) {
   if (!product || !/^\d{8,14}$/.test(product.barcode ?? '') || !product.url?.startsWith('https://world.openfoodfacts.org/product/')) {
     return { error: 'invalid-nutrition-source' };

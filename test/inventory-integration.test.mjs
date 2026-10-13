@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 import { saveIngredientStock, listIngredientStock } from '../src/server/ingredient-stock.mjs';
-import { addStockLot, cancelStockLot, listShoppingRequirements, listStock } from '../src/server/household-planning.mjs';
+import { addStockLot, cancelStockLot, listShoppingRequirements, listStock, saveShoppingLineState } from '../src/server/household-planning.mjs';
+import { deleteFood } from '../src/server/foods.mjs';
 import { duplicatePlannedMeal, savePlannedMeal, validateMealDuplication, validatePlannedMeal } from '../src/server/planning.mjs';
 
 const householdId='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -50,6 +51,15 @@ test('ingredient inventory and shopping run against PostgreSQL, with atomic prod
     assert.equal(stocks.find(row=>row.foodId===whey).quantityG,260);
     assert.equal(stocks.find(row=>row.foodId===flour).quantityG,1400);
     assert.equal((await listStock(pool,householdId))[0].producedQuantity,24);
+  });
+  await t.test('unused foods can be deleted, but foods linked to recipes or stocks are protected',async()=>{
+    const unused='22222222-aaaa-4222-8222-222222222222';
+    await pool.query("INSERT INTO foods(id,canonical_name,source) VALUES($1,'Unused carrot variant','manual')",[unused]);
+    assert.deepEqual(await deleteFood(pool,unused),{deleted:true});
+    assert.equal((await pool.query('SELECT id FROM foods WHERE id=$1',[unused])).rows.length,0);
+    const linked=await deleteFood(pool,whey);
+    assert.equal(linked.error,'food-in-use');assert.deepEqual(linked.recipes,['Test muffins']);assert.equal(linked.stockCount,1);
+    assert.equal((await pool.query('SELECT id FROM foods WHERE id=$1',[whey])).rows.length,1);
   });
   await t.test('retrying the same request does not add a second lot or deduct twice',async()=>{
     const lot=await addStockLot(pool,production);assert.equal(lot.replayed,true);
@@ -109,6 +119,10 @@ test('ingredient inventory and shopping run against PostgreSQL, with atomic prod
     assert.equal(shopping.length,1);assert.equal(shopping[0].foodId,whey);
     assert.equal(shopping[0].quantity,740);assert.equal(shopping[0].unitId,'g');
     assert.deepEqual(shopping[0].recipes,[{id:recipeId,name:'Test muffins',quantity:0.24,unitId:'kg'}]);
+    assert.deepEqual(await saveShoppingLineState(pool,{householdId,foodId:whey,unitId:'g',startDate:today,endDate:today,groupId:'whey_flour',checked:false,packageQuantity:500}),{saved:true});
+    const packed=(await listShoppingRequirements(pool,householdId,today,today))[0];
+    assert.equal(packed.neededQuantity,740);assert.equal(packed.packageCount,2);assert.equal(packed.quantity,1000);
+    await saveShoppingLineState(pool,{householdId,foodId:whey,unitId:'g',startDate:today,endDate:today,groupId:'whey_flour',checked:false,packageQuantity:null});
   });
   await t.test('finished batches reserved for earlier meals cannot cover later meals a second time',async()=>{
     await db.exec(`

@@ -4,7 +4,7 @@ import { readMealSettings, saveMealSettings } from './meal-settings.mjs';
 import { deleteSavingPlan, getEnergyReserveOverview, saveSavingPlan, validateSavingPlan } from './energy-reserve.mjs';
 import { listIngredientStock, saveIngredientStock, validateIngredientStock } from './ingredient-stock.mjs';
 import { createHmac, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
-import { createFood, fillMissingNutritionFromExternal, getFood, updateFood, validateFoodInput } from './foods.mjs';
+import { createFood, deleteFood, fillMissingNutritionFromExternal, getFood, updateFood, validateFoodInput } from './foods.mjs';
 import { getOpenFoodFactsProduct, searchOpenFoodFacts } from './open-food-facts.mjs';
 import { createRecipe, listRecipes, readRecipe, updateRecipe, validateRecipeInput } from './recipes.mjs';
 import { listImportDrafts, saveImportDrafts } from './recipe-imports.mjs';
@@ -504,6 +504,16 @@ export async function handleRequest(request, response, pool, appPassword = null,
         return food ? send(response, 200, { food }) : send(response, 404, { error: 'food-not-found' });
       } catch {
         return send(response, 500, { error: 'food-read-failed' });
+      }
+    }
+    if (foodId && request.method === 'DELETE') {
+      try {
+        const result = await deleteFood(pool, foodId);
+        if (!result) return send(response, 404, { error: 'food-not-found' });
+        if (result.error) return send(response, 409, result);
+        return send(response, 200, result);
+      } catch {
+        return send(response, 500, { error: 'food-delete-failed' });
       }
     }
     if (foodId && request.method === 'PATCH') {

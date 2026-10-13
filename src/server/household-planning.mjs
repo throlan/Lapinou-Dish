@@ -231,13 +231,15 @@ export async function listStock(pool, householdId) {
 }
 
 export async function listShoppingRequirements(pool, householdId, startDate, endDate) {
-  const [requirements, stocks, settings] = await Promise.all([
+  const [requirements, stocks, settings, packages] = await Promise.all([
     rawShoppingRequirements(pool,householdId,startDate,endDate),
     readIngredientStock(pool,householdId),
     pool.query(`SELECT g.food_id AS "foodId", g.unit_id AS "unitId", g.group_id AS "groupId", COALESCE(c.checked,false) AS checked
       FROM household_food_shopping_groups g LEFT JOIN household_shopping_checks c
       ON c.household_id=g.household_id AND c.food_id=g.food_id AND c.unit_id=g.unit_id AND c.period_start=$2 AND c.period_end=$3
       WHERE g.household_id=$1`, [householdId,startDate,endDate]),
+    pool.query(`SELECT food_id AS "foodId", unit_id AS "unitId", package_quantity AS "packageQuantity"
+      FROM household_food_purchase_packs WHERE household_id=$1`, [householdId]),
   ]);
   const tracked = new Set(stocks.map(row => row.foodId));
   const items = requirements.filter(row => !tracked.has(row.foodId));
@@ -254,9 +256,12 @@ export async function listShoppingRequirements(pool, householdId, startDate, end
   }
   return items.map(row => {
     const setting = settings.rows.find(item => item.foodId===row.foodId && item.unitId===row.unitId);
+    const purchasePack = packages.rows.find(item => item.foodId===row.foodId && item.unitId===row.unitId);
     const rawQuantity = Number(row.quantity);
-    const quantity = shoppingPurchaseQuantity(rawQuantity,row.unitId);
-    return {...row,quantity,quantityRounded:quantity!==rawQuantity,groupId:setting?.groupId ?? row.groupId ?? 'bulk',checked:setting?.checked ?? false};
+    const packageQuantity = purchasePack ? Number(purchasePack.packageQuantity) : null;
+    const quantity = packageQuantity ? Math.ceil(rawQuantity/packageQuantity)*packageQuantity : shoppingPurchaseQuantity(rawQuantity,row.unitId);
+    return {...row,neededQuantity:rawQuantity,quantity,packageQuantity,packageCount:packageQuantity ? Math.ceil(rawQuantity/packageQuantity) : null,
+      quantityRounded:quantity!==rawQuantity,groupId:setting?.groupId ?? row.groupId ?? 'bulk',checked:setting?.checked ?? false};
   }).sort((a,b)=>a.groupId.localeCompare(b.groupId)||a.name.localeCompare(b.name));
 }
 
@@ -268,7 +273,9 @@ export function validateShoppingLineState(input) {
   if (!input || typeof input !== 'object' || !isUuid(input.householdId) || !isUuid(input.foodId)
     || !isDate(input.startDate) || !isDate(input.endDate) || input.endDate < input.startDate
     || typeof input.unitId !== 'string' || !/^[a-z][a-z0-9_-]{0,30}$/.test(input.unitId)
-    || !shoppingGroups.has(input.groupId) || typeof input.checked !== 'boolean') return { error: 'invalid-shopping-line' };
+    || !shoppingGroups.has(input.groupId) || typeof input.checked !== 'boolean'
+    || (Object.hasOwn(input,'packageQuantity') && input.packageQuantity !== null
+      && (typeof input.packageQuantity !== 'number' || !Number.isFinite(input.packageQuantity) || input.packageQuantity <= 0 || input.packageQuantity > 100000000))) return { error: 'invalid-shopping-line' };
   return { data: input };
 }
 
@@ -290,6 +297,17 @@ export async function saveShoppingLineState(pool, input) {
          SET checked = EXCLUDED.checked, updated_at = now()`,
       [input.householdId, input.startDate, input.endDate, input.foodId, input.unitId, input.checked],
     );
+    if (Object.hasOwn(input,'packageQuantity')) {
+      if (input.packageQuantity === null) {
+        await client.query('DELETE FROM household_food_purchase_packs WHERE household_id=$1 AND food_id=$2 AND unit_id=$3',
+          [input.householdId,input.foodId,input.unitId]);
+      } else {
+        await client.query(`INSERT INTO household_food_purchase_packs (household_id,food_id,unit_id,package_quantity)
+          VALUES ($1,$2,$3,$4) ON CONFLICT (household_id,food_id,unit_id) DO UPDATE
+          SET package_quantity=EXCLUDED.package_quantity,updated_at=now()`,
+          [input.householdId,input.foodId,input.unitId,input.packageQuantity]);
+      }
+    }
     await client.query('COMMIT');
     return { saved: true };
   } catch (error) {
