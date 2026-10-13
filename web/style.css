@@ -367,3 +367,7 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .admin-profile-section .profile-forms { align-items:start; }
 .profile-histories { margin-top:12px; }
 @media(max-width:600px){.admin-profile-section .profile-context{grid-template-columns:1fr}}
+.daily-rebalance-button { padding:7px 8px; font-size:11px; }
+#rebalance-dialog { width:min(850px,calc(100vw - 28px)); }
+.rebalance-person { margin:14px 0; padding:12px; border:1px solid #354865; border-radius:12px; }
+.rebalance-person p { margin:7px 0; font-size:13px; }

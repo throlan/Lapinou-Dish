@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { previewDailyRebalance, applyDailyRebalance } from './daily-rebalance.mjs';
 import { readMealSettings, saveMealSettings } from './meal-settings.mjs';
 import { listIngredientStock, saveIngredientStock, validateIngredientStock } from './ingredient-stock.mjs';
 import { createHmac, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
@@ -101,6 +102,17 @@ export async function handleRequest(request, response, pool, appPassword = null,
       return send(response, 401, { error: 'authentication-required' });
     }
 
+    if ((url.pathname === '/api/planning/rebalance-preview' && request.method==='GET') || (url.pathname === '/api/planning/rebalance' && request.method==='POST')) {
+      const body=request.method==='POST'?await readJson(request):null;
+      if(body?.error)return send(response,body.status ?? 400,{error:body.error});
+      const householdId=body?.value?.householdId ?? url.searchParams.get('householdId'),date=body?.value?.date ?? url.searchParams.get('date');
+      if(!isUuid(householdId) || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(date ?? '') || !Number.isFinite(Date.parse(date+'T00:00:00Z')) || new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date)return send(response,400,{error:'invalid-rebalance-request'});
+      if(request.method==='POST' && !/^[0-9a-f]{64}$/.test(body.value?.token ?? ''))return send(response,400,{error:'invalid-rebalance-request'});
+      try {
+        const result=request.method==='GET'?await previewDailyRebalance(pool,householdId,date):await applyDailyRebalance(pool,householdId,date,body.value.token);
+        return send(response,result.error?409:200,result);
+      }catch{return send(response,500,{error:'daily-rebalance-failed'});}
+    }
     if (url.pathname === '/api/meal-settings' && ['GET','PUT'].includes(request.method)) {
       const body=request.method === 'PUT' ? await readJson(request) : null;
       if(body?.error) return send(response,body.status ?? 400,{error:body.error});

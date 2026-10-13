@@ -1,6 +1,16 @@
 import { DEFAULT_MEAL_RATIOS } from './meal-config.js';
 export const SLOT_RATIOS = DEFAULT_MEAL_RATIOS;
 
+export function breakfastServingLimit(recipe,parent) {
+  if(recipe?.yield?.unitId==='piece')return 2;
+  if(recipe?.yield?.unitId==='portion')return 1;
+  if(recipe?.yield?.unitId==='g' && parent?.yield?.unitId==='piece' && Number(parent.yield.amount)>0) {
+    const weight=2*Number(recipe.yield.amount)/Number(parent.yield.amount);
+    return Math.floor(weight/10)*10 || weight;
+  }
+  return Infinity;
+}
+
 const NATURAL_STEPS = Object.freeze({ piece: 1, portion: 0.5, g: 10 });
 
 // A calorie envelope is a ceiling, not a reason to enlarge a batch serving.

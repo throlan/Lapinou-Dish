@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=0.2.40">
+    <link rel="stylesheet" href="/style.css?v=0.2.41">
   </head>
   <body>
     <header class="topbar">
@@ -161,6 +161,13 @@
 
     </main>
 
+    <dialog id="rebalance-dialog">
+      <div class="dialog-heading"><h2>Rééquilibrer la journée</h2><button type="button" class="icon-button" id="close-rebalance" aria-label="Fermer">×</button></div>
+      <p>Pour les adultes : le petit-déjeuner est ramené à deux unités maximum pour les préparations à la pièce, puis le dépassement éventuel est réparti sur le déjeuner et le dîner. Les boissons et desserts restent inchangés. Les réductions du déjeuner et du dîner conservent leur repère de 40 g de protéines, ou leur apport actuel s’il est déjà inférieur.</p>
+      <div id="rebalance-preview"></div>
+      <p id="rebalance-message" class="form-message" role="status"></p>
+      <button type="button" class="primary" id="apply-rebalance">Appliquer ces quantités</button>
+    </dialog>
     <dialog id="meal-dialog">
       <form id="meal-form" method="dialog" class="meal-form">
         <div class="dialog-heading"><div><p class="eyebrow">PLANIFIER UN REPAS</p><h2 id="meal-dialog-title">Nouveau repas</h2></div><button type="button" class="icon-button" id="close-meal-dialog" aria-label="Fermer">×</button></div>
@@ -227,6 +234,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.40"></script>
+    <script type="module" src="/app.js?v=0.2.41"></script>
   </body>
 </html>
