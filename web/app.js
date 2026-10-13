@@ -7,7 +7,7 @@ import { breakfastServingLimit } from './portion-planner.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, importingDraftId: null, editingFoodFromRecipe: false, people: [], recipes: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [] };
+const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, importingDraftId: null, editingFoodFromRecipe: false, people: [], recipes: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, mealOccasionEnergy: {} };
 const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbohydrateG', 'g gluc.'], ['fatG', 'g lip.']];
 
 async function api(path, options = {}) {
@@ -54,6 +54,7 @@ function dashboardAction(label,view) {
   const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=label;button.addEventListener('click',()=>setView(view));return button;
 }
 function mealNutritionForPerson(meal,personId) {
+  if(meal.isOccasion){const entry=meal.occasionEnergy?.find(value=>value.personId===personId);return{kcal:Number(entry?.kcal??0),protein:0,missing:!entry,items:[{name:meal.occasionTitle||'Repas exceptionnel',quantity:1,unit:'estimation'}]};}
   let kcal=0,protein=0,missing=false,items=[];
   for(const item of meal.items??[]){
     const amount=item.amounts.find(entry=>entry.personId===personId); if(!amount) continue;
@@ -71,11 +72,13 @@ async function refreshDashboard() {
   root.replaceChildren(emptyMessage('Chargement du tableau de bord…'));
   const today=localDateValue();
   try {
-    const [plan,peopleResult,planning]=await Promise.all([
+    const [plan,peopleResult,planning,reserve]=await Promise.all([
       api(`/api/planning?householdId=${encodeURIComponent(state.household.id)}&weekStart=${mondayOf(today)}`),
       api(`/api/people?householdId=${encodeURIComponent(state.household.id)}`),
-      api(`/api/household-planning?householdId=${encodeURIComponent(state.household.id)}`)
+      api(`/api/household-planning?householdId=${encodeURIComponent(state.household.id)}`),
+      api(`/api/energy-reserve?householdId=${encodeURIComponent(state.household.id)}&asOf=${today}`)
     ]);
+    state.reserveOverview=reserve;
     const meals=(plan.meals??[]).filter(meal=>meal.mealDate===today);
     const people=peopleResult.people??[]; state.people=people; state.routines=planning.routines??[];
     const intro=document.createElement('div');intro.className='dashboard-welcome';
@@ -115,7 +118,7 @@ async function refreshDashboard() {
           const row=document.createElement('div');row.className='dashboard-person-meal';
           const personName=document.createElement('strong');personName.textContent=person.displayName;
           const recipeText=document.createElement('span');recipeText.textContent=info.items.map(item=>`${item.name} × ${formatQty(item.quantity)} ${item.unit}`).join(' · ')||'Recette à préciser';
-          const nutrition=document.createElement('small');nutrition.textContent=`${format(info.kcal)} kcal · ${format(info.protein)} g protéines${info.missing?' · calcul incomplet':''}`;
+          const nutrition=document.createElement('small');nutrition.textContent=meal.isOccasion?`${format(info.kcal)} kcal estimées · hors quotas, épargne utilisée`:`${format(info.kcal)} kcal · ${format(info.protein)} g protéines${info.missing?' · calcul incomplet':''}`;
           row.append(personName,recipeText,nutrition);mealCard.append(row);
         }
         section.append(mealCard);
@@ -143,6 +146,11 @@ async function refreshDashboard() {
       profiles.append(card);
     }
     profiles.append(dashboardAction('Gérer les profils','profiles'));sidebar.append(profiles);
+    const reservePanel=dashboardPanel('Épargne kcal · 30 jours');
+    const adultAccounts=(reserve.accounts??[]);
+    if(!adultAccounts.length)reservePanel.append(emptyMessage('Ajoute une date de naissance et un objectif kcal aux profils adultes.'));
+    for(const account of adultAccounts){const card=document.createElement('article');card.className='dashboard-profile';const head=document.createElement('div');head.className='dashboard-profile-heading';const name=document.createElement('strong');name.textContent=account.name;const balance=document.createElement('span');balance.textContent=account.balanceKcal>=0?`+${format(account.balanceKcal)} kcal`:`${format(account.balanceKcal)} kcal`;balance.classList.toggle('reserve-negative',account.balanceKcal<0);head.append(name,balance);card.append(head);const note=document.createElement('small');note.textContent=account.incompleteDays?`${account.knownDays} jours calculés · ${account.incompleteDays} jour(s) incomplet(s)`:`Solde prévisionnel glissant · ${account.knownDays} jours calculés`;card.append(note);for(const plan of account.savingsPlans??[]){const planRow=document.createElement('div');planRow.className='reserve-plan-row';const planNote=document.createElement('small');planNote.textContent=`${format(plan.dailyKcal)} kcal/j · ${displayDate(plan.startsOn,{day:'numeric',month:'short'})} au ${displayDate(plan.endsOn,{day:'numeric',month:'short'})}`;const remove=document.createElement('button');remove.type='button';remove.className='text-button';remove.textContent='Retirer';remove.addEventListener('click',async()=>{remove.disabled=true;try{await api(`/api/energy-reserve/plans/${plan.id}?householdId=${encodeURIComponent(state.household.id)}`,{method:'DELETE'});await Promise.all([refreshDashboard(),refreshCalendar()]);}catch(error){note.textContent=`Suppression impossible : ${error.body?.error??error.message}`;remove.disabled=false;}});planRow.append(planNote,remove);card.append(planRow);}reservePanel.append(card);}
+    reservePanel.append(renderSavingPlanForm(people));sidebar.append(reservePanel);
     const stocks=dashboardPanel('Stocks à surveiller');
     const stockItems=(planning.stock??[]).slice().sort((x,y)=>Number(x.availableQuantity)-Number(y.availableQuantity)).slice(0,5);
     if(!stockItems.length)stocks.append(emptyMessage('Aucun stock suivi pour le moment.'));
@@ -162,6 +170,25 @@ async function refreshDashboard() {
     routines.append(dashboardAction('Gérer le planning','shopping'));sidebar.append(routines);
     layout.append(menu,sidebar);root.append(layout);
   } catch(error){root.replaceChildren(emptyMessage('Accueil indisponible : '+(error.body?.error??error.message)));}
+}
+
+function renderSavingPlanForm(people) {
+  const form=document.createElement('form');form.className='reserve-plan-form';
+  const heading=document.createElement('h3');heading.textContent='Programmer une épargne supplémentaire';form.append(heading);
+  const adults=state.reserveOverview?.accounts??[];
+  if(!adults.length){const note=document.createElement('p');note.className='muted';note.textContent='Aucun profil adulte avec objectif kcal disponible.';form.append(note);return form;}
+  const personLabel=document.createElement('label');personLabel.textContent='Profil';const person=document.createElement('select');person.name='personId';
+  for(const adult of adults)person.add(new Option(adult.name,adult.personId));personLabel.append(person);
+  const dates=document.createElement('div');dates.className='yield-row';
+  const startLabel=document.createElement('label');startLabel.textContent='Du';const start=document.createElement('input');start.type='date';start.name='startsOn';start.required=true;start.value=localDateValue();start.min=start.value;start.max=addDays(start.value,30);startLabel.append(start);
+  const endLabel=document.createElement('label');endLabel.textContent='Au';const end=document.createElement('input');end.type='date';end.name='endsOn';end.required=true;end.value=addDays(start.value,6);end.min=start.value;end.max=addDays(start.value,29);endLabel.append(end);dates.append(startLabel,endLabel);
+  start.addEventListener('change',()=>{end.min=start.value;end.max=addDays(start.value,29);if(end.value<start.value)end.value=start.value;if(end.value>end.max)end.value=end.max;});
+  const amountLabel=document.createElement('label');amountLabel.textContent='Épargne visée par jour (kcal)';const amount=document.createElement('input');amount.name='dailyKcal';amount.type='number';amount.min='1';amount.max='1000';amount.step='1';amount.value='100';amount.required=true;amountLabel.append(amount);
+  const note=document.createElement('p');note.className='hint';note.textContent='Jusqu’à 30 jours. Les prochaines portions proposées utiliseront ce budget réduit. Pour un repas déjà planifié, le calendrier proposera un rééquilibrage avec aperçu avant application.';
+  const message=document.createElement('p');message.className='form-message';message.setAttribute('role','status');const button=document.createElement('button');button.type='submit';button.className='secondary';button.textContent='Enregistrer la période d’épargne';
+  form.append(personLabel,dates,amountLabel,note,button,message);
+  form.addEventListener('submit',async event=>{event.preventDefault();if(!form.reportValidity())return;button.disabled=true;message.textContent='Enregistrement…';try{await api('/api/energy-reserve/plans',{method:'POST',body:JSON.stringify({householdId:state.household.id,personId:person.value,startsOn:start.value,endsOn:end.value,dailyKcal:Number(amount.value)})});await Promise.all([refreshDashboard(),refreshCalendar()]);}catch(error){message.textContent=`Épargne non enregistrée : ${error.body?.error??error.message}`;}finally{button.disabled=false;}});
+  return form;
 }
 
 const routineLabels = {
@@ -1187,17 +1214,19 @@ async function refreshCalendar() {
   state.calendarWeekStart ??= mondayOf(today);
   grid.replaceChildren(emptyMessage('Chargement de la semaine…'));
   try {
-    const [plan, peopleResult, recipesResult, mealSettings] = await Promise.all([
+    const end = addDays(state.calendarWeekStart, 6);
+    const [plan, peopleResult, recipesResult, mealSettings, reserve] = await Promise.all([
       api(`/api/planning?householdId=${encodeURIComponent(state.household.id)}&weekStart=${state.calendarWeekStart}`),
       api(`/api/people?householdId=${encodeURIComponent(state.household.id)}`),
       api(`/api/recipes?householdId=${encodeURIComponent(state.household.id)}`),
       api(`/api/meal-settings?householdId=${encodeURIComponent(state.household.id)}`),
+      api(`/api/energy-reserve?householdId=${encodeURIComponent(state.household.id)}&asOf=${end}`),
     ]);
     state.mealRatios=mealSettings.ratios;
     state.people = peopleResult.people;
     state.recipes = recipesResult.recipes;
+    state.calendarReserveOverview=reserve;
     state.calendarMeals = plan.meals ?? [];
-    const end = addDays(state.calendarWeekStart, 6);
     $('#calendar-week-title').textContent = `${displayDate(state.calendarWeekStart, { day: '2-digit', month: 'long' })} – ${displayDate(end, { day: '2-digit', month: 'long', year: 'numeric' })}`;
     grid.replaceChildren(...Array.from({ length: 7 }, (_, index) => renderCalendarDay(addDays(state.calendarWeekStart, index), plan.meals ?? [], today)));
     renderCalendarSummary(plan.meals ?? [], state.people, state.calendarWeekStart);
@@ -1233,19 +1262,24 @@ function renderDailyEnergySummary(date,meals) {
   const heading=document.createElement('strong');heading.textContent='Kcal prévues / objectif';footer.append(heading);
   for(const person of state.people) {
     const daily=calculateDailyEnergy(meals,person.id,date),target=latestProfile(person,date)?.dailyEnergyKcal;
+    const hasOccasion=meals.some(meal=>meal.mealDate===date&&meal.isOccasion&&meal.attendees.some(attendee=>attendee.id===person.id));
+    const savings=state.calendarReserveOverview?.accounts?.find(account=>account.personId===person.id)?.savingsPlans?.find(plan=>plan.startsOn<=date&&plan.endsOn>=date);
     const line=document.createElement('div');line.className='daily-energy-person';
     const name=document.createElement('span');name.textContent=person.displayName;
     const value=document.createElement('strong');value.className='daily-energy-value';
     value.textContent=`${daily.kcal==null?'—':format(daily.kcal)} / ${target>0?format(target):'—'} kcal`;
     if(daily.incomplete){value.classList.add('incomplete');value.title='Sous-total partiel : certaines valeurs nutritionnelles sont inconnues.';}
-    else if(target>0 && daily.kcal>target)value.classList.add('over-target');
+    else if(!hasOccasion&&target>0 && daily.kcal>target)value.classList.add('over-target');
     line.append(name,value);
+    if(savings){const budget=document.createElement('small');budget.textContent=`Budget repas ajusté : ${format(Math.max(0,Number(target)-savings.dailyKcal))} kcal (épargne ${format(savings.dailyKcal)} kcal)`;line.append(budget);}
     if(daily.incomplete){const note=document.createElement('small');note.textContent='Données incomplètes';line.append(note);}
     footer.append(line);
   }
+  if(meals.some(meal=>meal.mealDate===date&&meal.isOccasion)){const note=document.createElement('small');note.className='muted';note.textContent='Les repas exceptionnels sont inclus dans les kcal prévues, sans limite de créneau, et débités de l’épargne.';footer.append(note);}
   const needsBreakfast=meals.some(meal=>meal.mealDate===date && meal.slot==='breakfast' && meal.items.some(item=>item.role==='main' && item.amounts.some(amount=>amount.quantity>breakfastServingLimit(item.recipe,state.recipes.find(parent=>parent.id===item.recipe?.parentRecipeId)))));
-  if(needsBreakfast || state.people.some(person=>calculateDailyEnergy(meals,person.id,date).kcal>latestProfile(person,date)?.dailyEnergyKcal)) {
-    const button=document.createElement('button');button.type='button';button.className='secondary daily-rebalance-button';button.textContent='Rééquilibrer';button.addEventListener('click',()=>openDailyRebalance(date));footer.append(button);
+  const needsSavingRebalance=state.people.some(person=>{const target=latestProfile(person,date)?.dailyEnergyKcal;const saving=state.calendarReserveOverview?.accounts?.find(account=>account.personId===person.id)?.savingsPlans?.find(plan=>plan.startsOn<=date&&plan.endsOn>=date)?.dailyKcal??0;const daily=calculateDailyEnergy(meals.filter(meal=>!meal.isOccasion),person.id,date).kcal;return target>saving&&daily>target-saving;});
+  if(needsBreakfast || needsSavingRebalance || state.people.some(person=>calculateDailyEnergy(meals.filter(meal=>!meal.isOccasion),person.id,date).kcal>latestProfile(person,date)?.dailyEnergyKcal)) {
+    const button=document.createElement('button');button.type='button';button.className='secondary daily-rebalance-button';button.textContent=needsSavingRebalance?'Rééquilibrer pour l’épargne':'Rééquilibrer';button.addEventListener('click',()=>openDailyRebalance(date));footer.append(button);
   }
   return footer;
 }
@@ -1295,6 +1329,7 @@ $('#apply-rebalance').addEventListener('click',async()=>{
 });
 
 function mealCalories(meal) {
+  if(meal.isOccasion)return (meal.occasionEnergy??[]).reduce((sum,entry)=>sum+Number(entry.kcal||0),0);
   if (!meal.attendees?.length || !meal.items?.length) return 0;
   return meal.items.reduce((sum, item) => {
     const recipe = item.recipe;
@@ -1307,11 +1342,11 @@ function mealCalories(meal) {
 function renderMealCard(meal) {
   const card = document.createElement('article'); card.className = 'planned-meal-card';
   const edit = document.createElement('button'); edit.type = 'button';
-  edit.textContent = [...new Set(meal.items?.filter(item => ['main','accompaniment'].includes(item.role ?? 'main')).map(item => item.recipe?.parentRecipeId ? item.recipe.name.split(' — ')[0] : item.recipe?.name ?? 'Recette supprimée'))].join(' + ') || 'Repas';
+  edit.textContent = meal.isOccasion ? `✨ ${meal.occasionTitle || 'Repas exceptionnel'} · hors quotas` : [...new Set(meal.items?.filter(item => ['main','accompaniment'].includes(item.role ?? 'main')).map(item => item.recipe?.parentRecipeId ? item.recipe.name.split(' — ')[0] : item.recipe?.name ?? 'Recette supprimée'))].join(' + ') || 'Repas';
   const attendee = document.createElement('small'); attendee.textContent = meal.attendees?.map((person) => person.displayName).join(', ') || 'Aucune personne sélectionnée';
-  const kcal = mealCalories(meal);
-  const partial = meal.items?.some((item) => !item.recipe?.nutrition?.complete) ?? false;
-  const total = document.createElement('small'); total.className = 'meal-kcal'; total.textContent = kcal ? `${partial ? 'Sous-total partiel' : 'Total'} · ${format(kcal)} kcal` : 'Valeurs inconnues ou incomplètes';
+  const kcal = meal.isOccasion ? (meal.occasionEnergy??[]).reduce((sum,entry)=>sum+Number(entry.kcal||0),0) : mealCalories(meal);
+  const partial = meal.isOccasion ? false : meal.items?.some((item) => !item.recipe?.nutrition?.complete) ?? false;
+  const total = document.createElement('small'); total.className = 'meal-kcal'; total.textContent = meal.isOccasion ? `${format(kcal)} kcal estimées · déduites de l’épargne` : kcal ? `${partial ? 'Sous-total partiel' : 'Total'} · ${format(kcal)} kcal` : 'Valeurs inconnues ou incomplètes';
   card.append(edit, attendee, total);
   const duplicate=document.createElement('button');duplicate.type='button';duplicate.className='text-button';duplicate.textContent='Dupliquer';duplicate.addEventListener('click',()=>openMealDuplication(meal));card.append(duplicate);
   edit.addEventListener('click', () => openMealEditor(meal.mealDate, meal.slot, meal));
@@ -1331,6 +1366,7 @@ function renderCalendarSummary(meals, people, weekStart) {
     for (let i = 0; i < 7; i++) {
       const date = addDays(weekStart, i); let daily = 0; let hasPlan = false;
       for (const meal of meals.filter((entry) => entry.mealDate === date && entry.attendees.some((p) => p.id === person.id))) {
+        if(meal.isOccasion){const entry=meal.occasionEnergy?.find(value=>value.personId===person.id);hasPlan=true;if(entry)daily+=Number(entry.kcal);else incomplete=true;continue;}
         for (const item of meal.items) {
           const amount = item.amounts.find((entry) => entry.personId === person.id);
           if (!amount) continue;
@@ -1351,6 +1387,8 @@ function renderCalendarSummary(meals, people, weekStart) {
     } else {
       const target = document.createElement('small'); target.className = 'muted'; target.textContent = 'Besoin quotidien non renseigné'; row.append(target);
     }
+    const reserve=state.calendarReserveOverview?.accounts?.find(account=>account.personId===person.id);
+    if(reserve){const balance=document.createElement('b');balance.textContent=`Épargne 30 j : ${format(reserve.balanceKcal)} kcal`;if(reserve.balanceKcal<0)balance.classList.add('reserve-negative');row.append(balance);}
     summary.append(row);
   }
   const note = document.createElement('p'); note.className = 'muted'; note.textContent = 'Estimations prévues à partir des recettes. Les données inconnues restent visibles; ce récapitulatif ne représente pas une consommation réelle.'; summary.append(note);
@@ -1395,8 +1433,29 @@ function currentFormAmounts() {
   return output;
 }
 
+function renderOccasionEnergy() {
+  const root=$('#occasion-energy');if(!root)return;
+  const attendees=$$('#meal-attendees input:checked').map(input=>input.value);
+  const previous={...state.mealOccasionEnergy};
+  root.replaceChildren(...attendees.map(personId=>{
+    const person=state.people.find(entry=>entry.id===personId);const label=document.createElement('label');label.textContent=`${person?.displayName??'Personne'} · kcal estimées`;
+    const input=document.createElement('input');input.type='number';input.min='0';input.max='100000';input.step='1';input.required=true;input.dataset.personId=personId;input.value=previous[personId]??'';input.placeholder='Ex. 1200';input.setAttribute('aria-label',`Kcal estimées pour ${person?.displayName??'personne'}`);input.addEventListener('input',()=>{state.mealOccasionEnergy[personId]=input.value;});label.append(input);return label;
+  }));
+}
+
+function updateMealType() {
+  const isOccasion=$('#meal-form').elements.isOccasion.checked;
+  $('#occasion-fields').classList.toggle('hidden',!isOccasion);
+  $('#regular-meal-fields').classList.toggle('hidden',isOccasion);
+  $$('#regular-meal-fields input, #regular-meal-fields select, #regular-meal-fields button').forEach(control=>control.disabled=isOccasion);
+  $('#meal-form').elements.occasionTitle.required=isOccasion;
+  $$('#occasion-energy input').forEach(input=>input.required=isOccasion);
+  if(isOccasion)renderOccasionEnergy();
+}
+
 function plannedCaloriesForPerson(meal, personId) {
   if (!meal.attendees?.some((person) => person.id === personId)) return 0;
+  if(meal.isOccasion)return Number(meal.occasionEnergy?.find(entry=>entry.personId===personId)?.kcal??0);
   return (meal.items ?? []).reduce((sum, item) => {
     const amount = item.amounts?.find((entry) => entry.personId === personId);
     const energy = item.recipe?.nutrition?.perYieldUnit?.energyKcal;
@@ -1417,7 +1476,7 @@ function applyAutomaticPortions(items, attendeeIds) {
     const person = state.people.find((entry) => entry.id === personId);
     const profile = person && latestProfile(person, date);
     const plannedOtherKcal = state.calendarMeals
-      .filter((meal) => meal.mealDate === date && meal.id !== state.calendarMealId)
+      .filter((meal) => meal.mealDate === date && meal.id !== state.calendarMealId && !meal.isOccasion)
       .reduce((sum, meal) => sum + plannedCaloriesForPerson(meal, personId), 0);
     const proposals = [];
     for (const item of selectedForPerson) {
@@ -1435,8 +1494,10 @@ function applyAutomaticPortions(items, attendeeIds) {
         if (kcal == null) messages.add(`${recipe?.name ?? 'Une boisson'} : calories inconnues, le respect du budget ne peut pas être vérifié.`);
         continue;
       }
+      const extraSaving=Number(state.calendarReserveOverview?.accounts?.find(account=>account.personId===personId)?.savingsPlans?.find(plan=>plan.startsOn<=date&&plan.endsOn>=date)?.dailyKcal??0);
+      const effectiveTarget=profile?.dailyEnergyKcal?Math.max(1,Number(profile.dailyEnergyKcal)-extraSaving):null;
       const suggestion = suggestQuantity({
-        dailyTargetKcal: profile?.dailyEnergyKcal,
+        dailyTargetKcal: effectiveTarget,
         slot,
         plannedOtherKcal,
         recipeKcal: kcal,
@@ -1663,12 +1724,15 @@ async function openMealEditor(date, slot, meal = null) {
   form.elements.mealDate.value = date;
   form.elements.slot.value = slot;
   form.elements.notes.value = meal?.notes ?? '';
+  form.elements.isOccasion.checked=Boolean(meal?.isOccasion);
+  form.elements.occasionTitle.value=meal?.occasionTitle??'';
+  state.mealOccasionEnergy=Object.fromEntries((meal?.occasionEnergy??[]).map(entry=>[entry.personId,String(entry.kcal)]));
   $('#delete-meal').classList.toggle('hidden', !meal);
   $('#duplicate-meal').classList.toggle('hidden', !meal);
   const attendeeRoot = $('#meal-attendees');
   attendeeRoot.replaceChildren(...state.people.map((person) => {
     const label = document.createElement('label'); label.className = 'attendee-option';
-    const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = person.id; checkbox.checked = Boolean(meal?.attendees?.some((entry) => entry.id === person.id)); checkbox.addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
+    const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = person.id; checkbox.checked = Boolean(meal?.attendees?.some((entry) => entry.id === person.id)); checkbox.addEventListener('change', () => {renderPlannedItems(currentFormAmounts(), { autoSuggest: true });updateMealType();});
     const name = document.createElement('span'); name.textContent = person.displayName; label.append(checkbox, name); return label;
   }));
   const items = {};
@@ -1690,6 +1754,7 @@ async function openMealEditor(date, slot, meal = null) {
   for(const row of Object.values(individualRows)) items[nextItemIndex++] = row;
   if (!Object.keys(items).length) items[0] = { recipeId: '', amounts: {} };
   renderPlannedItems(items, { autoSuggest: !meal });
+  updateMealType();
   $('#meal-dialog').showModal();
 }
 
@@ -1753,11 +1818,11 @@ $('#delete-meal').addEventListener('click', async () => {
   if (!state.calendarMealId || !state.household) return;
   try {
     await api(`/api/planning/meals/${state.calendarMealId}?householdId=${encodeURIComponent(state.household.id)}`, { method: 'DELETE' });
-    $('#meal-dialog').close(); await refreshCalendar();
+    $('#meal-dialog').close(); await Promise.all([refreshCalendar(),refreshDashboard()]);
   } catch (error) { showMessage($('#meal-message'), `Suppression impossible : ${error.body?.error ?? error.message}`); }
 });
 for (const field of ['mealDate', 'slot']) {
-  $('#meal-form').elements[field].addEventListener('change', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
+  $('#meal-form').elements[field].addEventListener('change', () => {renderPlannedItems(currentFormAmounts(), { autoSuggest: true });updateMealType();});
 }
 
 $('#meal-form').addEventListener('invalid', (event) => {
@@ -1786,8 +1851,10 @@ async function saveMeal(event) {
     return;
   }
   const attendeeIds = $$('#meal-attendees input:checked').map((input) => input.value);
+  const isOccasion=form.elements.isOccasion.checked;
+  const occasionEnergy=isOccasion?$$('#occasion-energy input').map(input=>({personId:input.dataset.personId,kcal:Number(input.value)})):[];
   const rows = $$('.planned-item-editor', $('#planned-items'));
-  const items = rows.flatMap((row) => {
+  const items = isOccasion ? [] : rows.flatMap((row) => {
     const role = $('select[name="role"]', row).value;
     if (!isIndividualRole(role)) return [{
       recipeId: $('select[name="recipeId"]', row).value,
@@ -1807,7 +1874,8 @@ async function saveMeal(event) {
     return [...byRecipe].map(([recipeId, amounts]) => ({ recipeId, role, amounts }));
   });
   if (!attendeeIds.length) { showMessage($('#meal-message'), 'Sélectionne les personnes présentes pour ce repas.'); return; }
-  if (!items.length || items.some((item) => !item.recipeId)) { showMessage($('#meal-message'), 'Choisis au moins une recette pour ce repas.'); return; }
+  if(!isOccasion && (!items.length || items.some((item) => !item.recipeId))) { showMessage($('#meal-message'), 'Choisis au moins une recette pour ce repas.'); return; }
+  if(isOccasion && (!form.elements.occasionTitle.value.trim() || occasionEnergy.length!==attendeeIds.length || occasionEnergy.some(entry=>!Number.isFinite(entry.kcal)||entry.kcal<0))){showMessage($('#meal-message'),'Indique le nom de l’occasion et une estimation kcal pour chaque personne présente.');return;}
   if (items.some((item) => !isIndividualRole(item.role) && item.amounts.length !== attendeeIds.length)
     || items.some((item) => item.amounts.length < 1 || item.amounts.some((amount) => !Number.isFinite(amount.quantity) || (isIndividualRole(item.role) ? amount.quantity < 0 : amount.quantity <= 0)))) {
     showMessage($('#meal-message'), 'Indique une quantité positive pour chaque personne concernée par les recettes choisies.');
@@ -1817,10 +1885,10 @@ async function saveMeal(event) {
   const originalLabel = submitButton.textContent;
   submitButton.disabled = true;
   submitButton.textContent = 'Enregistrement…';
-  const payload = { householdId: state.household.id, mealDate: form.elements.mealDate.value, slot: form.elements.slot.value, notes: form.elements.notes.value, attendeeIds, items };
+  const payload = { householdId: state.household.id, mealDate: form.elements.mealDate.value, slot: form.elements.slot.value, notes: form.elements.notes.value, attendeeIds, items, isOccasion, occasionTitle:form.elements.occasionTitle.value, occasionEnergy };
   try {
     await api(state.calendarMealId ? `/api/planning/meals/${state.calendarMealId}` : '/api/planning/meals', { method: state.calendarMealId ? 'PUT' : 'POST', body: JSON.stringify(payload) });
-    $('#meal-dialog').close(); await refreshCalendar();
+    $('#meal-dialog').close(); await Promise.all([refreshCalendar(),refreshDashboard()]);
   } catch (error) {
     showMessage(message, `Enregistrement impossible : ${error.body?.error ?? error.message}`);
     message.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1832,4 +1900,5 @@ async function saveMeal(event) {
 
 $('#meal-form').addEventListener('submit', saveMeal);
 $('#save-meal').addEventListener('click', saveMeal);
+$('#meal-form').elements.isOccasion.addEventListener('change',updateMealType);
 

@@ -45,6 +45,14 @@ test('health endpoint checks the database and returns service state', async () =
   assert.deepEqual(response.body, { status: 'ok' });
 });
 
+test('energy reserve overview requires a real household and date before querying',async()=>{
+  let called=false;const pool={query:async()=>{called=true;return{rows:[]};}};
+  const invalid=await invoke('/api/energy-reserve?householdId=bad&asOf=2026-10-13',pool);
+  assert.equal(invalid.status,400);assert.equal(called,false);
+  const valid=await invoke('/api/energy-reserve?householdId=11111111-1111-4111-8111-111111111111&asOf=2026-10-13',pool);
+  assert.equal(valid.status,200);assert.deepEqual(valid.body.accounts,[]);assert.equal(called,true);
+});
+
 test('food search requires two characters, searches the catalogue, and caps results', async () => {
   let called = false;
   let calls = 0;

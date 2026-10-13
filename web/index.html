@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=0.2.41">
+    <link rel="stylesheet" href="/style.css?v=0.2.42">
   </head>
   <body>
     <header class="topbar">
@@ -176,8 +176,10 @@
           <label>Créneau<select name="slot"><option value="breakfast">Petit-déjeuner</option><option value="lunch">Déjeuner</option><option value="snack">Collation après-midi</option><option value="dinner">Dîner</option><option value="evening_snack">Collation du soir</option></select></label>
         </div>
         <fieldset class="attendee-fieldset"><legend>Qui sera présent ?</legend><div id="meal-attendees" class="attendee-list"></div></fieldset>
-        <div class="line-heading"><h3>Recettes et quantités par personne</h3><button type="button" class="secondary" id="recalculate-portions">Recalculer les portions</button><button type="button" class="secondary" id="add-planned-item">+ Ajouter une recette</button><button type="button" class="secondary" id="add-planned-dessert">+ Dessert</button></div>
-        <div id="planned-items" class="planned-items"></div>
+        <label class="occasion-toggle"><input type="checkbox" name="isOccasion"> Repas exceptionnel, hors quotas — utiliser l’épargne</label>
+        <section id="occasion-fields" class="hidden occasion-fields"><label>Nom de l’occasion<input name="occasionTitle" maxlength="200" placeholder="Ex. Raclette, vin blanc et tiramisu"></label><div id="occasion-energy" class="planned-amounts"></div><p class="hint">Estime les kcal par personne. Ce repas ne sera pas plafonné par créneau et sera déduit de la réserve.</p></section>
+        <section id="regular-meal-fields"><div class="line-heading"><h3>Recettes et quantités par personne</h3><button type="button" class="secondary" id="recalculate-portions">Recalculer les portions</button><button type="button" class="secondary" id="add-planned-item">+ Ajouter une recette</button><button type="button" class="secondary" id="add-planned-dessert">+ Dessert</button></div>
+        <div id="planned-items" class="planned-items"></div></section>
         <label>Note (facultatif)<textarea name="notes" rows="2" maxlength="1000" placeholder="Ex. à décongeler la veille"></textarea></label>
         <p id="meal-message" class="form-message" role="status"></p>
         <div class="meal-actions"><button type="button" class="secondary hidden" id="delete-meal">Supprimer</button><button type="button" class="secondary hidden" id="duplicate-meal">Dupliquer</button><span></span><button type="button" class="secondary" id="cancel-meal">Annuler</button><button type="button" id="save-meal" class="primary">Enregistrer le repas</button></div>
@@ -234,6 +236,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.41"></script>
+    <script type="module" src="/app.js?v=0.2.42"></script>
   </body>
 </html>

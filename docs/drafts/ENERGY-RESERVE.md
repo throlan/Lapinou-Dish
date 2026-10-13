@@ -1,6 +1,6 @@
 # Brouillon récupérable : réserve kcal et occasions
 
-**Non livré, non intégré et non validé comme fonctionnalité complète.** L'archive [energy-reserve-wip.patch](energy-reserve-wip.patch) conserve les travaux préparatoires de cette session pour un autre PC. Aucun fichier du patch n'est exécuté dans l'application tant qu'il n'est pas intégré explicitement.
+**En cours d'intégration sur `docs/energy-reserve-decisions`, non publié et non déployé.** Le code de cette branche reprend le besoin sur la base 0.2.41. L'archive [energy-reserve-wip.patch](energy-reserve-wip.patch) reste un ancien brouillon construit sur 0.2.37 et ne doit pas être appliquée.
 
 ## Besoin accepté
 
@@ -9,9 +9,12 @@
 - Exemple : objectif de 1 850 kcal, repas planifiés à 1 760 kcal : +90 kcal. Le lendemain, 1 870 kcal planifiées : −20 kcal ; le solde de 90 devient 70 kcal.
 - Une épargne supplémentaire facultative et choisie par l'utilisateur (par exemple 100 kcal pour une journée ou une période) réduit le budget kcal utilisé par le moteur de suggestion et déclenche le recalcul des portions. Elle ne constitue pas un deuxième crédit : le crédit final reste l'écart entre l'objectif initial et le total des repas planifiés. Exemple : objectif 1 850, budget réduit à 1 750, portions recalculées à 1 750 : la réserve reçoit 100 kcal, pas 200.
 - Les crédits sont datés et expirent lorsqu'ils sortent de la fenêtre glissante. Lors d'un débit, utiliser d'abord les crédits les plus anciens (FIFO), afin que l'expiration reste déterministe.
-- Case Occasion dans le repas : titre libre, sans recettes ni calcul nutritionnel détaillé obligatoire. Elle reçoit une estimation globale de kcal **par adulte** pour comptabiliser, par exemple, un repas festif (raclette, vin, dessert) qui ne rentre pas dans les plafonds habituels.
+- La fenêtre implémentée est de 30 jours calendaires, jour de référence inclus. Les crédits et débits connus expirent au-delà de cette fenêtre ; la dépense consomme les crédits les plus anciens en premier.
+- Case « Repas exceptionnel, hors quotas — utiliser l'épargne » dans le repas : titre libre, sans recettes ni calcul nutritionnel détaillé obligatoire. Elle reçoit une estimation kcal **par personne présente** pour comptabiliser, par exemple, un repas festif (raclette, vin, dessert) qui ne rentre pas dans les plafonds habituels.
 - Une occasion n'est pas soumise aux limites kcal habituelles du créneau ni au rééquilibrage automatique du jour ; son estimation débite la réserve. Ne pas imposer une saisie postérieure du repas : les calculs portent sur la planification.
-- L'aperçu des changements de portions reste explicite et l'application contrôlée par l'utilisateur.
+- Si une journée dépasse les crédits disponibles, le solde peut devenir négatif avec un avertissement visible ; l'enregistrement du repas exceptionnel reste possible.
+- Une épargne supplémentaire par adulte peut être programmée sur une période de 1 à 30 jours. Elle réduit le budget des portions ordinaires ; le crédit calculé reste `objectif initial - total planifié`, donc il n'y a pas de double crédit.
+- Les nouvelles suggestions prennent ce budget réduit en compte. Pour les repas déjà planifiés, le calendrier propose un aperçu de rééquilibrage avant application ; les portions des adolescents restent conservées.
 
 ## Décisions fonctionnelles à préserver
 
@@ -19,12 +22,11 @@
 - Ne pas confondre l'épargne supplémentaire choisie (qui réduit le budget utilisé pour proposer les portions) et le crédit obtenu par comparaison du menu planifié à l'objectif quotidien initial.
 - La réserve ne doit pas contraindre les repas ordinaires à rester sous l'objectif au prix de portions incohérentes ; les portions restent modifiables et le déficit de réserve doit rester visible.
 
-## Points à décider avant intégration
+## Reste à valider avant publication
 
-- Si un dépassement prévu est supérieur au solde disponible : bloquer, avertir et autoriser explicitement, ou afficher une dette temporaire. Le comportement n'a pas encore été choisi.
-- Si le coût estimé d'une occasion dépasse le solde : afficher le manque et laisser l'utilisateur décider, sans inventer de crédit.
-- Définir la règle exacte de fenêtre (jour courant inclus, expiration au début ou à la fin du 30e jour) et la configuration d'une fenêtre hebdomadaire/mensuelle éventuelle.
-- Confirmer comment le calendrier affiche une journée sans objectif kcal ou avec des données nutritionnelles incomplètes ; ne pas convertir des inconnues en zéro.
+- Vérifier le parcours complet avec PostgreSQL/PGlite : migration, sauvegarde/édition/duplication d'une occasion, aperçu de rééquilibrage avec épargne et cas d'objectif daté.
+- Vérifier l'interface dans Chrome sur des données synthétiques ; les tests visuels et les tests d'intégration PostgreSQL n'ont pas été exécutés dans ce worktree.
+- Contrôler que les jours sans menu ou avec des kcal inconnues ne créditent jamais la réserve ; les données inconnues ne deviennent pas des zéros.
 
 ## Enrichissement des recettes accepté comme direction
 
@@ -62,4 +64,4 @@ Le patch correspond à cette ancienne base, **pas à la version 0.2.41**. Ne pas
 8. Tester les migrations et règles : fenêtre glissante/expiration, objectif daté, surplus puis déficit (90 puis 70 kcal), épargne choisie et absence de double comptage, occasion, données inconnues, duplication, aperçu obsolète et protections d'âge.
 9. Vérifier le parcours dans Chrome sur données synthétiques, puis suivre le workflow GitHub habituel.
 
-La préparation du patch ne constitue ni un déploiement, ni une modification de l'installation de l'utilisateur. Aucune action sur Unraid n'est autorisée.
+L'implémentation locale ne constitue ni une publication, ni un déploiement, ni une modification de l'installation de l'utilisateur. Aucune action sur Unraid n'est autorisée.

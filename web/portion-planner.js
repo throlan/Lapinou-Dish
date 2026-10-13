@@ -48,6 +48,11 @@ export const MIN_PROTEIN_G_PER_MEAL = 40;
 export function calculateDailyEnergy(meals, personId, date) {
   let kcal=0, knownAmounts=0, incomplete=false, hasPlan=false;
   for(const meal of meals.filter(meal=>meal.mealDate===date)) {
+    if(meal.isOccasion) {
+      const entry=meal.occasionEnergy?.find(value=>value.personId===personId);
+      if(!entry || !Number.isFinite(Number(entry.kcal))){incomplete=true;hasPlan=true;continue;}
+      kcal+=Number(entry.kcal);knownAmounts++;hasPlan=true;continue;
+    }
     for(const item of meal.items ?? []) {
       const amount=item.amounts?.find(amount=>amount.personId===personId);
       if(!amount)continue;
