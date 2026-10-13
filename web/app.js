@@ -754,7 +754,7 @@ async function openRecipeEditor(id = null) {
 }
 
 const recipeFilterChoices={
-  type:[['','Tous'],['dish','Plat'],['beverage','Boisson'],['accompaniment','Accompagnement'],['dessert','Dessert'],['snack','Collation'],['other','Autre']],
+  type:[['','Tous'],['dish','Plat'],['beverage','Boisson'],['accompaniment','Accompagnement'],['dessert','Dessert']],
   moment:[['','Tous'],['breakfast','Petit-déjeuner'],['lunch','Déjeuner'],['snack','Collation'],['dinner','Dîner'],['untagged','Sans tag']],
 };
 const recipeFilters={type:'',moment:''};
@@ -871,7 +871,7 @@ function recipeCard(recipe) {
   const details = document.createElement('div');
   const title = document.createElement('h3'); title.textContent = recipe.name; details.append(title);
   const taxonomy = document.createElement('p'); taxonomy.className = 'recipe-taxonomy-badges';
-  const typeLabels = { dish: 'Plat', beverage: 'Boisson', accompaniment: 'Accompagnement', dessert: 'Dessert', snack: 'Collation', other: 'Autre' };
+  const typeLabels = { dish: 'Plat', beverage: 'Boisson', accompaniment: 'Accompagnement', dessert: 'Dessert' };
   const momentLabels = { breakfast: 'Petit-déjeuner', lunch: 'Déjeuner', dinner: 'Dîner', snack: 'Collation' };
   const tags = [typeLabels[recipe.recipeType], ...(recipe.mealMoments ?? []).map((moment) => momentLabels[moment]).filter(Boolean)];
   if (tags.length) { taxonomy.textContent = tags.join(' · '); details.append(taxonomy); }

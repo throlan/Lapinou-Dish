@@ -34,7 +34,7 @@ test('recipe editor restores saved preparation type, meal tags and production mo
 
 test('legacy and new recipes reset tags without retaining the preceding recipe choices',async()=>{
   const ui=editor();
-  await ui.open({recipeType:'snack',mealMoments:['snack'],productionType:'pastry'});
+  await ui.open({recipeType:'dessert',mealMoments:['snack'],productionType:'pastry'});
   await ui.open({});
   assert.equal(ui.form.elements.recipeType.value,'dish');
   assert.equal(ui.form.elements.productionType.value,'none');

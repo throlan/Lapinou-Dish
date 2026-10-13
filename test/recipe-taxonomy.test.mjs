@@ -22,6 +22,7 @@ test('recipe taxonomy accepts a beverage restricted to breakfast and snack', () 
 });
 
 test('recipe taxonomy rejects unsupported tags and duplicate moments', () => {
+  for(const recipeType of ['snack','other'])assert.equal(validateRecipeInput({...base,recipeType}).error,'invalid-recipe-type');
   assert.equal(validateRecipeInput({ ...base, recipeType: 'drink' }).error, 'invalid-recipe-type');
   assert.equal(validateRecipeInput({ ...base, mealMoments: ['breakfast', 'breakfast'] }).error, 'invalid-meal-moments');
 });
