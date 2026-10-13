@@ -1,12 +1,13 @@
-# Cahier de reprise — 13 octobre 2026
+# Cahier de reprise — fin de journée du 13 octobre 2026
 
 ## Point de départ
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish
-- Branche de référence : `main`.
-- Dernière version applicative publiée et vérifiée : **0.2.41**.
-- Commit applicatif : `37132fbc37f177cfdf27eccc300e072127955abe` ([PR 51](https://github.com/throlan/Lapinou-Dish/pull/51)). Les commits de documentation ultérieurs ne changent pas cette version.
-- Validation : **138 tests réussis**, parcours Chrome sur données synthétiques, contrôles GitHub et publication GHCR réussis.
+- Branche de référence : `main`, commit de la PR 58 : `ee99abd1922ee1d4780b486522b41cdfbcf4bf28`.
+- Dernière version applicative publiée : **0.2.47**, après la [PR 58](https://github.com/throlan/Lapinou-Dish/pull/58). Elle comprend le compte épargne kcal (PR 53), la navigation depuis les courses vers les recettes (PR 54–55), les quantités par recette (PR 56), l'arrondi des pièces (PR 57), les conditionnements d'achat et la suppression protégée d'aliments (PR 58).
+- Journal détaillé : [SESSION-2026-10-13.md](SESSION-2026-10-13.md). État et tâches restantes : [STATUS.md](STATUS.md).
+- Tests de l'état actuel : **148 tests réussis** avec Node v24.19.0 ; la migration des liens de commande et les routes CRUD sont couvertes par PGlite.
+- Travail à reprendre : branche distante `feat/online-order-links`, qui ajoute les liens de commande et reprend le correctif de défilement des courses. Vérifier le parcours navigateur et suivre les contrôles de la PR.
 
 ## Règle d'exploitation impérative
 
@@ -17,10 +18,10 @@
 1. Retrouver ou cloner le dépôt. Lire les éventuels `AGENTS.md`, puis exécuter `git status --short`, `git branch --show-current` et `git log -5 --oneline`.
 2. Préserver tout travail local. Ne pas utiliser de reset destructif, suppression de fichiers, nettoyage forcé ou écrasement des modifications.
 3. Récupérer `origin/main`. Un checkout propre sur `main` peut être mis à jour par `git pull --ff-only`. Si le checkout contient des changements ou une autre branche, inspecter avant de changer de base.
-4. Vérifier la version de `package.json` et lire [l'état du projet](STATUS.md), [le journal de session](SESSION-2026-10-13.md) et [le guide kcal](MEAL-ENERGY.md).
+4. Vérifier la version de `package.json` et lire [l'état du projet](STATUS.md), [le journal de session](SESSION-2026-10-13.md), ce cahier et [le guide kcal](MEAL-ENERGY.md).
 5. Travailler avec une base locale dédiée et des données synthétiques. Ne pas importer les données de santé du foyer, secrets ou captures personnelles dans Git.
 
-Le chemin du checkout sur le PC de cette session est `C:\Users\Plex\OneDrive\Documents\GitHub\Lapinou-Dish`. Ce chemin n'est pas supposé identique sur l'autre machine.
+Le chemin du checkout de cette session est `C:\Users\laure\Documents\Codex\Lapinou-Dish-main-2026-10-13`. Le chemin sera différent sur le PC du shop ; repère le dépôt à partir de son nom et de son dossier Git.
 
 ## Fonctionnement actuel à préserver
 
@@ -39,21 +40,33 @@ Le chemin du checkout sur le PC de cette session est `C:\Users\Plex\OneDrive\Doc
 - Stocks : productions atomiques, déduction unique des ingrédients surveillés, minimum/cible/délai de commande, annulation de lot avec restauration unique. Les courses tiennent compte des réservations et stocks disponibles.
 - Import OpenAI optionnel : brouillons à vérifier ; tentative de récupération de description Instagram avec repli sur le texte collé si la lecture est bloquée. Aucune clé à coller dans la conversation ou à committer.
 
-## Travail restant : réserve kcal et occasions
+## Travail livré : réserve kcal et occasions
 
-L'utilisateur a précisé le fonctionnement attendu de la réserve et des occasions ; ce chantier n'est **pas livré** en 0.2.41. Les décisions détaillées et exemples sont consignés dans [le brouillon de réserve](drafts/ENERGY-RESERVE.md). Règles essentielles :
+Le système a été livré en **0.2.42** (PR 53). Les décisions détaillées et exemples restent archivés dans [le document de réserve](drafts/ENERGY-RESERVE.md). Règles essentielles à préserver :
 
 - Le solde adulte est calculé depuis les repas planifiés, jour par jour, sur une fenêtre glissante de 30 jours par défaut. Sous l'objectif quotidien daté : crédit de la différence ; au-dessus : débit du solde, en utilisant les crédits les plus anciens d'abord.
 - Exemple validé : objectif de 1 850 kcal et menu planifié à 1 760 kcal = +90 kcal ; le lendemain, 1 870 kcal = −20 kcal ; solde : 70 kcal.
 - Une épargne supplémentaire choisie par l'utilisateur réduit le budget servant à recalculer les portions. Le crédit réel reste calculé une seule fois depuis l'objectif initial (1 850 − menu à 1 750 = +100, et non +200).
-- Une occasion (ex. raclette, vin et dessert) reçoit une estimation globale par adulte, contourne les limites kcal ordinaires et le rééquilibrage, puis débite la réserve. Les règles de dépassement d'un solde insuffisant restent à décider.
+- Une occasion (ex. raclette, vin et dessert) reçoit une estimation globale par adulte, contourne les limites kcal ordinaires et le rééquilibrage, puis débite la réserve. Si le solde ne suffit pas, il peut devenir négatif avec un avertissement ; le repas reste enregistrable.
 - Pas de saisie après repas ni de journal du consommé : le calendrier porte des prévisions et doit rester léger.
 
-Le chantier inclut l'intégration au calendrier et aux cinq créneaux, un aperçu contrôlé des recalculs, les tests et une vérification navigateur sur données synthétiques. Le brouillon existant a été préparé sur 0.2.37 : ne pas l'appliquer directement à la version 0.2.41.
+Les totaux affichés sont des prévisions ; aucune saisie de consommation réelle après repas n'est souhaitée. L'ancienne archive et son patch ne sont pas à réappliquer.
 
-Un brouillon de code est archivé dans [drafts/ENERGY-RESERVE.md](drafts/ENERGY-RESERVE.md) avec un patch récupérable sur l'autre PC. Il n'est pas intégré à l'application et ne doit pas être présenté comme terminé. Voir ce document pour les décisions et le travail restant détaillés.
+## Travail à reprendre demain
 
-Les totaux affichés actuellement sont des prévisions ; aucune saisie de consommation réelle après repas n'est souhaitée.
+La branche `feat/online-order-links` contient les liens de commande du foyer et les corrections récentes de la liste de courses. Les liens ont un nom, une URL HTTPS, une ouverture sécurisée en nouvel onglet et une suppression. Ils sont enregistrés par foyer. Le changement de format de paquet met à jour la ligne concernée sans recréer toute la liste. Les **148 tests** et `node --check` passent. Il reste à vérifier le parcours dans Chrome avec des données synthétiques et à suivre les contrôles de la PR ; ne pas fusionner avant leur réussite.
+
+### Prompt prêt à coller dans Codex sur l'autre PC
+
+```text
+Reprends Lapinou Dish à partir de docs/REPRISE.md et docs/STATUS.md. Lis aussi docs/SESSION-2026-10-13.md et les instructions AGENTS.md éventuelles.
+
+La version publiée de référence est 0.2.47 (PR #58). Le travail actuel est sur la branche feat/online-order-links. Elle ajoute une liste de liens de commande HTTPS par foyer dans Courses & stocks et conserve les corrections de défilement ainsi que le cahier de reprise.
+
+Commence par retrouver le dépôt, afficher git status, la branche, HEAD et les différences locales avant toute mise à jour. Ne réinitialise et n'écrase aucun fichier. Récupère la branche feat/online-order-links en préservant tout travail local, puis lance `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs`. Avant de prendre le contrôle du navigateur, demande-moi; après mon accord, vérifie les liens (ajout, ouverture et suppression) ainsi que plusieurs changements de formats d'achat sans saut de défilement. Suis les contrôles GitHub ; ne fusionne pas sans leur réussite.
+
+Règle absolue : ne jamais accéder à Unraid, le vérifier, le modifier ou y déployer. Je m'occupe moi-même de l'installation. Ne touche pas à Nginx. Ne prends pas le contrôle du navigateur sans me demander d'abord.
+```
 
 ## Validation et livraison
 

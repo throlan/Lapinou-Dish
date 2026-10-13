@@ -1,6 +1,6 @@
-# Brouillon récupérable : réserve kcal et occasions
+# Archive de conception : réserve kcal et occasions
 
-**En cours d'intégration sur `docs/energy-reserve-decisions`, non publié et non déployé.** Le code de cette branche reprend le besoin sur la base 0.2.41. L'archive [energy-reserve-wip.patch](energy-reserve-wip.patch) reste un ancien brouillon construit sur 0.2.37 et ne doit pas être appliquée.
+**Fonctionnalité livrée dans la version 0.2.42 (PR 53).** Ce document conserve les décisions et le contexte de conception. Les checklists d'intégration plus bas décrivent le travail préparatoire historique et ne sont plus le reste à faire courant. L'archive `energy-reserve-wip.patch` est un ancien brouillon construit sur 0.2.37 et ne doit pas être appliquée.
 
 ## Besoin accepté
 

@@ -27,6 +27,36 @@ export function validateRoutineSettings(input) {
   return { data: routines };
 }
 
+export function validateOrderLinkInput(input) {
+  if (!input || typeof input !== 'object' || !isUuid(input.householdId)
+    || typeof input.label !== 'string' || !input.label.trim() || input.label.trim().length > 100
+    || typeof input.url !== 'string' || input.url.length > 2048) return { error: 'invalid-order-link' };
+  let parsed;
+  try { parsed = new URL(input.url.trim()); } catch { return { error: 'invalid-order-link' }; }
+  if (parsed.protocol !== 'https:' || !parsed.hostname || parsed.username || parsed.password) return { error: 'invalid-order-link' };
+  return { data: { id: isUuid(input.id) ? input.id : randomUUID(), householdId: input.householdId, label: input.label.trim(), url: parsed.toString() } };
+}
+
+export async function listOrderLinks(pool, householdId) {
+  const result = await pool.query(
+    'SELECT id, label, url FROM household_order_links WHERE household_id=$1 ORDER BY created_at,id', [householdId]);
+  return result.rows;
+}
+
+export async function saveOrderLink(pool, link) {
+  const result = await pool.query(
+    `INSERT INTO household_order_links(id,household_id,label,url) VALUES($1,$2,$3,$4)
+     ON CONFLICT(id) DO UPDATE SET label=EXCLUDED.label,url=EXCLUDED.url,updated_at=now()
+     WHERE household_order_links.household_id=EXCLUDED.household_id
+     RETURNING id,label,url`, [link.id,link.householdId,link.label,link.url]);
+  return result.rows[0] ?? null;
+}
+
+export async function deleteOrderLink(pool, householdId, linkId) {
+  const result = await pool.query('DELETE FROM household_order_links WHERE household_id=$1 AND id=$2', [householdId,linkId]);
+  return result.rowCount > 0;
+}
+
 export async function getRoutineSettings(pool, householdId) {
   for (const [routineId, frequency] of routineDefaults) {
     await pool.query(

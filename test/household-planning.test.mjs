@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shoppingPurchaseQuantity, validateProductionInput, validateRoutineSettings, validateShoppingLineState } from '../src/server/household-planning.mjs';
+import { shoppingPurchaseQuantity, validateOrderLinkInput, validateProductionInput, validateRoutineSettings, validateShoppingLineState } from '../src/server/household-planning.mjs';
 
 const householdId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const foodId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -38,4 +38,13 @@ test('shopping quantities sum recipe needs and round fractional pieces up for pu
   assert.equal(shoppingPurchaseQuantity(2.1,'piece'),3);
   assert.equal(shoppingPurchaseQuantity(3,'piece'),3);
   assert.equal(shoppingPurchaseQuantity(2.1,'g'),2.1);
+});
+
+test('online order links accept named HTTPS links and reject unsafe or malformed URLs', () => {
+  const input={householdId,label:'Farines',url:'https://shop.example/orders'};
+  assert.equal(validateOrderLinkInput(input).data.label,'Farines');
+  assert.equal(validateOrderLinkInput({...input,url:'javascript:alert(1)'}).error,'invalid-order-link');
+  assert.equal(validateOrderLinkInput({...input,url:'http://shop.example'}).error,'invalid-order-link');
+  assert.equal(validateOrderLinkInput({...input,label:'  '}).error,'invalid-order-link');
+  assert.equal(validateOrderLinkInput({...input,url:'https://user:pass@shop.example'}).error,'invalid-order-link');
 });

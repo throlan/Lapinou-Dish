@@ -1,8 +1,8 @@
-# État du projet — 13 octobre 2026
+# État du projet — 13 octobre 2026, soir
 
 ## Version de référence
 
-**0.2.41**, commit applicatif 37132fbc37f177cfdf27eccc300e072127955abe, fusionné sur main. Les contrôles GitHub et la publication GHCR sont réussis. Les commits documentaires ultérieurs ne changent pas la version applicative.
+**0.2.47**, publiée après la PR 58, fusionnée sur `main` dans le commit `ee99abd1922ee1d4780b486522b41cdfbcf4bf28`. Elle comprend les formats de paquets mémorisés par foyer, aliment et unité, la suppression protégée des aliments inutilisés, les liens et quantités de recettes dans les courses, l'arrondi des achats à la pièce entière et le compte épargne kcal.
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des modifications : [journal de session](SESSION-2026-10-13.md).
 
@@ -26,17 +26,21 @@ Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). P
 
 ## Vérification
 
-**138 tests réussis** avec la commande Node documentée dans [le cahier de reprise](REPRISE.md), également disponible via npm test.
+**148 tests réussis** avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` (Node v24.19.0).
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 
-## À terminer
+## En cours sur `feat/online-order-links`
 
-1. Réserve kcal glissante et occasions avec estimation globale par adulte : [décisions, brouillon et intégration restante](drafts/ENERGY-RESERVE.md).
-2. Enrichir les composants indépendants et variantes de recettes, au-delà des parties de service déjà implémentées.
-3. Continuer les validations sur les données et parcours de l'utilisateur à partir de ses retours, sans accès de l'agent à son serveur.
+Liens de commande ajoutés à Courses & stocks : nom et URL HTTPS enregistrés par foyer, ouverture dans un nouvel onglet, suppression, validation serveur et migration SQL dédiée. La branche reprend aussi le correctif du saut de défilement des formats de paquet et les notes de reprise.
+
+À faire : vérifier le parcours dans Chrome avec des données synthétiques (après avoir demandé l'autorisation de prendre le contrôle du navigateur), puis suivre les contrôles GitHub de la PR. Ne pas fusionner avant leur réussite. L'application n'a pas été déployée.
+
+Piste éventuelle : composants et variantes de recette indépendants au-delà des parties de service actuelles ; à préciser seulement si l'utilisateur souhaite poursuivre.
 
 Les totaux du calendrier restent prévisionnels. L'utilisateur ne souhaite pas de journal de consommation réelle ni de saisie après repas.
+
+Le brouillon `drafts/ENERGY-RESERVE.md` est historique : le système correspondant a été livré en 0.2.42. Ne pas le compter dans le reste à faire.
 
 ## Guides actuels
 
