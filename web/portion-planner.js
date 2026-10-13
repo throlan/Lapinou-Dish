@@ -35,6 +35,24 @@ export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, r
 
 export const MIN_PROTEIN_G_PER_MEAL = 40;
 
+export function calculateDailyEnergy(meals, personId, date) {
+  let kcal=0, knownAmounts=0, incomplete=false, hasPlan=false;
+  for(const meal of meals.filter(meal=>meal.mealDate===date)) {
+    for(const item of meal.items ?? []) {
+      const amount=item.amounts?.find(amount=>amount.personId===personId);
+      if(!amount)continue;
+      hasPlan=true;
+      const quantity=Number(amount.quantity),energy=item.recipe?.nutrition?.perYieldUnit?.energyKcal;
+      if(!Number.isFinite(quantity) || quantity<0){incomplete=true;continue;}
+      if(!quantity)continue;
+      if(energy==null || !Number.isFinite(Number(energy))){incomplete=true;continue;}
+      kcal+=quantity*Number(energy);knownAmounts++;
+      if(item.recipe?.nutrition?.complete===false)incomplete=true;
+    }
+  }
+  return {kcal:incomplete && !knownAmounts ? null : kcal,incomplete,hasPlan};
+}
+
 export function calculatePersonEnergy(meal, personId) {
   let kcal = 0, hasPortions = false;
   for (const item of meal?.items ?? []) {

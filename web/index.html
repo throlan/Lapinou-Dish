@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=0.2.39">
+    <link rel="stylesheet" href="/style.css?v=0.2.40">
   </head>
   <body>
     <header class="topbar">
@@ -14,7 +14,6 @@
         <button class="nav-button" data-view="foods">Aliments</button>
         <button class="nav-button" data-view="recipes">Recettes</button>
         <button class="nav-button" data-view="calendar">Calendrier</button>
-        <button class="nav-button" data-view="profiles">Profils</button>
         <button class="nav-button" data-view="shopping">Courses & stocks</button>
         <button class="nav-button" data-view="admin">Administration</button>
       </nav>
@@ -29,7 +28,18 @@
 
       <section id="home-view" class="view"><div id="dashboard-content"><p class="empty">Chargement du tableau de bord…</p></div></section>
       <section id="admin-view" class="view hidden">
-        <div class="section-heading"><div><h2>Répartition des kcal du foyer</h2><p>Ces pourcentages s’appliquent au besoin quotidien de chaque profil.</p></div></div>
+        <div class="section-heading"><div><h2>Administration du foyer</h2><p>Ces pourcentages s’appliquent au besoin quotidien de chaque profil.</p></div></div>
+      <section id="profiles-view" class="admin-profile-section">
+        <div class="section-heading"><div><h2>Profils du foyer</h2><p>Mesures et activité saisies par les membres, conservées dans leur historique.</p></div></div>
+        <details class="profile-create-panel"><summary>Ajouter une personne</summary><form id="person-form" class="profile-create">
+          <label>Nom affiché<input name="displayName" required maxlength="80" placeholder="Ex. Alex"></label>
+          <label>Date de naissance (facultatif)<input name="birthDate" type="date"></label>
+          <button class="primary" type="submit">Ajouter une personne</button>
+        </form></details>
+        <p id="people-message" class="form-message" role="status"></p>
+        <div id="people-list" class="people-list"><p class="empty">Chargement des profils…</p></div>
+      </section>
+        <h3>Répartition des kcal</h3>
         <form id="meal-ratios-form" class="card">
           <div class="form-grid">
             <label>Petit-déjeuner (%)<input name="breakfast" type="number" min="0" max="100" step="0.1" required></label>
@@ -148,16 +158,7 @@
           <div id="ingredient-stock-list"><p class="empty">Aucun ingrédient surveillé.</p></div>
         </section>
       </section>
-      <section id="profiles-view" class="view hidden">
-        <div class="section-heading"><div><h2>Profils du foyer</h2><p>Mesures et activité saisies par les membres, conservées dans leur historique.</p></div></div>
-        <form id="person-form" class="profile-create">
-          <label>Nom affiché<input name="displayName" required maxlength="80" placeholder="Ex. Alex"></label>
-          <label>Date de naissance (facultatif)<input name="birthDate" type="date"></label>
-          <button class="primary" type="submit">Ajouter une personne</button>
-        </form>
-        <p id="people-message" class="form-message" role="status"></p>
-        <div id="people-list" class="people-list"><p class="empty">Chargement des profils…</p></div>
-      </section>
+
     </main>
 
     <dialog id="meal-dialog">
@@ -226,6 +227,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.39"></script>
+    <script type="module" src="/app.js?v=0.2.40"></script>
   </body>
 </html>

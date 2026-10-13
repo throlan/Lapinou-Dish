@@ -2,6 +2,7 @@ import { calculatePersonProtein, capAccompanimentQuantity, MIN_PROTEIN_G_PER_MEA
 import { mainServingLimit } from './portion-planner.js';
 import { calculatePersonEnergy, SLOT_RATIOS } from './portion-planner.js';
 import { MEAL_ORDER, MEAL_LABELS, validMealRatios } from './meal-config.js';
+import { calculateDailyEnergy } from './portion-planner.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -25,11 +26,12 @@ function showMessage(target, text, success = false) {
 }
 
 function setView(name) {
+  if(name === 'profiles')name='admin';
   $('#home-view').classList.toggle('hidden', name !== 'home');
   $('#foods-view').classList.toggle('hidden', name !== 'foods');
   $('#recipes-view').classList.toggle('hidden', name !== 'recipes');
   $('#calendar-view').classList.toggle('hidden', name !== 'calendar');
-  $('#profiles-view').classList.toggle('hidden', name !== 'profiles');
+  $('#profiles-view').classList.toggle('hidden', name !== 'admin');
   $('#shopping-view').classList.toggle('hidden', name !== 'shopping');
   $('#admin-view').classList.toggle('hidden', name !== 'admin');
   $$('.nav-button').forEach((button) => button.classList.toggle('active', button.dataset.view === name));
@@ -393,11 +395,14 @@ async function refreshPeople() {
 }
 
 function profileCard(person) {
-  const card = document.createElement('article'); card.className = 'profile-card';
-  const heading = document.createElement('div'); heading.className = 'profile-card-heading';
+  const card = document.createElement('details'); card.className = 'profile-card';
+  const heading = document.createElement('summary'); heading.className = 'profile-card-heading';
   const title = document.createElement('h3'); title.textContent = person.displayName;
-  const birth = document.createElement('p'); birth.className = 'muted'; birth.textContent = person.birthDate ? `Né(e) le ${person.birthDate}` : 'Date de naissance non renseignée';
-  heading.append(title, birth); card.append(heading);
+  const current=person.profileHistory.find(entry=>entry.effectiveFrom<=localDateValue());
+  const overview=document.createElement('span');overview.className='muted';
+  overview.textContent=[current?.dailyEnergyKcal ? `${format(current.dailyEnergyKcal)} kcal/j` : 'Besoin à renseigner',current?.heightCm ? `${format(current.heightCm)} cm` : null,person.weightHistory[0]?.weightKg ? `${format(person.weightHistory[0].weightKg)} kg` : null].filter(Boolean).join(' · ');
+  heading.append(title,overview);card.append(heading);
+  const birth = document.createElement('p'); birth.className = 'muted'; birth.textContent = person.birthDate ? `Né(e) le ${displayDate(person.birthDate.slice(0,10))}` : 'Date de naissance non renseignée';card.append(birth);
   const forms = document.createElement('div'); forms.className = 'profile-forms';
   const weightForm = document.createElement('form'); weightForm.className = 'profile-entry';
   weightForm.innerHTML = '<h4>Relevé de poids</h4><label>Date<input name="measuredOn" type="date" required></label><label>Poids (kg)<input name="weightKg" type="number" min="0.1" max="500" step="0.1" required></label><button class="secondary" type="submit">Enregistrer le relevé</button>';
@@ -1218,11 +1223,26 @@ function renderCalendarDay(date, meals, today) {
     for (const meal of slotMeals) section.append(renderMealCard(meal));
     day.append(section);
   }
-  const footer = document.createElement('footer');
-  const calories = meals.filter((meal) => meal.mealDate === date).reduce((sum, meal) => sum + mealCalories(meal), 0);
-  footer.textContent = calories ? `${format(calories)} kcal-personnes prévus` : 'Prévisions';
-  day.append(footer);
+  day.append(renderDailyEnergySummary(date,meals));
   return day;
+}
+
+function renderDailyEnergySummary(date,meals) {
+  const footer=document.createElement('footer');footer.className='daily-energy-summary';
+  const heading=document.createElement('strong');heading.textContent='Kcal prévues / objectif';footer.append(heading);
+  for(const person of state.people) {
+    const daily=calculateDailyEnergy(meals,person.id,date),target=latestProfile(person,date)?.dailyEnergyKcal;
+    const line=document.createElement('div');line.className='daily-energy-person';
+    const name=document.createElement('span');name.textContent=person.displayName;
+    const value=document.createElement('strong');value.className='daily-energy-value';
+    value.textContent=`${daily.kcal==null?'—':format(daily.kcal)} / ${target>0?format(target):'—'} kcal`;
+    if(daily.incomplete){value.classList.add('incomplete');value.title='Sous-total partiel : certaines valeurs nutritionnelles sont inconnues.';}
+    else if(target>0 && daily.kcal>target)value.classList.add('over-target');
+    line.append(name,value);
+    if(daily.incomplete){const note=document.createElement('small');note.textContent='Données incomplètes';line.append(note);}
+    footer.append(line);
+  }
+  return footer;
 }
 
 function mealCalories(meal) {
@@ -1243,30 +1263,7 @@ function renderMealCard(meal) {
   const kcal = mealCalories(meal);
   const partial = meal.items?.some((item) => !item.recipe?.nutrition?.complete) ?? false;
   const total = document.createElement('small'); total.className = 'meal-kcal'; total.textContent = kcal ? `${partial ? 'Sous-total partiel' : 'Total'} · ${format(kcal)} kcal` : 'Valeurs inconnues ou incomplètes';
-  const proteinTags = document.createElement('div'); proteinTags.className = 'meal-protein-tags';
-  for (const person of meal.attendees ?? []) {
-    const result = calculatePersonProtein(meal, person.id);
-    const tag = document.createElement('span');
-    tag.className = `protein-tag ${!result.known ? 'protein-unknown' : result.grams >= MIN_PROTEIN_G_PER_MEAL ? 'protein-sufficient' : 'protein-low'}`;
-    tag.textContent = !result.known
-      ? `${person.displayName} · protéines inconnues`
-      : result.grams >= MIN_PROTEIN_G_PER_MEAL
-        ? `${person.displayName} · ${format(result.grams)} g ✓`
-        : `${person.displayName} · ${format(result.grams)} / ${MIN_PROTEIN_G_PER_MEAL} g`;
-    proteinTags.append(tag);
-  }
-  const servingAmounts=document.createElement('div'); servingAmounts.className='meal-serving-amounts';
-  for(const person of meal.attendees ?? []) {
-    const parts=(meal.items ?? []).filter(item=>['main','accompaniment'].includes(item.role ?? 'main')).map(item=>{
-      const amount=item.amounts.find(amount=>amount.personId===person.id);
-      if(!amount)return null;
-      const threeParts=state.recipes.find(recipe=>recipe.id===item.recipe?.parentRecipeId)?.servingParts?.some(part=>part.servingPart==='vegetables');
-      const name=item.recipe?.servingPart === 'starch' ? 'féculents' : item.recipe?.servingPart === 'vegetables' ? 'légumes' : threeParts && item.recipe?.servingPart === 'main' ? 'viande / protéines' : item.role === 'accompaniment' ? 'accompagnement' : 'plat';
-      return `${name} ${formatQty(amount.quantity)} ${item.recipe?.yield.unitId ?? 'portion'}`;
-    }).filter(Boolean);
-    if(parts.length){const line=document.createElement('small');line.textContent=`${person.displayName} : ${parts.join(' + ')}`;servingAmounts.append(line);}
-  }
-  card.append(edit, attendee, total, proteinTags,servingAmounts);
+  card.append(edit, attendee, total);
   const duplicate=document.createElement('button');duplicate.type='button';duplicate.className='text-button';duplicate.textContent='Dupliquer';duplicate.addEventListener('click',()=>openMealDuplication(meal));card.append(duplicate);
   edit.addEventListener('click', () => openMealEditor(meal.mealDate, meal.slot, meal));
   return card;
@@ -1446,28 +1443,31 @@ function applyAutomaticPortions(items, attendeeIds) {
 }
 
 function mealProteinSummary(items, attendeeIds) {
-  const root=document.createElement('div');root.id='meal-protein-summary';root.className='meal-protein-tags';root.setAttribute('role','status');
+  const root=document.createElement('div');root.id='meal-protein-summary';root.className='meal-person-summary';root.setAttribute('role','status');
   const meal={items:Object.values(items).flatMap(item=>{
     if(isIndividualRole(item.role)) return Object.entries(item.assignments??{}).map(([personId,assignment])=>({
       recipe:allPlanningRecipes().find(recipe=>recipe.id===assignment.recipeId),amounts:[{personId,quantity:Number(assignment.quantity)}],
     }));
     return [{recipe:allPlanningRecipes().find(recipe=>recipe.id===item.recipeId),amounts:Object.entries(item.amounts??{}).map(([personId,quantity])=>({personId,quantity:Number(quantity)}))}];
   })};
-  for(const personId of attendeeIds){
+  const preferred=['bibinette','lapinou','bibou','titus'];
+  const rank=id=>{const name=state.people.find(person=>person.id===id)?.displayName?.toLocaleLowerCase('fr');const index=preferred.indexOf(name);return index<0?preferred.length:index;};
+  for(const personId of [...attendeeIds].sort((a,b)=>rank(a)-rank(b))){
     const person=state.people.find(person=>person.id===personId),result=calculatePersonProtein(meal,personId);
+    const row=document.createElement('div');row.className='meal-person-row';
+    const name=document.createElement('strong');name.textContent=`${person?.displayName??'Personne'} :`;
     const tag=document.createElement('span');tag.className=`protein-tag ${!result.known?'protein-unknown':result.grams>=MIN_PROTEIN_G_PER_MEAL?'protein-sufficient':'protein-low'}`;
-    tag.textContent=`${person?.displayName??'Personne'} : ${result.known?format(result.grams):'—'} / ${MIN_PROTEIN_G_PER_MEAL} g de protéines`;
+    tag.textContent=`Prot : ${result.known?format(result.grams):'—'} / ${MIN_PROTEIN_G_PER_MEAL} g`;
     if(!result.known)tag.title='Quantités ou données protéiques à compléter';
-    root.append(tag);
     const energy=calculatePersonEnergy(meal,personId);
     const form=$('#meal-form'),profile=person && latestProfile(person,form.elements.mealDate.value);
     const daily=Number(profile?.dailyEnergyKcal),ratio=(state.mealRatios ?? SLOT_RATIOS)[form.elements.slot.value];
     const objective=Number.isFinite(daily) && daily>0 && Number.isFinite(ratio) ? daily*ratio : null;
     const energyTag=document.createElement('span');
     energyTag.className=`protein-tag ${!energy.known || objective==null?'protein-unknown':energy.kcal<=objective?'protein-sufficient':'protein-low'}`;
-    energyTag.textContent=`${person?.displayName??'Personne'} : ${energy.known?format(energy.kcal):'—'} / ${objective==null?'—':format(objective)} kcal`;
+    energyTag.textContent=`Kcal : ${energy.known?format(energy.kcal):'—'} / ${objective==null?'—':format(objective)}`;
     energyTag.title=objective==null?'Objectif quotidien à renseigner dans le profil':`Objectif du repas : ${ratio*100} % du besoin quotidien. Les propositions automatiques autorisent une marge de 100 kcal, dans le budget quotidien restant.`;
-    root.append(energyTag);
+    row.append(name,energyTag,tag);root.append(row);
   }
   return root;
 }
