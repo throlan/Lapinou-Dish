@@ -2,6 +2,8 @@
 
 État: décisions de départ, à vérifier par un prototype technique. Toute modification se fait ici avant d'accumuler des compromis dans le code.
 
+Les ADR initiales ci-dessous gardent leur contexte historique. L'implémentation actuelle est décrite dans [STATUS.md](STATUS.md) et les décisions de session ci-après ; l'agent ne doit jamais accéder ni intervenir sur Unraid.
+
 ## ADR-0001 — Application neuve, domaine et interface propres
 
 **Décision.** Lapinou Dish vit dans son propre dépôt, son propre schéma, son propre vocabulaire produit et ses propres écrans. Aucun package, migration ou modèle Norish n'est importé comme dépendance d'exécution. Le dépôt Norish sert uniquement de référence historique pour les besoins et un chemin d'export/import ponctuel pourra être écrit plus tard.
@@ -38,3 +40,14 @@
 - PostgreSQL déjà maîtrisé sur l'hôte, mais une base neuve propre au service.
 - Aucun service externe nécessaire pour calculer la nutrition, planifier ou produire.
 - Ciqual livré/versionné comme jeu initial attribué à l'Anses; produits de marque importés depuis les étiquettes par l'administrateur.
+
+## Décisions appliquées au 13 octobre 2026
+
+- Service Node.js 24 monolithique : routes HTTP dans `src/server/app.mjs`, modules métier JavaScript, domaine typé exécuté avec le support TypeScript natif, interface HTML/CSS/JavaScript dans `web`. PostgreSQL via `pg`, migrations SQL explicites ; aucun ORM n'a été ajouté.
+- Les tests d'intégration utilisent PGlite sur une base jetable et exécutent les migrations et transactions réelles. Les parcours Chrome utilisent des données synthétiques locales.
+- Les parties de service sont des recettes dérivées en grammes, rattachées à la recette mère. Leurs identifiants restent stables ; les lots liés au batch empêchent les doubles déductions d'ingrédients.
+- Répartition kcal : configuration JSON par foyer, validation commune à l'API et à l'interface dans `web/meal-config.js`. Un seul référentiel des cinq créneaux et pourcentages par défaut.
+- Rééquilibrage : calcul séparé dans `src/server/daily-rebalance.mjs`, aperçu sans mutation, empreinte des entrées et propositions, application transactionnelle sérialisable avec verrou du foyer. Les quantités sauvegardées et le stock physique restent distincts.
+- Administration utilise la session existante du foyer ; il n'y a pas de nouveau rôle administrateur ni système de comptes individuel introduit par cet onglet.
+- Livraison : GitHub/CI/GHCR seulement dans le périmètre de l'agent. L'utilisateur applique lui-même les mises à jour sur son installation. Cette règle prévaut sur les anciennes intentions de validation ou déploiement Unraid des ADR initiales.
+- Les sources importées et valeurs annoncées ne deviennent pas des valeurs nutritionnelles calculées. OpenAI est optionnel, produit des brouillons et reçoit le texte de recette, pas les profils du foyer.
