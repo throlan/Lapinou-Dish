@@ -1014,8 +1014,9 @@ function renderCalendarDay(date, meals, today) {
     const label = document.createElement('span'); label.textContent = slotLabels[slot];
     const add = document.createElement('button'); add.type = 'button'; add.className = 'calendar-add'; add.textContent = '+ Ajouter';
     add.addEventListener('click', () => openMealEditor(date, slot));
-    slotHeading.append(label, add); section.append(slotHeading);
-    for (const meal of meals.filter((item) => item.mealDate === date && item.slot === slot)) section.append(renderMealCard(meal));
+    const slotMeals = meals.filter((item) => item.mealDate === date && item.slot === slot);
+    if (!slotMeals.length) { slotHeading.append(label, add); section.append(slotHeading); }
+    for (const meal of slotMeals) section.append(renderMealCard(meal));
     day.append(section);
   }
   const footer = document.createElement('footer');
