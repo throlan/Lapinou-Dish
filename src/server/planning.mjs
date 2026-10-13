@@ -75,7 +75,7 @@ export async function savePlannedMeal(pool, id, data) {
       if (recipe.rows[0]?.separate_starch) {
         const parts = await client.query('SELECT id,serving_part,yield_amount FROM recipes WHERE parent_recipe_id=$1',[item.recipeId]);
         if (!parts.rows.length) { await client.query('ROLLBACK'); return {error:'serving-parts-missing'}; }
-        for (const part of parts.rows) normalizedItems.push({recipeId:part.id,role:part.serving_part === 'starch' ? 'accompaniment' : item.role,amounts:item.amounts.map(amount=>({personId:amount.personId,quantity:amount.quantity/Number(recipe.rows[0].yield_amount)*Number(part.yield_amount)}))});
+        for (const part of parts.rows) normalizedItems.push({recipeId:part.id,role:part.serving_part !== 'main' ? 'accompaniment' : item.role,amounts:item.amounts.map(amount=>({personId:amount.personId,quantity:amount.quantity/Number(recipe.rows[0].yield_amount)*Number(part.yield_amount)}))});
       } else normalizedItems.push(item);
     }
     if (normalizedItems.some(item=>item.amounts.some(amount=>!Number.isFinite(amount.quantity) || amount.quantity > 100000))) { await client.query('ROLLBACK'); return {error:'invalid-planned-quantity'}; }

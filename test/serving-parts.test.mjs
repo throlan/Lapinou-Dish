@@ -23,6 +23,7 @@ test('serving factors are explicit estimates and never classify ingredients by n
   assert.deepEqual(Object.keys(lasagna.cookingFactors),['main']);
   assert.equal(validateRecipeInput(input({servingMode:'separate',lines:input().lines.map(line=>({...line,servingPart:'main'}))})).error,'starch-ingredients-required');
   assert.equal(validateRecipeInput(input({servingMode:'separate',separateStarch:false})).error,'invalid-serving-parts');
+  assert.equal(validateRecipeInput(input({servingMode:'three'})).error,'vegetable-ingredients-required');
 });
 
 test('gram preparations preserve nutrition, shopping, stock and complete meal duplication',async t=>{
@@ -130,6 +131,40 @@ test('gram preparations preserve nutrition, shopping, stock and complete meal du
       assert.equal((await listIngredientStock(pool,h))[0].quantityG,ingredientBefore);
       await cancelStockLot(pool,h,production.id);
       assert.equal((await listIngredientStock(pool,h))[0].quantityG,ingredientBefore+250);
+    });
+    await t.test('two components become three without changing the existing starch, repeating deductions or losing reservations',async()=>{
+      const two=await createRecipe(pool,checked(input({name:'Deux puis trois',servingMode:'separate'})));
+      const oldMain=two.servingParts.find(p=>p.servingPart==='main'),ricePart=two.servingParts.find(p=>p.servingPart==='starch');
+      const before=await savePlannedMeal(pool,null,{householdId:h,mealDate:'2026-10-23',slot:'lunch',notes:'',attendeeIds:[person],items:[{recipeId:oldMain.id,role:'main',amounts:[{personId:person,quantity:387.5}]},{recipeId:ricePart.id,role:'accompaniment',amounts:[{personId:person,quantity:120}]}]});
+      const production=await addStockLot(pool,{householdId:h,recipeId:two.id,producedOn:date,quantity:4,storage:'freezer',note:'',requestId:null});
+      const stockBefore=(await listIngredientStock(pool,h))[0].quantityG;
+      const threeInput=()=>checked(input({name:'Deux puis trois',servingMode:'three',lines:input().lines.map(line=>({...line,servingPart:line.foodId===veg?'vegetables':line.servingPart}))}));
+      const three=await updateRecipe(pool,two.id,threeInput());
+      assert.equal(three.error,undefined);assert.equal(three.servingParts.length,3);
+      assert.deepEqual(Object.fromEntries(three.servingParts.map(p=>[p.servingPart,p.yield.amount])),{main:750,starch:750,vegetables:800});
+      const after=(await listPlannedMeals(pool,h,date)).find(m=>m.id===before.id);
+      assert.deepEqual(Object.fromEntries(after.items.map(i=>[i.recipe.servingPart,i.amounts[0].quantity])),{main:187.5,starch:120,vegetables:200});
+      const total=meal=>meal.items.reduce((sum,i)=>sum+i.amounts[0].quantity*i.recipe.nutrition.perYieldUnit.energyKcal,0);
+      assert.ok(Math.abs(total(before)-total(after))<1e-8);
+      assert.equal((await listIngredientStock(pool,h))[0].quantityG,stockBefore);
+      const stock=await listStock(pool,h);
+      for(const part of three.servingParts) assert.equal(stock.find(s=>s.recipeId===part.id).producedQuantity,part.yield.amount);
+      await updateRecipe(pool,two.id,threeInput());
+      assert.equal((await listPlannedMeals(pool,h,date)).find(m=>m.id===before.id).items.length,3);
+      const copies=await duplicatePlannedMeal(pool,before.id,{householdId:h,requestId:'99999999-9999-4999-8999-999999999999',slot:'lunch',dates:['2026-10-24']});
+      assert.equal(copies.mealIds.length,1);
+      assert.equal((await listPlannedMeals(pool,h,date)).find(m=>m.id===copies.mealIds[0]).items.length,3);
+      const v=three.servingParts.find(p=>p.servingPart==='vegetables');
+      await cancelStockLot(pool,h,stock.find(s=>s.recipeId===v.id).lots[0].id);
+      assert.equal((await listIngredientStock(pool,h))[0].quantityG,stockBefore+250);
+      assert.equal((await cancelStockLot(pool,h,production.id)).replayed,true);
+    });
+    await t.test('new three-part recipes expand whole-recipe portions into three independent gram items',async()=>{
+      const three=await createRecipe(pool,checked(input({servingMode:'three',lines:input().lines.map(line=>({...line,servingPart:line.foodId===veg?'vegetables':line.servingPart}))})));
+      const meal=await savePlannedMeal(pool,null,{householdId:h,mealDate:'2026-10-25',slot:'lunch',notes:'',attendeeIds:[person],items:[{recipeId:three.id,role:'main',amounts:[{personId:person,quantity:1}]}]});
+      assert.equal(meal.items.length,3);
+      assert.deepEqual(Object.fromEntries(meal.items.map(i=>[i.recipe.servingPart,i.amounts[0].quantity])),{main:187.5,starch:187.5,vegetables:200});
+      assert.ok(meal.items.filter(i=>i.recipe.servingPart!=='main').every(i=>i.role==='accompaniment'));
     });
   }finally{await db.close();}
 });
