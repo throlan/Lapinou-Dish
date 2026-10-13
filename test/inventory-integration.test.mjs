@@ -4,7 +4,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 import { saveIngredientStock, listIngredientStock } from '../src/server/ingredient-stock.mjs';
 import { addStockLot, cancelStockLot, listShoppingRequirements, listStock } from '../src/server/household-planning.mjs';
-import { duplicatePlannedMeal, validateMealDuplication } from '../src/server/planning.mjs';
+import { duplicatePlannedMeal, savePlannedMeal, validateMealDuplication, validatePlannedMeal } from '../src/server/planning.mjs';
 
 const householdId='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const whey='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -117,6 +117,28 @@ test('ingredient inventory and shopping run against PostgreSQL, with atomic prod
     `);
     assert.equal((await listIngredientStock(pool,householdId)).find(row=>row.foodId===whey).neededG,360);
     await pool.query("DELETE FROM planned_meals WHERE id='55555555-5555-4555-8555-555555555555'");
+  });
+  await t.test('optional personal desserts persist separately and survive complete meal duplication',async()=>{
+    const teenA='aaaa1111-1111-4111-8111-aaaaaaaaaaaa',teenB='bbbb1111-1111-4111-8111-bbbbbbbbbbbb';
+    const dessertA='cccc1111-1111-4111-8111-cccccccccccc',dessertB='dddd1111-1111-4111-8111-dddddddddddd';
+    await db.exec(`
+      INSERT INTO people(id,household_id,display_name) VALUES ('${teenA}','${householdId}','Synthetic teen A'),('${teenB}','${householdId}','Synthetic teen B');
+      INSERT INTO recipes(id,household_id,name,yield_amount,yield_unit_id,recipe_type) VALUES ('${dessertA}','${householdId}','Synthetic compote',1,'portion','dessert'),('${dessertB}','${householdId}','Synthetic yogurt',1,'portion','dessert');
+      INSERT INTO recipe_lines(id,recipe_id,food_id,quantity,unit_id) VALUES ('eeee1111-1111-4111-8111-eeeeeeeeeeee','${dessertA}','${flour}',100,'g'),('ffff1111-1111-4111-8111-ffffffffffff','${dessertB}','${whey}',125,'g');
+    `);
+    const payload={householdId,mealDate:'2027-03-01',slot:'lunch',attendeeIds:[person,teenA,teenB],items:[
+      {recipeId,role:'main',amounts:[person,teenA,teenB].map(personId=>({personId,quantity:1}))},
+      {recipeId:dessertA,role:'dessert',amounts:[{personId:teenA,quantity:1}]},
+      {recipeId:dessertB,role:'dessert',amounts:[{personId:teenB,quantity:2}]},
+    ]};
+    const validated=validatePlannedMeal(payload);assert.ok(validated.data);
+    assert.equal(validatePlannedMeal({...payload,items:[{...payload.items[1],amounts:[{personId:'11111111-aaaa-4aaa-8aaa-aaaaaaaaaaaa',quantity:1}]}]}).error,'invalid-planned-amount-person');
+    const saved=await savePlannedMeal(pool,null,validated.data);
+    assert.deepEqual(saved.items.filter(item=>item.role==='dessert').map(item=>item.amounts),[[{personId:teenA,quantity:1}],[{personId:teenB,quantity:2}]]);
+    const copy=await duplicatePlannedMeal(pool,saved.id,{householdId,requestId:'11111111-bbbb-4bbb-8bbb-bbbbbbbbbbbb',dates:['2027-03-02'],slot:'lunch'});
+    const copied=await pool.query("SELECT i.recipe_id,a.person_id,a.quantity FROM planned_meal_items i JOIN planned_amounts a ON a.planned_item_id=i.id WHERE i.meal_id=$1 AND i.role='dessert' ORDER BY i.sort_order",[copy.mealIds[0]]);
+    assert.deepEqual(copied.rows.map(row=>[row.recipe_id,row.person_id,Number(row.quantity)]),[[dessertA,teenA,1],[dessertB,teenB,2]]);
+    await pool.query('DELETE FROM planned_meals WHERE id=ANY($1::uuid[])',[[saved.id,...copy.mealIds]]);
   });
   await t.test('unknown piece conversions reject production without silently deducting grams',async()=>{
     await pool.query("UPDATE recipe_lines SET unit_id='piece' WHERE food_id=$1",[whey]);
