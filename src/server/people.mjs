@@ -37,7 +37,7 @@ export function validateProfileHistoryInput(input) {
 
 export async function listPeople(pool, householdId) {
   const people = (await pool.query(
-    'SELECT id, display_name, birth_date, active FROM people WHERE household_id = $1 ORDER BY display_name',
+    'SELECT id, display_name, birth_date::text AS birth_date, active FROM people WHERE household_id = $1 ORDER BY display_name',
     [householdId],
   )).rows;
   if (!people.length) return [];
@@ -59,7 +59,7 @@ export async function listPeople(pool, householdId) {
 
 export async function createPerson(pool, householdId, data) {
   const result = await pool.query(
-    'INSERT INTO people (id, household_id, display_name, birth_date) VALUES ($1,$2,$3,$4) RETURNING id, display_name, birth_date, active',
+    'INSERT INTO people (id, household_id, display_name, birth_date) VALUES ($1,$2,$3,$4) RETURNING id, display_name, birth_date::text AS birth_date, active',
     [randomUUID(), householdId, data.displayName, data.birthDate],
   );
   const row = result.rows[0];
