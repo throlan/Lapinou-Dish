@@ -678,6 +678,7 @@ function addRecipeLine(initial = null) {
   const unit = document.createElement('select'); unit.setAttribute('aria-label', 'Unité');
   for (const [id, label] of [['g','g'],['kg','kg'],['ml','ml'],['l','l'],['tsp','c. à café'],['tbsp','c. à soupe'],['cup','tasse'],['piece','pièce']]) unit.add(new Option(label, id));
   if (initial?.unitId) unit.value = initial.unitId;
+  if (initial?.unknownUnit) { unit.add(new Option('Unité à préciser', ''), 0); unit.value = ''; unit.required = true; }
   unit.addEventListener('change', () => { if (search.value.trim().length >= 2) search.dispatchEvent(new Event('input')); });
   const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-line'; remove.textContent = '×'; remove.setAttribute('aria-label', 'Supprimer cet ingrédient'); remove.addEventListener('click', () => row.remove());
   foodBox.append(search, select, changeMatch, editFood, incompleteTag, hint); row.append(foodBox, quantity, unit, remove); $('#recipe-lines').append(row);
@@ -722,6 +723,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
 
 async function openRecipeEditor(id = null) {
   const form = $('#recipe-form');
+  $('#recipe-import-source')?.remove();
   form.reset();
   $('#recipe-lines').replaceChildren();
   $('#recipe-message').textContent = '';
@@ -819,10 +821,19 @@ function openImportDraft(draft) {
   form.elements.name.value = draft.name || '';
   form.elements.description.value = draft.description || '';
   form.elements.instructions.value = draft.instructions || '';
-  form.elements.yieldAmount.value = draft.yieldAmount || 1;
+  form.elements.yieldAmount.value = draft.extractionMethod === 'openai' && draft.yieldAmount == null ? '' : draft.yieldAmount || 1;
   form.elements.yieldUnit.value = draft.yieldUnitId || 'portion';
   form.elements.sourceUrl.value = draft.sourceUrl || '';
-  for (const line of draft.ingredients) addRecipeLine({ foodName: line.foodName || line.rawText, quantity: line.quantity, unitId: line.unitId || toUnitId(line.rawText) });
+  for (const line of draft.ingredients) addRecipeLine({ foodName: line.foodName || line.rawText, quantity: line.quantity, unitId: line.unitId || (draft.extractionMethod === 'openai' ? null : toUnitId(line.rawText)), unknownUnit: draft.extractionMethod === 'openai' && !line.unitId });
+  const reviewNotes = [...(draft.warnings ?? [])];
+  if (draft.variants?.length) reviewNotes.push('Choisis une variante et ajoute ses ingrédients avant d’enregistrer la recette.');
+  showMessage($('#recipe-message'), reviewNotes.length ? `À vérifier : ${reviewNotes.join(' ')}` : 'Vérifie le rendement, les quantités et les aliments associés avant d’enregistrer.', true);
+  let source = $('#recipe-import-source');
+  if (!source) { source = document.createElement('details'); source.id = 'recipe-import-source'; $('#recipe-message').after(source); }
+  source.replaceChildren();
+  const summary = document.createElement('summary'); summary.textContent = 'Texte original de la recette';
+  const original = document.createElement('pre'); original.style.whiteSpace = 'pre-wrap'; original.textContent = typeof draft.original === 'string' ? draft.original : '';
+  source.append(summary, original);
   form.classList.remove('hidden'); form.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -842,15 +853,41 @@ $('#recipe-import-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   if (!state.household) { showMessage($('#recipe-import-message'), 'Crée d’abord un foyer.'); return; }
+  const useAI = form.elements.useAI.checked;
+  if (!form.elements.text.value.trim() && !useAI) { showMessage($('#recipe-import-message'), 'Colle le texte de la recette ou active OpenAI pour importer depuis un lien Instagram.'); return; }
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true; button.textContent = 'Analyse en cours…';
   try {
-    const result = await api('/api/recipe-imports/text', { method: 'POST', body: JSON.stringify({ householdId: state.household.id, text: form.elements.text.value, sourceUrl: form.elements.sourceUrl.value || null }) });
+    const result = await api(useAI ? '/api/recipe-imports/ai' : '/api/recipe-imports/text', { method: 'POST', body: JSON.stringify({ householdId: state.household.id, text: form.elements.text.value, sourceUrl: form.elements.sourceUrl.value || null }) });
     form.reset(); showMessage($('#recipe-import-message'), 'Recette ajoutée aux brouillons. Associe ses ingrédients aux aliments du catalogue.', true);
     await refreshImportDrafts();
     const { drafts } = await api(`/api/recipe-imports?householdId=${encodeURIComponent(state.household.id)}`);
     const draft = drafts.find((item) => item.id === result.drafts?.[0]?.id);
     if (draft) openImportDraft(draft);
-  } catch (error) { showMessage($('#recipe-import-message'), `Import impossible : ${error.body?.error ?? error.message}`); }
+  } catch (error) {
+    const messages = {
+      'instagram-caption-unavailable': 'Instagram ne permet pas de lire la description complète. Colle la description dans le champ texte, puis relance l’analyse.',
+      'invalid-instagram-post-url': 'Pour importer avec un lien seul, indique un lien vers une publication ou un reel Instagram. Pour YouTube, colle aussi le texte.',
+      'openai-not-configured': 'OpenAI n’est pas configuré sur le serveur. Tu peux importer le texte sans OpenAI.',
+      'openai-access-denied': 'La configuration OpenAI doit être vérifiée (clé ou accès au modèle).',
+      'openai-rate-limited': 'OpenAI a atteint une limite d’utilisation. Vérifie les crédits et limites, puis réessaie.',
+      'openai-timeout': 'OpenAI n’a pas répondu à temps. Le texte est conservé : tu peux réessayer.',
+      'openai-invalid-recipe': 'L’analyse n’a pas produit un brouillon suffisamment fiable. Précise le texte ou utilise l’import sans OpenAI.',
+    };
+    showMessage($('#recipe-import-message'), messages[error.body?.error] || `Import impossible : ${error.body?.error ?? error.message}`);
+  } finally { button.disabled = false; button.textContent = 'Analyser et ajouter aux brouillons'; }
 });
+
+async function refreshRecipeAIConfig() {
+  const checkbox = $('#recipe-import-form').elements.useAI;
+  try {
+    const config = await api('/api/recipe-imports/config');
+    checkbox.disabled = !config.openaiEnabled;
+    $('#recipe-ai-status').textContent = config.openaiEnabled
+      ? 'En activant OpenAI, le texte de la recette est envoyé à ton API pour analyse (utilisation facturée sur ton compte). Vérifie le brouillon avant enregistrement.'
+      : 'OpenAI n’est pas configuré. L’import par texte reste disponible.';
+  } catch { checkbox.disabled = true; $('#recipe-ai-status').textContent = 'OpenAI indisponible. L’import par texte reste disponible.'; }
+}
 
 $('#recipe-archive-file').addEventListener('change', async (event) => {
   const file = event.target.files?.[0]; if (!file) return;
@@ -937,7 +974,7 @@ async function init() {
     $('#connection').classList.add('error');
   });
   await Promise.all([refreshFoods(), loadHouseholds(), health]);
-  await Promise.all([refreshPeople(), refreshCalendar(), refreshDashboard()]);
+  await Promise.all([refreshPeople(), refreshCalendar(), refreshDashboard(), refreshRecipeAIConfig()]);
   $('#shopping-start').value = localDateValue(); $('#shopping-end').value = addDays(localDateValue(), 29); $('#production-form').elements.producedOn.value = localDateValue();
   addRecipeLine();
 }

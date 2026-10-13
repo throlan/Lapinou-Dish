@@ -5,6 +5,8 @@ import { createFood, fillMissingNutritionFromExternal, getFood, updateFood, vali
 import { getOpenFoodFactsProduct, searchOpenFoodFacts } from './open-food-facts.mjs';
 import { createRecipe, listRecipes, readRecipe, updateRecipe, validateRecipeInput } from './recipes.mjs';
 import { listImportDrafts, saveImportDrafts } from './recipe-imports.mjs';
+import { extractRecipeWithOpenAI } from './openai-recipe-import.mjs';
+import { retrieveInstagramCaption, instagramPostUrl } from './instagram-caption.mjs';
 import { addProfileHistory, addWeightEntry, createPerson, listPeople, validatePersonInput, validateProfileHistoryInput, validateWeightInput } from './people.mjs';
 import { deletePlannedMeal, duplicatePlannedMeal, listPlannedMeals, savePlannedMeal, validateMealDuplication, validatePlannedMeal } from './planning.mjs';
 import { addStockLot, cancelStockLot, completeRoutine, getRoutineSettings, listShoppingRequirements, listStock, saveRoutineSettings, saveShoppingLineState, validateProductionInput, validateRoutineSettings, validateShoppingLineState } from './household-planning.mjs';
@@ -21,14 +23,15 @@ const staticFiles = new Map([
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
 ]);
 
-export function createApp(pool, { appPassword } = {}) {
-  return createServer((request, response) => handleRequest(request, response, pool, appPassword));
+export function createApp(pool, { appPassword, recipeAI = {} } = {}) {
+  return createServer((request, response) => handleRequest(request, response, pool, appPassword, recipeAI));
 }
 
 const loginAttempts = new Map();
 const SESSION_SECONDS = 604800;
+const activeRecipeImports = new Set();
 
-export async function handleRequest(request, response, pool, appPassword = null) {
+export async function handleRequest(request, response, pool, appPassword = null, recipeAI = {}) {
     const url = new URL(request.url ?? '/', 'http://localhost');
     const staticFile = staticFiles.get(url.pathname);
     if (request.method === 'GET' && staticFile) {
@@ -302,6 +305,38 @@ export async function handleRequest(request, response, pool, appPassword = null)
       } catch {
         return send(response, 500, { error: 'recipe-list-failed' });
       }
+    }
+    if (request.method === 'GET' && url.pathname === '/api/recipe-imports/config') {
+      return send(response, 200, { openaiEnabled: Boolean(recipeAI.apiKey ?? process.env.OPENAI_API_KEY) });
+    }
+    if (request.method === 'POST' && url.pathname === '/api/recipe-imports/ai') {
+      const body = await readJson(request);
+      if (body.error) return send(response, body.status ?? 400, { error: body.error });
+      const householdId = body.value?.householdId;
+      if (!isUuid(householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      if (!(recipeAI.apiKey ?? process.env.OPENAI_API_KEY)) return send(response, 503, { error: 'openai-not-configured' });
+      let text = body.value?.text ?? '';
+      let sourceUrl = body.value?.sourceUrl || null;
+      if (typeof text !== 'string' || text.length > 30_000) return send(response, 400, { error: 'invalid-recipe-text' });
+      if (sourceUrl && !isSupportedRecipeUrl(sourceUrl)) return send(response, 400, { error: 'unsupported-source-url' });
+      if (!text.trim() && !instagramPostUrl(sourceUrl)) return send(response, 400, { error: 'invalid-instagram-post-url' });
+      if (activeRecipeImports.has(householdId)) return send(response, 429, { error: 'recipe-import-in-progress' });
+      activeRecipeImports.add(householdId);
+      try {
+        const household = await pool.query('SELECT id FROM households WHERE id = $1', [householdId]);
+        if (!household.rows.length) return send(response, 404, { error: 'unknown-household' });
+        if (!text.trim()) {
+          const caption = await retrieveInstagramCaption(sourceUrl, { fetchImpl: recipeAI.instagramFetch });
+          if (caption.error) return send(response, 422, { error: caption.error });
+          text = caption.text; sourceUrl = caption.sourceUrl;
+        }
+        const parsed = await extractRecipeWithOpenAI(text, sourceUrl, recipeAI);
+        if (parsed.error) return send(response, 422, { error: parsed.error });
+        const drafts = await saveImportDrafts(pool, householdId, [parsed.data]);
+        if (drafts.error) return send(response, 400, { error: drafts.error });
+        return send(response, 201, { drafts });
+      } catch { return send(response, 500, { error: 'recipe-import-save-failed' }); }
+      finally { activeRecipeImports.delete(householdId); }
     }
     if (request.method === 'GET' && url.pathname === '/api/recipe-imports') {
       const householdId = url.searchParams.get('householdId');

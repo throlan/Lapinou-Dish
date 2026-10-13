@@ -49,10 +49,12 @@
         <div class="section-heading"><div><h2>Recettes</h2><p>Les valeurs nutritionnelles sont recalculées depuis les aliments liés au catalogue.</p></div><button type="button" class="primary" id="new-recipe">+ Nouvelle recette</button></div>
         <details class="card import-card">
           <summary>Importer des recettes</summary>
-          <p class="hint">Colle une légende Instagram, une transcription YouTube ou une recette copiée. Un lien seul ne donne pas toujours accès au contenu : colle aussi la légende ou la transcription. Les recettes importées restent à vérifier avant enregistrement.</p>
+          <p class="hint">Avec OpenAI, colle le lien d’une publication Instagram pour tenter de récupérer sa description. Si la lecture est bloquée, colle le texte. Les recettes importées restent à vérifier avant enregistrement.</p>
           <form id="recipe-import-form">
             <label>Lien Instagram ou YouTube (facultatif)<input name="sourceUrl" type="url" placeholder="https://www.instagram.com/reel/… ou https://youtu.be/…"></label>
-            <label>Texte de la recette<textarea name="text" rows="8" required placeholder="Colle ici le titre, les ingrédients et les étapes…"></textarea></label>
+            <label>Texte de la recette<textarea name="text" rows="8" maxlength="30000" placeholder="Facultatif pour un lien Instagram avec l’analyse OpenAI. Colle la description ici si Instagram bloque la lecture…"></textarea></label>
+            <label class="recipe-ai-option"><input name="useAI" type="checkbox" disabled> Analyser avec OpenAI</label>
+            <p id="recipe-ai-status" class="muted">Vérification de la disponibilité d’OpenAI…</p>
             <div class="form-actions"><button class="primary" type="submit">Analyser et ajouter aux brouillons</button></div>
             <p class="form-message" id="recipe-import-message" role="status"></p>
           </form>
@@ -84,7 +86,7 @@
           <label>Source (facultatif)<input name="sourceUrl" type="url" placeholder="Lien vers la recette d'origine"></label>
           <label>Instructions<textarea name="instructions" rows="4" maxlength="20000" placeholder="Étapes de préparation"></textarea></label>
           <label>Production à suivre (facultatif)<select name="productionType"><option value="none">Aucune</option><option value="batch_cooking">Batch cooking</option><option value="pasta">Pâtes</option><option value="pastry">Pâtisserie</option><option value="bread">Pain</option></select></label>
-          <div class="yield-row"><label>Rendement<input name="yieldAmount" required type="number" min="0.01" step="any" value="4"></label><label>Unité<select name="yieldUnit"><option value="portion">portions</option><option value="piece">pièces</option><option value="g">grammes</option></select></label></div>
+          <div class="yield-row"><label>Rendement<input name="yieldAmount" required type="number" min="0.01" step="any" value="4"></label><label>Unité<select name="yieldUnit"><option value="portion">portions</option><option value="piece">pièces</option><option value="g">grammes</option><option value="ml">millilitres</option></select></label></div>
           <div class="line-heading"><h3>Ingrédients</h3><button type="button" class="secondary" id="add-line">+ Ajouter un ingrédient</button></div>
           <div id="recipe-lines"></div>
           <div class="form-actions"><button class="primary" type="submit">Enregistrer et calculer</button></div>
@@ -196,6 +198,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.32"></script>
+    <script type="module" src="/app.js?v=0.2.33"></script>
   </body>
 </html>

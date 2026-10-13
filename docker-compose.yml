@@ -31,6 +31,8 @@ services:
       DB_USER: lapinou
       DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       APP_PASSWORD: ${APP_PASSWORD:?Set APP_PASSWORD in .env}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_RECIPE_MODEL: ${OPENAI_RECIPE_MODEL:-gpt-4.1-mini}
     ports:
       - "127.0.0.1:3000:3000"
 

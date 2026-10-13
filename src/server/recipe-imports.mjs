@@ -16,13 +16,13 @@ export async function saveImportDrafts(pool, householdId, drafts) {
       await client.query(
         `INSERT INTO recipe_import_drafts (id, household_id, source_kind, source_reference, raw_payload, state)
          VALUES ($1, $2, $3, $4, $5::jsonb, 'draft')`,
-        [id, householdId, sourceKind, sourceReference, JSON.stringify({ name: draft.name, description: draft.description, yieldAmount: draft.yieldAmount, yieldUnitId: draft.yieldUnitId, instructions: draft.instructions, sourceUrl: draft.sourceUrl, sourcePlatform: draft.sourceKind, original: draft.rawPayload ?? draft.rawText ?? null })],
+        [id, householdId, sourceKind, sourceReference, JSON.stringify({ name: draft.name, description: draft.description, yieldAmount: draft.yieldAmount, yieldUnitId: draft.yieldUnitId, instructions: draft.instructions, sourceUrl: draft.sourceUrl, sourcePlatform: draft.sourceKind, original: draft.rawPayload ?? draft.rawText ?? null, warnings: draft.warnings ?? [], variants: draft.variants ?? [], extractionMethod: draft.extractionMethod ?? 'standard', extractionModel: draft.extractionModel ?? null })],
       );
       for (const [index, line] of (draft.ingredients ?? []).entries()) {
         await client.query(
-          `INSERT INTO recipe_import_draft_lines (id, draft_id, raw_text, suggested_quantity, suggested_food_name, sort_order)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [randomUUID(), id, line.rawText || line.foodName || 'Ingrédient à identifier', line.quantity, line.foodName || null, index],
+          `INSERT INTO recipe_import_draft_lines (id, draft_id, raw_text, suggested_quantity, suggested_food_name, sort_order, suggested_unit_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [randomUUID(), id, line.rawText || line.foodName || 'Ingrédient à identifier', line.quantity, line.foodName || null, index, line.unitId ?? null],
         );
       }
       results.push({ id, name: draft.name, duplicate: false });
