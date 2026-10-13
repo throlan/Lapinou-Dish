@@ -210,7 +210,25 @@ async function refreshShopping() {
       const title=document.createElement('strong'); title.textContent=item.name;
       const details=document.createElement('p'); details.textContent=`Produit : ${formatQty(item.producedQuantity)} ${item.unitId} · réservé aux repas planifiés : ${formatQty(item.plannedQuantity)} · disponible : ${formatQty(item.availableQuantity)} ${item.unitId}`;
       const status=document.createElement('span'); status.className='stock-status'; status.textContent=Number(item.availableQuantity)<=0?'À produire':'En stock';
-      card.append(title,details,status); return card;
+      card.append(title,details,status);
+      for(const lot of item.lots??[]){
+        const row=document.createElement('div');row.className='production-lot';
+        const label=document.createElement('span');label.textContent=`Lot du ${displayDate(lot.producedOn)} · ${formatQty(lot.quantity)} ${item.unitId}${lot.note?' · '+lot.note:''}`;
+        const cancel=document.createElement('button');cancel.type='button';cancel.className='secondary';cancel.textContent='Annuler le lot';
+        cancel.addEventListener('click',async()=>{
+          if(!confirm(`Annuler cette saisie de ${formatQty(lot.quantity)} ${item.unitId} de « ${item.name} » ? Le lot sera retiré du stock et les ingrédients qui avaient été déduits seront remis en réserve.`))return;
+          cancel.disabled=true;
+          try{
+            const result=await api(`/api/household-planning/production/${lot.id}?householdId=${encodeURIComponent(state.household.id)}`,{method:'DELETE'});
+            const restored=(result.restored??[]).map(row=>`${row.name} : +${formatQty(row.quantityG)} g`).join(' · ');
+            showMessage($('#production-message'),'Lot retiré du stock.'+(restored?' Ingrédients remis : '+restored:''),true);
+            await refreshShopping();await refreshDashboard();
+          }catch(error){showMessage($('#production-message'),'Annulation impossible : '+(error.body?.error??error.message));}
+          finally{cancel.disabled=false;}
+        });
+        row.append(label,cancel);card.append(row);
+      }
+      return card;
     }) : [emptyMessage('Aucun stock suivi. Ajoute un type de production à une recette, puis enregistre une production.')]));
   } catch(error) {
     $('#routine-list').replaceChildren(emptyMessage('Planning indisponible : '+(error.body?.error ?? error.message)));
@@ -275,6 +293,7 @@ $('#production-form').addEventListener('submit',async event=>{
       'ingredient-stock-insufficient':`Stock insuffisant pour ${body.name} : ${formatQty(body.requiredG)} g nécessaires, ${formatQty(body.availableG)} g disponibles. Vérifie ton inventaire.`,
       'ingredient-conversion-missing':`Conversion en grammes manquante pour ${body.name}. Complète la fiche de l’aliment.`,
       'production-request-conflict':'Cette tentative a déjà été enregistrée avec d’autres valeurs. Actualise les stocks avant de réessayer.',
+      'production-request-cancelled':'Ce lot a été annulé. Actualise la page avant de saisir une nouvelle production.',
     };
     showMessage($('#production-message'),messages[body.error]??'Production non enregistrée : '+(body.error??error.message));
   } finally {button.disabled=false;}

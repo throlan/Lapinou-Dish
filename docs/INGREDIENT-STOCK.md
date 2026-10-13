@@ -14,6 +14,8 @@ Les productions déjà enregistrées avant cette mise à jour ne sont pas recalc
 
 ## Liste de courses
 
+Pour corriger une saisie de production (par exemple un lot de test), ouvrir **Stock des préparations**, puis **Annuler le lot** sur le lot daté concerné et confirmer. Seul ce lot est retiré des totaux; la recette et les autres lots sont conservés. Les déductions d'ingrédients enregistrées pour ce lot sont remises en réserve, même si la recette a été modifiée depuis. Les anciens lots sans déductions enregistrées n'ajoutent aucun ingrédient. L'annulation reste historisée et une seconde tentative ne crédite pas deux fois le stock. Cette action corrige une saisie erronée; elle ne déclare pas une consommation réelle.
+
 La période choisie sert à additionner les quantités prévues par personne et par recette. Les lots finis déjà enregistrés couvrent d'abord les repas; leurs ingrédients ne sont pas achetés une seconde fois. Les mêmes ingrédients et unités sont consolidés. Pour les bases surveillées, les besoins convertibles sont ramenés en grammes et le stock compté est déduit, en conservant le minimum. Si un réapprovisionnement est nécessaire, la suggestion atteint au moins la cible. Les conversions manquantes restent visibles, sans assimiler une pièce à un gramme.
 
 Les bases surveillées à commander apparaissent par défaut dans **Whey et farines**; la catégorie est modifiable. Les cases « acheté » sont mémorisées pour la période exacte. Cocher un achat ne remplit pas automatiquement l'inventaire : mettre à jour le stock compté après réception. Les suggestions sont des besoins en grammes; l'arrondi aux conditionnements commerciaux reste manuel.
