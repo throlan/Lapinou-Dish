@@ -36,7 +36,7 @@ function setView(name) {
   if (name === 'shopping') refreshShopping();
 }
 
-const dashboardSlots = ['breakfast','lunch','dinner','snack'];
+const dashboardSlots = ['breakfast','lunch','snack','dinner'];
 const dashboardSlotLabels = { breakfast:'Petit-déjeuner', lunch:'Déjeuner', dinner:'Dîner', snack:'Collation' };
 function dashboardPanel(title, className='dashboard-panel') {
   const panel=document.createElement('section'); panel.className=className;
@@ -1008,7 +1008,7 @@ function renderCalendarDay(date, meals, today) {
   heading.innerHTML = `<span>${displayDate(date, { weekday: 'short' })}</span><strong>${displayDate(date, { day: '2-digit', month: 'short' })}</strong>`;
   if (date === today) { const badge = document.createElement('small'); badge.className = 'today-badge'; badge.textContent = 'AUJ.'; heading.append(badge); }
   day.append(heading);
-  for (const slot of ['breakfast', 'lunch', 'dinner', 'snack']) {
+  for (const slot of ['breakfast', 'lunch', 'snack', 'dinner']) {
     const section = document.createElement('section'); section.className = 'calendar-slot';
     const slotHeading = document.createElement('div'); slotHeading.className = 'calendar-slot-heading';
     const label = document.createElement('span'); label.textContent = slotLabels[slot];
