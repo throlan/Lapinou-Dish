@@ -12,7 +12,7 @@ import { extractRecipeWithOpenAI } from './openai-recipe-import.mjs';
 import { retrieveInstagramCaption, instagramPostUrl } from './instagram-caption.mjs';
 import { addProfileHistory, addWeightEntry, createPerson, listPeople, validatePersonInput, validateProfileHistoryInput, validateWeightInput } from './people.mjs';
 import { deletePlannedMeal, duplicatePlannedMeal, listPlannedMeals, savePlannedMeal, validateMealDuplication, validatePlannedMeal } from './planning.mjs';
-import { addStockLot, cancelStockLot, completeRoutine, getRoutineSettings, listShoppingRequirements, listStock, saveRoutineSettings, saveShoppingLineState, validateProductionInput, validateRoutineSettings, validateShoppingLineState } from './household-planning.mjs';
+import { addStockLot, cancelStockLot, completeRoutine, deleteOrderLink, getRoutineSettings, listOrderLinks, listShoppingRequirements, listStock, saveOrderLink, saveRoutineSettings, saveShoppingLineState, validateOrderLinkInput, validateProductionInput, validateRoutineSettings, validateShoppingLineState } from './household-planning.mjs';
 import { parseRecipeArchive, parseRecipeText } from '../domain/recipe-import.mjs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -206,6 +206,24 @@ export async function handleRequest(request, response, pool, appPassword = null,
         const [routines, stock, ingredients] = await Promise.all([getRoutineSettings(pool, householdId), listStock(pool, householdId), listIngredientStock(pool, householdId)]);
         return send(response, 200, { routines, stock, ingredients });
       } catch { return send(response, 500, { error: 'household-planning-read-failed' }); }
+    }
+    if (url.pathname === '/api/household-order-links' && request.method === 'GET') {
+      const householdId=url.searchParams.get('householdId');
+      if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});
+      try{return send(response,200,{links:await listOrderLinks(pool,householdId)});}
+      catch{return send(response,500,{error:'order-links-read-failed'});}
+    }
+    if (url.pathname === '/api/household-order-links' && request.method === 'POST') {
+      const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
+      const validation=validateOrderLinkInput(body.value);if(validation.error)return send(response,400,{error:validation.error});
+      try{const link=await saveOrderLink(pool,validation.data);return link?send(response,200,{link}):send(response,404,{error:'order-link-not-found'});}
+      catch{return send(response,500,{error:'order-link-save-failed'});}
+    }
+    const orderLinkId=url.pathname.match(/^\/api\/household-order-links\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i)?.[1];
+    if(orderLinkId&&request.method==='DELETE'){
+      const householdId=url.searchParams.get('householdId');if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});
+      try{return await deleteOrderLink(pool,householdId,orderLinkId)?send(response,200,{deleted:true}):send(response,404,{error:'order-link-not-found'});}
+      catch{return send(response,500,{error:'order-link-delete-failed'});}
     }
     if (url.pathname === '/api/household-planning/ingredients' && request.method === 'PUT') {
       const body = await readJson(request);

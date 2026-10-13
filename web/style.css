@@ -260,6 +260,13 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
 
 /* Household shopping, recurring routines and preparation stock */
 .shopping-columns { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr); gap:18px; align-items:start; margin-top:18px; }
+.order-links-card { margin-top:18px; }
+.order-link-form { display:grid; grid-template-columns:minmax(180px,.7fr) minmax(280px,1.5fr) auto; gap:12px; align-items:end; }
+.order-links { display:grid; gap:8px; margin-top:12px; }
+.order-link-row { display:grid; grid-template-columns:minmax(120px,1fr) minmax(100px,1fr) auto; gap:12px; align-items:center; padding:10px 12px; border:1px solid var(--line,#344766); border-radius:12px; }
+.order-link-row a { color:var(--accent,#27d3df); font-weight:600; overflow-wrap:anywhere; }
+.order-link-row small { color:var(--muted,#9db4d9); overflow-wrap:anywhere; }
+@media (max-width:700px) { .order-link-form,.order-link-row { grid-template-columns:1fr; } }
 .routine-list { display:grid; gap:10px; }
 .routine-row { display:grid; grid-template-columns:minmax(170px,1fr) minmax(160px,.8fr) minmax(145px,.7fr) auto; gap:10px; align-items:center; padding:12px; border:1px solid var(--line,#344766); border-radius:14px; background:var(--surface-raised,#202f4b); }
 .routine-row strong { font-size:.95rem; }
@@ -289,6 +296,7 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
 .production-lot span { color:var(--muted);font-size:.85rem; }
 .ingredient-fields { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
 .shopping-detail { display:block; color:var(--muted); font-size:.8rem; margin-top:4px; }
+.shopping-detail[hidden] { display:none; }
 .shopping-recipes summary { cursor:pointer; }
 .shopping-recipe-links { display:flex; flex-wrap:wrap; gap:4px 10px; margin-top:4px; }
 .shopping-recipe-source { display:inline-flex; align-items:baseline; gap:5px; }

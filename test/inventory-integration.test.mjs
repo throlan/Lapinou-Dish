@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 import { saveIngredientStock, listIngredientStock } from '../src/server/ingredient-stock.mjs';
-import { addStockLot, cancelStockLot, listShoppingRequirements, listStock, saveShoppingLineState } from '../src/server/household-planning.mjs';
+import { addStockLot, cancelStockLot, deleteOrderLink, listOrderLinks, listShoppingRequirements, listStock, saveOrderLink, saveShoppingLineState, validateOrderLinkInput } from '../src/server/household-planning.mjs';
 import { deleteFood } from '../src/server/foods.mjs';
 import { duplicatePlannedMeal, savePlannedMeal, validateMealDuplication, validatePlannedMeal } from '../src/server/planning.mjs';
 
@@ -36,6 +36,14 @@ test('ingredient inventory and shopping run against PostgreSQL, with atomic prod
       ('22222222-2222-4222-8222-222222222222','${recipeId}','${whey}',0.12,'kg'),
       ('33333333-3333-4333-8333-333333333333','${recipeId}','${flour}',300,'g');
   `);
+  await t.test('online order links are stored per household and can be removed',async()=>{
+    const validation=validateOrderLinkInput({householdId,label:'Whey',url:'https://shop.example/products'});
+    const link=await saveOrderLink(pool,validation.data);
+    assert.equal((await listOrderLinks(pool,householdId)).length,1);
+    assert.equal((await listOrderLinks(pool,householdId))[0].url,'https://shop.example/products');
+    assert.equal(await deleteOrderLink(pool,householdId,link.id),true);
+    assert.deepEqual(await listOrderLinks(pool,householdId),[]);
+  });
   const stockInput=(foodId,quantityG,minimumG,targetG,version=0)=>({householdId,foodId,quantityG,minimumG,targetG,leadDays:7,version});
   assert.deepEqual(await saveIngredientStock(pool,stockInput(whey,500,100,1000)),{saved:true});
   assert.deepEqual(await saveIngredientStock(pool,stockInput(flour,2000,500,3000)),{saved:true});

@@ -270,6 +270,22 @@ async function refreshShopping() {
     $('#stock-list').replaceChildren(emptyMessage('Stock indisponible.'));
   }
   await refreshShoppingList();
+  await refreshOrderLinks();
+}
+async function refreshOrderLinks() {
+  const root=$('#order-links');if(!root||!state.household)return;
+  try{
+    const {links}=await api(`/api/household-order-links?householdId=${encodeURIComponent(state.household.id)}`);
+    if(!links.length){root.replaceChildren(emptyMessage('Aucun lien enregistré.'));return;}
+    root.replaceChildren(...links.map(item=>{
+      const row=document.createElement('div');row.className='order-link-row';
+      const link=document.createElement('a');link.href=item.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=item.label;
+      const host=document.createElement('small');host.textContent=new URL(item.url).hostname;
+      const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='Supprimer';remove.setAttribute('aria-label',`Supprimer le lien ${item.label}`);
+      remove.addEventListener('click',async()=>{remove.disabled=true;try{await api(`/api/household-order-links/${item.id}?householdId=${encodeURIComponent(state.household.id)}`,{method:'DELETE'});await refreshOrderLinks();}catch(error){showMessage($('#order-link-message'),'Suppression impossible : '+(error.body?.error??error.message));remove.disabled=false;}});
+      row.append(link,host,remove);return row;
+    }));
+  }catch(error){root.replaceChildren(emptyMessage('Liens indisponibles : '+(error.body?.error??error.message)));}
 }
 async function refreshShoppingList() {
   const start=$('#shopping-start').value, end=$('#shopping-end').value, root=$('#shopping-list');
@@ -289,16 +305,31 @@ async function refreshShoppingList() {
         const name=document.createElement('div'); name.className='shopping-item-name'; name.append(document.createTextNode(item.name));
         const qty=document.createElement('span'); qty.className='shopping-quantity'; qty.textContent=`${formatQty(item.quantity)} ${item.unitId}`;
         const need=document.createElement('small');need.className='shopping-detail';need.textContent=`Besoin prévu : ${formatQty(item.neededQuantity)} ${item.unitId}`;name.append(need);
-        if(item.packageQuantity){const packageInfo=document.createElement('small');packageInfo.className='shopping-detail';packageInfo.textContent=`Achat : ${item.packageCount} × ${formatQty(item.packageQuantity)} ${item.unitId}`;name.append(packageInfo);}
+        const packageInfo=document.createElement('small');packageInfo.className='shopping-detail';packageInfo.hidden=!item.packageQuantity;
+        if(item.packageQuantity){packageInfo.textContent=`Achat : ${item.packageCount} × ${formatQty(item.packageQuantity)} ${item.unitId}`;name.append(packageInfo);}
         if(item.warning){const detail=document.createElement('small');detail.className='shopping-detail';detail.textContent=item.warning;name.append(detail);}
-        if(item.quantityRounded){const detail=document.createElement('small');detail.className='shopping-detail';detail.textContent=item.packageQuantity?'Arrondi au format de paquet saisi':'Arrondi au nombre entier supérieur pour l’achat';name.append(detail);}
+        const roundedInfo=document.createElement('small');roundedInfo.className='shopping-detail';roundedInfo.hidden=!item.quantityRounded;
+        if(item.quantityRounded){roundedInfo.textContent=item.packageQuantity?'Arrondi au format de paquet saisi':'Arrondi au nombre entier supérieur pour l’achat';name.append(roundedInfo);}
         if(item.recipes?.length){const recipeDetails=document.createElement('details');recipeDetails.className='shopping-detail shopping-recipes';const summary=document.createElement('summary');summary.textContent=`Dans ${item.recipes.length} recette${item.recipes.length===1?'':'s'}`;const links=document.createElement('span');links.className='shopping-recipe-links';for(const recipe of item.recipes){const source=document.createElement('span');source.className='shopping-recipe-source';const link=document.createElement('button');link.type='button';link.textContent=recipe.name;link.setAttribute('aria-label',`Ouvrir la recette ${recipe.name}`);link.addEventListener('click',()=>{setView('recipes');openRecipeEditor(recipe.id);});source.append(link);if(Number.isFinite(Number(recipe.quantity))&&recipe.unitId){const amount=document.createElement('small');amount.className='shopping-recipe-amount';amount.textContent=`${formatQty(recipe.quantity)} ${recipe.unitId}`;amount.setAttribute('aria-label',`Besoin prévu : ${amount.textContent}`);source.append(amount);}links.append(source);}recipeDetails.append(summary,links);name.append(recipeDetails);}
         const pack=document.createElement('input');pack.className='shopping-pack-input';pack.type='number';pack.min='0.001';pack.step='any';pack.value=item.packageQuantity??'';pack.placeholder=`Paquet (${item.unitId})`;pack.setAttribute('aria-label',`Format d’achat pour ${item.name} en ${item.unitId}`);
         const group=document.createElement('select'); group.setAttribute('aria-label','Catégorie de '+item.name);
         for (const [key,label] of Object.entries(groupLabels)) group.add(new Option(label,key));
         group.value=item.groupId;
         const save=async()=>{try{await api('/api/shopping-list/state',{method:'POST',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,unitId:item.unitId,startDate:start,endDate:end,groupId:group.value,checked:checkbox.checked,packageQuantity:pack.value===''?null:Number(pack.value)})});row.classList.toggle('checked',checkbox.checked);return true;}catch(error){showMessage($('#routines-message'),'Liste non enregistrée : '+(error.body?.error??error.message));return false;}};
-        checkbox.addEventListener('change',save); group.addEventListener('change',save);pack.addEventListener('change',async()=>{if(await save())await refreshShoppingList();});
+        checkbox.addEventListener('change',save); group.addEventListener('change',save);
+        pack.addEventListener('change',async()=>{
+          if(!await save())return;
+          const packageQuantity=pack.value===''?null:Number(pack.value);
+          const packageCount=packageQuantity?Math.ceil(Number(item.neededQuantity)/packageQuantity):null;
+          const quantity=packageQuantity?packageCount*packageQuantity:(item.unitId==='piece'?Math.ceil(Number(item.neededQuantity)):Number(item.neededQuantity));
+          qty.textContent=`${formatQty(quantity)} ${item.unitId}`;
+          packageInfo.hidden=!packageQuantity;
+          packageInfo.textContent=packageQuantity?`Achat : ${packageCount} × ${formatQty(packageQuantity)} ${item.unitId}`:'';
+          if(packageQuantity&&!packageInfo.isConnected)name.append(packageInfo);
+          roundedInfo.hidden=quantity===Number(item.neededQuantity);
+          roundedInfo.textContent=packageQuantity?'Arrondi au format de paquet saisi':'Arrondi au nombre entier supérieur pour l’achat';
+          if(roundedInfo.hidden)roundedInfo.remove();else if(!roundedInfo.isConnected)name.append(roundedInfo);
+        });
         row.append(checkbox,name,qty,pack,group); section.append(row);
       });
       return section;
@@ -339,6 +370,12 @@ $('#production-form').addEventListener('submit',async event=>{
   } finally {button.disabled=false;}
 });
 $('#refresh-shopping').addEventListener('click',refreshShoppingList);
+$('#order-link-form').addEventListener('submit',async event=>{
+  event.preventDefault();const form=event.currentTarget,button=form.querySelector('button[type="submit"]');button.disabled=true;
+  try{await api('/api/household-order-links',{method:'POST',body:JSON.stringify({householdId:state.household.id,label:form.elements.label.value,url:form.elements.url.value})});form.reset();showMessage($('#order-link-message'),'Lien ajouté.',true);await refreshOrderLinks();}
+  catch(error){showMessage($('#order-link-message'),'Ajout impossible : '+(error.body?.error??error.message));}
+  finally{button.disabled=false;}
+});
 $('#production-form').elements.recipeId.addEventListener('change', event => { const recipe=state.recipes.find(item=>item.id===event.target.value); if(recipe) $('#production-form').elements.quantity.value=recipe.yield.amount; });
 
 
