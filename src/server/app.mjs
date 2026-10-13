@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { listIngredientStock, saveIngredientStock, validateIngredientStock } from './ingredient-stock.mjs';
 import { createHmac, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import { createFood, fillMissingNutritionFromExternal, getFood, updateFood, validateFoodInput } from './foods.mjs';
 import { getOpenFoodFactsProduct, searchOpenFoodFacts } from './open-food-facts.mjs';
@@ -155,9 +156,20 @@ export async function handleRequest(request, response, pool, appPassword = null)
       const householdId = url.searchParams.get('householdId');
       if (!isUuid(householdId)) return send(response, 400, { error: 'invalid-household-id' });
       try {
-        const [routines, stock] = await Promise.all([getRoutineSettings(pool, householdId), listStock(pool, householdId)]);
-        return send(response, 200, { routines, stock });
+        const [routines, stock, ingredients] = await Promise.all([getRoutineSettings(pool, householdId), listStock(pool, householdId), listIngredientStock(pool, householdId)]);
+        return send(response, 200, { routines, stock, ingredients });
       } catch { return send(response, 500, { error: 'household-planning-read-failed' }); }
+    }
+    if (url.pathname === '/api/household-planning/ingredients' && request.method === 'PUT') {
+      const body = await readJson(request);
+      if (body.error) return send(response, body.status ?? 400, { error:body.error });
+      const validation = validateIngredientStock(body.value);
+      if (validation.error) return send(response, 400, { error:validation.error });
+      try {
+        const result = await saveIngredientStock(pool,validation.data);
+        if (result.error) return send(response,result.error === 'ingredient-stock-changed' ? 409 : 404,result);
+        return send(response,200,result);
+      } catch { return send(response,500,{error:'ingredient-stock-save-failed'}); }
     }
     if (url.pathname === '/api/household-planning/routines' && request.method === 'PUT') {
       const body = await readJson(request);
@@ -184,6 +196,7 @@ export async function handleRequest(request, response, pool, appPassword = null)
       if (validation.error) return send(response, 400, { error: validation.error });
       try {
         const lot = await addStockLot(pool, validation.data);
+        if (lot?.error?.startsWith('ingredient-') || lot?.error === 'production-request-conflict') return send(response, 409, lot);
         if (lot?.error === 'recipe-not-for-production') return send(response, 400, { error: lot.error });
         if (lot?.error) return send(response, 404, { error: lot.error });
         return send(response, 201, { lot });

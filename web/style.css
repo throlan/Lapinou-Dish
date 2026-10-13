@@ -267,6 +267,12 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
 @media (max-width:560px) { .routine-row { grid-template-columns:1fr; } .shopping-range { flex-wrap:wrap; } .shopping-item { grid-template-columns:24px 1fr auto; } .shopping-item select { grid-column:2 / 4; } }
 
 /* Home dashboard */
+.ingredient-section { margin-top:20px; }
+.ingredient-fields { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+.shopping-detail { display:block; color:var(--muted); font-size:.8rem; margin-top:4px; }
+@media(max-width:900px){.ingredient-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.ingredient-fields{grid-template-columns:1fr}}
+@media(max-width:800px){.topbar{height:auto;min-height:72px;flex-wrap:wrap;padding:10px}.topbar nav{flex-wrap:wrap;gap:4px}.nav-button{padding:8px 10px}}
 .dashboard-welcome { display:flex; align-items:center; justify-content:space-between; gap:20px; margin:8px 0 22px; padding:8px 2px; }
 .dashboard-welcome h1 { margin:0 0 7px; }
 .dashboard-welcome p { margin:0; color:var(--muted,#9bb0d1); }

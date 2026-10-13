@@ -1,5 +1,13 @@
 # Architecture checkpoint
 
+## Mise à jour du 13 octobre 2026 — accueil, courses et bases surveillées
+
+L'accueil charge la semaine commençant le lundi et la liste de courses exécute ses requêtes sans noms de colonnes ambigus. Les aliments du foyer peuvent être surveillés avec inventaire en grammes, minimum, cible et délai de commande. Les nouvelles productions déduisent les ingrédients suivis dans la même transaction que l'ajout du lot fini. Les alertes tiennent compte des repas prévus et les courses déduisent stocks finis et ingrédients surveillés.
+
+94 tests passent, dont des tests PostgreSQL embarqués exécutant les migrations et les requêtes réelles. Le parcours a aussi été vérifié dans Chrome sur données synthétiques : connexion, accueil un mardi, courses, inventaire, production de 24 muffins et alerte de commande. L'installation Unraid reste gérée exclusivement par l'utilisateur.
+
+Voir [le guide des ingrédients surveillés](INGREDIENT-STOCK.md). Le journal de consommation réelle reste à développer. Les sections ci-dessous décrivent le checkpoint initial et ne constituent plus la liste exhaustive des fonctionnalités actuelles.
+
 ## Implemented
 
 - Independent repository and product/domain documents.

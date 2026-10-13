@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { rawShoppingRequirements } from './shopping-requirements.mjs';
+import { ingredientProjection, lockHouseholdInventory, productionDeductions, readIngredientStock } from './ingredient-stock.mjs';
 
 const routineDefaults = [
   ['bulk_shopping', 'monthly'],
@@ -84,11 +86,13 @@ export function validateProductionInput(input) {
     || !isDate(input.producedOn)
     || !Number.isFinite(input.quantity) || input.quantity <= 0 || input.quantity > 100000
     || !storageTypes.has(input.storage ?? 'freezer')
-    || (input.note != null && (typeof input.note !== 'string' || input.note.length > 500))) return { error: 'invalid-production' };
+    || (input.note != null && (typeof input.note !== 'string' || input.note.length > 500))
+    || (input.requestId != null && !isUuid(input.requestId))) return { error: 'invalid-production' };
   return { data: {
     householdId: input.householdId, recipeId: input.recipeId,
     producedOn: input.producedOn, quantity: input.quantity, storage: input.storage ?? 'freezer',
     note: typeof input.note === 'string' ? input.note.trim() : '',
+    requestId: input.requestId ?? null,
   } };
 }
 
@@ -96,19 +100,47 @@ export async function addStockLot(pool, input) {
   const client = await pool.connect();
   const id = randomUUID();
   try {
+    await client.query('BEGIN');
+    await lockHouseholdInventory(client, input.householdId);
+    if (input.requestId) {
+      const previous = await client.query('SELECT *, produced_on::text AS produced_on FROM stock_lots WHERE household_id=$1 AND request_id=$2', [input.householdId,input.requestId]);
+      if (previous.rowCount) {
+        const lot = previous.rows[0];
+        await client.query('ROLLBACK');
+        if (lot.recipe_id !== input.recipeId || Number(lot.quantity) !== input.quantity
+          || String(lot.produced_on).slice(0,10) !== input.producedOn || lot.storage !== input.storage || lot.note !== input.note) return { error:'production-request-conflict' };
+        return { id:lot.id, recipeId:input.recipeId, quantity:input.quantity, replayed:true };
+      }
+    }
     const recipe = await client.query(
-      'SELECT id, yield_unit_id, production_type FROM recipes WHERE id = $1 AND household_id = $2',
+      'SELECT id, yield_amount, yield_unit_id, production_type FROM recipes WHERE id = $1 AND household_id = $2 FOR SHARE',
       [input.recipeId, input.householdId],
     );
-    if (!recipe.rowCount) return { error: 'recipe-not-found' };
-    if (recipe.rows[0].production_type === 'none') return { error: 'recipe-not-for-production' };
+    if (!recipe.rowCount || recipe.rows[0].production_type === 'none') {
+      await client.query('ROLLBACK'); return { error: !recipe.rowCount ? 'recipe-not-found' : 'recipe-not-for-production' };
+    }
+    const lines = await client.query(
+      `SELECT rl.food_id AS "foodId", f.canonical_name AS name, rl.quantity, rl.unit_id AS "unitId",
+              s.quantity_g AS "quantityG", f.grams_per_millilitre AS "gramsPerMillilitre",
+              COALESCE((SELECT jsonb_object_agg(u.unit_id,u.grams_per_unit) FROM food_unit_conversions u WHERE u.food_id=f.id),'{}'::jsonb) AS "gramsPerUnit"
+       FROM recipe_lines rl JOIN foods f ON f.id=rl.food_id
+       JOIN household_ingredient_stock s ON s.food_id=f.id AND s.household_id=$2
+       WHERE rl.recipe_id=$1 ORDER BY rl.food_id FOR UPDATE OF s`, [input.recipeId,input.householdId]);
+    const deductions = productionDeductions(lines.rows,input.quantity,Number(recipe.rows[0].yield_amount));
+    if (deductions.error) { await client.query('ROLLBACK'); return deductions; }
     await client.query(
-      `INSERT INTO stock_lots (id, household_id, recipe_id, produced_on, quantity, storage, note)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [id, input.householdId, input.recipeId, input.producedOn, input.quantity, input.storage, input.note],
+      `INSERT INTO stock_lots (id, household_id, recipe_id, produced_on, quantity, storage, note, request_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [id, input.householdId, input.recipeId, input.producedOn, input.quantity, input.storage, input.note,input.requestId],
     );
-    return { id, recipeId: input.recipeId, productionType: recipe.rows[0].production_type, producedOn: input.producedOn, quantity: input.quantity, unitId: recipe.rows[0].yield_unit_id, storage: input.storage, note: input.note };
+    for (const item of deductions.items) {
+      await client.query('UPDATE household_ingredient_stock SET quantity_g=quantity_g-$3,version=version+1,updated_at=now() WHERE household_id=$1 AND food_id=$2', [input.householdId,item.foodId,item.usedG]);
+      await client.query("INSERT INTO ingredient_stock_movements(id,household_id,food_id,delta_g,reason,stock_lot_id) VALUES ($1,$2,$3,$4,'production',$5)", [randomUUID(),input.householdId,item.foodId,-item.usedG,id]);
+    }
+    await client.query('COMMIT');
+    return { id, recipeId: input.recipeId, productionType: recipe.rows[0].production_type, producedOn: input.producedOn, quantity: input.quantity, unitId: recipe.rows[0].yield_unit_id, storage: input.storage, note: input.note, deductions:deductions.items };
   } catch (error) {
+    await client.query('ROLLBACK');
     if (error.code === '23503') return { error: 'recipe-not-found' };
     throw error;
   } finally { client.release(); }
@@ -153,27 +185,30 @@ export async function listStock(pool, householdId) {
 }
 
 export async function listShoppingRequirements(pool, householdId, startDate, endDate) {
-  const result = await pool.query(
-    `SELECT f.id AS "foodId", f.canonical_name AS name, rl.unit_id AS "unitId",
-            sum(rl.quantity * a.quantity / r.yield_amount) AS quantity,
-            COALESCE(g.group_id, 'bulk') AS "groupId", COALESCE(c.checked, false) AS checked
-       FROM planned_meals m
-       JOIN planned_meal_items i ON i.meal_id = m.id
-       JOIN planned_amounts a ON a.planned_item_id = i.id
-       JOIN recipes r ON r.id = i.recipe_id
-       JOIN recipe_lines rl ON rl.recipe_id = r.id
-       JOIN foods f ON f.id = rl.food_id
-       LEFT JOIN household_food_shopping_groups g
-         ON g.household_id = m.household_id AND g.food_id = f.id AND g.unit_id = rl.unit_id
-       LEFT JOIN household_shopping_checks c
-         ON c.household_id = m.household_id AND c.period_start = $2 AND c.period_end = $3
-        AND c.food_id = f.id AND c.unit_id = rl.unit_id
-      WHERE m.household_id = $1 AND m.meal_date BETWEEN $2::date AND $3::date
-      GROUP BY f.id, f.canonical_name, rl.unit_id, g.group_id, c.checked
-      ORDER BY group_id, name, unit_id`,
-    [householdId, startDate, endDate],
-  );
-  return result.rows.map((row) => ({ ...row, quantity: Number(row.quantity) }));
+  const [requirements, stocks, settings] = await Promise.all([
+    rawShoppingRequirements(pool,householdId,startDate,endDate),
+    readIngredientStock(pool,householdId),
+    pool.query(`SELECT g.food_id AS "foodId", g.unit_id AS "unitId", g.group_id AS "groupId", COALESCE(c.checked,false) AS checked
+      FROM household_food_shopping_groups g LEFT JOIN household_shopping_checks c
+      ON c.household_id=g.household_id AND c.food_id=g.food_id AND c.unit_id=g.unit_id AND c.period_start=$2 AND c.period_end=$3
+      WHERE g.household_id=$1`, [householdId,startDate,endDate]),
+  ]);
+  const tracked = new Set(stocks.map(row => row.foodId));
+  const items = requirements.filter(row => !tracked.has(row.foodId));
+  for (const stock of stocks) {
+    const projection = ingredientProjection(stock,requirements);
+    if (!projection.complete) {
+      // Keep the unresolved units visible; do not silently subtract grams from pieces.
+      items.push(...requirements.filter(row => row.foodId===stock.foodId).map(row => ({...row,warning:'Conversion manquante : stock non déduit'})));
+    } else if (projection.orderG > 0) {
+      items.push({foodId:stock.foodId,name:stock.name,unitId:'g',quantity:projection.orderG,groupId:'whey_flour',
+        warning:`Stock : ${stock.quantityG} g · besoin : ${projection.neededG} g · minimum : ${stock.minimumG} g`});
+    }
+  }
+  return items.map(row => {
+    const setting = settings.rows.find(item => item.foodId===row.foodId && item.unitId===row.unitId);
+    return {...row,groupId:setting?.groupId ?? row.groupId ?? 'bulk',checked:setting?.checked ?? false};
+  }).sort((a,b)=>a.groupId.localeCompare(b.groupId)||a.name.localeCompare(b.name));
 }
 
 export function validateShoppingLineState(input) {

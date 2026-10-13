@@ -2,7 +2,7 @@ import { calculatePersonProtein, capAccompanimentQuantity, MIN_PROTEIN_G_PER_MEA
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, importingDraftId: null, editingFoodFromRecipe: false, people: [], recipes: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [] };
+const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, importingDraftId: null, editingFoodFromRecipe: false, people: [], recipes: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [] };
 const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbohydrateG', 'g gluc.'], ['fatG', 'g lip.']];
 
 async function api(path, options = {}) {
@@ -18,7 +18,7 @@ async function api(path, options = {}) {
 
 function showMessage(target, text, success = false) {
   target.textContent = text;
-  target.style.color = success ? '#315f42' : '';
+  target.style.color = success ? '#63d7b0' : '';
 }
 
 function setView(name) {
@@ -64,7 +64,7 @@ async function refreshDashboard() {
   const today=localDateValue();
   try {
     const [plan,peopleResult,planning]=await Promise.all([
-      api(`/api/planning?householdId=${encodeURIComponent(state.household.id)}&weekStart=${today}`),
+      api(`/api/planning?householdId=${encodeURIComponent(state.household.id)}&weekStart=${mondayOf(today)}`),
       api(`/api/people?householdId=${encodeURIComponent(state.household.id)}`),
       api(`/api/household-planning?householdId=${encodeURIComponent(state.household.id)}`)
     ]);
@@ -139,6 +139,13 @@ async function refreshDashboard() {
     const stockItems=(planning.stock??[]).slice().sort((x,y)=>Number(x.availableQuantity)-Number(y.availableQuantity)).slice(0,5);
     if(!stockItems.length)stocks.append(emptyMessage('Aucun stock suivi pour le moment.'));
     for(const item of stockItems){const row=document.createElement('article');row.className='dashboard-stock';const name=document.createElement('strong');name.textContent=item.name;const detail=document.createElement('span');detail.textContent=`${formatQty(item.availableQuantity)} ${item.unitId} disponibles après réservation des repas`;row.append(name,detail);if(Number(item.availableQuantity)<=0){const tag=document.createElement('b');tag.textContent='À refaire';tag.className='warning-tag';row.append(tag);}stocks.append(row);}
+    for(const item of (planning.ingredients??[]).filter(item=>item.alert||!item.complete)){
+      const row=document.createElement('article');row.className='dashboard-stock';
+      const name=document.createElement('strong');name.textContent=item.name;
+      const detail=document.createElement('span');detail.textContent=`Stock : ${formatQty(item.quantityG)} g · minimum : ${formatQty(item.minimumG)} g · besoin sous ${item.leadDays} jours : ${formatQty(item.neededG)} g`;
+      const tag=document.createElement('b');tag.className='warning-tag';tag.textContent=item.complete?'À commander : '+formatQty(item.orderG)+' g':'Conversion à compléter';
+      row.append(name,tag,detail);stocks.append(row);
+    }
     stocks.append(dashboardAction('Voir les courses et stocks','shopping'));sidebar.append(stocks);
     const routines=dashboardPanel('À venir cette semaine');
     const weekEnd=addDays(today,6);const upcoming=(planning.routines??[]).filter(item=>item.nextDate>=today&&item.nextDate<=weekEnd).sort((x,y)=>x.nextDate.localeCompare(y.nextDate));
@@ -190,6 +197,8 @@ async function refreshShopping() {
     ]);
     state.recipes = recipesResult.recipes;
     renderRoutines(planning.routines);
+    state.ingredients = planning.ingredients ?? [];
+    renderIngredientStock(state.ingredients);
     const productionSelect = $('#production-form').elements.recipeId;
     productionSelect.replaceChildren(new Option('Choisir une préparation…',''));
     state.recipes.filter((recipe) => recipe.productionType && recipe.productionType !== 'none').forEach((recipe) => {
@@ -226,6 +235,7 @@ async function refreshShoppingList() {
         const checkbox=document.createElement('input'); checkbox.type='checkbox'; checkbox.checked=item.checked; checkbox.setAttribute('aria-label','Acheté : '+item.name);
         const name=document.createElement('span'); name.className='shopping-item-name'; name.textContent=item.name;
         const qty=document.createElement('span'); qty.className='shopping-quantity'; qty.textContent=`${formatQty(item.quantity)} ${item.unitId}`;
+        if(item.warning){const detail=document.createElement('small');detail.className='shopping-detail';detail.textContent=item.warning;name.append(detail);}
         const group=document.createElement('select'); group.setAttribute('aria-label','Catégorie de '+item.name);
         for (const [key,label] of Object.entries(groupLabels)) group.add(new Option(label,key));
         group.value=item.groupId;
@@ -235,7 +245,7 @@ async function refreshShoppingList() {
       });
       return section;
     }));
-    if (!items.length) root.replaceChildren(emptyMessage('Aucun repas planifié sur cette période.'));
+    if (!items.length) root.replaceChildren(emptyMessage('Aucun achat nécessaire sur cette période.'));
   } catch(error) { root.replaceChildren(emptyMessage('Liste indisponible : '+(error.body?.error ?? error.message))); }
 }
 $('#routines-form').addEventListener('submit',async event=>{
@@ -244,14 +254,101 @@ $('#routines-form').addEventListener('submit',async event=>{
   try{await api('/api/household-planning/routines',{method:'PUT',body:JSON.stringify({householdId:state.household.id,routines})});showMessage($('#routines-message'),'Planning enregistré.',true);await refreshShopping();}
   catch(error){showMessage($('#routines-message'),'Enregistrement impossible : '+(error.body?.error??error.message));}
 });
+let pendingProduction = null;
 $('#production-form').addEventListener('submit',async event=>{
-  event.preventDefault();const form=event.currentTarget;
-  try{await api('/api/household-planning/production',{method:'POST',body:JSON.stringify({householdId:state.household.id,recipeId:form.elements.recipeId.value,producedOn:form.elements.producedOn.value,quantity:Number(form.elements.quantity.value),storage:form.elements.storage.value,note:form.elements.note.value})});form.reset();form.elements.producedOn.value=localDateValue();showMessage($('#production-message'),'Production ajoutée au stock.',true);await refreshShopping();}
-  catch(error){showMessage($('#production-message'),'Production non enregistrée : '+(error.body?.error??error.message));}
+  event.preventDefault();
+  const form=event.currentTarget,button=$('button[type="submit"]',form) ?? $('button.primary',form);
+  if (button.disabled || !state.household) return;
+  const payload={householdId:state.household.id,recipeId:form.elements.recipeId.value,producedOn:form.elements.producedOn.value,quantity:Number(form.elements.quantity.value),storage:form.elements.storage.value,note:form.elements.note.value};
+  const fingerprint=JSON.stringify(payload);
+  if(pendingProduction?.fingerprint!==fingerprint) pendingProduction={fingerprint,requestId:newProductionRequestId()};
+  button.disabled=true;
+  try{
+    const {lot}=await api('/api/household-planning/production',{method:'POST',body:JSON.stringify({...payload,requestId:pendingProduction.requestId})});
+    pendingProduction=null;form.reset();form.elements.producedOn.value=localDateValue();
+    const deductions=(lot.deductions??[]).map(item=>`${item.name} : −${formatQty(item.usedG)} g`).join(' · ');
+    showMessage($('#production-message'),'Production ajoutée au stock.'+(deductions?' Ingrédients déduits : '+deductions:''),true);
+    await refreshShopping();await refreshDashboard();
+  } catch(error){
+    const body=error.body??{};
+    const messages={
+      'ingredient-stock-insufficient':`Stock insuffisant pour ${body.name} : ${formatQty(body.requiredG)} g nécessaires, ${formatQty(body.availableG)} g disponibles. Vérifie ton inventaire.`,
+      'ingredient-conversion-missing':`Conversion en grammes manquante pour ${body.name}. Complète la fiche de l’aliment.`,
+      'production-request-conflict':'Cette tentative a déjà été enregistrée avec d’autres valeurs. Actualise les stocks avant de réessayer.',
+    };
+    showMessage($('#production-message'),messages[body.error]??'Production non enregistrée : '+(body.error??error.message));
+  } finally {button.disabled=false;}
 });
 $('#refresh-shopping').addEventListener('click',refreshShoppingList);
 $('#production-form').elements.recipeId.addEventListener('change', event => { const recipe=state.recipes.find(item=>item.id===event.target.value); if(recipe) $('#production-form').elements.quantity.value=recipe.yield.amount; });
 
+
+function newProductionRequestId() {
+  const bytes=crypto.getRandomValues(new Uint8Array(16));
+  bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;
+  const hex=Array.from(bytes,byte=>byte.toString(16).padStart(2,'0')).join('');
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
+function renderIngredientStock(items) {
+  const root=$('#ingredient-stock-list');
+  root.replaceChildren(...(items.length?items.map(item=>{
+    const card=document.createElement('article');card.className='stock-row';
+    const name=document.createElement('strong');name.textContent=item.name;
+    const tag=document.createElement('span');tag.className=item.alert?'warning-tag':'stock-status';
+    tag.textContent=item.alert?'À commander':'Surveillé';
+    const detail=document.createElement('p');detail.textContent=`Stock : ${formatQty(item.quantityG)} g · minimum : ${formatQty(item.minimumG)} g · cible : ${formatQty(item.targetG)} g`;
+    const forecast=document.createElement('p');forecast.textContent=`Besoins prévus sous ${item.leadDays} jours : ${formatQty(item.neededG)} g · restant estimé : ${formatQty(item.projectedG)} g`;
+    if(!item.complete)forecast.textContent+=' · conversion manquante, estimation incomplète';
+    if(item.orderG>0){const order=document.createElement('b');order.className='warning-tag';order.textContent=`Commande suggérée : ${formatQty(item.orderG)} g`;forecast.append(' · ',order);}
+    const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='Inventaire / réception / seuils';
+    edit.addEventListener('click',()=>{
+      const form=$('#ingredient-stock-form');form.elements.foodId.replaceChildren(new Option(item.name,item.foodId,true,true));
+      $('#ingredient-search').value=item.name;
+      for(const field of ['quantityG','minimumG','targetG','leadDays'])form.elements[field].value=item[field];
+      form.dataset.version=String(item.version);showMessage($('#ingredient-message'),'');form.scrollIntoView({behavior:'smooth',block:'center'});
+    });
+    card.append(name,' · ',tag,detail,forecast,edit);return card;
+  }):[emptyMessage('Ajoute les bases dont tu veux surveiller le stock.')]));
+}
+let ingredientSearchSequence=0;
+$('#ingredient-search').addEventListener('input',async event=>{
+  const query=event.currentTarget.value.trim(),sequence=++ingredientSearchSequence;
+  const select=$('#ingredient-stock-form').elements.foodId;
+  select.replaceChildren(new Option('Rechercher puis choisir un aliment…',''));
+  $('#ingredient-stock-form').dataset.version='0';
+  if(query.length<2)return;
+  try{
+    const {foods}=await api('/api/foods?q='+encodeURIComponent(query)+'&limit=30');
+    if(sequence!==ingredientSearchSequence)return;
+    select.replaceChildren(new Option(foods.length?'Choisir un aliment…':'Aucun aliment trouvé',''),...foods.map(food=>new Option(food.name,food.id)));
+  }catch{if(sequence===ingredientSearchSequence)showMessage($('#ingredient-message'),'Recherche indisponible.');}
+});
+$('#ingredient-stock-form').elements.foodId.addEventListener('change',event=>{
+  const form=$('#ingredient-stock-form'),item=state.ingredients.find(row=>row.foodId===event.currentTarget.value);
+  form.dataset.version=String(item?.version??0);
+  for(const field of ['quantityG','minimumG','targetG','leadDays'])form.elements[field].value=item?.[field]??(field==='leadDays'?7:'');
+});
+$('#cancel-ingredient-edit').addEventListener('click',()=>{
+  const form=$('#ingredient-stock-form');form.reset();form.dataset.version='0';ingredientSearchSequence++;
+  form.elements.foodId.replaceChildren(new Option('Rechercher puis choisir un aliment…',''));showMessage($('#ingredient-message'),'');
+});
+$('#ingredient-stock-form').addEventListener('submit',async event=>{
+  event.preventDefault();const form=event.currentTarget;
+  if(!state.household)return;
+  const button=$('button[type="submit"]',form);if(button.disabled)return;
+  const payload={householdId:state.household.id,foodId:form.elements.foodId.value,version:Number(form.dataset.version??0)};
+  for(const field of ['quantityG','minimumG','targetG','leadDays'])payload[field]=Number(form.elements[field].value);
+  if(payload.targetG<payload.minimumG){showMessage($('#ingredient-message'),'Le stock cible doit être au moins égal au minimum.');return;}
+  button.disabled=true;
+  try{
+    await api('/api/household-planning/ingredients',{method:'PUT',body:JSON.stringify(payload)});
+    await refreshShopping();
+    const updated=state.ingredients.find(item=>item.foodId===payload.foodId);
+    form.dataset.version=String(updated?.version??payload.version+1);
+    showMessage($('#ingredient-message'),'Inventaire et surveillance enregistrés.',true);await refreshDashboard();
+  }catch(error){showMessage($('#ingredient-message'),error.body?.error==='ingredient-stock-changed'?'Le stock a changé depuis son ouverture. Réouvre son inventaire pour conserver les déductions récentes.':'Stock non enregistré : '+(error.body?.error??error.message));}
+  finally{button.disabled=false;}
+});
 
 function localDateValue() {
   const now = new Date();
