@@ -3,6 +3,7 @@ import { mainServingLimit } from './portion-planner.js';
 import { calculatePersonEnergy, SLOT_RATIOS } from './portion-planner.js';
 import { MEAL_ORDER, MEAL_LABELS, validMealRatios } from './meal-config.js';
 import { calculateDailyEnergy } from './portion-planner.js';
+import { breakfastServingLimit } from './portion-planner.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -1242,8 +1243,56 @@ function renderDailyEnergySummary(date,meals) {
     if(daily.incomplete){const note=document.createElement('small');note.textContent='Données incomplètes';line.append(note);}
     footer.append(line);
   }
+  const needsBreakfast=meals.some(meal=>meal.mealDate===date && meal.slot==='breakfast' && meal.items.some(item=>item.role==='main' && item.amounts.some(amount=>amount.quantity>breakfastServingLimit(item.recipe,state.recipes.find(parent=>parent.id===item.recipe?.parentRecipeId)))));
+  if(needsBreakfast || state.people.some(person=>calculateDailyEnergy(meals,person.id,date).kcal>latestProfile(person,date)?.dailyEnergyKcal)) {
+    const button=document.createElement('button');button.type='button';button.className='secondary daily-rebalance-button';button.textContent='Rééquilibrer';button.addEventListener('click',()=>openDailyRebalance(date));footer.append(button);
+  }
   return footer;
 }
+
+let dailyRebalancePreview=null;
+let dailyRebalanceRequest=0;
+const rebalanceReasons={
+  'minor-profile':'Profil adolescent : quantités conservées.',
+  'age-missing':'Date de naissance manquante : aucun ajustement automatique.',
+  'target-missing':'Objectif quotidien manquant.',
+  'inactive-profile':'Profil inactif.',
+  'incomplete-nutrition':'Données nutritionnelles incomplètes : quantités conservées.',
+  'cannot-fully-rebalance':'Une partie du dépassement reste à ajuster : les portions minimales ou le repère protéique limitent les réductions.',
+};
+async function openDailyRebalance(date) {
+  const request=++dailyRebalanceRequest;
+  $('#rebalance-dialog h2').textContent=`Rééquilibrer le ${displayDate(date)}`;
+  dailyRebalancePreview=null;$('#rebalance-dialog').showModal();$('#apply-rebalance').disabled=true;
+  $('#rebalance-preview').replaceChildren(emptyMessage('Calcul des nouvelles quantités…'));$('#rebalance-message').textContent='';
+  try {
+    const preview=await api(`/api/planning/rebalance-preview?householdId=${encodeURIComponent(state.household.id)}&date=${date}`);
+    if(request!==dailyRebalanceRequest || !$('#rebalance-dialog').open)return;
+    dailyRebalancePreview=preview;
+    const root=$('#rebalance-preview');root.replaceChildren();
+    for(const person of [...preview.results].sort((a,b)=>Number(Boolean(a.reason))-Number(Boolean(b.reason)) || a.name.localeCompare(b.name,'fr'))) {
+      const section=document.createElement('section');section.className='rebalance-person';
+      const heading=document.createElement('strong');heading.textContent=`${person.name} : ${format(person.beforeKcal)} → ${format(person.afterKcal)} / ${person.targetKcal==null?'—':format(person.targetKcal)} kcal`;section.append(heading);
+      for(const change of preview.changes.filter(change=>change.personId===person.personId).sort((a,b)=>MEAL_ORDER.indexOf(a.slot)-MEAL_ORDER.indexOf(b.slot))) {
+        const line=document.createElement('p');line.textContent=`${slotLabels[change.slot]} · ${change.recipeName} : ${formatQty(change.before)} → ${formatQty(change.after)} ${change.unitId}`;section.append(line);
+      }
+      if(person.reason){const note=document.createElement('p');note.className='muted';note.textContent=rebalanceReasons[person.reason] ?? person.reason;section.append(note);}
+      root.append(section);
+    }
+    if(!preview.changes.length)showMessage($('#rebalance-message'),'Aucune réduction automatique proposée.');
+    $('#apply-rebalance').disabled=!preview.changes.length;
+  }catch(error){if(request===dailyRebalanceRequest)showMessage($('#rebalance-message'),`Calcul impossible : ${error.body?.error ?? error.message}`);}
+}
+$('#rebalance-dialog').addEventListener('close',()=>{dailyRebalanceRequest++;dailyRebalancePreview=null;});
+$('#close-rebalance').addEventListener('click',()=>$('#rebalance-dialog').close());
+$('#apply-rebalance').addEventListener('click',async()=>{
+  if(!dailyRebalancePreview)return;
+  const button=$('#apply-rebalance');button.disabled=true;
+  try {
+    await api('/api/planning/rebalance',{method:'POST',body:JSON.stringify({householdId:state.household.id,date:dailyRebalancePreview.date,token:dailyRebalancePreview.token})});
+    $('#rebalance-dialog').close();await Promise.all([refreshCalendar(),refreshDashboard()]);
+  }catch(error){showMessage($('#rebalance-message'),error.body?.error==='rebalance-preview-stale'?'Le planning ou un profil a changé depuis le calcul. Ferme cette fenêtre et relance le rééquilibrage.':`Application impossible : ${error.body?.error ?? error.message}`);}
+});
 
 function mealCalories(meal) {
   if (!meal.attendees?.length || !meal.items?.length) return 0;
@@ -1401,11 +1450,12 @@ function applyAutomaticPortions(items, attendeeIds) {
         ? (recipeUnit === 'g' ? 10 : 1)
         : null;
       const proposedQuantity = suggestion.quantity ?? fallbackQuantity;
-      const maxQuantity = recipe?.parentRecipeId && ['main','vegetables'].includes(recipe.servingPart)
+      const servingMax = recipe?.parentRecipeId && ['main','vegetables'].includes(recipe.servingPart)
         ? mainServingLimit(recipe, state.recipes.find(parent => parent.id === recipe.parentRecipeId))
         : role === 'accompaniment' && recipeUnit === 'g' && !recipe?.parentRecipeId
         ? Math.min(200, Number(recipe?.yield?.amount) * 1.5)
         : Infinity;
+      const maxQuantity=Math.min(servingMax,slot==='breakfast' && role==='main'?breakfastServingLimit(recipe,state.recipes.find(parent=>parent.id===recipe?.parentRecipeId)):Infinity);
       const quantity = proposedQuantity == null ? null : Math.min(
         proposedQuantity,
         maxQuantity,
@@ -1413,7 +1463,7 @@ function applyAutomaticPortions(items, attendeeIds) {
       );
       item.amounts[personId] = quantity == null ? '' : String(quantity);
       if (Number.isFinite(maxQuantity) && proposedQuantity > maxQuantity) {
-        messages.add(`${recipe?.name ?? 'L’accompagnement'} : portion proposée plafonnée à ${maxQuantity} g par personne; tu peux toujours l’ajuster.`);
+        messages.add(`${recipe?.name ?? 'La préparation'} : portion proposée plafonnée à ${maxQuantity} ${recipeUnit} par personne; tu peux toujours l’ajuster.`);
       }
       if (suggestion.reason === 'daily-target-missing') messages.add(`${person?.displayName ?? 'Une personne'} : besoin quotidien manquant, une quantité par défaut est proposée.`);
       else if (suggestion.reason === 'recipe-energy-missing') messages.add(`${recipe?.name ?? 'Une recette'} : calories inconnues, la quantité par défaut ne peut pas garantir le budget.`);
