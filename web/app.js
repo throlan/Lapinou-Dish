@@ -1038,7 +1038,7 @@ function mealCalories(meal) {
 function renderMealCard(meal) {
   const card = document.createElement('article'); card.className = 'planned-meal-card';
   const edit = document.createElement('button'); edit.type = 'button';
-  edit.textContent = meal.items?.map((item) => item.recipe?.name ?? 'Recette supprimée').join(' + ') || 'Repas sans recette';
+  edit.textContent = meal.items?.filter((item) => ['main', 'accompaniment'].includes(item.role ?? 'main')).map((item) => item.recipe?.name ?? 'Recette supprimée').join(' + ') || 'Repas';
   const attendee = document.createElement('small'); attendee.textContent = meal.attendees?.map((person) => person.displayName).join(', ') || 'Aucune personne sélectionnée';
   const kcal = mealCalories(meal);
   const partial = meal.items?.some((item) => !item.recipe?.nutrition?.complete) ?? false;
