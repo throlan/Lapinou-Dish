@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { listFoodStores } from './food-stores.mjs';
 import { rawShoppingRequirements } from './shopping-requirements.mjs';
-import { purchaseDescription } from './shopping-presentation.mjs';
+import { purchaseDescription,suggestedPurchaseUnit } from './shopping-presentation.mjs';
+import { applyPurchaseUnits,listPurchaseUnits } from './purchase-units.mjs';
 import { ingredientProjection, lockHouseholdInventory, productionDeductions, readIngredientStock } from './ingredient-stock.mjs';
 
 const routineDefaults = [
@@ -272,7 +273,7 @@ export async function listStock(pool, householdId) {
 }
 
 export async function listShoppingRequirements(pool, householdId, startDate, endDate) {
-  const [requirements, stocks, settings, packages, stores] = await Promise.all([
+  const [requirements, stocks, settings, packages, stores, purchaseUnits] = await Promise.all([
     rawShoppingRequirements(pool,householdId,startDate,endDate),
     readIngredientStock(pool,householdId),
     pool.query(`SELECT g.food_id AS "foodId", g.unit_id AS "unitId", g.group_id AS "groupId", COALESCE(c.checked,false) AS checked
@@ -282,6 +283,7 @@ export async function listShoppingRequirements(pool, householdId, startDate, end
     pool.query(`SELECT food_id AS "foodId", unit_id AS "unitId", package_quantity AS "packageQuantity"
       FROM household_food_purchase_packs WHERE household_id=$1`, [householdId]),
     listFoodStores(pool,householdId),
+    listPurchaseUnits(pool,householdId),
   ]);
   const tracked = new Set(stocks.map(row => row.foodId));
   const items = requirements.filter(row => !tracked.has(row.foodId));
@@ -296,7 +298,7 @@ export async function listShoppingRequirements(pool, householdId, startDate, end
         warning:`Stock : ${stock.quantityG} g · besoin : ${projection.neededG} g · minimum : ${stock.minimumG} g`});
     }
   }
-  return items.map(row => {
+  return applyPurchaseUnits(items,purchaseUnits).map(row => {
     const store=stores.find(item=>item.foodId===row.foodId);
     const setting = settings.rows.find(item => item.foodId===row.foodId && item.unitId===row.unitId);
     const purchasePack = packages.rows.find(item => item.foodId===row.foodId && item.unitId===row.unitId);
@@ -305,6 +307,8 @@ export async function listShoppingRequirements(pool, householdId, startDate, end
     const quantity = packageQuantity ? Math.ceil(rawQuantity/packageQuantity)*packageQuantity : shoppingPurchaseQuantity(rawQuantity,row.unitId);
     const presented={...row,neededQuantity:rawQuantity,quantity,packageQuantity,packageCount:packageQuantity ? Math.ceil(rawQuantity/packageQuantity) : null};
     return {...presented,purchase:purchaseDescription(presented),
+      purchaseRule:row.purchaseRule??null,purchaseRuleApplied:row.purchaseRuleApplied??false,
+      purchaseRuleSuggestion:row.purchaseRule?null:suggestedPurchaseUnit(row),
       quantityRounded:quantity!==rawQuantity,baseGroupId:setting?.groupId ?? row.groupId ?? 'bulk',
       groupId:store?'whey_flour':setting?.groupId ?? row.groupId ?? 'bulk',
       store:store?{id:store.orderLinkId,label:store.label,url:store.url,homeAssistantEntityId:store.homeAssistantEntityId}:null,

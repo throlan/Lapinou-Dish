@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-**0.2.49** publiée après la PR 62, fusionnée sur `main` dans le commit `d7aed3bd7ec354f69e124adf8a8d6261b7786397`. Les achats en ligne sont regroupés par boutique. **0.2.50** est en développement local pour ajouter magasins physiques, listes par magasin et export Home Assistant ; sa publication reste à vérifier après livraison.
+**0.2.50** publiée après la PR 64, fusionnée sur `main` dans le commit `5795583c907dfc6bd2fb649918cd19d5e2c938a4`. Magasins physiques, listes par magasin, suggestions d'achat ail/basilic/gingembre et export Home Assistant sont livrés. **0.2.51** est en développement pour rendre les unités d'achat paramétrables par aliment.
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des modifications : [journal de session](SESSION-2026-10-13.md).
 
@@ -26,7 +26,7 @@ Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). P
 
 ## Vérification
 
-**167 tests réussis** avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` (Node v24.19.0) sur le travail 0.2.50.
+**170 tests réussis** avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` (Node v24.19.0) sur le travail 0.2.51.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 
@@ -52,7 +52,11 @@ La PR 62 a été fusionnée et la publication de l'image a réussi dans le workf
 
 ## Magasins physiques et exports — 0.2.50
 
-En développement local : URL facultative pour les magasins ; regroupement et filtre par magasin ; liste plus lisible sur toute la largeur ; copie et fichier texte par magasin ; envoi optionnel vers les listes `todo` Home Assistant avec cible par magasin et secret côté serveur. Suggestions d'achat : ail en gousses/têtes, basilic en bouquets, gingembre en racines indicatives de 50–80 g. Les calculs nutritionnels des recettes restent inchangés. Alexa ne fournit plus d'API officielle pour écrire directement dans ses listes. La livraison GitHub et la publication restent à effectuer/vérifier.
+Livré : URL facultative pour les magasins ; regroupement et filtre par magasin ; copie et fichier texte par magasin ; envoi optionnel vers les listes `todo` Home Assistant. Suggestions d'achat : ail en gousses/têtes, basilic en bouquets, gingembre en racines indicatives de 50–80 g. Alexa ne fournit plus d'API officielle pour écrire directement dans ses listes.
+
+## Unités d'achat personnalisées — 0.2.51
+
+En développement local : libellés singulier/pluriel, équivalence chiffrée et note d'estimation réglables par foyer et aliment depuis les détails d'une ligne de courses. Les besoins du même aliment sont réunis si leurs unités disposent d'une conversion documentée ; sinon ils restent visibles séparément avec un avertissement. Le format de paquet manuel existant reste prioritaire. Recettes, stocks et calculs nutritionnels ne sont pas modifiés. Voir [le guide](ONLINE-SHOPPING.md).
 
 ## Guides actuels du projet
 

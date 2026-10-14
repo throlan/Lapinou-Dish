@@ -439,7 +439,7 @@ async function refreshShoppingList() {
           options.open=openDetails.has(row.dataset.key);
           const summary=document.createElement('summary');summary.textContent='Détails et réglages';options.append(summary);
           if(item.warning){const warning=document.createElement('p');warning.textContent=item.warning;options.append(warning);}
-          const packLabel=document.createElement('label');packLabel.textContent=`Format d’achat (${item.unitId})`;
+          const packLabel=document.createElement('label');packLabel.textContent=`Format de paquet existant (${item.unitId}, prioritaire)`;
           const pack=document.createElement('input');pack.type='number';pack.min='0.001';pack.step='any';pack.value=item.packageQuantity??'';pack.placeholder=`Ex. 500 ${item.unitId}`;pack.setAttribute('aria-label',`Format d’achat pour ${item.name}`);packLabel.append(pack);
           const groupLabel=document.createElement('label');groupLabel.textContent='Catégorie';
           const group=document.createElement('select');group.setAttribute('aria-label','Catégorie de '+item.name);
@@ -447,7 +447,36 @@ async function refreshShoppingList() {
           groupLabel.append(group);
           const storeLabel=document.createElement('label');storeLabel.textContent='Magasin';
           const storeChoice=foodStoreSelect(item.store?.id??'',item.name);storeLabel.append(storeChoice);
-          options.append(packLabel,groupLabel,storeLabel);
+          const purchaseForm=document.createElement('form');purchaseForm.className='shopping-purchase-form';
+          const purchaseTitle=document.createElement('strong');purchaseTitle.textContent='Unité d’achat personnalisée';
+          const purchaseHint=document.createElement('small');purchaseHint.textContent='Ex. 1 tête couvre 9 gousses (pièces). Pour le basilic pesé en g, indique le poids approximatif de ton bouquet. Un format de paquet renseigné ci-dessus reste prioritaire.';
+          const rule=item.purchaseRule??item.purchaseRuleSuggestion??{};
+          const singularLabel=document.createElement('label');singularLabel.textContent='Une unité achetée';
+          const singular=document.createElement('input');singular.name='singularLabel';singular.maxLength=60;singular.required=true;singular.placeholder='Ex. tête d’ail';singular.value=rule.singularLabel??'';singularLabel.append(singular);
+          const pluralLabel=document.createElement('label');pluralLabel.textContent='Plusieurs unités achetées';
+          const plural=document.createElement('input');plural.name='pluralLabel';plural.maxLength=60;plural.required=true;plural.placeholder='Ex. têtes d’ail';plural.value=rule.pluralLabel??'';pluralLabel.append(plural);
+          const coveredLabel=document.createElement('label');coveredLabel.textContent='Quantité couverte par une unité';
+          const covered=document.createElement('input');covered.name='coveredQuantity';covered.type='number';covered.min='0.00001';covered.step='any';covered.required=true;covered.placeholder='Ex. 9';covered.value=rule.coveredQuantity??'';coveredLabel.append(covered);
+          const unitLabel=document.createElement('label');unitLabel.textContent='Unité de cette quantité';
+          const coveredUnit=document.createElement('select');coveredUnit.name='coveredUnitId';
+          for(const [value,label] of [['g','g'],['kg','kg'],['ml','ml'],['l','l'],['piece','pièce'],['tsp','cuillère à café'],['tbsp','cuillère à soupe'],['cup','tasse']])coveredUnit.add(new Option(label,value));
+          coveredUnit.value=rule.coveredUnitId??item.unitId;unitLabel.append(coveredUnit);
+          const noteLabel=document.createElement('label');noteLabel.textContent='Précision facultative';
+          const note=document.createElement('input');note.name='estimateNote';note.maxLength=160;note.placeholder='Ex. une racine pèse 50 à 80 g';note.value=rule.estimateNote??'';noteLabel.append(note);
+          const purchaseActions=document.createElement('div');purchaseActions.className='shopping-purchase-actions';
+          const saveRule=document.createElement('button');saveRule.type='submit';saveRule.className='secondary';saveRule.textContent='Enregistrer l’unité';purchaseActions.append(saveRule);
+          if(item.purchaseRule){const removeRule=document.createElement('button');removeRule.type='button';removeRule.className='secondary';removeRule.textContent='Revenir à l’estimation par défaut';removeRule.addEventListener('click',async()=>{
+            removeRule.disabled=true;
+            try{await api(`/api/household-purchase-units?householdId=${encodeURIComponent(state.household.id)}&foodId=${encodeURIComponent(item.foodId)}`,{method:'DELETE'});const y=window.scrollY;await refreshShoppingList();window.scrollTo(0,y);showMessage($('#shopping-export-message'),'Unité d’achat personnalisée retirée.',true);}
+            catch(error){showMessage($('#shopping-export-message'),'Réglage non retiré : '+(error.body?.error??error.message));removeRule.disabled=false;}
+          });purchaseActions.append(removeRule);}
+          purchaseForm.append(purchaseTitle,purchaseHint,singularLabel,pluralLabel,coveredLabel,unitLabel,noteLabel,purchaseActions);
+          purchaseForm.addEventListener('submit',async event=>{
+            event.preventDefault();if(!purchaseForm.reportValidity())return;saveRule.disabled=true;
+            try{await api('/api/household-purchase-units',{method:'PUT',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,singularLabel:singular.value,pluralLabel:plural.value,coveredQuantity:Number(covered.value),coveredUnitId:coveredUnit.value,estimateNote:note.value})});const y=window.scrollY;await refreshShoppingList();window.scrollTo(0,y);showMessage($('#shopping-export-message'),`Unité d’achat enregistrée pour ${item.name}.`,true);}
+            catch(error){showMessage($('#shopping-export-message'),'Réglage non enregistré : '+(error.body?.error??error.message));saveRule.disabled=false;}
+          });
+          options.append(packLabel,purchaseForm,groupLabel,storeLabel);
           if(item.recipes?.length){const recipes=document.createElement('p');recipes.className='shopping-recipes';recipes.textContent=`Recettes : ${item.recipes.map(recipe=>recipe.name).join(', ')}`;options.append(recipes);}
           const save=async()=>{
             try{await api('/api/shopping-list/state',{method:'POST',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,unitId:item.unitId,startDate:start,endDate:end,groupId:group.value,checked:checkbox.checked,packageQuantity:pack.value===''?null:Number(pack.value)})});row.classList.toggle('checked',checkbox.checked);return true;}
