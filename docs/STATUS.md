@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-**0.2.51** publiée après la [PR 65](https://github.com/throlan/Lapinou-Dish/pull/65), fusionnée sur `main` dans le commit `62f841005d23141dbbb271048c393dd06a7859d7`. Le workflow GitHub 181 a réussi. **0.2.52** est en développement pour gérer le stock de tous les produits, les réceptions d'achats et les repas réellement préparés.
+**0.2.52** publiée après la [PR 66](https://github.com/throlan/Lapinou-Dish/pull/66), fusionnée sur `main` dans le commit `041771ba8c422156b70c87c9a95169247cd86bb5`. Le workflow GitHub 183 a réussi. **0.2.53** corrige l'enregistrement du planning des routines de courses.
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des modifications : [journal de session](SESSION-2026-10-13.md).
 
@@ -27,6 +27,8 @@ Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). P
 ## Vérification
 
 **171 tests réussis** avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` (Node v24.19.0) sur le travail 0.2.52.
+
+Le correctif 0.2.53 conserve les 171 tests réussis ; le formulaire des routines a été vérifié dans Chrome avec une base locale fictive, jusqu'au rechargement de la page.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 
