@@ -3,10 +3,10 @@
 ## Point de départ
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish
-- Branche de référence au début de ce travail : `main`, commit de la PR 62 : `d7aed3bd7ec354f69e124adf8a8d6261b7786397`.
-- Dernière version publiée vérifiée : **0.2.49**, après la [PR 62](https://github.com/throlan/Lapinou-Dish/pull/62) : achats en ligne regroupés par boutique.
+- Branche de référence au début du travail actuel : `main`, commit de la PR 64 : `5795583c907dfc6bd2fb649918cd19d5e2c938a4`.
+- Dernière version publiée vérifiée : **0.2.50**, après la [PR 64](https://github.com/throlan/Lapinou-Dish/pull/64) : magasins physiques et exports par magasin.
 - Journal détaillé : [SESSION-2026-10-13.md](SESSION-2026-10-13.md). État et tâches restantes : [STATUS.md](STATUS.md).
-- Travail actuel : **0.2.50**, magasins physiques, listes par magasin, achats ail/basilic/gingembre et export Home Assistant. Voir [la session du 14 octobre](SESSION-2026-10-14.md). 167 tests réussis et parcours Chrome local ordinateur/mobile vérifié sur données synthétiques. Publication de cette version à confirmer après la PR.
+- Travail actuel : **0.2.51**, unités d'achat paramétrables par aliment. Voir [la session du 14 octobre](SESSION-2026-10-14.md). 170 tests réussis et parcours Chrome local ordinateur/mobile vérifié sur données synthétiques. Publication de cette version à confirmer après la PR.
 
 ## Règle d'exploitation impérative
 
@@ -65,9 +65,13 @@ Les sites enregistrés dans Liens de commande sont réutilisés ; les quantités
 
 ## Magasins et export — 0.2.50
 
-La version en cours accepte les magasins sans site, présente les courses par magasin sur toute la largeur, permet copie/téléchargement par magasin et un envoi vers une liste Home Assistant `todo` propre à chaque magasin. Les variables `HOME_ASSISTANT_URL` et `HOME_ASSISTANT_TOKEN` doivent être configurées côté application par l'utilisateur ; ne jamais demander la valeur du jeton dans la conversation. L'API Alexa pour les listes a été arrêtée : aucun envoi direct. Les unités d'achat indicatives ail/basilic/gingembre ne touchent pas aux calculs nutritionnels. Voir [le guide](ONLINE-SHOPPING.md).
+La version 0.2.50 accepte les magasins sans site, présente les courses par magasin sur toute la largeur, permet copie/téléchargement par magasin et un envoi vers une liste Home Assistant `todo` propre à chaque magasin. Les variables `HOME_ASSISTANT_URL` et `HOME_ASSISTANT_TOKEN` doivent être configurées côté application par l'utilisateur ; ne jamais demander la valeur du jeton dans la conversation. L'API Alexa pour les listes a été arrêtée : aucun envoi direct. Les unités d'achat indicatives ail/basilic/gingembre ne touchent pas aux calculs nutritionnels. Voir [le guide](ONLINE-SHOPPING.md).
 
-Les 164 tests et le parcours Chrome local sur données fictives (ordinateur/mobile) passent. Vérifier la PR et la publication GitHub avant d'annoncer l'image disponible ; aucun accès à Unraid ni à Nginx.
+Les 167 tests et le parcours Chrome local sur données fictives (ordinateur/mobile) passent. PR 64 fusionnée et publication GitHub vérifiée ; aucun accès à Unraid ni à Nginx.
+
+## Unités d'achat paramétrables — 0.2.51
+
+Chaque aliment du foyer peut recevoir un nom d'unité d'achat au singulier et au pluriel, une quantité couverte en g, ml ou pièces, et une note d'estimation. Le réglage est accessible dans les détails de la ligne de courses. Les unités déjà présentes dans plusieurs recettes sont agrégées seulement si le catalogue fournit la conversion nécessaire ; autrement les lignes restent séparées avec un avertissement. Un format de paquet manuel reste prioritaire. Les conversions nutritionnelles ne sont pas déduites de ces réglages. Migration `20261014_purchase_units.sql` ; API authentifiée `GET/PUT/DELETE /api/household-purchase-units`. Voir [le guide](ONLINE-SHOPPING.md).
 
 ## Validation et livraison du développement
 

@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { listFoodStores, saveFoodStores, validateFoodStores } from './food-stores.mjs';
 import { exportToHomeAssistant } from './home-assistant-shopping.mjs';
+import { deletePurchaseUnit,listPurchaseUnits,savePurchaseUnit,validatePurchaseUnit } from './purchase-units.mjs';
 import { previewDailyRebalance, applyDailyRebalance } from './daily-rebalance.mjs';
 import { readMealSettings, saveMealSettings, readPlateSettings, savePlateSettings } from './meal-settings.mjs';
 import { deleteSavingPlan, getEnergyReserveOverview, saveSavingPlan, validateSavingPlan } from './energy-reserve.mjs';
@@ -301,6 +302,23 @@ export async function handleRequest(request, response, pool, appPassword = null,
       if ((new Date(endDate) - new Date(startDate)) / 86400000 > 62) return send(response, 400, { error: 'shopping-period-too-long' });
       try { return send(response, 200, { items: await listShoppingRequirements(pool, householdId, startDate, endDate) }); }
       catch { return send(response, 500, { error: 'shopping-list-read-failed' }); }
+    }
+    if(url.pathname==='/api/household-purchase-units' && request.method==='GET'){
+      const householdId=url.searchParams.get('householdId');if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});
+      try{return send(response,200,{units:await listPurchaseUnits(pool,householdId)});}
+      catch{return send(response,500,{error:'purchase-units-read-failed'});}
+    }
+    if(url.pathname==='/api/household-purchase-units' && request.method==='PUT'){
+      const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
+      const validation=validatePurchaseUnit(body.value);if(validation.error)return send(response,400,{error:validation.error});
+      try{const saved=await savePurchaseUnit(pool,validation.data);return send(response,200,{saved:!!saved});}
+      catch(error){return send(response,error.code==='23503'?404:500,{error:error.code==='23503'?'food-or-household-not-found':'purchase-unit-save-failed'});}
+    }
+    if(url.pathname==='/api/household-purchase-units' && request.method==='DELETE'){
+      const householdId=url.searchParams.get('householdId'),foodId=url.searchParams.get('foodId');
+      if(!isUuid(householdId)||!isUuid(foodId))return send(response,400,{error:'invalid-purchase-unit'});
+      try{return send(response,200,{deleted:await deletePurchaseUnit(pool,householdId,foodId)});}
+      catch{return send(response,500,{error:'purchase-unit-delete-failed'});}
     }
     if (url.pathname === '/api/shopping-list/export/home-assistant' && request.method === 'POST') {
       const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
