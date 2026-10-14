@@ -13,7 +13,23 @@ Le coefficient peut aussi être choisi par ingrédient : les pâtes des lasagnes
 
 Les ingrédients gardent leurs quantités et unités d'origine. L'eau absorbée augmente le poids estimé sans ajouter de nutriments. La nutrition de chaque partie est calculée sur ses ingrédients puis répartie selon ses grammes estimés, avec une précision conservée par gramme. Le moteur propose des portions avec les profils existants ; les quantités saisies à la main restent prioritaires et acceptent les décimales.
 
-## Recettes et données existantes
+## Composition de l'assiette
+
+Administration → Composition des assiettes règle des proportions **en poids estimé servi** par foyer, après coefficients de cuisson :
+
+| Mode | Plat / viande-protéines | Féculents | Légumes |
+| --- | --- | --- | --- |
+| Tout ensemble | 100 % | intégrés | intégrés |
+| Deux parties | 70 % viande et légumes | 30 % | intégrés à la viande |
+| Trois parties | 25 % viande/protéines | 25 % | 50 % |
+
+Les deux modes séparés sont modifiables ; chaque mode doit totaliser 100 % et chaque partie rester positive. Il s'agit de grammes servis estimés, pas de pourcentages de kcal, de volume ou de protéines nutritionnelles. Une assiette de 400 g en mode trois parties contient par défaut 100 g de viande/protéines, 100 g de féculents et 200 g de légumes. Les ingrédients crus et les coefficients restent ceux de la recette.
+
+Le moteur calcule la densité énergétique de cette composition, puis ajuste son poids global dans le budget du repas et sous les plafonds de chaque partie. L'ajustement protéique conserve les proportions et peut signaler que le repère ne peut pas être atteint. Les grammes peuvent être décimaux pour respecter les pourcentages ; le poids total proposé varie par pas de 10 g. Boissons, desserts et recettes sans parties liées restent indépendants. Si une partie est absente ou répétée, la composition n'est pas appliquée et le calcul le signale.
+
+Les quantités existantes et les copies ne changent pas : utiliser explicitement « Recalculer les portions ». Le rééquilibrage quotidien réduit ensemble les parties liées en conservant leur répartition déjà saisie, même si elle a été modifiée manuellement. Les protections des profils et du repère protéique restent appliquées.
+
+## Conservation des données existantes
 
 Configurer le mode et les coefficients une fois par recette. Aucune classification automatique ne déplace le riz d'un plat existant : les féculents restent mélangés tant que la séparation n'est pas choisie.
 

@@ -44,7 +44,7 @@ Les boissons, desserts et collations ne sont pas réduits. Les profils mineurs, 
 
 **Appliquer ces quantités** sauvegarde les propositions dans une transaction. Un changement de planning, recette, nutrition ou profil depuis l'aperçu impose un nouveau calcul. Réappliquer un ancien aperçu ne réduit pas une deuxième fois les portions.
 
-Le rééquilibrage change les prévisions et les réservations liées aux repas, pas les stocks physiques ni les mouvements d'ingrédients déjà enregistrés. Le journal des consommations réelles n'est pas encore implémenté.
+Le rééquilibrage change les prévisions et les réservations liées aux repas, pas les stocks physiques ni les mouvements d'ingrédients déjà enregistrés. Les parties liées d'une assiette sont réduites ensemble pour conserver leurs proportions saisies. La composition des nouvelles propositions se règle séparément dans Administration : voir [les proportions en grammes](SERVING-GRAMS.md). Aucun journal de consommation réelle n'est souhaité.
 
 ## Repères techniques
 

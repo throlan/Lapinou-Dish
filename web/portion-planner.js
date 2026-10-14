@@ -1,4 +1,4 @@
-import { DEFAULT_MEAL_RATIOS } from './meal-config.js';
+import { DEFAULT_MEAL_RATIOS, DEFAULT_PLATE_RATIOS, validPlateRatios } from './meal-config.js';
 export const SLOT_RATIOS = DEFAULT_MEAL_RATIOS;
 
 export function breakfastServingLimit(recipe,parent) {
@@ -125,7 +125,7 @@ export function rebalanceNaturalPortions(proposals, slotBudgetKcal, { minProtein
           && Number(item.proteinG) > 0
           && Number.isFinite(Number(item.recipeKcal))
           && Number(item.step) > 0
-          && (Number(item.quantity) || 0) + item.step <= (Number(item.maxQuantity) || Infinity) + 1e-9)
+          && (Number(item.quantity) || 0) + item.step <= (item.maxQuantity==null?Infinity:Number(item.maxQuantity)) + 1e-9)
         .filter((item) => total() + item.recipeKcal * item.step <= budget + 1e-9)
         .sort((a, b) => (b.proteinG / b.recipeKcal) - (a.proteinG / a.recipeKcal))[0];
       if (!candidate) break;
@@ -140,4 +140,45 @@ export function rebalanceNaturalPortions(proposals, slotBudgetKcal, { minProtein
     proteinKnown,
     proteinTargetMet: proteinKnown && totalProtein() >= minProteinG - 1e-9,
   };
+}
+
+// Linked parts form one adjustable plate: protein adjustments change its total
+// weight, never the relative weights of meat, starch and vegetables.
+export function suggestPlatePortions(proposals, budget, plateRatios=DEFAULT_PLATE_RATIOS) {
+  const ratios=validPlateRatios(plateRatios)?plateRatios:DEFAULT_PLATE_RATIOS;
+  const groups=new Map(), grouped=new Set(), plates=[], warnings=[];
+  for(const row of proposals) {
+    if(!row.parentRecipeId || !['main','accompaniment'].includes(row.role))continue;
+    if(!groups.has(row.parentRecipeId))groups.set(row.parentRecipeId,[]);
+    groups.get(row.parentRecipeId).push(row);
+  }
+  for(const members of groups.values()) {
+    const expected=members[0].plateParts;
+    if(!expected?.length || expected.length!==members.length
+      || expected.some(part=>members.filter(row=>row.servingPart===part).length!==1)) {
+      warnings.push('Parties manquantes ou répétées : proportions non appliquées à cette préparation.');continue;
+    }
+    if(members.some(row=>row.recipeUnit!=='g' || !(row.recipeKcal>0) || !Number.isFinite(row.recipeKcal))) {
+      warnings.push('Calories inconnues : impossible de proposer une assiette selon les proportions.');continue;
+    }
+    const mode=expected.includes('vegetables')?'three':expected.includes('starch')?'separate':'whole';
+    const shares=ratios[mode];
+    const energy=members.reduce((sum,row)=>sum+shares[row.servingPart]*row.recipeKcal,0);
+    const proteinKnown=members.every(row=>row.proteinG!=null && Number.isFinite(row.proteinG));
+    const protein=proteinKnown?members.reduce((sum,row)=>sum+shares[row.servingPart]*row.proteinG,0):null;
+    const limit=Math.min(...members.map(row=>(row.maxQuantity??Infinity)/shares[row.servingPart]));
+    const maxQuantity=Number.isFinite(limit)?Math.floor((limit+1e-9)/10)*10:Infinity;
+    const allocation=members.reduce((sum,row)=>sum+(row.budgetFraction??0),0);
+    const quantity=Math.max(0,Math.min(maxQuantity,Math.floor((budget*allocation/energy+1e-9)/10)*10));
+    plates.push({members,shares,role:'main',step:10,quantity,maxQuantity,recipeKcal:energy,proteinG:protein});
+    members.forEach(row=>grouped.add(row));
+  }
+  const result=rebalanceNaturalPortions([...proposals.filter(row=>!grouped.has(row)).map(row=>({...row,sourceRow:row})),...plates],budget);
+  const expanded=new Map();
+  for(const plate of result.proposals.filter(row=>row.members)) {
+    if(!plate.quantity)warnings.push('Aucune assiette ne tient dans le budget et les plafonds : renseigne les quantités manuellement.');
+    for(const member of plate.members)expanded.set(member,{...member,quantity:plate.quantity?Number((plate.quantity*plate.shares[member.servingPart]).toFixed(4)):null});
+  }
+  const ungrouped=new Map(result.proposals.filter(row=>!row.members).map(({sourceRow,...row})=>[sourceRow,row]));
+  return {...result,warnings,proportionsApplied:plates.length>0,proposals:proposals.map(row=>expanded.get(row)??ungrouped.get(row)??row)};
 }
