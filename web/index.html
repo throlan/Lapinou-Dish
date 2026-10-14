@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=0.2.48">
+    <link rel="stylesheet" href="/style.css?v=0.2.49">
   </head>
   <body>
     <header class="topbar">
@@ -145,7 +145,20 @@
       <section id="shopping-view" class="view hidden">
         <div class="section-heading"><div><h2>Courses & productions</h2><p>Planifie les achats, les préparations et le stock du foyer.</p></div></div>
         <section class="card"><h3>Routines du foyer</h3><p class="muted">Les courses fraîches sont prévues chaque lundi par défaut. Tu peux choisir un lundi sur deux.</p><form id="routines-form"><div id="routine-list" class="routine-list"></div><div class="form-actions"><button class="primary" type="submit">Enregistrer le planning</button></div><p class="form-message" id="routines-message" role="status"></p></form></section>
-        <section class="card order-links-card"><h3>Liens de commande</h3><p class="hint">Garde ici les boutiques en ligne utilisées pour les courses, la whey ou les farines.</p><form id="order-link-form" class="order-link-form"><label>Nom<input name="label" maxlength="100" placeholder="Ex. Boutique de whey" required></label><label>Lien HTTPS<input name="url" type="url" placeholder="https://…" required></label><button class="secondary" type="submit">Ajouter le lien</button></form><p id="order-link-message" class="form-message" role="status"></p><div id="order-links" class="order-links"><p class="empty">Chargement…</p></div></section>
+        <section class="card order-links-card"><h3>Achats en ligne</h3><p class="hint">Ajoute tes boutiques, puis associe les aliments pour préparer une liste de courses par site.</p><form id="order-link-form" class="order-link-form"><label>Nom<input name="label" maxlength="100" placeholder="Ex. Nutripure, Greenwhiz…" required></label><label>Lien HTTPS<input name="url" type="url" placeholder="https://…" required></label><button class="secondary" type="submit">Ajouter le lien</button></form><p id="order-link-message" class="form-message" role="status"></p><div id="order-links" class="order-links"><p class="empty">Chargement…</p></div>
+          <details class="food-store-panel"><summary>Associer les aliments aux boutiques</summary>
+            <p class="hint">Recherche par exemple « whey » ou « farine », sélectionne les aliments concernés et choisis leur boutique. Une boutique par aliment, mémorisée pour ce foyer et pour toutes les périodes de courses.</p>
+            <form id="food-store-form">
+              <label>Rechercher un aliment<input id="food-store-search" type="search" placeholder="Whey, farine, produit bio…" autocomplete="off"></label>
+              <div class="food-store-selection-actions"><button type="button" class="secondary" id="select-store-results">Sélectionner les résultats affichés</button><button type="button" class="secondary" id="clear-store-selection">Vider la sélection</button></div>
+              <div id="food-store-results" class="food-store-results"><p class="empty">Saisis au moins deux caractères.</p></div>
+              <p id="food-store-selection" class="hint" role="status">Aucun aliment sélectionné.</p>
+              <div class="food-store-actions"><label>Boutique<select name="orderLinkId" required><option value="">Choisir une boutique…</option></select></label><button type="submit" class="primary" disabled>Associer la sélection</button></div>
+            </form>
+            <p id="food-store-message" class="form-message" role="status"></p>
+            <h4>Affectations enregistrées</h4><div id="food-store-assignments"><p class="empty">Chargement…</p></div>
+          </details>
+        </section>
         <div class="shopping-columns">
           <section class="card"><h3>Liste de courses</h3><div class="shopping-range"><label>Du<input id="shopping-start" type="date"></label><label>Au<input id="shopping-end" type="date"></label><button class="secondary" type="button" id="refresh-shopping">Actualiser</button></div><div id="shopping-list" class="shopping-groups"><p class="empty">Choisis une période.</p></div></section>
           <section class="card"><h3>Enregistrer une production</h3><form id="production-form"><label>Préparation<select name="recipeId" required></select></label><div class="yield-row"><label>Date<input name="producedOn" type="date" required></label><label>Quantité produite<input name="quantity" type="number" min="0.01" step="any" required></label></div><label>Conservation<select name="storage"><option value="freezer">Congélateur</option><option value="fridge">Réfrigérateur</option><option value="pantry">Placard</option></select></label><label>Note (facultatif)<input name="note" maxlength="500"></label><button class="primary" type="submit">Ajouter au stock</button><p id="production-message" class="form-message" role="status"></p></form><h3>Stock des préparations</h3><p class="hint">Le stock disponible tient compte des quantités déjà prévues dans les repas.</p><div id="stock-list"><p class="empty">Chargement…</p></div></section>
@@ -246,6 +259,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.48"></script>
+    <script type="module" src="/app.js?v=0.2.49"></script>
   </body>
 </html>

@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-**0.2.47**, publiée après la PR 59, fusionnée sur `main` dans le commit `b55015e2ba36c5c11455ed91579b6e2335ab97a6`. Elle comprend les formats de paquets mémorisés par foyer, aliment et unité, la suppression protégée des aliments inutilisés, les liens et quantités de recettes dans les courses, l'arrondi des achats à la pièce entière et le compte épargne kcal.
+**0.2.48**, publiée après la PR 60, fusionnée sur `main` dans le commit `e2c5685d032588e898d0bd5c7a502697fdaf18b7`. Elle comprend les formats de paquets mémorisés par foyer, aliment et unité, la suppression protégée des aliments inutilisés, les liens et quantités de recettes dans les courses, l'arrondi des achats à la pièce entière et le compte épargne kcal.
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des modifications : [journal de session](SESSION-2026-10-13.md).
 
@@ -26,7 +26,7 @@ Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). P
 
 ## Vérification
 
-**156 tests réussis** avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` (Node v24.19.0).
+**164 tests réussis** avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` (Node v24.19.0).
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 
@@ -34,9 +34,9 @@ Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réel
 
 Branche **feat/plate-weight-ratios** : proportions en poids estimé servi par foyer, réglables dans Administration. Défauts : 100 % entier ; 70/30 viande-légumes/féculents ; 25/25/50 protéines/féculents/légumes. Totaux validés à 100 %, exemples en grammes et recalcul explicite. Les parties liées conservent leur composition lors de l'ajustement protéique et du rééquilibrage quotidien.
 
-156 tests réussis et parcours Chrome local validé avec données synthétiques et autorisation utilisateur. Contrôles GitHub/publication à confirmer après la PR. Détails : [session du 14 octobre](SESSION-2026-10-14.md).
+La PR 60 est fusionnée, tests et publication réussis (workflow 171). Détails : [session du 14 octobre](SESSION-2026-10-14.md).
 
-Les liens de commande (PR 59) sont déjà livrés. Tâche distincte restante : résilience de l'application aux déconnexions PostgreSQL, observées après le redémarrage du backup à partir des extraits fournis par l'utilisateur. Aucune connexion de l'agent à l'installation.
+Les liens de commande (PR 59) sont déjà livrés. L'utilisateur a confirmé que les coupures PostgreSQL sont réglées ; elles ne sont plus une tâche à reprendre. Aucune connexion de l'agent à l'installation.
 
 Piste éventuelle : composants et variantes de recette indépendants au-delà des parties de service actuelles ; à préciser seulement si l'utilisateur souhaite poursuivre.
 
@@ -44,12 +44,11 @@ Les totaux du calendrier restent prévisionnels. L'utilisateur ne souhaite pas d
 
 Le brouillon `drafts/ENERGY-RESERVE.md` est historique : le système correspondant a été livré en 0.2.42. Ne pas le compter dans le reste à faire.
 
-## À faire — courses par site marchand
+## Achats en ligne — 0.2.49
 
-- Affecter des aliments à un site de vente par foyer : par exemple les wheys chez Nutripure, les farines et certains produits bio chez Greenwhiz.
-- Préparer les listes de courses par site selon ces affectations, en préservant les besoins calculés, stocks et formats d'achat. S'appuyer si possible sur les liens de commande existants.
-- Renommer les libellés visibles « Whey et farines » / « Commande whey et farines » en « Achats en ligne », sans perdre les réglages existants.
-- Demande à développer, consignée le 14 octobre 2026 ; détails dans le [cahier de reprise](REPRISE.md).
+Développement sur feat/online-shopping-by-store : affectations par foyer de plusieurs aliments à une boutique, réutilisation des liens de commande, listes de courses par marchand et renommage des libellés whey/farines en Achats en ligne. Stocks, paquets, cases acheté et aliments sans boutique préservés. Les affectations sont modifiables dans le panneau ou directement depuis les courses.
+
+164 tests réussis et parcours Chrome local ordinateur/mobile validé sur données synthétiques. PR et publication à confirmer. Guide : [ONLINE-SHOPPING.md](ONLINE-SHOPPING.md). Détails dans [la session du 14 octobre](SESSION-2026-10-14.md).
 
 ## Guides actuels du projet
 
@@ -58,4 +57,5 @@ Le brouillon `drafts/ENERGY-RESERVE.md` est historique : le système corresponda
 - [Duplication des repas](MEAL-DUPLICATION.md)
 - [Desserts individuels](INDIVIDUAL-DESSERTS.md)
 - [Ingrédients surveillés](INGREDIENT-STOCK.md)
+- [Achats en ligne par boutique](ONLINE-SHOPPING.md)
 - [Import OpenAI](OPENAI-RECIPE-IMPORT.md)

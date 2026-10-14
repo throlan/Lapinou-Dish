@@ -11,6 +11,8 @@ const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, importingDraftId: null, editingFoodFromRecipe: false, people: [], recipes: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, mealOccasionEnergy: {} };
 const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbohydrateG', 'g gluc.'], ['fatG', 'g lip.']];
+const selectedStoreFoods=new Map();
+let visibleStoreFoods=[],storeSearchSequence=0,storeSearchTimer;
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -196,13 +198,13 @@ function renderSavingPlanForm(people) {
 const routineLabels = {
   bulk_shopping: 'Grosses courses',
   fresh_shopping: 'Courses de frais',
-  whey_flour_order: 'Commande whey et farines',
+  whey_flour_order: 'Achats en ligne',
   pasta_pastry_production: 'Pâtes et pâtisseries',
   bread_production: 'Pain',
   batch_cooking: 'Batch cooking',
 };
 const routineOrder = ['bulk_shopping','fresh_shopping','whey_flour_order','pasta_pastry_production','bread_production','batch_cooking'];
-const groupLabels = { bulk: 'Grosses courses', fresh: 'Frais', whey_flour: 'Whey et farines', other: 'Autres' };
+const groupLabels = { bulk: 'Grosses courses', fresh: 'Frais', whey_flour: 'Achats en ligne', other: 'Autres' };
 function renderRoutines(routines) {
   state.routines = routines;
   const root = $('#routine-list');
@@ -271,24 +273,110 @@ async function refreshShopping() {
     $('#routine-list').replaceChildren(emptyMessage('Planning indisponible : '+(error.body?.error ?? error.message)));
     $('#stock-list').replaceChildren(emptyMessage('Stock indisponible.'));
   }
-  await refreshShoppingList();
   await refreshOrderLinks();
+  await refreshFoodStores();
+  await refreshShoppingList();
 }
 async function refreshOrderLinks() {
   const root=$('#order-links');if(!root||!state.household)return;
   try{
     const {links}=await api(`/api/household-order-links?householdId=${encodeURIComponent(state.household.id)}`);
+    state.orderLinks=links;
+    const choice=$('#food-store-form').elements.orderLinkId,previous=choice.value;
+    choice.replaceChildren(new Option('Choisir une boutique…',''),new Option('Sans boutique (retirer l’affectation)','none'),...links.map(link=>new Option(link.label,link.id)));
+    choice.value=previous;
+    updateStoreSelection();
     if(!links.length){root.replaceChildren(emptyMessage('Aucun lien enregistré.'));return;}
     root.replaceChildren(...links.map(item=>{
       const row=document.createElement('div');row.className='order-link-row';
       const link=document.createElement('a');link.href=item.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=item.label;
       const host=document.createElement('small');host.textContent=new URL(item.url).hostname;
       const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='Supprimer';remove.setAttribute('aria-label',`Supprimer le lien ${item.label}`);
-      remove.addEventListener('click',async()=>{remove.disabled=true;try{await api(`/api/household-order-links/${item.id}?householdId=${encodeURIComponent(state.household.id)}`,{method:'DELETE'});await refreshOrderLinks();}catch(error){showMessage($('#order-link-message'),'Suppression impossible : '+(error.body?.error??error.message));remove.disabled=false;}});
+      remove.addEventListener('click',async()=>{
+        const count=(state.foodStores??[]).filter(assignment=>assignment.orderLinkId===item.id).length;
+        if(count&&!confirm(`Supprimer la boutique « ${item.label} » et retirer l’affectation de ${count} aliment(s) ? Ces aliments resteront dans les courses, sans boutique.`))return;
+        remove.disabled=true;try{await api(`/api/household-order-links/${item.id}?householdId=${encodeURIComponent(state.household.id)}`,{method:'DELETE'});await refreshOrderLinks();await refreshFoodStores();await refreshShoppingList();}catch(error){showMessage($('#order-link-message'),'Suppression impossible : '+(error.body?.error??error.message));remove.disabled=false;}
+      });
       row.append(link,host,remove);return row;
     }));
   }catch(error){root.replaceChildren(emptyMessage('Liens indisponibles : '+(error.body?.error??error.message)));}
 }
+function foodStoreSelect(value,name) {
+  const select=document.createElement('select');select.setAttribute('aria-label',`Boutique pour ${name}`);
+  select.add(new Option('Sans boutique',''));
+  for(const link of state.orderLinks??[])select.add(new Option(link.label,link.id));
+  select.value=value;return select;
+}
+function updateStoreSelection() {
+  const selected=[...selectedStoreFoods.values()];
+  $('#food-store-selection').textContent=selected.length?`${selected.length} aliment(s) sélectionné(s) : ${selected.map(food=>food.name).join(', ')}`:'Aucun aliment sélectionné.';
+  $('#food-store-form button[type="submit"]').disabled=!selected.length || !$('#food-store-form').elements.orderLinkId.value;
+  $('#select-store-results').disabled=!visibleStoreFoods.length;
+}
+function renderStoreSearchResults(total=visibleStoreFoods.length) {
+  const root=$('#food-store-results');
+  root.replaceChildren(...visibleStoreFoods.map(food=>{
+    const label=document.createElement('label');label.className='food-store-result';
+    const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.value=food.id;checkbox.checked=selectedStoreFoods.has(food.id);
+    checkbox.addEventListener('change',()=>{
+      if(checkbox.checked&&selectedStoreFoods.size>=200){checkbox.checked=false;showMessage($('#food-store-message'),'Sélectionne au maximum 200 aliments à la fois.');return;}
+      if(checkbox.checked)selectedStoreFoods.set(food.id,food);else selectedStoreFoods.delete(food.id);updateStoreSelection();
+    });
+    label.append(checkbox,document.createTextNode(food.name));return label;
+  }));
+  if(!visibleStoreFoods.length)root.append(emptyMessage('Aucun aliment trouvé.'));
+  if(total>visibleStoreFoods.length){const hint=document.createElement('p');hint.className='hint';hint.textContent=`${visibleStoreFoods.length} premiers résultats sur ${total}. Affine la recherche pour trouver les autres aliments.`;root.append(hint);}
+  updateStoreSelection();
+}
+async function refreshFoodStores() {
+  const root=$('#food-store-assignments');if(!state.household)return;
+  if(state.foodStoreHousehold!==state.household.id){state.foodStoreHousehold=state.household.id;selectedStoreFoods.clear();visibleStoreFoods=[];$('#food-store-search').value='';$('#food-store-results').replaceChildren(emptyMessage('Saisis au moins deux caractères.'));storeSearchSequence++;updateStoreSelection();}
+  try {
+    const {assignments}=await api(`/api/household-food-stores?householdId=${encodeURIComponent(state.household.id)}`);state.foodStores=assignments;
+    root.replaceChildren(...assignments.map(item=>{
+      const row=document.createElement('div');row.className='food-store-assignment';
+      const name=document.createElement('span');name.textContent=item.name;
+      const select=foodStoreSelect(item.orderLinkId,item.name);
+      select.addEventListener('change',async()=>{
+        select.disabled=true;
+        try{await saveFoodStoreSelection([item.foodId],select.value||null);await refreshFoodStores();await refreshShoppingList();}
+        catch(error){showMessage($('#food-store-message'),'Affectation non enregistrée : '+(error.body?.error??error.message));select.value=item.orderLinkId;select.disabled=false;}
+      });row.append(name,select);return row;
+    }));
+    if(!assignments.length)root.append(emptyMessage('Aucun aliment associé. Les courses sans boutique restent disponibles.'));
+  }catch(error){root.replaceChildren(emptyMessage('Affectations indisponibles : '+(error.body?.error??error.message)));}
+}
+async function saveFoodStoreSelection(foodIds,orderLinkId) {
+  return api('/api/household-food-stores',{method:'PUT',body:JSON.stringify({householdId:state.household.id,foodIds,orderLinkId})});
+}
+$('#food-store-search').addEventListener('input',event=>{
+  clearTimeout(storeSearchTimer);const query=event.currentTarget.value.trim(),sequence=++storeSearchSequence;
+  visibleStoreFoods=[];updateStoreSelection();
+  $('#food-store-results').replaceChildren(emptyMessage(query.length<2?'Saisis au moins deux caractères.':'Recherche…'));
+  if(query.length<2)return;
+  storeSearchTimer=setTimeout(async()=>{
+    try{const result=await api('/api/foods?q='+encodeURIComponent(query)+'&limit=50');if(sequence!==storeSearchSequence)return;visibleStoreFoods=result.foods;renderStoreSearchResults(result.total);}
+    catch{if(sequence===storeSearchSequence)$('#food-store-results').replaceChildren(emptyMessage('Recherche indisponible.'));}
+  },250);
+});
+$('#select-store-results').addEventListener('click',()=>{
+  for(const food of visibleStoreFoods)if(selectedStoreFoods.size<200 || selectedStoreFoods.has(food.id))selectedStoreFoods.set(food.id,food);
+  renderStoreSearchResults();
+});
+$('#clear-store-selection').addEventListener('click',()=>{selectedStoreFoods.clear();renderStoreSearchResults();});
+$('#food-store-form').elements.orderLinkId.addEventListener('change',updateStoreSelection);
+$('#food-store-form').addEventListener('submit',async event=>{
+  event.preventDefault();const form=event.currentTarget,message=$('#food-store-message');
+  if(!state.household||!selectedStoreFoods.size||!form.reportValidity())return;
+  const foodIds=[...selectedStoreFoods.keys()],orderLinkId=form.elements.orderLinkId.value;
+  $('button[type="submit"]',form).disabled=true;
+  try{
+    await saveFoodStoreSelection(foodIds,orderLinkId==='none'?null:orderLinkId);
+    selectedStoreFoods.clear();renderStoreSearchResults();await refreshFoodStores();await refreshShoppingList();
+    showMessage(message,`${foodIds.length} aliment(s) ${orderLinkId==='none'?'sans boutique':'associé(s) à la boutique'}. Les listes de courses ont été actualisées.`,true);
+  }catch(error){showMessage(message,'Affectation non enregistrée : '+(error.body?.error??error.message));}
+  finally{updateStoreSelection();}
+});
 async function refreshShoppingList() {
   const start=$('#shopping-start').value, end=$('#shopping-end').value, root=$('#shopping-list');
   if (!state.household || !start || !end) return;
@@ -301,10 +389,20 @@ async function refreshShoppingList() {
       const section=document.createElement('section'); section.className='shopping-group';
       const heading=document.createElement('h4'); heading.textContent=groupLabels[groupId]; section.append(heading);
       if (!entries.length) { const empty=emptyMessage('Aucun produit prévu'); section.append(empty); return section; }
-      entries.forEach(item => {
+      const buckets=groupId==='whey_flour'?[...new Set(entries.map(item=>item.store?.id??''))].map(id=>({store:entries.find(item=>(item.store?.id??'')===id)?.store,items:entries.filter(item=>(item.store?.id??'')===id)})):[{items:entries}];
+      buckets.sort((a,b)=>a.store&&b.store?a.store.label.localeCompare(b.store.label):a.store?-1:b.store?1:0);
+      for(const bucket of buckets) {
+      const container=document.createElement('div');container.className='shopping-store';container.dataset.storeId=bucket.store?.id??'';
+      if(groupId==='whey_flour') {
+        const title=document.createElement('h5');title.textContent=bucket.store?.label??'Sans boutique attribuée';
+        if(bucket.store){const link=document.createElement('a');link.href=bucket.store.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Ouvrir la boutique ↗';title.append(link);}
+        container.append(title);
+      }
+      bucket.items.forEach(item => {
         const row=document.createElement('div'); row.className='shopping-item'+(item.checked?' checked':'');
         const checkbox=document.createElement('input'); checkbox.type='checkbox'; checkbox.checked=item.checked; checkbox.setAttribute('aria-label','Acheté : '+item.name);
-        const name=document.createElement('div'); name.className='shopping-item-name'; name.append(document.createTextNode(item.name));
+        const name=document.createElement('div'); name.className='shopping-item-name';
+        const itemTitle=document.createElement('span');itemTitle.className='shopping-item-title';itemTitle.textContent=item.name;name.append(itemTitle);
         const qty=document.createElement('span'); qty.className='shopping-quantity'; qty.textContent=`${formatQty(item.quantity)} ${item.unitId}`;
         const need=document.createElement('small');need.className='shopping-detail';need.textContent=`Besoin prévu : ${formatQty(item.neededQuantity)} ${item.unitId}`;name.append(need);
         const packageInfo=document.createElement('small');packageInfo.className='shopping-detail';packageInfo.hidden=!item.packageQuantity;
@@ -317,8 +415,16 @@ async function refreshShoppingList() {
         const group=document.createElement('select'); group.setAttribute('aria-label','Catégorie de '+item.name);
         for (const [key,label] of Object.entries(groupLabels)) group.add(new Option(label,key));
         group.value=item.groupId;
-        const save=async()=>{try{await api('/api/shopping-list/state',{method:'POST',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,unitId:item.unitId,startDate:start,endDate:end,groupId:group.value,checked:checkbox.checked,packageQuantity:pack.value===''?null:Number(pack.value)})});row.classList.toggle('checked',checkbox.checked);return true;}catch(error){showMessage($('#routines-message'),'Liste non enregistrée : '+(error.body?.error??error.message));return false;}};
-        checkbox.addEventListener('change',save); group.addEventListener('change',save);
+        group.disabled=!!item.store;group.title=item.store?'Retire la boutique pour changer de catégorie.':'';
+        const boutique=document.createElement('label');boutique.className='shopping-store-control';boutique.textContent='Boutique';
+        const storeChoice=foodStoreSelect(item.store?.id??'',item.name);boutique.append(storeChoice);name.append(boutique);
+        storeChoice.addEventListener('change',async()=>{
+          storeChoice.disabled=true;
+          try{await saveFoodStoreSelection([item.foodId],storeChoice.value||null);const y=window.scrollY;await refreshFoodStores();await refreshShoppingList();window.scrollTo(0,y);}
+          catch(error){showMessage($('#routines-message'),'Boutique non enregistrée : '+(error.body?.error??error.message));storeChoice.value=item.store?.id??'';storeChoice.disabled=false;}
+        });
+        const save=async()=>{try{await api('/api/shopping-list/state',{method:'POST',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,unitId:item.unitId,startDate:start,endDate:end,groupId:item.store?item.baseGroupId:group.value,checked:checkbox.checked,packageQuantity:pack.value===''?null:Number(pack.value)})});row.classList.toggle('checked',checkbox.checked);return true;}catch(error){showMessage($('#routines-message'),'Liste non enregistrée : '+(error.body?.error??error.message));return false;}};
+        checkbox.addEventListener('change',save); group.addEventListener('change',async()=>{if(await save()){const y=window.scrollY;await refreshShoppingList();window.scrollTo(0,y);}});
         pack.addEventListener('change',async()=>{
           if(!await save())return;
           const packageQuantity=pack.value===''?null:Number(pack.value);
@@ -332,8 +438,10 @@ async function refreshShoppingList() {
           roundedInfo.textContent=packageQuantity?'Arrondi au format de paquet saisi':'Arrondi au nombre entier supérieur pour l’achat';
           if(roundedInfo.hidden)roundedInfo.remove();else if(!roundedInfo.isConnected)name.append(roundedInfo);
         });
-        row.append(checkbox,name,qty,pack,group); section.append(row);
+        row.append(checkbox,name,qty,pack,group); container.append(row);
       });
+      section.append(container);
+      }
       return section;
     }));
     if (!items.length) root.replaceChildren(emptyMessage('Aucun achat nécessaire sur cette période.'));
@@ -374,7 +482,7 @@ $('#production-form').addEventListener('submit',async event=>{
 $('#refresh-shopping').addEventListener('click',refreshShoppingList);
 $('#order-link-form').addEventListener('submit',async event=>{
   event.preventDefault();const form=event.currentTarget,button=form.querySelector('button[type="submit"]');button.disabled=true;
-  try{await api('/api/household-order-links',{method:'POST',body:JSON.stringify({householdId:state.household.id,label:form.elements.label.value,url:form.elements.url.value})});form.reset();showMessage($('#order-link-message'),'Lien ajouté.',true);await refreshOrderLinks();}
+  try{await api('/api/household-order-links',{method:'POST',body:JSON.stringify({householdId:state.household.id,label:form.elements.label.value,url:form.elements.url.value})});form.reset();showMessage($('#order-link-message'),'Lien ajouté.',true);await refreshOrderLinks();await refreshFoodStores();await refreshShoppingList();}
   catch(error){showMessage($('#order-link-message'),'Ajout impossible : '+(error.body?.error??error.message));}
   finally{button.disabled=false;}
 });

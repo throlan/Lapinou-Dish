@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { listFoodStores, saveFoodStores, validateFoodStores } from './food-stores.mjs';
 import { previewDailyRebalance, applyDailyRebalance } from './daily-rebalance.mjs';
 import { readMealSettings, saveMealSettings, readPlateSettings, savePlateSettings } from './meal-settings.mjs';
 import { deleteSavingPlan, getEnergyReserveOverview, saveSavingPlan, validateSavingPlan } from './energy-reserve.mjs';
@@ -208,6 +209,18 @@ export async function handleRequest(request, response, pool, appPassword = null,
         const [routines, stock, ingredients] = await Promise.all([getRoutineSettings(pool, householdId), listStock(pool, householdId), listIngredientStock(pool, householdId)]);
         return send(response, 200, { routines, stock, ingredients });
       } catch { return send(response, 500, { error: 'household-planning-read-failed' }); }
+    }
+    if (url.pathname === '/api/household-food-stores' && request.method === 'GET') {
+      const householdId=url.searchParams.get('householdId');
+      if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});
+      try{return send(response,200,{assignments:await listFoodStores(pool,householdId)});}
+      catch{return send(response,500,{error:'food-stores-read-failed'});}
+    }
+    if (url.pathname === '/api/household-food-stores' && request.method === 'PUT') {
+      const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
+      const validation=validateFoodStores(body.value);if(validation.error)return send(response,400,{error:validation.error});
+      try{const result=await saveFoodStores(pool,validation.data);return send(response,result.error?404:200,result);}
+      catch{return send(response,500,{error:'food-stores-save-failed'});}
     }
     if (url.pathname === '/api/household-order-links' && request.method === 'GET') {
       const householdId=url.searchParams.get('householdId');
