@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-**0.2.50** publiée après la PR 64, fusionnée sur `main` dans le commit `5795583c907dfc6bd2fb649918cd19d5e2c938a4`. Magasins physiques, listes par magasin, suggestions d'achat ail/basilic/gingembre et export Home Assistant sont livrés. **0.2.51** est en développement pour rendre les unités d'achat paramétrables par aliment.
+**0.2.51** publiée après la [PR 65](https://github.com/throlan/Lapinou-Dish/pull/65), fusionnée sur `main` dans le commit `62f841005d23141dbbb271048c393dd06a7859d7`. Le workflow GitHub 181 a réussi. **0.2.52** est en développement pour gérer le stock de tous les produits, les réceptions d'achats et les repas réellement préparés.
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des modifications : [journal de session](SESSION-2026-10-13.md).
 
@@ -26,7 +26,7 @@ Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). P
 
 ## Vérification
 
-**170 tests réussis** avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` (Node v24.19.0) sur le travail 0.2.51.
+**171 tests réussis** avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` (Node v24.19.0) sur le travail 0.2.52.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 
@@ -56,7 +56,11 @@ Livré : URL facultative pour les magasins ; regroupement et filtre par magasin 
 
 ## Unités d'achat personnalisées — 0.2.51
 
-En développement local : libellés singulier/pluriel, équivalence chiffrée et note d'estimation réglables par foyer et aliment depuis les détails d'une ligne de courses. Les besoins du même aliment sont réunis si leurs unités disposent d'une conversion documentée ; sinon ils restent visibles séparément avec un avertissement. Le format de paquet manuel existant reste prioritaire. Recettes, stocks et calculs nutritionnels ne sont pas modifiés. Voir [le guide](ONLINE-SHOPPING.md).
+Livré : libellés singulier/pluriel, équivalence chiffrée et note d'estimation réglables par foyer et aliment depuis les détails d'une ligne de courses. Les besoins du même aliment sont réunis si leurs unités disposent d'une conversion documentée ; sinon ils restent visibles séparément avec un avertissement. Le format de paquet manuel existant reste prioritaire. Voir [le guide](ONLINE-SHOPPING.md).
+
+## Stock des produits — 0.2.52
+
+En développement local : stock initial par aliment, saisi dans l'unité de la ligne de courses ou en grammes ; achats réellement reçus ajoutés au stock avec protection contre les doublons ; retrait des ingrédients lors d'une production ou de la validation « Préparé » sur un repas du calendrier. Un repas utilisant un batch enregistré ne déduit pas ses ingrédients une seconde fois. Annulation et historique des mouvements disponibles. La liste de courses tient compte du stock ; les conversions manquantes sont signalées. Voir [le guide](PRODUCT-INVENTORY.md).
 
 ## Guides actuels du projet
 
@@ -65,5 +69,6 @@ En développement local : libellés singulier/pluriel, équivalence chiffrée et
 - [Duplication des repas](MEAL-DUPLICATION.md)
 - [Desserts individuels](INDIVIDUAL-DESSERTS.md)
 - [Ingrédients surveillés](INGREDIENT-STOCK.md)
+- [Stock des produits](PRODUCT-INVENTORY.md)
 - [Achats en ligne par boutique](ONLINE-SHOPPING.md)
 - [Import OpenAI](OPENAI-RECIPE-IMPORT.md)

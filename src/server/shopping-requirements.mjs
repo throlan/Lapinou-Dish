@@ -4,14 +4,22 @@ export async function rawShoppingRequirements(pool, householdId, startDate, endD
   const result = await pool.query(
     `WITH planned AS (
        SELECT i.recipe_id,
-              sum(a.quantity) FILTER (WHERE m.meal_date BETWEEN $2::date AND $3::date) AS wanted,
-              COALESCE(sum(a.quantity) FILTER (WHERE m.meal_date < $2::date), 0) AS earlier
+              sum(a.quantity) FILTER (WHERE m.prepared_at IS NULL AND m.meal_date BETWEEN $2::date AND $3::date) AS wanted,
+              COALESCE(sum(a.quantity) FILTER (WHERE m.prepared_at IS NULL AND m.meal_date < $2::date), 0) AS earlier
        FROM planned_meals m JOIN planned_meal_items i ON i.meal_id = m.id
        JOIN planned_amounts a ON a.planned_item_id = i.id
        WHERE m.household_id = $1 AND m.meal_date <= $3::date GROUP BY i.recipe_id
+     ), prepared_batches AS (
+       SELECT i.recipe_id, sum(a.quantity) AS quantity
+       FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
+       JOIN planned_amounts a ON a.planned_item_id=i.id JOIN recipes r ON r.id=i.recipe_id
+       WHERE m.household_id=$1 AND m.prepared_at IS NOT NULL AND r.production_type<>'none'
+       GROUP BY i.recipe_id
      ), produced AS (
-       SELECT recipe_id, sum(quantity) AS quantity FROM stock_lots
-       WHERE household_id = $1 AND cancelled_at IS NULL AND NOT is_serving_bundle GROUP BY recipe_id
+       SELECT s.recipe_id, GREATEST(sum(s.quantity)-COALESCE(p.quantity,0),0) AS quantity
+       FROM stock_lots s LEFT JOIN prepared_batches p ON p.recipe_id=s.recipe_id
+       WHERE s.household_id = $1 AND s.cancelled_at IS NULL AND NOT s.is_serving_bundle
+       GROUP BY s.recipe_id,p.quantity
      ), needed AS (
        SELECT p.recipe_id, GREATEST(COALESCE(p.wanted, 0) - GREATEST(COALESCE(s.quantity, 0) - p.earlier, 0), 0) AS quantity
        FROM planned p LEFT JOIN produced s ON s.recipe_id = p.recipe_id

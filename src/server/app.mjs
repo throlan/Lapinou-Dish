@@ -1,11 +1,12 @@
 import { createServer } from 'node:http';
+import { setMealPrepared } from './meal-preparation.mjs';
 import { listFoodStores, saveFoodStores, validateFoodStores } from './food-stores.mjs';
 import { exportToHomeAssistant } from './home-assistant-shopping.mjs';
 import { deletePurchaseUnit,listPurchaseUnits,savePurchaseUnit,validatePurchaseUnit } from './purchase-units.mjs';
 import { previewDailyRebalance, applyDailyRebalance } from './daily-rebalance.mjs';
 import { readMealSettings, saveMealSettings, readPlateSettings, savePlateSettings } from './meal-settings.mjs';
 import { deleteSavingPlan, getEnergyReserveOverview, saveSavingPlan, validateSavingPlan } from './energy-reserve.mjs';
-import { listIngredientStock, saveIngredientStock, validateIngredientStock } from './ingredient-stock.mjs';
+import { countProductInventory, listIngredientStock, recordPurchaseReceipt, saveIngredientStock, validateIngredientStock, validateProductCount, validatePurchaseReceipt } from './ingredient-stock.mjs';
 import { createHmac, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import { createFood, deleteFood, fillMissingNutritionFromExternal, getFood, updateFood, validateFoodInput } from './foods.mjs';
 import { getOpenFoodFactsProduct, searchOpenFoodFacts } from './open-food-facts.mjs';
@@ -253,6 +254,22 @@ export async function handleRequest(request, response, pool, appPassword = null,
         return send(response,200,result);
       } catch { return send(response,500,{error:'ingredient-stock-save-failed'}); }
     }
+    if (url.pathname === '/api/household-planning/purchases' && request.method === 'POST') {
+      const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
+      const validation=validatePurchaseReceipt(body.value);if(validation.error)return send(response,400,{error:validation.error});
+      try{
+        const result=await recordPurchaseReceipt(pool,validation.data);
+        return send(response,result.error?(result.error==='purchase-request-conflict'?409:result.error==='ingredient-conversion-missing'?422:404):201,result);
+      }catch{return send(response,500,{error:'purchase-receipt-save-failed'});}
+    }
+    if (url.pathname === '/api/household-planning/ingredients/count' && request.method === 'PUT') {
+      const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
+      const validation=validateProductCount(body.value);if(validation.error)return send(response,400,{error:validation.error});
+      try{
+        const result=await countProductInventory(pool,validation.data);
+        return send(response,result.error?(result.error==='ingredient-stock-changed'?409:result.error==='ingredient-conversion-missing'?422:404):200,result);
+      }catch{return send(response,500,{error:'product-count-save-failed'});}
+    }
     if (url.pathname === '/api/household-planning/routines' && request.method === 'PUT') {
       const body = await readJson(request);
       if (body.error) return send(response, body.status ?? 400, { error: body.error });
@@ -290,7 +307,7 @@ export async function handleRequest(request, response, pool, appPassword = null,
       if (!isUuid(householdId)) return send(response,400,{error:'invalid-household-id'});
       try {
         const result = await cancelStockLot(pool,householdId,cancelledLotId);
-        return send(response,result.error ? 404 : 200,result);
+        return send(response,result.error?(result.error==='production-already-used'?409:404):200,result);
       } catch { return send(response,500,{error:'production-lot-cancel-failed'}); }
     }
     if (url.pathname === '/api/shopping-list' && request.method === 'GET') {
@@ -377,6 +394,15 @@ export async function handleRequest(request, response, pool, appPassword = null,
         return send(response,result.error?(result.error==='source-meal-not-found'?404:409):201,result);
       }catch{return send(response,500,{error:'meal-duplication-failed'});}
     }
+    const preparedMealId=url.pathname.match(/^\/api\/planning\/meals\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/prepared$/i)?.[1];
+    if(preparedMealId && request.method==='PUT'){
+      const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
+      if(!isUuid(body.value?.householdId)||typeof body.value?.prepared!=='boolean')return send(response,400,{error:'invalid-meal-preparation'});
+      try{
+        const result=await setMealPrepared(pool,body.value.householdId,preparedMealId,body.value.prepared);
+        return send(response,result.error?(result.error==='planned-meal-not-found'?404:409):200,result);
+      }catch{return send(response,500,{error:'meal-preparation-failed'});}
+    }
     const plannedMealId = url.pathname.match(/^\/api\/planning\/meals\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i)?.[1];
     if (plannedMealId && request.method === 'PUT') {
       const body = await readJson(request);
@@ -393,7 +419,8 @@ export async function handleRequest(request, response, pool, appPassword = null,
     if (plannedMealId && request.method === 'DELETE') {
       const householdId = url.searchParams.get('householdId');
       if (!isUuid(householdId)) return send(response, 400, { error: 'invalid-household-id' });
-      try { return await deletePlannedMeal(pool, plannedMealId, householdId) ? send(response, 200, { deleted: true }) : send(response, 404, { error: 'planned-meal-not-found' }); }
+      try { const result=await deletePlannedMeal(pool, plannedMealId, householdId);
+        return result?.error?send(response,409,result):result?send(response,200,{deleted:true}):send(response,404,{error:'planned-meal-not-found'}); }
       catch { return send(response, 500, { error: 'planning-delete-failed' }); }
     }
 
@@ -508,7 +535,7 @@ export async function handleRequest(request, response, pool, appPassword = null,
       try {
         const recipe = await updateRecipe(pool, recipeId, validation.data);
         if (!recipe) return send(response, 404, { error: 'recipe-not-found' });
-        if (recipe.error) return send(response, 400, { error: recipe.error });
+        if (recipe.error) return send(response, recipe.error==='recipe-used-in-prepared-meal'?409:400, { error: recipe.error });
         return send(response, 200, { recipe });
       } catch {
         return send(response, 500, { error: 'recipe-update-failed' });

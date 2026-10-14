@@ -39,7 +39,7 @@ export async function createRecipe(pool, data) {
   const id = randomUUID();
   try {
     await client.query('BEGIN');
-    if (data.separateStarch) await lockHouseholdInventory(client,data.householdId);
+    await lockHouseholdInventory(client,data.householdId);
     await client.query(
       `INSERT INTO recipes (id, household_id, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type, meal_moments,separate_starch,cooking_factors)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,$12,$13::jsonb)`,
@@ -78,7 +78,11 @@ export async function updateRecipe(pool, id, data) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    if (data.separateStarch) await lockHouseholdInventory(client,data.householdId);
+    await lockHouseholdInventory(client,data.householdId);
+    const prepared=await client.query(`SELECT 1 FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
+      JOIN recipes used ON used.id=i.recipe_id WHERE m.household_id=$1 AND m.prepared_at IS NOT NULL
+      AND (used.id=$2 OR used.parent_recipe_id=$2) LIMIT 1`,[data.householdId,id]);
+    if(prepared.rowCount){await client.query('ROLLBACK');return {error:'recipe-used-in-prepared-meal'};}
     const updated = await client.query(
       `UPDATE recipes SET name = $3, description = $4, yield_amount = $5,
               yield_unit_id = $6, instructions = $7, source_url = $8, recipe_type = $9, production_type = $10, meal_moments = $11,separate_starch=$12,cooking_factors=$13::jsonb, version = version + 1, updated_at = now()
