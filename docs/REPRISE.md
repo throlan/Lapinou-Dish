@@ -3,11 +3,11 @@
 ## Point de départ
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish
-- Branche de référence : `main`, commit de la PR 59 : `b55015e2ba36c5c11455ed91579b6e2335ab97a6`.
-- Dernière version applicative publiée : **0.2.47**, après la [PR 59](https://github.com/throlan/Lapinou-Dish/pull/59), qui ajoute les liens de commande. Elle comprend le compte épargne kcal (PR 53), la navigation depuis les courses vers les recettes (PR 54–55), les quantités par recette (PR 56), l'arrondi des pièces (PR 57), les conditionnements d'achat et la suppression protégée d'aliments (PR 58).
+- Branche de référence : `main`, commit de la PR 61 : `75565e3d941a6672ce244bafeee5671c3e7a93d3`.
+- Dernière version applicative publiée : **0.2.48**, après la [PR 60](https://github.com/throlan/Lapinou-Dish/pull/60) : composition des assiettes réglable en poids estimé. Elle comprend le compte épargne kcal (PR 53), la navigation depuis les courses vers les recettes (PR 54–55), les quantités par recette (PR 56), l'arrondi des pièces (PR 57), les conditionnements d'achat et la suppression protégée d'aliments (PR 58).
 - Journal détaillé : [SESSION-2026-10-13.md](SESSION-2026-10-13.md). État et tâches restantes : [STATUS.md](STATUS.md).
-- Tests de l'état actuel : **148 tests réussis** avec Node v24.19.0 ; la migration des liens de commande et les routes CRUD sont couvertes par PGlite.
-- Travail actuel : **0.2.48**, branche **feat/plate-weight-ratios** : composition des assiettes en poids estimé, réglable dans Administration. Voir [la session du 14 octobre](SESSION-2026-10-14.md). 156 tests réussis et parcours Chrome local vérifié avec autorisation.
+- Tests de l'état actuel : **164 tests réussis** avec Node v24.19.0 ; la migration des liens de commande et les routes CRUD sont couvertes par PGlite.
+- Travail actuel : **0.2.49**, branche **feat/online-shopping-by-store** : affectation des aliments aux boutiques et courses regroupées par site. Voir [la session du 14 octobre](SESSION-2026-10-14.md). 164 tests réussis et parcours Chrome local ordinateur/mobile vérifié sur données synthétiques.
 
 ## Règle d'exploitation impérative
 
@@ -56,16 +56,15 @@ Les totaux affichés sont des prévisions ; aucune saisie de consommation réell
 
 Les liens de commande (PR 59) sont fusionnés et publiés ; ne pas les réimplémenter. La version 0.2.48 ajoute les proportions d'assiette : 100 % entier, 70/30 viande-légumes/féculents, 25/25/50 protéines/féculents/légumes. Les valeurs sont des proportions en poids estimé servi, indépendantes des parts kcal de la journée. Les repas sauvegardés et dupliqués sont conservés ; le recalcul est explicite. Les parties liées sont réduites ensemble lors du rééquilibrage quotidien.
 
-À la prochaine reprise : vérifier l'état Git et les contrôles/publication de la PR avant d'annoncer une version disponible. Lire le journal du 14 octobre. Préserver les stashes historiques ; aucune réapplication. La gestion d'une coupure PostgreSQL reste à corriger séparément. Ne jamais accéder à Unraid ni à Nginx. Demander l'autorisation avant de piloter un navigateur.
+À la prochaine reprise : vérifier l'état Git et les contrôles/publication de la PR avant d'annoncer une version disponible. Lire le journal du 14 octobre. Préserver les stashes historiques ; aucune réapplication. L'utilisateur confirme que les coupures PostgreSQL sont réglées ; aucune correction à reprendre sur ce point. Ne jamais accéder à Unraid ni à Nginx. Demander l'autorisation avant de piloter un navigateur.
 
-## À faire — achats en ligne par site marchand
+## Achats en ligne par site marchand — 0.2.49
 
-- Permettre de rattacher certains aliments du catalogue à un site de vente, avec un choix mémorisé par foyer.
-- Exemples demandés : toutes les wheys chez **Nutripure** ; les farines et certains produits bio chez **Greenwhiz**. Prévoir l'affectation de plusieurs aliments au même site sans imposer le même marchand à tous les produits bio.
-- Dans « Courses & stocks », préparer les listes de courses regroupées par site à partir de ces affectations et des quantités nécessaires, en conservant les calculs de stocks et de conditionnements existants.
-- Réutiliser si possible les sites déjà enregistrés dans « Liens de commande » ; ces liens seuls ne constituent pas encore une affectation des aliments à un marchand.
-- Remplacer les libellés visibles « Whey et farines » et « Commande whey et farines » par **« Achats en ligne »**. Conserver les affectations et réglages existants lors de cette évolution.
-- Demande enregistrée le 14 octobre 2026, à développer : aucun de ces changements n'est encore implémenté.
+Le développement demandé est réalisé sur la branche feat/online-shopping-by-store : sélection de plusieurs aliments et affectation à une boutique existante, modification/retrait, listes par marchand et renommage des libellés en Achats en ligne. Exemples : wheys → Nutripure, farines et certains produits bio → Greenwhiz ; affectations explicites par foyer.
+
+Les sites enregistrés dans Liens de commande sont réutilisés ; les quantités, stocks, paquets et cases acheté restent conservés. Les articles sans boutique restent visibles. La suppression d'un site retire ses affectations sans supprimer les aliments ni leurs besoins. Voir [le guide](ONLINE-SHOPPING.md).
+
+Les 164 tests et le parcours Chrome local sur données fictives (ordinateur/mobile) passent. Vérifier la PR et la publication GitHub avant d'annoncer l'image disponible ; aucun accès à Unraid ni à Nginx.
 
 ## Validation et livraison du développement
 

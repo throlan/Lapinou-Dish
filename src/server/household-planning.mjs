@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { listFoodStores } from './food-stores.mjs';
 import { rawShoppingRequirements } from './shopping-requirements.mjs';
 import { ingredientProjection, lockHouseholdInventory, productionDeductions, readIngredientStock } from './ingredient-stock.mjs';
 
@@ -261,7 +262,7 @@ export async function listStock(pool, householdId) {
 }
 
 export async function listShoppingRequirements(pool, householdId, startDate, endDate) {
-  const [requirements, stocks, settings, packages] = await Promise.all([
+  const [requirements, stocks, settings, packages, stores] = await Promise.all([
     rawShoppingRequirements(pool,householdId,startDate,endDate),
     readIngredientStock(pool,householdId),
     pool.query(`SELECT g.food_id AS "foodId", g.unit_id AS "unitId", g.group_id AS "groupId", COALESCE(c.checked,false) AS checked
@@ -270,6 +271,7 @@ export async function listShoppingRequirements(pool, householdId, startDate, end
       WHERE g.household_id=$1`, [householdId,startDate,endDate]),
     pool.query(`SELECT food_id AS "foodId", unit_id AS "unitId", package_quantity AS "packageQuantity"
       FROM household_food_purchase_packs WHERE household_id=$1`, [householdId]),
+    listFoodStores(pool,householdId),
   ]);
   const tracked = new Set(stocks.map(row => row.foodId));
   const items = requirements.filter(row => !tracked.has(row.foodId));
@@ -285,13 +287,16 @@ export async function listShoppingRequirements(pool, householdId, startDate, end
     }
   }
   return items.map(row => {
+    const store=stores.find(item=>item.foodId===row.foodId);
     const setting = settings.rows.find(item => item.foodId===row.foodId && item.unitId===row.unitId);
     const purchasePack = packages.rows.find(item => item.foodId===row.foodId && item.unitId===row.unitId);
     const rawQuantity = Number(row.quantity);
     const packageQuantity = purchasePack ? Number(purchasePack.packageQuantity) : null;
     const quantity = packageQuantity ? Math.ceil(rawQuantity/packageQuantity)*packageQuantity : shoppingPurchaseQuantity(rawQuantity,row.unitId);
     return {...row,neededQuantity:rawQuantity,quantity,packageQuantity,packageCount:packageQuantity ? Math.ceil(rawQuantity/packageQuantity) : null,
-      quantityRounded:quantity!==rawQuantity,groupId:setting?.groupId ?? row.groupId ?? 'bulk',checked:setting?.checked ?? false};
+      quantityRounded:quantity!==rawQuantity,baseGroupId:setting?.groupId ?? row.groupId ?? 'bulk',
+      groupId:store?'whey_flour':setting?.groupId ?? row.groupId ?? 'bulk',
+      store:store?{id:store.orderLinkId,label:store.label,url:store.url}:null,checked:setting?.checked ?? false};
   }).sort((a,b)=>a.groupId.localeCompare(b.groupId)||a.name.localeCompare(b.name));
 }
 

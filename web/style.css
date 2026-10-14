@@ -277,7 +277,7 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
 .shopping-group h4 { margin:0; padding:12px 14px; background:var(--surface-raised,#202f4b); }
 .shopping-item { display:grid; grid-template-columns:24px minmax(100px,1fr) auto minmax(110px,.45fr) minmax(125px,.6fr); gap:10px; align-items:center; padding:9px 12px; border-top:1px solid var(--line,#344766); }
 .shopping-pack-input { min-width:0; padding:9px; }
-.shopping-item.checked .shopping-item-name { text-decoration:line-through; opacity:.65; }
+.shopping-item.checked .shopping-item-title { text-decoration:line-through; opacity:.65; }
 .shopping-quantity { white-space:nowrap; color:var(--muted,#9bb0d1); }
 .stock-row { position:relative; padding:13px; margin:10px 0; border:1px solid var(--line,#344766); border-radius:14px; background:var(--surface-raised,#202f4b); }
 .stock-row p { margin:6px 0; color:var(--muted,#9bb0d1); }
@@ -398,3 +398,17 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 #plate-ratios-fields legend { padding:0 6px; font-weight:600; }
 #plate-ratios-fields .form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr)); gap:12px; }
 #plate-ratios-fields input[readonly] { opacity:0.7; }
+.food-store-panel { margin-top:18px; }
+.food-store-panel>summary { cursor:pointer; font-weight:600; }
+.food-store-panel h4 { margin:18px 0 8px; }
+.food-store-results { max-height:260px; overflow:auto; margin:12px 0; border:1px solid #364866; border-radius:10px; padding:8px; }
+.food-store-result { display:flex; align-items:center; gap:10px; padding:7px; margin:0; }
+.food-store-result input { width:auto; margin:0; }
+.food-store-selection-actions,.food-store-actions { display:flex; align-items:end; flex-wrap:wrap; gap:10px; margin-top:10px; }
+.food-store-actions label { flex:1; min-width:180px; }
+.food-store-assignment { display:grid; grid-template-columns:minmax(0,1fr) minmax(150px,.6fr); gap:12px; align-items:center; padding:8px 0; border-top:1px solid #364866; }
+.shopping-store h5 { display:flex; flex-wrap:wrap; gap:12px; justify-content:space-between; margin:0; padding:10px 14px; font-size:15px; background:#1a263c; }
+.shopping-store h5 a { color:#61dce8; font-size:13px; }
+.shopping-store-control { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:6px 0 0; font-size:12px; }
+.shopping-store-control select { width:auto; max-width:100%; padding:6px; font-size:13px; }
+@media(max-width:560px){.food-store-assignment{grid-template-columns:1fr}.shopping-store-control select{width:100%}}
