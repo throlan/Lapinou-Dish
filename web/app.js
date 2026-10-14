@@ -546,8 +546,8 @@ async function refreshShoppingList() {
 }
 $('#routines-form').addEventListener('submit',async event=>{
   event.preventDefault();
-  const routines=$('#routine-list .routine-row').map(row=>({routineId:row.dataset.routineId,frequency:$('select',row).value,nextDate:$('input',row).value}));
-  try{await api('/api/household-planning/routines',{method:'PUT',body:JSON.stringify({householdId:state.household.id,routines})});showMessage($('#routines-message'),'Planning enregistré.',true);await refreshShopping();}
+  const routines=$$('#routine-list .routine-row').map(row=>({routineId:row.dataset.routineId,frequency:$('select',row).value,nextDate:$('input',row).value}));
+  try{await api('/api/household-planning/routines',{method:'PUT',body:JSON.stringify({householdId:state.household.id,routines})});await refreshShopping();showMessage($('#routines-message'),'Planning enregistré.',true);}
   catch(error){showMessage($('#routines-message'),'Enregistrement impossible : '+(error.body?.error??error.message));}
 });
 let pendingProduction = null;

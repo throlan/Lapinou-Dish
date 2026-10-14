@@ -3,10 +3,10 @@
 ## Point de départ
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish
-- Branche de référence au début du travail actuel : `main`, commit de la PR 65 : `62f841005d23141dbbb271048c393dd06a7859d7`.
-- Dernière version publiée vérifiée : **0.2.51**, après la [PR 65](https://github.com/throlan/Lapinou-Dish/pull/65) : unités d'achat paramétrables par aliment.
+- Branche de référence au début du travail actuel : `main`, commit de la PR 66 : `041771ba8c422156b70c87c9a95169247cd86bb5`.
+- Dernière version publiée vérifiée : **0.2.52**, après la [PR 66](https://github.com/throlan/Lapinou-Dish/pull/66) : stock des produits et préparation des repas.
 - Journal détaillé : [SESSION-2026-10-13.md](SESSION-2026-10-13.md). État et tâches restantes : [STATUS.md](STATUS.md).
-- Travail actuel : **0.2.52**, stock des produits, validation des achats et préparation des repas. Voir [la session du 14 octobre](SESSION-2026-10-14.md). 171 tests réussis et parcours Chrome local ordinateur/mobile vérifié sur données synthétiques. Publication de cette version à confirmer après la PR.
+- Travail actuel : **0.2.53**, correctif du bouton « Enregistrer le planning » des routines de courses. Voir [la session du 14 octobre](SESSION-2026-10-14.md). 171 tests réussis et persistance vérifiée dans Chrome local sur données synthétiques.
 
 ## Règle d'exploitation impérative
 
