@@ -393,3 +393,8 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 #rebalance-dialog { width:min(850px,calc(100vw - 28px)); }
 .rebalance-person { margin:14px 0; padding:12px; border:1px solid #354865; border-radius:12px; }
 .rebalance-person p { margin:7px 0; font-size:13px; }
+#plate-ratios-fields { display:grid; gap:14px; }
+#plate-ratios-fields fieldset { min-width:0; margin:0; padding:14px; border:1px solid #364866; border-radius:12px; }
+#plate-ratios-fields legend { padding:0 6px; font-weight:600; }
+#plate-ratios-fields .form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr)); gap:12px; }
+#plate-ratios-fields input[readonly] { opacity:0.7; }

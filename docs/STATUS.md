@@ -1,8 +1,8 @@
-# État du projet — 13 octobre 2026, soir
+# État du projet — 14 octobre 2026
 
 ## Version de référence
 
-**0.2.47**, publiée après la PR 58, fusionnée sur `main` dans le commit `ee99abd1922ee1d4780b486522b41cdfbcf4bf28`. Elle comprend les formats de paquets mémorisés par foyer, aliment et unité, la suppression protégée des aliments inutilisés, les liens et quantités de recettes dans les courses, l'arrondi des achats à la pièce entière et le compte épargne kcal.
+**0.2.47**, publiée après la PR 59, fusionnée sur `main` dans le commit `b55015e2ba36c5c11455ed91579b6e2335ab97a6`. Elle comprend les formats de paquets mémorisés par foyer, aliment et unité, la suppression protégée des aliments inutilisés, les liens et quantités de recettes dans les courses, l'arrondi des achats à la pièce entière et le compte épargne kcal.
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des modifications : [journal de session](SESSION-2026-10-13.md).
 
@@ -26,15 +26,17 @@ Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). P
 
 ## Vérification
 
-**148 tests réussis** avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` (Node v24.19.0).
+**156 tests réussis** avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` (Node v24.19.0).
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 
-## En cours sur `feat/online-order-links`
+## Composition des assiettes — 0.2.48
 
-Liens de commande ajoutés à Courses & stocks : nom et URL HTTPS enregistrés par foyer, ouverture dans un nouvel onglet, suppression, validation serveur et migration SQL dédiée. La branche reprend aussi le correctif du saut de défilement des formats de paquet et les notes de reprise.
+Branche **feat/plate-weight-ratios** : proportions en poids estimé servi par foyer, réglables dans Administration. Défauts : 100 % entier ; 70/30 viande-légumes/féculents ; 25/25/50 protéines/féculents/légumes. Totaux validés à 100 %, exemples en grammes et recalcul explicite. Les parties liées conservent leur composition lors de l'ajustement protéique et du rééquilibrage quotidien.
 
-À faire : vérifier le parcours dans Chrome avec des données synthétiques (après avoir demandé l'autorisation de prendre le contrôle du navigateur), puis suivre les contrôles GitHub de la PR. Ne pas fusionner avant leur réussite. L'application n'a pas été déployée.
+156 tests réussis et parcours Chrome local validé avec données synthétiques et autorisation utilisateur. Contrôles GitHub/publication à confirmer après la PR. Détails : [session du 14 octobre](SESSION-2026-10-14.md).
+
+Les liens de commande (PR 59) sont déjà livrés. Tâche distincte restante : résilience de l'application aux déconnexions PostgreSQL, observées après le redémarrage du backup à partir des extraits fournis par l'utilisateur. Aucune connexion de l'agent à l'installation.
 
 Piste éventuelle : composants et variantes de recette indépendants au-delà des parties de service actuelles ; à préciser seulement si l'utilisateur souhaite poursuivre.
 

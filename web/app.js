@@ -4,6 +4,8 @@ import { calculatePersonEnergy, SLOT_RATIOS } from './portion-planner.js';
 import { MEAL_ORDER, MEAL_LABELS, validMealRatios } from './meal-config.js';
 import { calculateDailyEnergy } from './portion-planner.js';
 import { breakfastServingLimit } from './portion-planner.js';
+import { suggestPlatePortions } from './portion-planner.js';
+import { PLATE_PARTS, validPlateRatios } from './meal-config.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -1163,6 +1165,7 @@ async function refreshMealSettings() {
     state.mealRatios=settings.ratios;
     for(const slot of MEAL_ORDER)form.elements[slot].value=Number((settings.ratios[slot]*100).toFixed(4));
     await refreshPeople();updateMealRatiosPreview();
+    await refreshPlateSettings();
     showMessage($('#meal-ratios-message'),'');
   }catch(error){showMessage($('#meal-ratios-message'),`Répartition indisponible : ${error.body?.error ?? error.message}`);}
 }
@@ -1179,6 +1182,55 @@ $('#meal-ratios-form').addEventListener('submit',async event=>{
     showMessage(message,'Répartition enregistrée. Les quantités déjà saisies sont conservées ; utilise « Recalculer les portions » dans les repas à ajuster.',true);
   }catch(error){showMessage(message,`Enregistrement impossible : ${error.body?.error ?? error.message}`);}
   finally{updateMealRatiosPreview();}
+});
+
+function plateRatiosFromForm() {
+  const form=$('#plate-ratios-form');
+  return Object.fromEntries(Object.entries(PLATE_PARTS).map(([mode,parts])=>[mode,Object.fromEntries(parts.map(part=>{
+    const value=form.elements[`${mode}-${part}`].value;
+    return [part,value===''?NaN:Number(value)/100];
+  }))]));
+}
+function updatePlateRatiosPreview() {
+  const ratios=plateRatiosFromForm();
+  for(const [mode,parts] of Object.entries(PLATE_PARTS)) {
+    const total=parts.reduce((sum,part)=>sum+ratios[mode][part],0)*100;
+    $(`#plate-total-${mode}`).textContent=Number.isFinite(total)?`Total : ${format(total)} %${Math.abs(total-100)<1e-7?' ✓':' — total attendu : 100 %'}`:'Renseigne chaque proportion.';
+    $(`#plate-example-${mode}`).textContent=Number.isFinite(total)?'Exemple pour 400 g : '+parts.map(part=>`${part==='starch'?'féculents':part==='vegetables'?'légumes':mode==='whole'?'plat entier':mode==='separate'?'viande et légumes':'viande / protéines'} ${formatQty(400*ratios[mode][part])} g`).join(' · '):'';
+  }
+  $('#plate-ratios-form button[type="submit"]').disabled=!validPlateRatios(ratios);
+}
+async function refreshPlateSettings() {
+  const root=$('#plate-ratios-fields');root.replaceChildren();
+  $('#plate-ratios-form button[type="submit"]').disabled=true;
+  const settings=await api(`/api/plate-settings?householdId=${encodeURIComponent(state.household.id)}`);
+  state.plateRatios=settings.ratios;
+  const labels={whole:'Tout ensemble',separate:'Viande et légumes ensemble, féculents séparés',three:'Protéines, féculents et légumes séparés'};
+  for(const [mode,parts] of Object.entries(PLATE_PARTS)) {
+    const group=document.createElement('fieldset'),legend=document.createElement('legend');legend.textContent=labels[mode];
+    const fields=document.createElement('div');fields.className='form-grid';
+    for(const part of parts) {
+      const label=document.createElement('label');label.textContent=(part==='starch'?'Féculents':part==='vegetables'?'Légumes':mode==='whole'?'Plat entier':mode==='separate'?'Viande et légumes':'Viande / protéines')+' (%)';
+      const input=document.createElement('input');input.type='number';input.name=`${mode}-${part}`;input.min='0.1';input.max='100';input.step='0.1';input.required=true;input.readOnly=mode==='whole';input.value=Number((settings.ratios[mode][part]*100).toFixed(4));label.append(input);fields.append(label);
+    }
+    const total=document.createElement('p');total.id=`plate-total-${mode}`;total.setAttribute('role','status');
+    const example=document.createElement('small');example.className='muted';example.id=`plate-example-${mode}`;
+    group.append(legend,fields,total,example);root.append(group);
+  }
+  updatePlateRatiosPreview();
+}
+$('#plate-ratios-form').addEventListener('input',updatePlateRatiosPreview);
+$('#plate-ratios-form').addEventListener('submit',async event=>{
+  event.preventDefault();const form=event.currentTarget,ratios=plateRatiosFromForm(),message=$('#plate-ratios-message');
+  if(!form.reportValidity() || !validPlateRatios(ratios)){showMessage(message,'Chaque mode doit totaliser 100 %, avec une valeur positive pour chaque partie.');return;}
+  if(!state.household)return;
+  $('button[type="submit"]',form).disabled=true;
+  try {
+    const settings=await api('/api/plate-settings',{method:'PUT',body:JSON.stringify({householdId:state.household.id,ratios})});state.plateRatios=settings.ratios;
+    await refreshCalendar();await refreshPlateSettings();
+    showMessage(message,'Composition enregistrée. Utilise « Recalculer les portions » dans les repas à ajuster.',true);
+  }catch(error){showMessage(message,`Enregistrement impossible : ${error.body?.error??error.message}`);}
+  finally{if($('#plate-ratios-fields input'))updatePlateRatiosPreview();}
 });
 
 async function init() {
@@ -1265,14 +1317,16 @@ async function refreshCalendar() {
   grid.replaceChildren(emptyMessage('Chargement de la semaine…'));
   try {
     const end = addDays(state.calendarWeekStart, 6);
-    const [plan, peopleResult, recipesResult, mealSettings, reserve] = await Promise.all([
+    const [plan, peopleResult, recipesResult, mealSettings, reserve, plateSettings] = await Promise.all([
       api(`/api/planning?householdId=${encodeURIComponent(state.household.id)}&weekStart=${state.calendarWeekStart}`),
       api(`/api/people?householdId=${encodeURIComponent(state.household.id)}`),
       api(`/api/recipes?householdId=${encodeURIComponent(state.household.id)}`),
       api(`/api/meal-settings?householdId=${encodeURIComponent(state.household.id)}`),
       api(`/api/energy-reserve?householdId=${encodeURIComponent(state.household.id)}&asOf=${end}`),
+      api(`/api/plate-settings?householdId=${encodeURIComponent(state.household.id)}`),
     ]);
     state.mealRatios=mealSettings.ratios;
+    state.plateRatios=plateSettings.ratios;
     state.people = peopleResult.people;
     state.recipes = recipesResult.recipes;
     state.calendarReserveOverview=reserve;
@@ -1581,11 +1635,16 @@ function applyAutomaticPortions(items, attendeeIds) {
       else if (suggestion.reason === 'daily-budget-used') messages.add(`${person?.displayName ?? 'Une personne'} : enveloppe quotidienne déjà atteinte.`);
       else if (suggestion.reason === 'no-natural-portion-fits') messages.add(`${recipe?.name ?? 'Une recette'} : aucune portion entière ou demi-portion ne tient dans le budget restant.`);
       else if (suggestion.reason === 'no-slot-budget') messages.add('Ce créneau est réglé à 0 % du budget. Tu peux ajuster la répartition dans Administration.');
-      proposals.push({ item, personId, role, quantity, reason: suggestion.reason, step, recipeKcal: Number(kcal), proteinG: recipe?.nutrition?.perYieldUnit?.proteinG == null ? null : Number(recipe.nutrition.perYieldUnit.proteinG), maxQuantity, slotBudgetKcal: suggestion.slotBudgetKcal, assignment });
+      const parent=state.recipes.find(parent=>parent.id===recipe?.parentRecipeId);
+      proposals.push({ item, personId, role, quantity, reason: suggestion.reason, step, recipeKcal: Number(kcal), proteinG: recipe?.nutrition?.perYieldUnit?.proteinG == null ? null : Number(recipe.nutrition.perYieldUnit.proteinG), maxQuantity, slotBudgetKcal: suggestion.slotBudgetKcal, assignment,
+        parentRecipeId:recipe?.parentRecipeId,servingPart:recipe?.servingPart,recipeUnit,
+        plateParts:parent?.servingParts?.map(part=>part.servingPart),budgetFraction:activeWeight?roleWeights[role]/activeWeight/(roleCounts[role]||1):1 });
     }
     const budget = proposals.find((proposal) => Number.isFinite(proposal.slotBudgetKcal))?.slotBudgetKcal;
     if (Number.isFinite(budget) && proposals.length && proposals.every((proposal) => Number.isFinite(proposal.recipeKcal) && proposal.recipeKcal > 0)) {
-      const result = rebalanceNaturalPortions(proposals, budget, { minProteinG: MIN_PROTEIN_G_PER_MEAL });
+      const result = suggestPlatePortions(proposals, budget, state.plateRatios);
+      result.warnings.forEach(message=>messages.add(message));
+      if(result.proportionsApplied)messages.add('Proportions en poids estimé appliquées depuis Administration. Le poids total respecte le budget kcal et les plafonds des parties ; le repère protéique ne modifie pas ces proportions.');
       result.proposals.forEach((proposal) => {
         if (isIndividualRole(proposal.role)) proposal.assignment.quantity = String(proposal.quantity);
         else proposal.item.amounts[personId] = proposal.quantity == null ? '' : String(proposal.quantity);

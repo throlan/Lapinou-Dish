@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { previewDailyRebalance, applyDailyRebalance } from './daily-rebalance.mjs';
-import { readMealSettings, saveMealSettings } from './meal-settings.mjs';
+import { readMealSettings, saveMealSettings, readPlateSettings, savePlateSettings } from './meal-settings.mjs';
 import { deleteSavingPlan, getEnergyReserveOverview, saveSavingPlan, validateSavingPlan } from './energy-reserve.mjs';
 import { listIngredientStock, saveIngredientStock, validateIngredientStock } from './ingredient-stock.mjs';
 import { createHmac, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
@@ -114,13 +114,15 @@ export async function handleRequest(request, response, pool, appPassword = null,
         return send(response,result.error?409:200,result);
       }catch{return send(response,500,{error:'daily-rebalance-failed'});}
     }
-    if (url.pathname === '/api/meal-settings' && ['GET','PUT'].includes(request.method)) {
+    if (['/api/meal-settings','/api/plate-settings'].includes(url.pathname) && ['GET','PUT'].includes(request.method)) {
       const body=request.method === 'PUT' ? await readJson(request) : null;
       if(body?.error) return send(response,body.status ?? 400,{error:body.error});
       const householdId=request.method === 'PUT' ? body.value?.householdId : url.searchParams.get('householdId');
       if(!isUuid(householdId)) return send(response,400,{error:'invalid-household-id'});
       try {
-        const result=request.method === 'GET' ? await readMealSettings(pool,householdId) : await saveMealSettings(pool,householdId,body.value?.ratios);
+        const readSettings=url.pathname==='/api/plate-settings'?readPlateSettings:readMealSettings;
+        const saveSettings=url.pathname==='/api/plate-settings'?savePlateSettings:saveMealSettings;
+        const result=request.method === 'GET' ? await readSettings(pool,householdId) : await saveSettings(pool,householdId,body.value?.ratios);
         if(!result || result.error === 'household-not-found') return send(response,404,{error:'household-not-found'});
         return send(response,result.error ? 400 : 200,result);
       } catch { return send(response,500,{error:'meal-settings-failed'}); }

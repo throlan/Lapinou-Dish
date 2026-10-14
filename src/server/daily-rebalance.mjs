@@ -38,7 +38,25 @@ export function rebalanceDailyEnergy(input,people) {
       const candidates=[];
       for(const group of meals.values()) {
         if(!group.proteinKnown)continue;
+        const linked=new Map(),handled=new Set();
         for(const row of group.rows) {
+          if(!row.parentRecipeId || row.unitId!=='g' || !['main','accompaniment'].includes(row.role))continue;
+          if(!linked.has(row.parentRecipeId))linked.set(row.parentRecipeId,[]);
+          linked.get(row.parentRecipeId).push(row);
+        }
+        for(const members of linked.values()) {
+          const parts=members[0].plateParts;
+          if(!parts?.length || parts.length!==members.length || parts.some(part=>members.filter(row=>row.servingPart===part).length!==1))continue;
+          members.forEach(row=>handled.add(row));
+          const weight=members.reduce((sum,row)=>sum+row.quantity,0);
+          const reductions=members.map(row=>({row,step:10*row.quantity/weight}));
+          if(reductions.some(({row,step})=>row.quantity-step<1 || !(row.energyKcal>0)))continue;
+          const protein=reductions.reduce((sum,{row,step})=>sum+step*row.proteinG,0);
+          if(group.protein-protein<group.minimumProtein-1e-6)continue;
+          candidates.push({row:members[0],group,reductions,protein,kcal:reductions.reduce((sum,{row,step})=>sum+step*row.energyKcal,0)});
+        }
+        for(const row of group.rows) {
+          if(handled.has(row))continue;
           const step=steps[row.unitId];
           if(!['main','accompaniment'].includes(row.role) || !step || row.quantity-step<step-1e-9 || !(row.energyKcal>0))continue;
           if(group.protein-step*row.proteinG<group.minimumProtein-1e-6)continue;
@@ -52,8 +70,8 @@ export function rebalanceDailyEnergy(input,people) {
         || a.row.proteinG/a.row.energyKcal-b.row.proteinG/b.row.energyKcal
         || a.row.itemId.localeCompare(b.row.itemId));
       const next=candidates[0];if(!next)break;
-      next.row.quantity=Number((next.row.quantity-next.step).toFixed(6));
-      next.group.removed+=next.kcal;next.group.protein-=next.step*next.row.proteinG;current-=next.kcal;
+      for(const {row,step} of next.reductions??[{row:next.row,step:next.step}])row.quantity=Number((row.quantity-step).toFixed(6));
+      next.group.removed+=next.kcal;next.group.protein-=next.protein??next.step*next.row.proteinG;current-=next.kcal;
     }
     result.afterKcal=Number(current.toFixed(6));
     if(current>person.targetKcal+1e-6)result.reason='cannot-fully-rebalance';
@@ -83,7 +101,7 @@ export async function previewDailyRebalance(pool,householdId,date) {
       if(!recipes.has(recipe.parentRecipeId))recipes.set(recipe.parentRecipeId,await readRecipe(pool,recipe.parentRecipeId));
       parent=recipes.get(recipe.parentRecipeId);
     }
-    rows.push({itemId:item.item_id,mealId:item.meal_id,personId:item.person_id,slot:item.slot,role:item.role ?? 'main',quantity:Number(item.quantity),recipeName:recipe?.name ?? 'Recette supprimée',unitId:recipe?.yield.unitId,energyKcal:nutrition?.perYieldUnit.energyKcal ?? null,proteinG:nutrition?.perYieldUnit.proteinG ?? null,complete:nutrition?.complete ?? false,breakfastLimit:breakfastServingLimit(recipe,parent)});
+    rows.push({itemId:item.item_id,mealId:item.meal_id,personId:item.person_id,slot:item.slot,role:item.role ?? 'main',quantity:Number(item.quantity),recipeName:recipe?.name ?? 'Recette supprimée',unitId:recipe?.yield.unitId,energyKcal:nutrition?.perYieldUnit.energyKcal ?? null,proteinG:nutrition?.perYieldUnit.proteinG ?? null,complete:nutrition?.complete ?? false,breakfastLimit:breakfastServingLimit(recipe,parent),parentRecipeId:recipe?.parentRecipeId,servingPart:recipe?.servingPart,plateParts:parent?.servingParts?.map(part=>part.servingPart)});
   }
   const people=peopleResult.rows.filter(person=>amounts.rows.some(row=>row.person_id===person.id)).map(person=>({id:person.id,name:person.display_name,targetKcal:person.target==null?null:Number(person.target)-Number(extraSavings.get(person.id)??0),reason:!person.active?'inactive-profile':!person.birth_date?'age-missing':!isAdultOn(person.birth_date,date)?'minor-profile':!(Number(person.target)>Number(extraSavings.get(person.id)??0))?'target-missing':null}));
   const preview=rebalanceDailyEnergy(rows,people);

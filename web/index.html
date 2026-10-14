@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=0.2.47">
+    <link rel="stylesheet" href="/style.css?v=0.2.48">
   </head>
   <body>
     <header class="topbar">
@@ -54,6 +54,14 @@
           <p id="meal-ratios-message" class="form-message" role="status"></p>
         </form>
         <div id="meal-ratios-preview" class="card"></div>
+        <h3>Composition des assiettes</h3>
+        <form id="plate-ratios-form" class="card">
+          <p class="muted">Proportions en poids estimé servi, après application des coefficients de cuisson. Chaque mode totalise 100 %. Ces pourcentages ne représentent ni les kcal, ni la surface de l’assiette, ni des grammes de protéines nutritionnelles.</p>
+          <div id="plate-ratios-fields"></div>
+          <p class="muted">Les propositions ajustent le poids total au budget kcal et aux plafonds des parties, en conservant ces proportions. Boissons et desserts restent à part. Les quantités saisies et les duplications sont conservées ; utilise « Recalculer les portions » pour appliquer un nouveau réglage.</p>
+          <button type="submit" class="primary" disabled>Enregistrer la composition</button>
+          <p id="plate-ratios-message" class="form-message" role="status"></p>
+        </form>
       </section>
       <section id="calendar-view" class="view hidden">
         <div class="section-heading"><div><h2>Calendrier familial</h2><p>Prévisions par personne, reliées aux recettes du catalogue.</p></div><button type="button" class="secondary" id="manage-profiles">Gérer les profils</button></div>
@@ -238,6 +246,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.47"></script>
+    <script type="module" src="/app.js?v=0.2.48"></script>
   </body>
 </html>

@@ -1,13 +1,13 @@
-# Cahier de reprise — fin de journée du 13 octobre 2026
+# Cahier de reprise — 14 octobre 2026
 
 ## Point de départ
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish
-- Branche de référence : `main`, commit de la PR 58 : `ee99abd1922ee1d4780b486522b41cdfbcf4bf28`.
-- Dernière version applicative publiée : **0.2.47**, après la [PR 58](https://github.com/throlan/Lapinou-Dish/pull/58). Elle comprend le compte épargne kcal (PR 53), la navigation depuis les courses vers les recettes (PR 54–55), les quantités par recette (PR 56), l'arrondi des pièces (PR 57), les conditionnements d'achat et la suppression protégée d'aliments (PR 58).
+- Branche de référence : `main`, commit de la PR 59 : `b55015e2ba36c5c11455ed91579b6e2335ab97a6`.
+- Dernière version applicative publiée : **0.2.47**, après la [PR 59](https://github.com/throlan/Lapinou-Dish/pull/59), qui ajoute les liens de commande. Elle comprend le compte épargne kcal (PR 53), la navigation depuis les courses vers les recettes (PR 54–55), les quantités par recette (PR 56), l'arrondi des pièces (PR 57), les conditionnements d'achat et la suppression protégée d'aliments (PR 58).
 - Journal détaillé : [SESSION-2026-10-13.md](SESSION-2026-10-13.md). État et tâches restantes : [STATUS.md](STATUS.md).
 - Tests de l'état actuel : **148 tests réussis** avec Node v24.19.0 ; la migration des liens de commande et les routes CRUD sont couvertes par PGlite.
-- Travail à reprendre : branche distante `feat/online-order-links`, qui ajoute les liens de commande et reprend le correctif de défilement des courses. Vérifier le parcours navigateur et suivre les contrôles de la PR.
+- Travail actuel : **0.2.48**, branche **feat/plate-weight-ratios** : composition des assiettes en poids estimé, réglable dans Administration. Voir [la session du 14 octobre](SESSION-2026-10-14.md). 156 tests réussis et parcours Chrome local vérifié avec autorisation.
 
 ## Règle d'exploitation impérative
 
@@ -52,21 +52,11 @@ Le système a été livré en **0.2.42** (PR 53). Les décisions détaillées et
 
 Les totaux affichés sont des prévisions ; aucune saisie de consommation réelle après repas n'est souhaitée. L'ancienne archive et son patch ne sont pas à réappliquer.
 
-## Travail à reprendre demain
+## Reprise du travail actuel
 
-La branche `feat/online-order-links` contient les liens de commande du foyer et les corrections récentes de la liste de courses. Les liens ont un nom, une URL HTTPS, une ouverture sécurisée en nouvel onglet et une suppression. Ils sont enregistrés par foyer. Le changement de format de paquet met à jour la ligne concernée sans recréer toute la liste. Les **148 tests** et `node --check` passent. Il reste à vérifier le parcours dans Chrome avec des données synthétiques et à suivre les contrôles de la PR ; ne pas fusionner avant leur réussite.
+Les liens de commande (PR 59) sont fusionnés et publiés ; ne pas les réimplémenter. La version 0.2.48 ajoute les proportions d'assiette : 100 % entier, 70/30 viande-légumes/féculents, 25/25/50 protéines/féculents/légumes. Les valeurs sont des proportions en poids estimé servi, indépendantes des parts kcal de la journée. Les repas sauvegardés et dupliqués sont conservés ; le recalcul est explicite. Les parties liées sont réduites ensemble lors du rééquilibrage quotidien.
 
-### Prompt prêt à coller dans Codex sur l'autre PC
-
-```text
-Reprends Lapinou Dish à partir de docs/REPRISE.md et docs/STATUS.md. Lis aussi docs/SESSION-2026-10-13.md et les instructions AGENTS.md éventuelles.
-
-La version publiée de référence est 0.2.47 (PR #58). Le travail actuel est sur la branche feat/online-order-links. Elle ajoute une liste de liens de commande HTTPS par foyer dans Courses & stocks et conserve les corrections de défilement ainsi que le cahier de reprise.
-
-Commence par retrouver le dépôt, afficher git status, la branche, HEAD et les différences locales avant toute mise à jour. Ne réinitialise et n'écrase aucun fichier. Récupère la branche feat/online-order-links en préservant tout travail local, puis lance `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs`. Avant de prendre le contrôle du navigateur, demande-moi; après mon accord, vérifie les liens (ajout, ouverture et suppression) ainsi que plusieurs changements de formats d'achat sans saut de défilement. Suis les contrôles GitHub ; ne fusionne pas sans leur réussite.
-
-Règle absolue : ne jamais accéder à Unraid, le vérifier, le modifier ou y déployer. Je m'occupe moi-même de l'installation. Ne touche pas à Nginx. Ne prends pas le contrôle du navigateur sans me demander d'abord.
-```
+À la prochaine reprise : vérifier l'état Git et les contrôles/publication de la PR avant d'annoncer une version disponible. Lire le journal du 14 octobre. Préserver les stashes historiques ; aucune réapplication. La gestion d'une coupure PostgreSQL reste à corriger séparément. Ne jamais accéder à Unraid ni à Nginx. Demander l'autorisation avant de piloter un navigateur.
 
 ## Validation et livraison
 
