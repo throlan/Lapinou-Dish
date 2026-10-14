@@ -9,7 +9,7 @@ export function validateFoodStores(input) {
 
 export async function listFoodStores(pool,householdId) {
   const result=await pool.query(`SELECT s.food_id AS "foodId",f.canonical_name AS name,
-    l.id AS "orderLinkId",l.label,l.url FROM household_food_stores s
+    l.id AS "orderLinkId",l.label,l.url,l.home_assistant_entity_id AS "homeAssistantEntityId" FROM household_food_stores s
     JOIN foods f ON f.id=s.food_id
     JOIN household_order_links l ON l.id=s.order_link_id AND l.household_id=s.household_id
     WHERE s.household_id=$1 ORDER BY l.label,f.canonical_name,s.food_id`,[householdId]);

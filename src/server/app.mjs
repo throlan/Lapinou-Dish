@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { listFoodStores, saveFoodStores, validateFoodStores } from './food-stores.mjs';
+import { exportToHomeAssistant } from './home-assistant-shopping.mjs';
 import { previewDailyRebalance, applyDailyRebalance } from './daily-rebalance.mjs';
 import { readMealSettings, saveMealSettings, readPlateSettings, savePlateSettings } from './meal-settings.mjs';
 import { deleteSavingPlan, getEnergyReserveOverview, saveSavingPlan, validateSavingPlan } from './energy-reserve.mjs';
@@ -300,6 +301,23 @@ export async function handleRequest(request, response, pool, appPassword = null,
       if ((new Date(endDate) - new Date(startDate)) / 86400000 > 62) return send(response, 400, { error: 'shopping-period-too-long' });
       try { return send(response, 200, { items: await listShoppingRequirements(pool, householdId, startDate, endDate) }); }
       catch { return send(response, 500, { error: 'shopping-list-read-failed' }); }
+    }
+    if (url.pathname === '/api/shopping-list/export/home-assistant' && request.method === 'POST') {
+      const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
+      const {householdId,startDate,endDate,storeId}=body.value??{};
+      if(!isUuid(householdId)||!isUuid(storeId)||!isValidDate(startDate)||!isValidDate(endDate)||endDate<startDate
+        ||(new Date(endDate)-new Date(startDate))/86400000>62)return send(response,400,{error:'invalid-shopping-export'});
+      if(!process.env.HOME_ASSISTANT_URL||!process.env.HOME_ASSISTANT_TOKEN)
+        return send(response,503,{error:'home-assistant-not-configured'});
+      try {
+        const links=await listOrderLinks(pool,householdId),store=links.find(link=>link.id===storeId);
+        if(!store)return send(response,404,{error:'store-not-found'});
+        if(!store.homeAssistantEntityId)return send(response,400,{error:'home-assistant-list-not-configured'});
+        const items=(await listShoppingRequirements(pool,householdId,startDate,endDate)).filter(item=>item.store?.id===storeId);
+        const result=await exportToHomeAssistant(items,store.homeAssistantEntityId,
+          {url:process.env.HOME_ASSISTANT_URL,token:process.env.HOME_ASSISTANT_TOKEN});
+        return send(response,result.error?502:200,result);
+      }catch{return send(response,500,{error:'shopping-export-failed'});}
     }
     if (url.pathname === '/api/shopping-list/state' && request.method === 'POST') {
       const body = await readJson(request);

@@ -39,6 +39,9 @@ test('household shops and shopping preferences survive bulk assignment, reassign
     await pool.query("INSERT INTO households(id,name) VALUES($1,'A'),($2,'B')",[h,other]);
     for(const [i,name] of ['Whey test','Farine test','Lait test'].entries())await pool.query("INSERT INTO foods(id,canonical_name,source) VALUES($1,$2,'manual')",[foods[i],name]);
     for(const [id,householdId,label] of [[store,h,'Nutripure'],[second,h,'Greenwhiz'],[foreign,other,'Autre foyer']])await saveOrderLink(pool,{id,householdId,label,url:'https://shop.example/'+id});
+    const physical='55555555-5555-4555-8555-555555555555';
+    await saveOrderLink(pool,{id:physical,householdId:h,label:'Grand Frais',url:null,homeAssistantEntityId:'todo.grand_frais'});
+    assert.equal((await pool.query('SELECT url FROM household_order_links WHERE id=$1',[physical])).rows[0].url,null);
     // Simulate existing installs: shopping settings and links predate the new migration.
     const preference={householdId:h,foodId:foods[0],unitId:'g',startDate:'2026-10-19',endDate:'2026-10-25',groupId:'fresh',checked:true,packageQuantity:500};
     await saveShoppingLineState(pool,preference);
@@ -48,6 +51,14 @@ test('household shops and shopping preferences survive bulk assignment, reassign
     await savePlannedMeal(pool,null,{householdId:h,mealDate:'2026-10-19',slot:'lunch',notes:'',attendeeIds:[person],items:[{recipeId:recipe.id,role:'main',amounts:[{personId:person,quantity:1}]}]});
     const getList=()=>listShoppingRequirements(pool,h,'2026-10-19','2026-10-25');
     const assign=(foodIds,orderLinkId,householdId=h)=>request(pool,'PUT',{householdId,foodIds,orderLinkId});
+    await t.test('a physical store without a URL can own a shopping list and a Home Assistant target',async()=>{
+      assert.equal((await assign([foods[2]],physical)).status,200);
+      const item=(await getList()).find(entry=>entry.foodId===foods[2]);
+      assert.equal(item.store.url,null);
+      assert.equal(item.store.label,'Grand Frais');
+      assert.equal(item.store.homeAssistantEntityId,'todo.grand_frais');
+      await assign([foods[2]],null);
+    });
     await t.test('bulk selection persists, is idempotent and applies across all dates and units',async()=>{
       assert.equal((await assign(foods.slice(0,2),store)).status,200);
       assert.equal((await assign(foods.slice(0,2),store)).status,200);
