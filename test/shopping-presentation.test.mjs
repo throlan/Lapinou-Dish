@@ -7,7 +7,8 @@ test('shopping presentation separates recipe needs from practical purchase units
   assert.deepEqual(purchaseDescription({name:'Ail, cru',unitId:'piece',quantity:3,neededQuantity:2.49}),
     {text:'1 tête d’ail',detail:'3 gousses nécessaires (≈ 0,33 tête)'});
   assert.equal(purchaseDescription({name:'Basilic, frais',unitId:'piece',quantity:1,neededQuantity:1}).text,'1 bouquet de basilic');
-  assert.match(purchaseDescription({name:'Basilic, frais',unitId:'g',quantity:5,neededQuantity:5}).detail,/5 g/);
+  assert.deepEqual(purchaseDescription({name:'Basilic, frais',unitId:'g',quantity:5,neededQuantity:5}),
+    {text:'1 bouquet de basilic (minimum)',detail:'Besoin : 5 g ; vérifier que le bouquet suffit'});
   assert.deepEqual(purchaseDescription({name:'Gingembre, racine fraîche',unitId:'g',quantity:65,neededQuantity:3}),
     {text:'1 racine de gingembre',detail:'Besoin : 3 g · racine indicative 50–80 g (calcul à 65 g)'});
   assert.equal(purchaseDescription({name:'Gingembre, racine fraîche',unitId:'g',quantity:90,neededQuantity:90}).text,'2 racines de gingembre');
