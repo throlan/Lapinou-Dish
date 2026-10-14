@@ -3,10 +3,10 @@
 ## Point de départ
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish
-- Branche de référence au début du travail actuel : `main`, commit de la PR 66 : `041771ba8c422156b70c87c9a95169247cd86bb5`.
-- Dernière version publiée vérifiée : **0.2.52**, après la [PR 66](https://github.com/throlan/Lapinou-Dish/pull/66) : stock des produits et préparation des repas.
-- Journal détaillé : [SESSION-2026-10-13.md](SESSION-2026-10-13.md). État et tâches restantes : [STATUS.md](STATUS.md).
-- Travail actuel : **0.2.53**, correctif du bouton « Enregistrer le planning » des routines de courses. Voir [la session du 14 octobre](SESSION-2026-10-14.md). 171 tests réussis et persistance vérifiée dans Chrome local sur données synthétiques.
+- Branche de référence : `main`, commit `8b53d5eb4fd283ca6140c9d3b06e8e8335079bf3` après la [PR 67](https://github.com/throlan/Lapinou-Dish/pull/67).
+- Dernière version publiée vérifiée : **0.2.53**. Tests et publication de l'image réussis dans le [workflow GitHub 185](https://github.com/throlan/Lapinou-Dish/actions/runs/38564017664).
+- Journaux : [13 octobre](SESSION-2026-10-13.md) et [14 octobre](SESSION-2026-10-14.md). État et tâches restantes : [STATUS.md](STATUS.md).
+- Derniers travaux livrés : stock des produits et préparation des repas (0.2.52, PR 66), puis correction de l'enregistrement du planning des courses (0.2.53, PR 67). **171 tests réussis** ; parcours Chrome local vérifiés avec des données synthétiques. Aucun correctif de cette session n'attend une fusion ou une publication GitHub.
 
 ## Règle d'exploitation impérative
 
@@ -17,10 +17,10 @@
 1. Retrouver ou cloner le dépôt. Lire les éventuels `AGENTS.md`, puis exécuter `git status --short`, `git branch --show-current` et `git log -5 --oneline`.
 2. Préserver tout travail local. Ne pas utiliser de reset destructif, suppression de fichiers, nettoyage forcé ou écrasement des modifications.
 3. Récupérer `origin/main`. Un checkout propre sur `main` peut être mis à jour par `git pull --ff-only`. Si le checkout contient des changements ou une autre branche, inspecter avant de changer de base.
-4. Vérifier la version de `package.json` et lire [l'état du projet](STATUS.md), [le journal de session](SESSION-2026-10-13.md), ce cahier et [le guide kcal](MEAL-ENERGY.md).
+4. Vérifier la version de `package.json` et lire [l'état du projet](STATUS.md), [le journal de session du 14 octobre](SESSION-2026-10-14.md), ce cahier et les guides pertinents avant toute modification.
 5. Travailler avec une base locale dédiée et des données synthétiques. Ne pas importer les données de santé du foyer, secrets ou captures personnelles dans Git.
 
-Le chemin du checkout de cette session est `C:\Users\laure\Documents\Codex\Lapinou-Dish-main-2026-10-13`. Le chemin sera différent sur le PC du shop ; repère le dépôt à partir de son nom et de son dossier Git.
+Le chemin du checkout de cette session est `C:\Users\Plex\OneDrive\Documents\GitHub\Lapinou-Dish`. Le chemin sera différent sur l'autre PC ; repère le dépôt à partir de son nom et de son dossier Git.
 
 ## Fonctionnement actuel à préserver
 
@@ -36,7 +36,7 @@ Le chemin du checkout de cette session est `C:\Users\laure\Documents\Codex\Lapin
 - Les propositions restent modifiables. Les repas sauvegardés ne sont pas recalculés à leur réouverture ou duplication. Le bouton Recalculer les portions est explicite.
 - Plafond de proposition du plat en grammes : portion moyenne du batch, arrondie vers le bas à 10 g ; légumes séparés également plafonnés. Petit-déjeuner principal : deux pièces, une portion, ou poids correspondant à deux pièces pour une préparation dérivée en grammes.
 - Rééquilibrer : aperçu puis application explicite. Corrige d'abord le petit-déjeuner des adultes, puis réduit si nécessaire les quantités ajustables du déjeuner et du dîner. Boissons/desserts conservés, profils mineurs exclus, âge ou nutrition inconnus signalés. Un aperçu devenu obsolète est refusé.
-- Stocks : productions atomiques, déduction unique des ingrédients surveillés, minimum/cible/délai de commande, annulation de lot avec restauration unique. Les courses tiennent compte des réservations et stocks disponibles.
+- Stocks : inventaire initial, réception des achats et historique par produit ; les besoins de courses tiennent compte du stock. Une production déduit ses ingrédients une seule fois ; un repas du calendrier marqué « Préparé » déduit une recette directe, mais pas de nouveau les ingrédients d'un batch déjà produit.
 - Import OpenAI optionnel : brouillons à vérifier ; tentative de récupération de description Instagram avec repli sur le texte collé si la lecture est bloquée. Aucune clé à coller dans la conversation ou à committer.
 
 ## Travail livré : réserve kcal et occasions
@@ -55,11 +55,11 @@ Les totaux affichés sont des prévisions ; aucune saisie de consommation réell
 
 Les liens de commande (PR 59) sont fusionnés et publiés ; ne pas les réimplémenter. La version 0.2.48 ajoute les proportions d'assiette : 100 % entier, 70/30 viande-légumes/féculents, 25/25/50 protéines/féculents/légumes. Les valeurs sont des proportions en poids estimé servi, indépendantes des parts kcal de la journée. Les repas sauvegardés et dupliqués sont conservés ; le recalcul est explicite. Les parties liées sont réduites ensemble lors du rééquilibrage quotidien.
 
-À la prochaine reprise : vérifier l'état Git et les contrôles/publication de la PR avant d'annoncer une version disponible. Lire le journal du 14 octobre. Préserver les stashes historiques ; aucune réapplication. L'utilisateur confirme que les coupures PostgreSQL sont réglées ; aucune correction à reprendre sur ce point. Ne jamais accéder à Unraid ni à Nginx. L'utilisateur a déjà autorisé la vérification locale dans le navigateur sur données fictives.
+À la prochaine reprise : vérifier l'état Git et lire le journal du 14 octobre avant de proposer un nouveau travail. La PR 67 et le workflow 185 sont terminés avec succès. Préserver les stashes historiques ; aucune réapplication automatique. L'utilisateur confirme que les coupures PostgreSQL sont réglées ; aucune correction à reprendre sur ce point. Ne jamais accéder à Unraid ni à Nginx. L'utilisateur a déjà autorisé la vérification locale dans le navigateur sur données fictives.
 
 ## Achats en ligne par site marchand — 0.2.49
 
-Le développement demandé est réalisé sur la branche feat/online-shopping-by-store : sélection de plusieurs aliments et affectation à une boutique existante, modification/retrait, listes par marchand et renommage des libellés en Achats en ligne. Exemples : wheys → Nutripure, farines et certains produits bio → Greenwhiz ; affectations explicites par foyer.
+Le développement demandé a été livré par la PR 62 : sélection de plusieurs aliments et affectation à une boutique existante, modification/retrait, listes par marchand et renommage des libellés en Achats en ligne. Exemples : wheys → Nutripure, farines et certains produits bio → Greenwhiz ; affectations explicites par foyer.
 
 Les sites enregistrés dans Liens de commande sont réutilisés ; les quantités, stocks, paquets et cases acheté restent conservés. Les articles sans boutique restent visibles. La suppression d'un site retire ses affectations sans supprimer les aliments ni leurs besoins. Voir [le guide](ONLINE-SHOPPING.md).
 
@@ -79,6 +79,12 @@ La PR 65 est fusionnée et la publication GitHub a réussi dans le workflow 181.
 
 Une ligne de courses permet de compter le stock initial dans son unité et de valider séparément la quantité réellement achetée. Le stock est mémorisé en grammes avec conversion documentée ; les achats ajoutent, un inventaire corrige le total. Les besoins d'une période soustraient le stock présent. Les recettes préparées depuis le calendrier déduisent les ingrédients suivis ; les batchs produits les ont déjà déduits et leur service n'effectue aucun second prélèvement. Annulation, historique et protection contre les doubles enregistrements. Les repas simplement planifiés ne constituent pas une sortie réelle. Voir [le guide](PRODUCT-INVENTORY.md).
 
+La PR 66 est fusionnée et la publication GitHub a réussi dans le workflow 183.
+
+## Planning des courses — 0.2.53
+
+Le bouton « Enregistrer le planning » transmet maintenant les six routines à l'API ; son message de succès reste visible après le rafraîchissement. Fréquence et date persistent après rechargement. La PR 67 est fusionnée au commit `8b53d5e` ; tests et publication de l'image réussis dans le workflow 185.
+
 ## Validation et livraison du développement
 
 Node.js **24+**. Commande de tests directement utilisable :
@@ -90,3 +96,7 @@ node --experimental-strip-types --test test/*.test.ts test/*.test.mjs
 `npm test` exécute la même commande. Les tests PostgreSQL utilisent PGlite et exécutent les migrations SQL réelles. Les scripts Chrome de cette session sont dans le dossier local voisin `lapinou-qa` : ils ne font pas partie du dépôt transféré.
 
 Workflow appliqué : branche de travail, tests adaptés, vérification navigateur si interface modifiée, commit/push, PR attachée, fusion après contrôles GitHub réussis, vérification de publication de l'image. L'utilisateur met ensuite à jour son installation lui-même.
+
+## Prompt de reprise sur un autre PC
+
+> Reprends le développement de Lapinou Dish. Retrouve le dépôt local, vérifie son état et préserve toute modification ou stash existant avant de récupérer `origin/main` sans écrasement. La dernière version vérifiée est 0.2.53, fusionnée via la PR 67 au commit `8b53d5eb4fd283ca6140c9d3b06e8e8335079bf3` ; les tests et la publication de l'image ont réussi dans le workflow GitHub 185. Lis `AGENTS.md` s'il existe, `docs/REPRISE.md`, `docs/STATUS.md` et `docs/SESSION-2026-10-14.md`. Fais-moi un état court de la version et des éventuelles tâches restantes avant toute nouvelle modification. Règle absolue : n'accède jamais à Unraid ni à Nginx ; je gère moi-même le déploiement. Les vérifications en navigateur local sur données fictives sont autorisées.

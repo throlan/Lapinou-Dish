@@ -2,9 +2,9 @@
 
 ## Version de référence
 
-**0.2.52** publiée après la [PR 66](https://github.com/throlan/Lapinou-Dish/pull/66), fusionnée sur `main` dans le commit `041771ba8c422156b70c87c9a95169247cd86bb5`. Le workflow GitHub 183 a réussi. **0.2.53** corrige l'enregistrement du planning des routines de courses.
+**0.2.53** publiée après la [PR 67](https://github.com/throlan/Lapinou-Dish/pull/67), fusionnée sur `main` dans le commit `8b53d5eb4fd283ca6140c9d3b06e8e8335079bf3`. Le [workflow GitHub 185](https://github.com/throlan/Lapinou-Dish/actions/runs/38564017664) a réussi. Cette version corrige l'enregistrement du planning des courses ; la 0.2.52 avait livré la gestion du stock des produits.
 
-Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des modifications : [journal de session](SESSION-2026-10-13.md).
+Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 14 octobre](SESSION-2026-10-14.md).
 
 **Règle impérative : aucune intervention de l'agent sur Unraid, y compris en lecture ou pour une vérification. L'utilisateur gère lui-même son installation et ses mises à jour.**
 
@@ -21,14 +21,13 @@ Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). P
 - Lignes kcal/protéines par personne dans l'éditeur ; calendrier allégé et bilan kcal prévu/objectif en bas de chaque journée.
 - Propositions plafonnées et recalcul explicite ; petit-déjeuner limité automatiquement à deux pièces, une portion ou poids correspondant selon le rendement.
 - Rééquilibrage de la journée pour les adultes : aperçu, correction du petit-déjeuner, réduction éventuelle du déjeuner/dîner, conservation du repère protéique de ces repas et refus des aperçus obsolètes.
-- Stocks de préparations, réservations, productions et annulations transactionnelles ; ingrédients surveillés, minimum/cible/délai ; courses déduisant les stocks disponibles.
+- Stocks de produits et de préparations : inventaire initial, achats reçus, productions et repas marqués « Préparé », historique, annulations transactionnelles et protection contre les doubles déductions ; courses déduisant les stocks disponibles.
+- Planning des routines de courses modifiable et persistant, avec confirmation visible après enregistrement.
 - Docker/Compose pour environnement dédié, migrations ordonnées, import Ciqual idempotent et publication CI de l'image.
 
 ## Vérification
 
-**171 tests réussis** avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` (Node v24.19.0) sur le travail 0.2.52.
-
-Le correctif 0.2.53 conserve les 171 tests réussis ; le formulaire des routines a été vérifié dans Chrome avec une base locale fictive, jusqu'au rechargement de la page.
+**171 tests réussis** avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` (Node v24.19.0) sur la version 0.2.53. Le formulaire des routines a été vérifié dans Chrome avec une base locale fictive, jusqu'au rechargement de la page.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 
@@ -62,7 +61,11 @@ Livré : libellés singulier/pluriel, équivalence chiffrée et note d'estimatio
 
 ## Stock des produits — 0.2.52
 
-En développement local : stock initial par aliment, saisi dans l'unité de la ligne de courses ou en grammes ; achats réellement reçus ajoutés au stock avec protection contre les doublons ; retrait des ingrédients lors d'une production ou de la validation « Préparé » sur un repas du calendrier. Un repas utilisant un batch enregistré ne déduit pas ses ingrédients une seconde fois. Annulation et historique des mouvements disponibles. La liste de courses tient compte du stock ; les conversions manquantes sont signalées. Voir [le guide](PRODUCT-INVENTORY.md).
+Livré en 0.2.52 (PR 66, workflow 183) : stock initial par aliment, saisi dans l'unité de la ligne de courses ou en grammes ; achats réellement reçus ajoutés au stock avec protection contre les doublons ; retrait des ingrédients lors d'une production ou de la validation « Préparé » sur un repas du calendrier. Un repas utilisant un batch enregistré ne déduit pas ses ingrédients une seconde fois. Annulation et historique des mouvements disponibles. La liste de courses tient compte du stock ; les conversions manquantes sont signalées. Voir [le guide](PRODUCT-INVENTORY.md).
+
+## Suite
+
+Aucune modification déjà demandée pendant cette session n'attend de fusion. La prochaine demande fonctionnelle est à définir avec l'utilisateur. Les pistes éventuelles sur les composants de recettes restent facultatives. L'utilisateur met lui-même à jour son installation ; aucune vérification de celle-ci n'a été faite par l'agent.
 
 ## Guides actuels du projet
 
