@@ -14,7 +14,7 @@ export function purchaseDescription(item) {
   }
   if(/^basilic(?:,|$)/.test(name)) {
     if(unit==='piece')return {text:`${Math.ceil(quantity)} ${quantity<=1?'bouquet':'bouquets'} de basilic`,detail:`Besoin : ${frenchNumber(needed)} bouquet(s)`};
-    if(unit==='g')return {text:'Basilic en bouquet',detail:`Besoin : ${frenchNumber(needed)} g ; taille du bouquet à vérifier`};
+    if(unit==='g')return {text:'1 bouquet de basilic (minimum)',detail:`Besoin : ${frenchNumber(needed)} g ; vérifier que le bouquet suffit`};
   }
   if(/^gingembre(?:,|$)/.test(name) && unit==='g') {
     const roots=Math.ceil(quantity/65);

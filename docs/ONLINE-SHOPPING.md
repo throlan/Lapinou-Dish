@@ -9,7 +9,7 @@ La liste prend toute la largeur de la page et se regroupe par magasin. Le filtre
 ## Unités d'achat indicatives
 
 - Ail à la pièce : la pièce du catalogue correspond à une **gousse**. La liste propose une tête pour neuf gousses indicatives ; trois gousses donnent environ un tiers de tête. La quantité de gousses nécessaire reste visible.
-- Basilic à la pièce : le libellé d'achat est **bouquet**. Si la recette donne des grammes, la liste demande du basilic en bouquet et affiche le besoin en grammes ; le poids du bouquet doit être vérifié, car il n'est pas déduit de la recette.
+- Basilic à la pièce : le libellé d'achat est **bouquet**. Si la recette donne des grammes, la liste propose **un bouquet minimum** et affiche le besoin en grammes ; vérifier qu'il suffit, car son poids n'est pas déduit de la recette.
 - Gingembre en grammes : une racine est estimée à **65 g**, au milieu de la fourchette indicative **50 à 80 g** donnée par l'utilisateur. Le nombre de racines est arrondi vers le haut et le besoin exact en grammes reste visible.
 
 Ces libellés ne modifient pas les conversions nutritionnelles. Un format d'achat saisi manuellement sur la ligne prend priorité sur ces suggestions.
