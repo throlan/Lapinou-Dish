@@ -114,6 +114,7 @@ async function refreshDashboard() {
         const mealHead=document.createElement('div');mealHead.className='dashboard-meal-heading';
         const note=document.createElement('span');note.textContent=meal.notes||'Repas familial';
         const edit=document.createElement('button');edit.type='button';edit.className='text-button';edit.textContent='Modifier';
+        if(meal.preparedAt){edit.disabled=true;edit.title='Annule la préparation depuis le calendrier avant de modifier ce repas.';}
         edit.addEventListener('click',()=>openMealEditor(meal.mealDate,meal.slot,meal));mealHead.append(note,edit);mealCard.append(mealHead);
         const roster=people.filter(person=>meal.attendees.some(att=>att.id===person.id));
         if(!roster.length){mealCard.append(emptyMessage('Aucune personne associée.'));}
@@ -262,7 +263,9 @@ async function refreshShopping() {
             const restored=(result.restored??[]).map(row=>`${row.name} : +${formatQty(row.quantityG)} g`).join(' · ');
             showMessage($('#production-message'),'Lot retiré du stock.'+(restored?' Ingrédients remis : '+restored:''),true);
             await refreshShopping();await refreshDashboard();
-          }catch(error){showMessage($('#production-message'),'Annulation impossible : '+(error.body?.error??error.message));}
+          }catch(error){showMessage($('#production-message'),error.body?.error==='production-already-used'
+            ?'Ce batch a déjà été utilisé par un repas marqué « Préparé ». Annule d’abord cette préparation dans le calendrier.'
+            :'Annulation impossible : '+(error.body?.error??error.message));}
           finally{cancel.disabled=false;}
         });
         row.append(label,cancel);card.append(row);
@@ -429,12 +432,54 @@ async function refreshShoppingList() {
         header.append(heading,actions);section.append(header);
         for(const item of bucket.items){
           const row=document.createElement('div');row.className='shopping-item'+(item.checked?' checked':'');row.dataset.key=`${item.foodId}:${item.unitId}`;
-          const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=item.checked;checkbox.setAttribute('aria-label','Acheté : '+item.name);
+          const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=item.checked;checkbox.setAttribute('aria-label','Masquer sans ajouter au stock : '+item.name);
           const main=document.createElement('div');main.className='shopping-item-main';
           const title=document.createElement('strong');title.className='shopping-item-title';title.textContent=item.name;
           const qty=document.createElement('span');qty.className='shopping-quantity';qty.textContent=item.purchase.text;
           const detail=document.createElement('small');detail.textContent=item.purchase.detail;
           main.append(title,qty,detail);
+          const inventoryActions=document.createElement('div');inventoryActions.className='shopping-inventory-actions';
+          const countStock=document.createElement('details');countStock.className='shopping-count-stock';
+          const countSummary=document.createElement('summary');countSummary.textContent='Saisir le stock déjà présent';countStock.append(countSummary);
+          const countForm=document.createElement('form');countForm.className='shopping-receipt-form';
+          const countLabel=document.createElement('label');countLabel.textContent=`Quantité totale présente (${item.unitId})`;
+          const countQuantity=document.createElement('input');countQuantity.type='number';countQuantity.min='0';countQuantity.step='any';countQuantity.required=true;countQuantity.placeholder='Ex. 3';countLabel.append(countQuantity);
+          const countButton=document.createElement('button');countButton.type='submit';countButton.className='secondary';countButton.textContent='Enregistrer le stock compté';
+          const countHint=document.createElement('small');const existing=state.ingredients.find(row=>row.foodId===item.foodId);
+          countHint.textContent=`Cette quantité remplace le stock actuel${existing?` (${formatQty(existing.quantityG)} g)`:''}. Conversion en grammes requise.`;
+          countForm.append(countLabel,countButton);countStock.append(countForm,countHint);
+          countForm.addEventListener('submit',async event=>{
+            event.preventDefault();if(!countForm.reportValidity()||!state.household)return;countButton.disabled=true;
+            try{const result=await api('/api/household-planning/ingredients/count',{method:'PUT',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,
+              quantity:Number(countQuantity.value),unitId:item.unitId,version:existing?.version??0})});
+              const y=window.scrollY;await refreshShopping();window.scrollTo(0,y);await refreshDashboard();
+              showMessage($('#shopping-export-message'),`${item.name} : stock compté à ${formatQty(result.quantityG)} g.`,true);
+            }catch(error){const code=error.body?.error??error.message;
+              showMessage($('#shopping-export-message'),code==='ingredient-conversion-missing'
+                ?`Conversion en grammes manquante pour ${item.name}. Complète la fiche de l’aliment.`:code==='ingredient-stock-changed'
+                  ?'Le stock a changé depuis l’ouverture de cette liste. Actualise-la avant de ressaisir la quantité.':`Stock non enregistré : ${code}`);countButton.disabled=false;}
+          });inventoryActions.append(countStock);
+          const receipt=document.createElement('form');receipt.className='shopping-receipt-form';
+          const receiptLabel=document.createElement('label');receiptLabel.textContent=`Quantité réellement achetée (${item.unitId})`;
+          const receiptQuantity=document.createElement('input');receiptQuantity.type='number';receiptQuantity.min='0.00001';receiptQuantity.step='any';receiptQuantity.required=true;
+          receiptQuantity.value=String(item.purchaseRuleApplied&&!item.packageQuantity
+            ?Math.ceil((item.neededQuantity-1e-9)/item.purchaseRule.coveredQuantity)*item.purchaseRule.coveredQuantity:item.quantity);
+          receiptLabel.append(receiptQuantity);
+          const receiptButton=document.createElement('button');receiptButton.type='submit';receiptButton.className='primary';receiptButton.textContent='Valider l’achat et ajouter au stock';
+          receipt.append(receiptLabel,receiptButton);let receiptRequestId=null;
+          receipt.addEventListener('submit',async event=>{
+            event.preventDefault();if(!receipt.reportValidity()||!state.household)return;
+            const quantity=Number(receiptQuantity.value);receiptRequestId??=newProductionRequestId();receiptButton.disabled=true;
+            try{
+              const result=await api('/api/household-planning/purchases',{method:'POST',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,quantity,unitId:item.unitId,requestId:receiptRequestId})});
+              receiptRequestId=null;const y=window.scrollY;await refreshShopping();window.scrollTo(0,y);await refreshDashboard();
+              showMessage($('#shopping-export-message'),`${item.name} : +${formatQty(result.quantityG)} g ajoutés au stock.`,true);
+            }catch(error){const code=error.body?.error??error.message;
+              showMessage($('#shopping-export-message'),code==='ingredient-conversion-missing'
+                ?`Conversion en grammes manquante pour ${item.name}. Complète la fiche de l’aliment avant de valider cet achat.`:`Achat non enregistré : ${code}`);
+              receiptButton.disabled=false;
+            }
+          });inventoryActions.append(receipt);main.append(inventoryActions);
           const options=document.createElement('details');options.className='shopping-item-options';
           options.open=openDetails.has(row.dataset.key);
           const summary=document.createElement('summary');summary.textContent='Détails et réglages';options.append(summary);
@@ -553,20 +598,30 @@ function renderIngredientStock(items) {
     const card=document.createElement('article');card.className='stock-row';
     const name=document.createElement('strong');name.textContent=item.name;
     const tag=document.createElement('span');tag.className=item.alert?'warning-tag':'stock-status';
-    tag.textContent=item.alert?'À commander':'Surveillé';
+    tag.textContent=item.alert?'À commander':'Stock suivi';
     const detail=document.createElement('p');detail.textContent=`Stock : ${formatQty(item.quantityG)} g · minimum : ${formatQty(item.minimumG)} g · cible : ${formatQty(item.targetG)} g`;
     const forecast=document.createElement('p');forecast.textContent=`Besoins prévus sous ${item.leadDays} jours : ${formatQty(item.neededG)} g · restant estimé : ${formatQty(item.projectedG)} g`;
     if(!item.complete)forecast.textContent+=' · conversion manquante, estimation incomplète';
     if(item.orderG>0){const order=document.createElement('b');order.className='warning-tag';order.textContent=`Commande suggérée : ${formatQty(item.orderG)} g`;forecast.append(' · ',order);}
-    const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='Inventaire / réception / seuils';
+    const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='Corriger l’inventaire / les seuils';
     edit.addEventListener('click',()=>{
       const form=$('#ingredient-stock-form');form.elements.foodId.replaceChildren(new Option(item.name,item.foodId,true,true));
       $('#ingredient-search').value=item.name;
       for(const field of ['quantityG','minimumG','targetG','leadDays'])form.elements[field].value=item[field];
       form.dataset.version=String(item.version);showMessage($('#ingredient-message'),'');form.scrollIntoView({behavior:'smooth',block:'center'});
     });
-    card.append(name,' · ',tag,detail,forecast,edit);return card;
-  }):[emptyMessage('Ajoute les bases dont tu veux surveiller le stock.')]));
+    card.append(name,' · ',tag,detail,forecast,edit);
+    if(item.movements?.length){const history=document.createElement('details');history.className='stock-movement-history';
+      const summary=document.createElement('summary');summary.textContent='Derniers mouvements';history.append(summary);
+      const reasons={inventory:'Inventaire corrigé',purchase:'Achat validé',production:'Production enregistrée',
+        'production-cancelled':'Production annulée','meal-preparation':'Repas préparé','meal-preparation-cancelled':'Préparation annulée'};
+      for(const movement of item.movements){const line=document.createElement('p');
+        const source=movement.sourceQuantity!=null?` · ${formatQty(movement.sourceQuantity)} ${movement.sourceUnitId}`:'';
+        line.textContent=`${reasons[movement.reason]??movement.reason} : ${movement.deltaG>=0?'+':''}${formatQty(movement.deltaG)} g${source}`;
+        history.append(line);
+      }card.append(history);
+    }return card;
+  }):[emptyMessage('Ajoute les produits déjà présents, ou valide un achat depuis la liste de courses.')]));
 }
 let ingredientSearchSequence=0;
 $('#ingredient-search').addEventListener('input',async event=>{
@@ -584,7 +639,7 @@ $('#ingredient-search').addEventListener('input',async event=>{
 $('#ingredient-stock-form').elements.foodId.addEventListener('change',event=>{
   const form=$('#ingredient-stock-form'),item=state.ingredients.find(row=>row.foodId===event.currentTarget.value);
   form.dataset.version=String(item?.version??0);
-  for(const field of ['quantityG','minimumG','targetG','leadDays'])form.elements[field].value=item?.[field]??(field==='leadDays'?7:'');
+  for(const field of ['quantityG','minimumG','targetG','leadDays'])form.elements[field].value=item?.[field]??(field==='quantityG'?'':0);
 });
 $('#cancel-ingredient-edit').addEventListener('click',()=>{
   const form=$('#ingredient-stock-form');form.reset();form.dataset.version='0';ingredientSearchSequence++;
@@ -603,7 +658,7 @@ $('#ingredient-stock-form').addEventListener('submit',async event=>{
     await refreshShopping();
     const updated=state.ingredients.find(item=>item.foodId===payload.foodId);
     form.dataset.version=String(updated?.version??payload.version+1);
-    showMessage($('#ingredient-message'),'Inventaire et surveillance enregistrés.',true);await refreshDashboard();
+    showMessage($('#ingredient-message'),'Stock enregistré. La liste de courses a été recalculée.',true);await refreshDashboard();
   }catch(error){showMessage($('#ingredient-message'),error.body?.error==='ingredient-stock-changed'?'Le stock a changé depuis son ouverture. Réouvre son inventaire pour conserver les déductions récentes.':'Stock non enregistré : '+(error.body?.error??error.message));}
   finally{button.disabled=false;}
 });
@@ -1044,6 +1099,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
       'invalid-cooking-factor':'Le coefficient de cuisson doit être un nombre positif, au maximum 10.',
       'serving-parts-cannot-be-disabled':'Cette recette possède déjà des portions en grammes. Conserve ce mode pour protéger les repas et stocks liés.',
       'serving-part-removal-not-supported':'Une partie déjà utilisée ne peut pas être supprimée implicitement. Conserve les parties existantes pour protéger le planning et le stock.',
+      'recipe-used-in-prepared-meal':'Cette recette est liée à un repas déjà marqué préparé. Annule d’abord la préparation de ce repas pour modifier ses ingrédients.',
     };
     showMessage(message,servingErrors[error.body?.error] ?? `Enregistrement impossible : ${error.body?.error ?? error.message}`);
   }
@@ -1612,6 +1668,20 @@ function renderMealCard(meal) {
   const partial = meal.isOccasion ? false : meal.items?.some((item) => !item.recipe?.nutrition?.complete) ?? false;
   const total = document.createElement('small'); total.className = 'meal-kcal'; total.textContent = meal.isOccasion ? `${format(kcal)} kcal estimées · déduites de l’épargne` : kcal ? `${partial ? 'Sous-total partiel' : 'Total'} · ${format(kcal)} kcal` : 'Valeurs inconnues ou incomplètes';
   card.append(edit, attendee, total);
+  if(meal.preparedAt){const done=document.createElement('small');done.className='stock-status';done.textContent='Préparé ✓';card.append(done);edit.disabled=true;edit.title='Annule la préparation avant de modifier ce repas.';}
+  if(!meal.isOccasion){const prepared=document.createElement('button');prepared.type='button';prepared.className='text-button';prepared.textContent=meal.preparedAt?'Annuler la préparation':'Marquer préparé';
+    const status=document.createElement('small');status.setAttribute('role','status');
+    prepared.addEventListener('click',async()=>{
+      prepared.disabled=true;
+      try{await api(`/api/planning/meals/${meal.id}/prepared`,{method:'PUT',body:JSON.stringify({householdId:state.household.id,prepared:!meal.preparedAt})});
+        await Promise.all([refreshCalendar(),refreshShopping(),refreshDashboard()]);}
+      catch(error){const body=error.body??{};const explanations={
+        'prepared-batch-insufficient':'Cette recette de batch n’a pas assez de portions produites. Enregistre d’abord sa production dans Courses & stocks.',
+        'ingredient-stock-insufficient':`Stock insuffisant pour ${body.name} : ${formatQty(body.requiredG)} g nécessaires, ${formatQty(body.availableG)} g disponibles.`,
+        'ingredient-conversion-missing':`Conversion en grammes manquante pour ${body.name}. Complète la fiche de cet aliment.`};
+        status.textContent=explanations[body.error]??`Préparation non enregistrée : ${body.error??error.message}`;prepared.disabled=false;}
+    });card.append(prepared,status);
+  }
   const duplicate=document.createElement('button');duplicate.type='button';duplicate.className='text-button';duplicate.textContent='Dupliquer';duplicate.addEventListener('click',()=>openMealDuplication(meal));card.append(duplicate);
   edit.addEventListener('click', () => openMealEditor(meal.mealDate, meal.slot, meal));
   return card;
@@ -1984,6 +2054,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
 }
 
 async function openMealEditor(date, slot, meal = null) {
+  if(meal?.preparedAt)return;
   if (!state.people.length || !state.recipes.length) await refreshCalendar();
   state.calendarMealId = meal?.id ?? null;
   state.duplicationMeal = meal;

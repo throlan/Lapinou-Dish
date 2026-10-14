@@ -212,6 +212,19 @@ export async function cancelStockLot(pool, householdId, lotId) {
       result = await client.query('SELECT id,cancelled_at FROM stock_lots WHERE id=$1 AND household_id=$2 FOR UPDATE',[lotId,householdId]);
     }
     if (result.rows[0].cancelled_at) { await client.query('ROLLBACK'); return { cancelled:true,replayed:true,restored:[] }; }
+    const cancelledRecipes=await client.query(`SELECT recipe_id,sum(quantity) AS quantity FROM stock_lots
+      WHERE (id=$1 OR parent_lot_id=$1) AND NOT is_serving_bundle GROUP BY recipe_id`,[lotId]);
+    for(const recipe of cancelledRecipes.rows){
+      const remaining=await client.query(`SELECT COALESCE(sum(quantity),0) AS quantity FROM stock_lots
+        WHERE household_id=$1 AND recipe_id=$2 AND cancelled_at IS NULL AND NOT is_serving_bundle
+          AND id<>$3 AND parent_lot_id IS DISTINCT FROM $3`,[householdId,recipe.recipe_id,lotId]);
+      const prepared=await client.query(`SELECT COALESCE(sum(a.quantity),0) AS quantity
+        FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id JOIN planned_amounts a ON a.planned_item_id=i.id
+        WHERE m.household_id=$1 AND m.prepared_at IS NOT NULL AND i.recipe_id=$2`,[householdId,recipe.recipe_id]);
+      if(Number(remaining.rows[0].quantity)+0.00001<Number(prepared.rows[0].quantity)){
+        await client.query('ROLLBACK');return {error:'production-already-used'};
+      }
+    }
     const movements = await client.query(
       `SELECT m.food_id AS "foodId", f.canonical_name AS name, -sum(m.delta_g) AS "quantityG"
        FROM ingredient_stock_movements m JOIN foods f ON f.id=m.food_id

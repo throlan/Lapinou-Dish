@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=0.2.51">
+    <link rel="stylesheet" href="/style.css?v=0.2.52">
   </head>
   <body>
     <header class="topbar">
@@ -160,25 +160,25 @@
           </details>
         </section>
         <div class="shopping-columns">
-          <section class="card shopping-list-card"><h3>Liste de courses</h3><p class="hint">Chaque magasin a sa liste. Coche les achats faits ; ouvre « Détails » pour changer le format, la catégorie ou le magasin. « Copier » ou « Télécharger » permet de partager la liste ; l’envoi direct vers Alexa n’est plus disponible via son API.</p><div class="shopping-range"><label>Du<input id="shopping-start" type="date"></label><label>Au<input id="shopping-end" type="date"></label><button class="secondary" type="button" id="refresh-shopping">Actualiser</button></div><label class="shopping-filter-label">Afficher<select id="shopping-store-filter"><option value="all">Tous les magasins</option></select></label><p id="shopping-export-message" class="form-message" role="status"></p><div id="shopping-list" class="shopping-groups"><p class="empty">Choisis une période.</p></div></section>
+          <section class="card shopping-list-card"><h3>Liste de courses</h3><p class="hint">Chaque magasin a sa liste. « Saisir le stock déjà présent » enregistre l’inventaire de départ ; « Valider l’achat » ajoute la quantité réellement achetée au stock. La case à cocher masque simplement une ligne pour cette période, sans mouvement de stock. « Copier » ou « Télécharger » permet de partager la liste.</p><div class="shopping-range"><label>Du<input id="shopping-start" type="date"></label><label>Au<input id="shopping-end" type="date"></label><button class="secondary" type="button" id="refresh-shopping">Actualiser</button></div><label class="shopping-filter-label">Afficher<select id="shopping-store-filter"><option value="all">Tous les magasins</option></select></label><p id="shopping-export-message" class="form-message" role="status"></p><div id="shopping-list" class="shopping-groups"><p class="empty">Choisis une période.</p></div></section>
           <section class="card"><h3>Enregistrer une production</h3><form id="production-form"><label>Préparation<select name="recipeId" required></select></label><div class="yield-row"><label>Date<input name="producedOn" type="date" required></label><label>Quantité produite<input name="quantity" type="number" min="0.01" step="any" required></label></div><label>Conservation<select name="storage"><option value="freezer">Congélateur</option><option value="fridge">Réfrigérateur</option><option value="pantry">Placard</option></select></label><label>Note (facultatif)<input name="note" maxlength="500"></label><button class="primary" type="submit">Ajouter au stock</button><p id="production-message" class="form-message" role="status"></p></form><h3>Stock des préparations</h3><p class="hint">Le stock disponible tient compte des quantités déjà prévues dans les repas.</p><div id="stock-list"><p class="empty">Chargement…</p></div></section>
         </div>
         <section class="card ingredient-section">
-          <h3>Ingrédients à surveiller</h3>
-          <p class="hint">Whey, farines et autres bases : renseigne le stock réellement présent. Les productions déduisent ces ingrédients automatiquement. Toutes les quantités ci-dessous sont en grammes.</p>
+          <h3>Stock des produits</h3>
+          <p class="hint">Renseigne les produits déjà présents. Les achats validés augmentent le stock ; les productions et les repas marqués « Préparé » retirent les ingrédients utilisés. Les quantités de stock sont en grammes. Laisse les seuils à zéro si tu ne souhaites pas de surveillance.</p>
           <form id="ingredient-stock-form">
-            <div class="yield-row"><label>Rechercher dans les aliments<input id="ingredient-search" type="search" placeholder="Whey, farine…" autocomplete="off"></label><label>Aliment à surveiller<select name="foodId" required><option value="">Rechercher puis choisir un aliment…</option></select></label></div>
+            <div class="yield-row"><label>Rechercher dans les aliments<input id="ingredient-search" type="search" placeholder="Ail, farine…" autocomplete="off"></label><label>Produit à stocker<select name="foodId" required><option value="">Rechercher puis choisir un aliment…</option></select></label></div>
             <div class="ingredient-fields">
               <label>Stock compté (g)<input name="quantityG" type="number" min="0" max="100000000" step="0.001" required></label>
-              <label>Stock minimum (g)<input name="minimumG" type="number" min="0" max="100000000" step="0.001" required></label>
-              <label>Stock cible après commande (g)<input name="targetG" type="number" min="0" max="100000000" step="0.001" required></label>
-              <label>Délai de commande (jours)<input name="leadDays" type="number" min="0" max="60" step="1" value="7" required></label>
+              <label>Stock minimum (g, facultatif)<input name="minimumG" type="number" min="0" max="100000000" step="0.001" value="0" required></label>
+              <label>Stock cible après commande (g, facultatif)<input name="targetG" type="number" min="0" max="100000000" step="0.001" value="0" required></label>
+              <label>Délai de commande (jours)<input name="leadDays" type="number" min="0" max="60" step="1" value="0" required></label>
             </div>
-            <p class="hint">Le minimum déclenche une alerte. La cible sert à calculer la quantité à commander. Le délai permet d’anticiper les besoins des repas prévus avant livraison. Après réception, mets à jour le stock compté.</p>
-            <div class="form-actions"><button class="primary" type="submit">Enregistrer le stock et la surveillance</button><button id="cancel-ingredient-edit" class="secondary" type="button">Nouvel aliment</button></div>
+            <p class="hint">Minimum, cible et délai sont facultatifs : zéro suffit pour un stock simple. Pour une réception de courses, utilise « Valider l’achat » sur la ligne ; elle s’ajoute au stock sans écraser l’inventaire.</p>
+            <div class="form-actions"><button class="primary" type="submit">Enregistrer le stock</button><button id="cancel-ingredient-edit" class="secondary" type="button">Nouveau produit</button></div>
             <p id="ingredient-message" class="form-message" role="status"></p>
           </form>
-          <div id="ingredient-stock-list"><p class="empty">Aucun ingrédient surveillé.</p></div>
+          <div id="ingredient-stock-list"><p class="empty">Aucun produit en stock.</p></div>
         </section>
       </section>
 
@@ -259,6 +259,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.51"></script>
+    <script type="module" src="/app.js?v=0.2.52"></script>
   </body>
 </html>

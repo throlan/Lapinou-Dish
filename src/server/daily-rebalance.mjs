@@ -86,7 +86,7 @@ export function rebalanceDailyEnergy(input,people) {
 export async function previewDailyRebalance(pool,householdId,date) {
   const amounts=await pool.query(`SELECT i.id AS item_id,i.recipe_id,i.meal_id,i.role,m.slot,a.person_id,a.quantity
     FROM planned_amounts a JOIN planned_meal_items i ON i.id=a.planned_item_id JOIN planned_meals m ON m.id=i.meal_id
-    WHERE m.household_id=$1 AND m.meal_date=$2 ORDER BY m.id,i.id,a.person_id`,[householdId,date]);
+    WHERE m.household_id=$1 AND m.meal_date=$2 AND m.prepared_at IS NULL ORDER BY m.id,i.id,a.person_id`,[householdId,date]);
   const peopleResult=await pool.query(`SELECT p.id,p.display_name,p.birth_date::text AS birth_date,p.active,
     (SELECT daily_energy_kcal FROM person_profile_history ph WHERE ph.person_id=p.id AND ph.effective_from<=$2 ORDER BY effective_from DESC LIMIT 1) AS target
     FROM people p WHERE p.household_id=$1 ORDER BY p.id`,[householdId,date]);

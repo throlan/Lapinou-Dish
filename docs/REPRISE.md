@@ -3,10 +3,10 @@
 ## Point de départ
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish
-- Branche de référence au début du travail actuel : `main`, commit de la PR 64 : `5795583c907dfc6bd2fb649918cd19d5e2c938a4`.
-- Dernière version publiée vérifiée : **0.2.50**, après la [PR 64](https://github.com/throlan/Lapinou-Dish/pull/64) : magasins physiques et exports par magasin.
+- Branche de référence au début du travail actuel : `main`, commit de la PR 65 : `62f841005d23141dbbb271048c393dd06a7859d7`.
+- Dernière version publiée vérifiée : **0.2.51**, après la [PR 65](https://github.com/throlan/Lapinou-Dish/pull/65) : unités d'achat paramétrables par aliment.
 - Journal détaillé : [SESSION-2026-10-13.md](SESSION-2026-10-13.md). État et tâches restantes : [STATUS.md](STATUS.md).
-- Travail actuel : **0.2.51**, unités d'achat paramétrables par aliment. Voir [la session du 14 octobre](SESSION-2026-10-14.md). 170 tests réussis et parcours Chrome local ordinateur/mobile vérifié sur données synthétiques. Publication de cette version à confirmer après la PR.
+- Travail actuel : **0.2.52**, stock des produits, validation des achats et préparation des repas. Voir [la session du 14 octobre](SESSION-2026-10-14.md). 171 tests réussis et parcours Chrome local ordinateur/mobile vérifié sur données synthétiques. Publication de cette version à confirmer après la PR.
 
 ## Règle d'exploitation impérative
 
@@ -72,6 +72,12 @@ Les 167 tests et le parcours Chrome local sur données fictives (ordinateur/mobi
 ## Unités d'achat paramétrables — 0.2.51
 
 Chaque aliment du foyer peut recevoir un nom d'unité d'achat au singulier et au pluriel, une quantité couverte en g, ml ou pièces, et une note d'estimation. Le réglage est accessible dans les détails de la ligne de courses. Les unités déjà présentes dans plusieurs recettes sont agrégées seulement si le catalogue fournit la conversion nécessaire ; autrement les lignes restent séparées avec un avertissement. Un format de paquet manuel reste prioritaire. Les conversions nutritionnelles ne sont pas déduites de ces réglages. Migration `20261014_purchase_units.sql` ; API authentifiée `GET/PUT/DELETE /api/household-purchase-units`. Voir [le guide](ONLINE-SHOPPING.md).
+
+La PR 65 est fusionnée et la publication GitHub a réussi dans le workflow 181.
+
+## Stock des produits — 0.2.52
+
+Une ligne de courses permet de compter le stock initial dans son unité et de valider séparément la quantité réellement achetée. Le stock est mémorisé en grammes avec conversion documentée ; les achats ajoutent, un inventaire corrige le total. Les besoins d'une période soustraient le stock présent. Les recettes préparées depuis le calendrier déduisent les ingrédients suivis ; les batchs produits les ont déjà déduits et leur service n'effectue aucun second prélèvement. Annulation, historique et protection contre les doubles enregistrements. Les repas simplement planifiés ne constituent pas une sortie réelle. Voir [le guide](PRODUCT-INVENTORY.md).
 
 ## Validation et livraison du développement
 

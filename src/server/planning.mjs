@@ -52,7 +52,7 @@ export function validatePlannedMeal(input) {
 
 export async function listPlannedMeals(pool, householdId, weekStart) {
   const result = await pool.query(
-    'SELECT id, meal_date::text AS meal_date, slot, notes, is_occasion, occasion_title FROM planned_meals WHERE household_id = $1 AND meal_date >= $2::date AND meal_date < $2::date + 7 ORDER BY meal_date, CASE slot WHEN \'breakfast\' THEN 1 WHEN \'lunch\' THEN 2 WHEN \'snack\' THEN 3 WHEN \'dinner\' THEN 4 ELSE 5 END, created_at',
+    'SELECT id, meal_date::text AS meal_date, slot, notes, is_occasion, occasion_title, prepared_at FROM planned_meals WHERE household_id = $1 AND meal_date >= $2::date AND meal_date < $2::date + 7 ORDER BY meal_date, CASE slot WHEN \'breakfast\' THEN 1 WHEN \'lunch\' THEN 2 WHEN \'snack\' THEN 3 WHEN \'dinner\' THEN 4 ELSE 5 END, created_at',
     [householdId, weekStart],
   );
   const meals = [];
@@ -93,6 +93,8 @@ export async function savePlannedMeal(pool, id, data) {
     }
     if (normalizedItems.some(item=>item.amounts.some(amount=>!Number.isFinite(amount.quantity) || amount.quantity > 100000))) { await client.query('ROLLBACK'); return {error:'invalid-planned-quantity'}; }
     if (id) {
+      const existing=await client.query('SELECT prepared_at FROM planned_meals WHERE id=$1 AND household_id=$2 FOR UPDATE',[id,data.householdId]);
+      if(existing.rows[0]?.prepared_at){await client.query('ROLLBACK');return {error:'prepared-meal-locked'};}
       const updated = await client.query(
         'UPDATE planned_meals SET meal_date = $3, slot = $4, notes = $5, is_occasion=$6, occasion_title=$7, updated_at = now() WHERE id = $1 AND household_id = $2 RETURNING id',
         [id, data.householdId, data.mealDate, data.slot, data.notes, data.isOccasion ?? false, data.occasionTitle ?? ''],
@@ -131,8 +133,10 @@ export async function savePlannedMeal(pool, id, data) {
 }
 
 export async function deletePlannedMeal(pool, id, householdId) {
-  const result = await pool.query('DELETE FROM planned_meals WHERE id = $1 AND household_id = $2 RETURNING id', [id, householdId]);
-  return Boolean(result.rowCount);
+  const result = await pool.query('DELETE FROM planned_meals WHERE id = $1 AND household_id = $2 AND prepared_at IS NULL RETURNING id', [id, householdId]);
+  if(result.rowCount)return true;
+  const existing=await pool.query('SELECT prepared_at FROM planned_meals WHERE id=$1 AND household_id=$2',[id,householdId]);
+  return existing.rows[0]?.prepared_at?{error:'prepared-meal-locked'}:false;
 }
 
 export function validateMealDuplication(input) {
@@ -180,7 +184,7 @@ export async function duplicatePlannedMeal(pool, sourceId, input) {
 async function readPlannedMeal(client, meal, householdId) {
   let row = meal;
   if (meal.meal_date == null) {
-    const result = await client.query('SELECT id, meal_date::text AS meal_date, slot, notes, is_occasion, occasion_title FROM planned_meals WHERE id = $1 AND household_id = $2', [meal.id, householdId]);
+    const result = await client.query('SELECT id, meal_date::text AS meal_date, slot, notes, is_occasion, occasion_title, prepared_at FROM planned_meals WHERE id = $1 AND household_id = $2', [meal.id, householdId]);
     row = result.rows[0];
   }
   if (!row) return null;
@@ -206,6 +210,7 @@ async function readPlannedMeal(client, meal, householdId) {
   return {
     id: row.id, mealDate: typeof row.meal_date === 'string' ? row.meal_date.slice(0, 10) : row.meal_date.toISOString().slice(0, 10),
     slot: row.slot, notes: row.notes, isOccasion: Boolean(row.is_occasion), occasionTitle: row.occasion_title ?? '', occasionEnergy,
+    preparedAt:row.prepared_at??null,
     attendees: attendeesResult.rows.map((person) => ({ id: person.id, displayName: person.display_name })),
     items,
   };
