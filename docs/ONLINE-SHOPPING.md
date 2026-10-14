@@ -1,35 +1,30 @@
-# Achats en ligne et listes par boutique
+# Courses par magasin et achats en ligne
 
-Dans **Courses & stocks → Achats en ligne**, enregistrer le nom et l'URL HTTPS des boutiques utilisées. Les liens de commande existants sont réutilisés : il n'est pas nécessaire de les recréer.
+Dans **Courses & stocks → Magasins et achats en ligne**, ajouter un nom. Le site HTTPS est facultatif : Grand Frais, Aldi ou Carrefour Market peuvent donc être des magasins physiques ; Nutripure et les autres boutiques en ligne conservent leur lien. Les boutiques déjà enregistrées restent disponibles.
 
-## Associer les aliments
+Ouvrir **Associer les aliments aux magasins** pour rechercher et sélectionner les aliments d'un magasin habituel. Une affectation s'applique à toutes les périodes et unités de l'aliment dans ce foyer. Dans la liste de courses, **Détails et réglages** permet aussi de changer le magasin, la catégorie ou le format d'achat. Sans magasin, l'article reste dans la liste **Sans magasin**. La suppression d'un magasin retire seulement les affectations de ses aliments.
 
-1. Ouvrir **Associer les aliments aux boutiques**.
-2. Rechercher un aliment, par exemple « whey » ou « farine ».
-3. Cocher les aliments concernés, ou cliquer sur **Sélectionner les résultats affichés**.
-4. Choisir une boutique puis **Associer la sélection**.
+La liste prend toute la largeur de la page et se regroupe par magasin. Le filtre affiche un seul magasin ou tous. La ligne montre d'abord la quantité à acheter ; le détail conserve le besoin issu des recettes. Les cases cochées sont exclues de l'export. **Copier** place la liste du magasin dans le presse-papiers ; **Télécharger** produit un fichier texte par magasin. Les quantités de recettes, les stocks et les calculs nutritionnels ne sont pas changés par la présentation d'achat.
 
-Exemples : les différentes wheys chez Nutripure ; les farines et certains produits bio chez Greenwhiz. L'affectation reste explicite, sans classifier tous les aliments bio ou toutes les farines automatiquement.
+## Unités d'achat indicatives
 
-La sélection est conservée entre recherches et peut être vidée. Au maximum 50 résultats sont affichés par recherche et 200 aliments peuvent être affectés en une fois. Le nombre et les noms des aliments sélectionnés sont affichés avant validation. Affiner la recherche si tous les résultats ne tiennent pas dans la liste.
+- Ail à la pièce : la pièce du catalogue correspond à une **gousse**. La liste propose une tête pour neuf gousses indicatives ; trois gousses donnent environ un tiers de tête. La quantité de gousses nécessaire reste visible.
+- Basilic à la pièce : le libellé d'achat est **bouquet**. Si la recette donne des grammes, la liste demande du basilic en bouquet et affiche le besoin en grammes ; le poids du bouquet doit être vérifié, car il n'est pas déduit de la recette.
+- Gingembre en grammes : une racine est estimée à **65 g**, au milieu de la fourchette indicative **50 à 80 g** donnée par l'utilisateur. Le nombre de racines est arrondi vers le haut et le besoin exact en grammes reste visible.
 
-Un aliment a une boutique par foyer, pour toutes ses unités et périodes de courses. Les autres foyers gardent leurs propres choix. Les affectations enregistrées peuvent être modifiées dans ce même panneau, même si l'aliment n'est pas nécessaire dans la période actuelle. Choisir **Sans boutique** retire l'affectation ; ce choix est également disponible pour une sélection de plusieurs aliments.
+Ces libellés ne modifient pas les conversions nutritionnelles. Un format d'achat saisi manuellement sur la ligne prend priorité sur ces suggestions.
 
-## Préparer les courses
+## Home Assistant
 
-La liste calculée pour la période choisie regroupe les aliments affectés dans **Achats en ligne**, avec une sous-liste par boutique et un lien **Ouvrir la boutique**. Le sélecteur Boutique de chaque ligne permet de déplacer un aliment vers un autre marchand ou de retirer son affectation.
+L'application peut envoyer les articles non cochés dans une liste `todo` distincte par magasin. Dans Home Assistant, créer une liste via **Local to-do** pour chaque magasin et relever son identifiant, par exemple `todo.grand_frais`. Dans Lapinou Dish, ouvrir **Home Assistant** sur la ligne du magasin, saisir cet identifiant et enregistrer. Le bouton **Envoyer à Home Assistant** apparaît alors dans sa liste de courses.
 
-Les aliments sans boutique restent visibles dans leur catégorie habituelle ; ceux de l'ancienne catégorie whey/farines restent dans **Achats en ligne → Sans boutique attribuée**. Tant qu'une boutique est affectée, la catégorie de la ligne est fixée à Achats en ligne. Retirer l'affectation retrouve la catégorie précédemment enregistrée.
+Le processus applicatif doit recevoir `HOME_ASSISTANT_URL` (URL de base accessible depuis l'application) et `HOME_ASSISTANT_TOKEN` (jeton d'accès longue durée) par variables d'environnement. Garder le jeton côté serveur, hors Git et hors navigateur. Le bouton d'export signale l'absence de configuration. L'export lit d'abord les articles ouverts avec `todo.get_items`, puis utilise `todo.add_item` pour les lignes absentes ; une répétition avec les mêmes intitulés n'ajoute pas de doublon. Il ne supprime ni ne coche d'éléments existants. Si la quantité change, le nouvel intitulé est ajouté et l'ancien reste à gérer dans Home Assistant.
 
-Les besoins proviennent des recettes et portions du calendrier. Les stocks préparés, réservations et stocks d'ingrédients surveillés restent déduits selon les règles existantes. Les formats de paquet, arrondis d'achat, cases acheté par période, liens vers les recettes et quantités sources sont conservés. Une simple modification du paquet met à jour la ligne sans reconstruire la liste ni changer le défilement.
+L'API officielle des listes Alexa a été arrêtée le 1er juillet 2024. Lapinou Dish ne promet donc pas d'envoi direct vers des listes Alexa : utiliser **Copier** ou **Télécharger** pour partager la liste par magasin.
 
-La routine précédemment nommée « Commande whey et farines » s'appelle désormais **Achats en ligne**. Les identifiants internes et réglages de fréquence/date sont conservés.
+## Technique
 
-Supprimer une boutique ayant des aliments affectés demande confirmation et retire ces affectations. Les aliments, leurs besoins et les réglages de courses restent conservés.
-
-## Technique et validation
-
-- Migration `20261014_food_stores.sql` : relation par foyer/aliment vers un lien de commande du même foyer, protégée par clé étrangère composée.
-- API authentifiée `GET/PUT /api/household-food-stores`. L'affectation d'une sélection est transactionnelle ; un aliment ou une boutique inconnue annule toute l'opération.
-- Tests `test/food-stores.test.mjs` : validation, isolation des foyers, persistance, réaffectation, retrait, stocks, paquets, cases acheté, protection de la migration des réglages existants et suppression d'une boutique.
-- Parcours Chrome local sur données synthétiques : ajout de boutiques, affectation par sélection, listes par marchand, conservation après rechargement et affichage mobile.
+- La migration `20261014_physical_stores.sql` rend l'URL facultative et ajoute la cible Home Assistant par magasin, en préservant les liens existants.
+- Les affectations restent protégées par foyer et la suppression d'un magasin conserve les aliments et leurs besoins.
+- L'export est une route authentifiée, limitée à la période demandée et aux articles du magasin du foyer ; le jeton Home Assistant n'est jamais envoyé au client.
+- Tests PGlite, tests des unités d'achat et de l'API Home Assistant simulée ; parcours Chrome local ordinateur et mobile sur données fictives.

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { listFoodStores } from './food-stores.mjs';
 import { rawShoppingRequirements } from './shopping-requirements.mjs';
+import { purchaseDescription } from './shopping-presentation.mjs';
 import { ingredientProjection, lockHouseholdInventory, productionDeductions, readIngredientStock } from './ingredient-stock.mjs';
 
 const routineDefaults = [
@@ -31,25 +32,34 @@ export function validateRoutineSettings(input) {
 export function validateOrderLinkInput(input) {
   if (!input || typeof input !== 'object' || !isUuid(input.householdId)
     || typeof input.label !== 'string' || !input.label.trim() || input.label.trim().length > 100
-    || typeof input.url !== 'string' || input.url.length > 2048) return { error: 'invalid-order-link' };
-  let parsed;
-  try { parsed = new URL(input.url.trim()); } catch { return { error: 'invalid-order-link' }; }
-  if (parsed.protocol !== 'https:' || !parsed.hostname || parsed.username || parsed.password) return { error: 'invalid-order-link' };
-  return { data: { id: isUuid(input.id) ? input.id : randomUUID(), householdId: input.householdId, label: input.label.trim(), url: parsed.toString() } };
+    || (input.url != null && typeof input.url !== 'string') || (input.url?.length ?? 0) > 2048
+    || (input.homeAssistantEntityId != null && input.homeAssistantEntityId !== ''
+      && (typeof input.homeAssistantEntityId !== 'string' || !/^todo\.[a-z0-9_]+$/.test(input.homeAssistantEntityId)))) return { error: 'invalid-order-link' };
+  let url = null;
+  if (input.url?.trim()) {
+    let parsed;
+    try { parsed = new URL(input.url.trim()); } catch { return { error: 'invalid-order-link' }; }
+    if (parsed.protocol !== 'https:' || !parsed.hostname || parsed.username || parsed.password) return { error: 'invalid-order-link' };
+    url = parsed.toString();
+  }
+  return { data: { id: isUuid(input.id) ? input.id : randomUUID(), householdId: input.householdId, label: input.label.trim(), url,
+    homeAssistantEntityId:input.homeAssistantEntityId || null } };
 }
 
 export async function listOrderLinks(pool, householdId) {
   const result = await pool.query(
-    'SELECT id, label, url FROM household_order_links WHERE household_id=$1 ORDER BY created_at,id', [householdId]);
+    'SELECT id, label, url, home_assistant_entity_id AS "homeAssistantEntityId" FROM household_order_links WHERE household_id=$1 ORDER BY created_at,id', [householdId]);
   return result.rows;
 }
 
 export async function saveOrderLink(pool, link) {
   const result = await pool.query(
-    `INSERT INTO household_order_links(id,household_id,label,url) VALUES($1,$2,$3,$4)
-     ON CONFLICT(id) DO UPDATE SET label=EXCLUDED.label,url=EXCLUDED.url,updated_at=now()
+    `INSERT INTO household_order_links(id,household_id,label,url,home_assistant_entity_id) VALUES($1,$2,$3,$4,$5)
+     ON CONFLICT(id) DO UPDATE SET label=EXCLUDED.label,url=EXCLUDED.url,
+       home_assistant_entity_id=EXCLUDED.home_assistant_entity_id,updated_at=now()
      WHERE household_order_links.household_id=EXCLUDED.household_id
-     RETURNING id,label,url`, [link.id,link.householdId,link.label,link.url]);
+     RETURNING id,label,url,home_assistant_entity_id AS "homeAssistantEntityId"`,
+    [link.id,link.householdId,link.label,link.url,link.homeAssistantEntityId??null]);
   return result.rows[0] ?? null;
 }
 
@@ -293,10 +303,12 @@ export async function listShoppingRequirements(pool, householdId, startDate, end
     const rawQuantity = Number(row.quantity);
     const packageQuantity = purchasePack ? Number(purchasePack.packageQuantity) : null;
     const quantity = packageQuantity ? Math.ceil(rawQuantity/packageQuantity)*packageQuantity : shoppingPurchaseQuantity(rawQuantity,row.unitId);
-    return {...row,neededQuantity:rawQuantity,quantity,packageQuantity,packageCount:packageQuantity ? Math.ceil(rawQuantity/packageQuantity) : null,
+    const presented={...row,neededQuantity:rawQuantity,quantity,packageQuantity,packageCount:packageQuantity ? Math.ceil(rawQuantity/packageQuantity) : null};
+    return {...presented,purchase:purchaseDescription(presented),
       quantityRounded:quantity!==rawQuantity,baseGroupId:setting?.groupId ?? row.groupId ?? 'bulk',
       groupId:store?'whey_flour':setting?.groupId ?? row.groupId ?? 'bulk',
-      store:store?{id:store.orderLinkId,label:store.label,url:store.url}:null,checked:setting?.checked ?? false};
+      store:store?{id:store.orderLinkId,label:store.label,url:store.url,homeAssistantEntityId:store.homeAssistantEntityId}:null,
+      checked:setting?.checked ?? false};
   }).sort((a,b)=>a.groupId.localeCompare(b.groupId)||a.name.localeCompare(b.name));
 }
 

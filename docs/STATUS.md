@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-**0.2.48**, publiée après la PR 60, fusionnée sur `main` dans le commit `e2c5685d032588e898d0bd5c7a502697fdaf18b7`. Elle comprend les formats de paquets mémorisés par foyer, aliment et unité, la suppression protégée des aliments inutilisés, les liens et quantités de recettes dans les courses, l'arrondi des achats à la pièce entière et le compte épargne kcal.
+**0.2.49** publiée après la PR 62, fusionnée sur `main` dans le commit `d7aed3bd7ec354f69e124adf8a8d6261b7786397`. Les achats en ligne sont regroupés par boutique. **0.2.50** est en développement local pour ajouter magasins physiques, listes par magasin et export Home Assistant ; sa publication reste à vérifier après livraison.
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des modifications : [journal de session](SESSION-2026-10-13.md).
 
@@ -26,7 +26,7 @@ Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). P
 
 ## Vérification
 
-**164 tests réussis** avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` (Node v24.19.0).
+**167 tests réussis** avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` (Node v24.19.0) sur le travail 0.2.50.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 
@@ -48,7 +48,11 @@ Le brouillon `drafts/ENERGY-RESERVE.md` est historique : le système corresponda
 
 Développement sur feat/online-shopping-by-store : affectations par foyer de plusieurs aliments à une boutique, réutilisation des liens de commande, listes de courses par marchand et renommage des libellés whey/farines en Achats en ligne. Stocks, paquets, cases acheté et aliments sans boutique préservés. Les affectations sont modifiables dans le panneau ou directement depuis les courses.
 
-164 tests réussis et parcours Chrome local ordinateur/mobile validé sur données synthétiques. PR et publication à confirmer. Guide : [ONLINE-SHOPPING.md](ONLINE-SHOPPING.md). Détails dans [la session du 14 octobre](SESSION-2026-10-14.md).
+La PR 62 a été fusionnée et la publication de l'image a réussi dans le workflow 175. Guide : [ONLINE-SHOPPING.md](ONLINE-SHOPPING.md). Détails dans [la session du 14 octobre](SESSION-2026-10-14.md).
+
+## Magasins physiques et exports — 0.2.50
+
+En développement local : URL facultative pour les magasins ; regroupement et filtre par magasin ; liste plus lisible sur toute la largeur ; copie et fichier texte par magasin ; envoi optionnel vers les listes `todo` Home Assistant avec cible par magasin et secret côté serveur. Suggestions d'achat : ail en gousses/têtes, basilic en bouquets, gingembre en racines indicatives de 50–80 g. Les calculs nutritionnels des recettes restent inchangés. Alexa ne fournit plus d'API officielle pour écrire directement dans ses listes. La livraison GitHub et la publication restent à effectuer/vérifier.
 
 ## Guides actuels du projet
 

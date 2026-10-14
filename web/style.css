@@ -259,7 +259,7 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
 @media (max-width: 700px) { .recipe-taxonomy { grid-template-columns:1fr; } }
 
 /* Household shopping, recurring routines and preparation stock */
-.shopping-columns { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr); gap:18px; align-items:start; margin-top:18px; }
+.shopping-columns { display:grid; grid-template-columns:minmax(0,1fr); gap:18px; align-items:start; margin-top:18px; }
 .order-links-card { margin-top:18px; }
 .order-link-form { display:grid; grid-template-columns:minmax(180px,.7fr) minmax(280px,1.5fr) auto; gap:12px; align-items:end; }
 .order-links { display:grid; gap:8px; margin-top:12px; }
@@ -412,3 +412,28 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .shopping-store-control { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:6px 0 0; font-size:12px; }
 .shopping-store-control select { width:auto; max-width:100%; padding:6px; font-size:13px; }
 @media(max-width:560px){.food-store-assignment{grid-template-columns:1fr}.shopping-store-control select{width:100%}}
+.order-link-row { grid-template-columns:minmax(130px,1fr) minmax(100px,.7fr) minmax(200px,1fr) auto; }
+.store-ha-config summary { cursor:pointer; color:var(--accent,#27d3df); }
+.store-ha-config input { width:min(100%,220px); margin:7px 7px 0 0; }
+.store-ha-config small { display:block; margin-top:7px; }
+.shopping-list-card { min-width:0; }
+.shopping-filter-label { display:flex; align-items:center; gap:10px; margin:0 0 16px; }
+.shopping-filter-label select { flex:1; min-width:0; }
+.shopping-store-card { overflow:hidden; border:1px solid var(--line,#344766); border-radius:14px; background:#142039; }
+.shopping-store-header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; background:#202f4b; }
+.shopping-store-header h4 { margin:0; }
+.shopping-store-actions { display:flex; flex-wrap:wrap; align-items:center; gap:7px; }
+.shopping-store-actions button { padding:7px 9px; font-size:12px; }
+.shopping-store-actions a { color:#61dce8; font-size:13px; }
+.shopping-item { display:grid; grid-template-columns:24px minmax(0,1fr); gap:10px; align-items:start; padding:11px 14px; }
+.shopping-item>input { width:18px; height:18px; margin:4px 0; }
+.shopping-item-main { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:3px 10px; }
+.shopping-item-main strong { overflow-wrap:anywhere; }
+.shopping-item-main small { grid-column:1/-1; color:var(--muted,#9bb0d1); }
+.shopping-quantity { color:#c6ed75; font-weight:700; white-space:normal; text-align:right; }
+.shopping-item-options { grid-column:2; font-size:12px; color:var(--muted,#9bb0d1); }
+.shopping-item-options summary { cursor:pointer; }
+.shopping-item-options label { display:grid; gap:4px; margin:9px 0; }
+.shopping-item-options input,.shopping-item-options select { width:100%; }
+.shopping-item-options p { margin:9px 0; }
+@media(max-width:700px){.order-link-row{grid-template-columns:1fr}.shopping-store-header{align-items:flex-start;flex-direction:column}.shopping-item-main{grid-template-columns:1fr}.shopping-quantity{text-align:left}}

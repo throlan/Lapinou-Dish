@@ -283,27 +283,40 @@ async function refreshOrderLinks() {
     const {links}=await api(`/api/household-order-links?householdId=${encodeURIComponent(state.household.id)}`);
     state.orderLinks=links;
     const choice=$('#food-store-form').elements.orderLinkId,previous=choice.value;
-    choice.replaceChildren(new Option('Choisir une boutique…',''),new Option('Sans boutique (retirer l’affectation)','none'),...links.map(link=>new Option(link.label,link.id)));
+    choice.replaceChildren(new Option('Choisir un magasin…',''),new Option('Sans magasin (retirer l’affectation)','none'),...links.map(link=>new Option(link.label,link.id)));
     choice.value=previous;
     updateStoreSelection();
-    if(!links.length){root.replaceChildren(emptyMessage('Aucun lien enregistré.'));return;}
+    if(!links.length){root.replaceChildren(emptyMessage('Aucun magasin enregistré.'));return;}
     root.replaceChildren(...links.map(item=>{
       const row=document.createElement('div');row.className='order-link-row';
-      const link=document.createElement('a');link.href=item.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=item.label;
-      const host=document.createElement('small');host.textContent=new URL(item.url).hostname;
+      const label=item.url?document.createElement('a'):document.createElement('strong');label.textContent=item.label;
+      if(item.url){label.href=item.url;label.target='_blank';label.rel='noopener noreferrer';}
+      const host=document.createElement('small');host.textContent=item.url?new URL(item.url).hostname:'Magasin physique';
+      const config=document.createElement('details');config.className='store-ha-config';
+      const summary=document.createElement('summary');summary.textContent='Home Assistant';
+      const field=document.createElement('input');field.placeholder='todo.grand_frais';field.value=item.homeAssistantEntityId??'';
+      field.setAttribute('aria-label',`Liste Home Assistant de ${item.label}`);
+      const hint=document.createElement('small');hint.textContent='Créer une liste Local to-do par magasin dans Home Assistant. URL et jeton se configurent côté serveur.';
+      const saveConfig=document.createElement('button');saveConfig.type='button';saveConfig.className='secondary';saveConfig.textContent='Enregistrer';
+      saveConfig.addEventListener('click',async()=>{
+        saveConfig.disabled=true;
+        try{await api('/api/household-order-links',{method:'POST',body:JSON.stringify({householdId:state.household.id,id:item.id,label:item.label,url:item.url,homeAssistantEntityId:field.value})});showMessage($('#order-link-message'),`Liste Home Assistant de ${item.label} enregistrée.`,true);await refreshOrderLinks();}
+        catch(error){showMessage($('#order-link-message'),'Liste non enregistrée : '+(error.body?.error??error.message));saveConfig.disabled=false;}
+      });
+      config.append(summary,hint,field,saveConfig);
       const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='Supprimer';remove.setAttribute('aria-label',`Supprimer le lien ${item.label}`);
       remove.addEventListener('click',async()=>{
         const count=(state.foodStores??[]).filter(assignment=>assignment.orderLinkId===item.id).length;
         if(count&&!confirm(`Supprimer la boutique « ${item.label} » et retirer l’affectation de ${count} aliment(s) ? Ces aliments resteront dans les courses, sans boutique.`))return;
         remove.disabled=true;try{await api(`/api/household-order-links/${item.id}?householdId=${encodeURIComponent(state.household.id)}`,{method:'DELETE'});await refreshOrderLinks();await refreshFoodStores();await refreshShoppingList();}catch(error){showMessage($('#order-link-message'),'Suppression impossible : '+(error.body?.error??error.message));remove.disabled=false;}
       });
-      row.append(link,host,remove);return row;
+      row.append(label,host,config,remove);return row;
     }));
   }catch(error){root.replaceChildren(emptyMessage('Liens indisponibles : '+(error.body?.error??error.message)));}
 }
 function foodStoreSelect(value,name) {
   const select=document.createElement('select');select.setAttribute('aria-label',`Boutique pour ${name}`);
-  select.add(new Option('Sans boutique',''));
+  select.add(new Option('Sans magasin',''));
   for(const link of state.orderLinks??[])select.add(new Option(link.label,link.id));
   select.value=value;return select;
 }
@@ -380,71 +393,81 @@ $('#food-store-form').addEventListener('submit',async event=>{
 async function refreshShoppingList() {
   const start=$('#shopping-start').value, end=$('#shopping-end').value, root=$('#shopping-list');
   if (!state.household || !start || !end) return;
+  const openDetails=new Set([...root.querySelectorAll('.shopping-item-options[open]')].map(detail=>detail.parentElement.dataset.key));
   root.replaceChildren(emptyMessage('Calcul de la liste…'));
   try {
     const {items}=await api(`/api/shopping-list?householdId=${encodeURIComponent(state.household.id)}&startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`);
-    const groups={bulk:[],fresh:[],whey_flour:[],other:[]};
-    items.forEach(item => (groups[item.groupId] ?? groups.other).push(item));
-    root.replaceChildren(...Object.entries(groups).map(([groupId, entries]) => {
-      const section=document.createElement('section'); section.className='shopping-group';
-      const heading=document.createElement('h4'); heading.textContent=groupLabels[groupId]; section.append(heading);
-      if (!entries.length) { const empty=emptyMessage('Aucun produit prévu'); section.append(empty); return section; }
-      const buckets=groupId==='whey_flour'?[...new Set(entries.map(item=>item.store?.id??''))].map(id=>({store:entries.find(item=>(item.store?.id??'')===id)?.store,items:entries.filter(item=>(item.store?.id??'')===id)})):[{items:entries}];
-      buckets.sort((a,b)=>a.store&&b.store?a.store.label.localeCompare(b.store.label):a.store?-1:b.store?1:0);
-      for(const bucket of buckets) {
-      const container=document.createElement('div');container.className='shopping-store';container.dataset.storeId=bucket.store?.id??'';
-      if(groupId==='whey_flour') {
-        const title=document.createElement('h5');title.textContent=bucket.store?.label??'Sans boutique attribuée';
-        if(bucket.store){const link=document.createElement('a');link.href=bucket.store.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Ouvrir la boutique ↗';title.append(link);}
-        container.append(title);
-      }
-      bucket.items.forEach(item => {
-        const row=document.createElement('div'); row.className='shopping-item'+(item.checked?' checked':'');
-        const checkbox=document.createElement('input'); checkbox.type='checkbox'; checkbox.checked=item.checked; checkbox.setAttribute('aria-label','Acheté : '+item.name);
-        const name=document.createElement('div'); name.className='shopping-item-name';
-        const itemTitle=document.createElement('span');itemTitle.className='shopping-item-title';itemTitle.textContent=item.name;name.append(itemTitle);
-        const qty=document.createElement('span'); qty.className='shopping-quantity'; qty.textContent=`${formatQty(item.quantity)} ${item.unitId}`;
-        const need=document.createElement('small');need.className='shopping-detail';need.textContent=`Besoin prévu : ${formatQty(item.neededQuantity)} ${item.unitId}`;name.append(need);
-        const packageInfo=document.createElement('small');packageInfo.className='shopping-detail';packageInfo.hidden=!item.packageQuantity;
-        if(item.packageQuantity){packageInfo.textContent=`Achat : ${item.packageCount} × ${formatQty(item.packageQuantity)} ${item.unitId}`;name.append(packageInfo);}
-        if(item.warning){const detail=document.createElement('small');detail.className='shopping-detail';detail.textContent=item.warning;name.append(detail);}
-        const roundedInfo=document.createElement('small');roundedInfo.className='shopping-detail';roundedInfo.hidden=!item.quantityRounded;
-        if(item.quantityRounded){roundedInfo.textContent=item.packageQuantity?'Arrondi au format de paquet saisi':'Arrondi au nombre entier supérieur pour l’achat';name.append(roundedInfo);}
-        if(item.recipes?.length){const recipeDetails=document.createElement('details');recipeDetails.className='shopping-detail shopping-recipes';const summary=document.createElement('summary');summary.textContent=`Dans ${item.recipes.length} recette${item.recipes.length===1?'':'s'}`;const links=document.createElement('span');links.className='shopping-recipe-links';for(const recipe of item.recipes){const source=document.createElement('span');source.className='shopping-recipe-source';const link=document.createElement('button');link.type='button';link.textContent=recipe.name;link.setAttribute('aria-label',`Ouvrir la recette ${recipe.name}`);link.addEventListener('click',()=>{setView('recipes');openRecipeEditor(recipe.id);});source.append(link);if(Number.isFinite(Number(recipe.quantity))&&recipe.unitId){const amount=document.createElement('small');amount.className='shopping-recipe-amount';amount.textContent=`${formatQty(recipe.quantity)} ${recipe.unitId}`;amount.setAttribute('aria-label',`Besoin prévu : ${amount.textContent}`);source.append(amount);}links.append(source);}recipeDetails.append(summary,links);name.append(recipeDetails);}
-        const pack=document.createElement('input');pack.className='shopping-pack-input';pack.type='number';pack.min='0.001';pack.step='any';pack.value=item.packageQuantity??'';pack.placeholder=`Paquet (${item.unitId})`;pack.setAttribute('aria-label',`Format d’achat pour ${item.name} en ${item.unitId}`);
-        const group=document.createElement('select'); group.setAttribute('aria-label','Catégorie de '+item.name);
-        for (const [key,label] of Object.entries(groupLabels)) group.add(new Option(label,key));
-        group.value=item.groupId;
-        group.disabled=!!item.store;group.title=item.store?'Retire la boutique pour changer de catégorie.':'';
-        const boutique=document.createElement('label');boutique.className='shopping-store-control';boutique.textContent='Boutique';
-        const storeChoice=foodStoreSelect(item.store?.id??'',item.name);boutique.append(storeChoice);name.append(boutique);
-        storeChoice.addEventListener('change',async()=>{
-          storeChoice.disabled=true;
-          try{await saveFoodStoreSelection([item.foodId],storeChoice.value||null);const y=window.scrollY;await refreshFoodStores();await refreshShoppingList();window.scrollTo(0,y);}
-          catch(error){showMessage($('#routines-message'),'Boutique non enregistrée : '+(error.body?.error??error.message));storeChoice.value=item.store?.id??'';storeChoice.disabled=false;}
-        });
-        const save=async()=>{try{await api('/api/shopping-list/state',{method:'POST',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,unitId:item.unitId,startDate:start,endDate:end,groupId:item.store?item.baseGroupId:group.value,checked:checkbox.checked,packageQuantity:pack.value===''?null:Number(pack.value)})});row.classList.toggle('checked',checkbox.checked);return true;}catch(error){showMessage($('#routines-message'),'Liste non enregistrée : '+(error.body?.error??error.message));return false;}};
-        checkbox.addEventListener('change',save); group.addEventListener('change',async()=>{if(await save()){const y=window.scrollY;await refreshShoppingList();window.scrollTo(0,y);}});
-        pack.addEventListener('change',async()=>{
-          if(!await save())return;
-          const packageQuantity=pack.value===''?null:Number(pack.value);
-          const packageCount=packageQuantity?Math.ceil(Number(item.neededQuantity)/packageQuantity):null;
-          const quantity=packageQuantity?packageCount*packageQuantity:(item.unitId==='piece'?Math.ceil(Number(item.neededQuantity)):Number(item.neededQuantity));
-          qty.textContent=`${formatQty(quantity)} ${item.unitId}`;
-          packageInfo.hidden=!packageQuantity;
-          packageInfo.textContent=packageQuantity?`Achat : ${packageCount} × ${formatQty(packageQuantity)} ${item.unitId}`:'';
-          if(packageQuantity&&!packageInfo.isConnected)name.append(packageInfo);
-          roundedInfo.hidden=quantity===Number(item.neededQuantity);
-          roundedInfo.textContent=packageQuantity?'Arrondi au format de paquet saisi':'Arrondi au nombre entier supérieur pour l’achat';
-          if(roundedInfo.hidden)roundedInfo.remove();else if(!roundedInfo.isConnected)name.append(roundedInfo);
-        });
-        row.append(checkbox,name,qty,pack,group); container.append(row);
-      });
-      section.append(container);
-      }
-      return section;
-    }));
-    if (!items.length) root.replaceChildren(emptyMessage('Aucun achat nécessaire sur cette période.'));
+    if(!items.length){root.replaceChildren(emptyMessage('Aucun achat nécessaire sur cette période.'));return;}
+    const buckets=new Map();
+    for(const item of items){const id=item.store?.id??'none';if(!buckets.has(id))buckets.set(id,{store:item.store,items:[]});buckets.get(id).items.push(item);}
+    const filter=$('#shopping-store-filter'),previous=filter.value;
+    const sorted=[...buckets.entries()].sort((a,b)=>a[1].store&&b[1].store?a[1].store.label.localeCompare(b[1].store.label):a[1].store?-1:1);
+    filter.replaceChildren(new Option('Tous les magasins','all'),...sorted.map(([id,bucket])=>new Option(bucket.store?.label??'Sans magasin',id)));
+    filter.value=[...buckets.keys(),'all'].includes(previous)?previous:'all';
+    const render=()=>{
+      root.replaceChildren(...sorted.filter(([id])=>filter.value==='all'||filter.value===id).map(([id,bucket])=>{
+        const section=document.createElement('section');section.className='shopping-store-card';
+        const header=document.createElement('div');header.className='shopping-store-header';
+        const heading=document.createElement('h4');heading.textContent=`${bucket.store?.label??'Sans magasin'} · ${bucket.items.length} article${bucket.items.length>1?'s':''}`;
+        const actions=document.createElement('div');actions.className='shopping-store-actions';
+        if(bucket.store?.url){const link=document.createElement('a');link.href=bucket.store.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Site ↗';actions.append(link);}
+        const lines=bucket.items.filter(item=>!item.checked).map(item=>`${item.name} — ${item.purchase.text}${item.purchase.detail?` (${item.purchase.detail})`:''}`);
+        const copy=document.createElement('button');copy.type='button';copy.className='secondary';copy.textContent='Copier';copy.addEventListener('click',async()=>{
+          try{await navigator.clipboard.writeText([bucket.store?.label??'Sans magasin',...lines].join('\n'));showMessage($('#shopping-export-message'),`Liste « ${bucket.store?.label??'Sans magasin'} » copiée.`,true);}
+          catch{showMessage($('#shopping-export-message'),'Copie impossible ; utilise le téléchargement.');}
+        });actions.append(copy);
+        const download=document.createElement('button');download.type='button';download.className='secondary';download.textContent='Télécharger';download.addEventListener('click',()=>{
+          const blob=new Blob([[bucket.store?.label??'Sans magasin',...lines].join('\n')],{type:'text/plain;charset=utf-8'});
+          const anchor=document.createElement('a');anchor.href=URL.createObjectURL(blob);anchor.download=`courses-${(bucket.store?.label??'sans-magasin').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-')}-${start}-${end}.txt`;
+          anchor.click();setTimeout(()=>URL.revokeObjectURL(anchor.href),1000);
+        });actions.append(download);
+        if(bucket.store?.homeAssistantEntityId){const ha=document.createElement('button');ha.type='button';ha.className='secondary';ha.textContent='Envoyer à Home Assistant';ha.addEventListener('click',async()=>{
+          ha.disabled=true;
+          try{const result=await api('/api/shopping-list/export/home-assistant',{method:'POST',body:JSON.stringify({householdId:state.household.id,storeId:id,startDate:start,endDate:end})});showMessage($('#shopping-export-message'),`${bucket.store.label} : ${result.added} article(s) ajoutés, ${result.skipped} déjà présents.`,true);}
+          catch(error){const code=error.body?.error??error.message;showMessage($('#shopping-export-message'),code==='home-assistant-not-configured'?'Home Assistant doit être configuré côté serveur avant l’export.':`Export impossible : ${code}`);}finally{ha.disabled=false;}
+        });actions.append(ha);}
+        header.append(heading,actions);section.append(header);
+        for(const item of bucket.items){
+          const row=document.createElement('div');row.className='shopping-item'+(item.checked?' checked':'');row.dataset.key=`${item.foodId}:${item.unitId}`;
+          const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=item.checked;checkbox.setAttribute('aria-label','Acheté : '+item.name);
+          const main=document.createElement('div');main.className='shopping-item-main';
+          const title=document.createElement('strong');title.className='shopping-item-title';title.textContent=item.name;
+          const qty=document.createElement('span');qty.className='shopping-quantity';qty.textContent=item.purchase.text;
+          const detail=document.createElement('small');detail.textContent=item.purchase.detail;
+          main.append(title,qty,detail);
+          const options=document.createElement('details');options.className='shopping-item-options';
+          options.open=openDetails.has(row.dataset.key);
+          const summary=document.createElement('summary');summary.textContent='Détails et réglages';options.append(summary);
+          if(item.warning){const warning=document.createElement('p');warning.textContent=item.warning;options.append(warning);}
+          const packLabel=document.createElement('label');packLabel.textContent=`Format d’achat (${item.unitId})`;
+          const pack=document.createElement('input');pack.type='number';pack.min='0.001';pack.step='any';pack.value=item.packageQuantity??'';pack.placeholder=`Ex. 500 ${item.unitId}`;pack.setAttribute('aria-label',`Format d’achat pour ${item.name}`);packLabel.append(pack);
+          const groupLabel=document.createElement('label');groupLabel.textContent='Catégorie';
+          const group=document.createElement('select');group.setAttribute('aria-label','Catégorie de '+item.name);
+          for(const [key,label] of Object.entries(groupLabels))group.add(new Option(label,key));group.value=item.baseGroupId;
+          groupLabel.append(group);
+          const storeLabel=document.createElement('label');storeLabel.textContent='Magasin';
+          const storeChoice=foodStoreSelect(item.store?.id??'',item.name);storeLabel.append(storeChoice);
+          options.append(packLabel,groupLabel,storeLabel);
+          if(item.recipes?.length){const recipes=document.createElement('p');recipes.className='shopping-recipes';recipes.textContent=`Recettes : ${item.recipes.map(recipe=>recipe.name).join(', ')}`;options.append(recipes);}
+          const save=async()=>{
+            try{await api('/api/shopping-list/state',{method:'POST',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,unitId:item.unitId,startDate:start,endDate:end,groupId:group.value,checked:checkbox.checked,packageQuantity:pack.value===''?null:Number(pack.value)})});row.classList.toggle('checked',checkbox.checked);return true;}
+            catch(error){showMessage($('#shopping-export-message'),'Liste non enregistrée : '+(error.body?.error??error.message));return false;}
+          };
+          const saveAndRefresh=async()=>{if(await save()){const y=window.scrollY;await refreshShoppingList();window.scrollTo(0,y);}};
+          checkbox.addEventListener('change',saveAndRefresh);
+          pack.addEventListener('change',saveAndRefresh);
+          group.addEventListener('change',saveAndRefresh);
+          storeChoice.addEventListener('change',async()=>{
+            storeChoice.disabled=true;
+            try{await saveFoodStoreSelection([item.foodId],storeChoice.value||null);await refreshFoodStores();await refreshShoppingList();}
+            catch(error){showMessage($('#shopping-export-message'),'Magasin non enregistré : '+(error.body?.error??error.message));storeChoice.value=item.store?.id??'';storeChoice.disabled=false;}
+          });
+          row.append(checkbox,main,options);section.append(row);
+        }
+        return section;
+      }));
+    };
+    filter.onchange=render;render();
   } catch(error) { root.replaceChildren(emptyMessage('Liste indisponible : '+(error.body?.error ?? error.message))); }
 }
 $('#routines-form').addEventListener('submit',async event=>{
@@ -482,7 +505,7 @@ $('#production-form').addEventListener('submit',async event=>{
 $('#refresh-shopping').addEventListener('click',refreshShoppingList);
 $('#order-link-form').addEventListener('submit',async event=>{
   event.preventDefault();const form=event.currentTarget,button=form.querySelector('button[type="submit"]');button.disabled=true;
-  try{await api('/api/household-order-links',{method:'POST',body:JSON.stringify({householdId:state.household.id,label:form.elements.label.value,url:form.elements.url.value})});form.reset();showMessage($('#order-link-message'),'Lien ajouté.',true);await refreshOrderLinks();await refreshFoodStores();await refreshShoppingList();}
+  try{await api('/api/household-order-links',{method:'POST',body:JSON.stringify({householdId:state.household.id,label:form.elements.label.value,url:form.elements.url.value})});form.reset();showMessage($('#order-link-message'),'Magasin ajouté.',true);await refreshOrderLinks();await refreshFoodStores();await refreshShoppingList();}
   catch(error){showMessage($('#order-link-message'),'Ajout impossible : '+(error.body?.error??error.message));}
   finally{button.disabled=false;}
 });

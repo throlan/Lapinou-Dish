@@ -47,4 +47,9 @@ test('online order links accept named HTTPS links and reject unsafe or malformed
   assert.equal(validateOrderLinkInput({...input,url:'http://shop.example'}).error,'invalid-order-link');
   assert.equal(validateOrderLinkInput({...input,label:'  '}).error,'invalid-order-link');
   assert.equal(validateOrderLinkInput({...input,url:'https://user:pass@shop.example'}).error,'invalid-order-link');
+  assert.equal(validateOrderLinkInput({...input,label:'Grand Frais',url:''}).data.url,null);
+  assert.equal(validateOrderLinkInput({...input,label:'Aldi',url:null}).data.url,null);
+  assert.equal(validateOrderLinkInput({...input,label:'Carrefour Market',url:undefined}).data.url,null);
+  assert.equal(validateOrderLinkInput({...input,homeAssistantEntityId:'todo.grand_frais'}).data.homeAssistantEntityId,'todo.grand_frais');
+  assert.equal(validateOrderLinkInput({...input,homeAssistantEntityId:'light.living_room'}).error,'invalid-order-link');
 });
