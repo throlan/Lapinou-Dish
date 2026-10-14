@@ -58,7 +58,16 @@ Les liens de commande (PR 59) sont fusionnés et publiés ; ne pas les réimplé
 
 À la prochaine reprise : vérifier l'état Git et les contrôles/publication de la PR avant d'annoncer une version disponible. Lire le journal du 14 octobre. Préserver les stashes historiques ; aucune réapplication. La gestion d'une coupure PostgreSQL reste à corriger séparément. Ne jamais accéder à Unraid ni à Nginx. Demander l'autorisation avant de piloter un navigateur.
 
-## Validation et livraison
+## À faire — achats en ligne par site marchand
+
+- Permettre de rattacher certains aliments du catalogue à un site de vente, avec un choix mémorisé par foyer.
+- Exemples demandés : toutes les wheys chez **Nutripure** ; les farines et certains produits bio chez **Greenwhiz**. Prévoir l'affectation de plusieurs aliments au même site sans imposer le même marchand à tous les produits bio.
+- Dans « Courses & stocks », préparer les listes de courses regroupées par site à partir de ces affectations et des quantités nécessaires, en conservant les calculs de stocks et de conditionnements existants.
+- Réutiliser si possible les sites déjà enregistrés dans « Liens de commande » ; ces liens seuls ne constituent pas encore une affectation des aliments à un marchand.
+- Remplacer les libellés visibles « Whey et farines » et « Commande whey et farines » par **« Achats en ligne »**. Conserver les affectations et réglages existants lors de cette évolution.
+- Demande enregistrée le 14 octobre 2026, à développer : aucun de ces changements n'est encore implémenté.
+
+## Validation et livraison du développement
 
 Node.js **24+**. Commande de tests directement utilisable :
 

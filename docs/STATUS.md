@@ -44,7 +44,14 @@ Les totaux du calendrier restent prévisionnels. L'utilisateur ne souhaite pas d
 
 Le brouillon `drafts/ENERGY-RESERVE.md` est historique : le système correspondant a été livré en 0.2.42. Ne pas le compter dans le reste à faire.
 
-## Guides actuels
+## À faire — courses par site marchand
+
+- Affecter des aliments à un site de vente par foyer : par exemple les wheys chez Nutripure, les farines et certains produits bio chez Greenwhiz.
+- Préparer les listes de courses par site selon ces affectations, en préservant les besoins calculés, stocks et formats d'achat. S'appuyer si possible sur les liens de commande existants.
+- Renommer les libellés visibles « Whey et farines » / « Commande whey et farines » en « Achats en ligne », sans perdre les réglages existants.
+- Demande à développer, consignée le 14 octobre 2026 ; détails dans le [cahier de reprise](REPRISE.md).
+
+## Guides actuels du projet
 
 - [Objectifs kcal et rééquilibrage](MEAL-ENERGY.md)
 - [Grammes estimés et parties de service](SERVING-GRAMS.md)
