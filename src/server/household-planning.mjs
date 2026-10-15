@@ -296,6 +296,7 @@ export async function listPreparationsToMake(pool, householdId, startDate, endDa
               count(DISTINCT m.id) FILTER (WHERE m.meal_date BETWEEN $2::date AND $3::date) AS meal_count
        FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
        JOIN planned_amounts a ON a.planned_item_id=i.id
+       JOIN recipes planned_recipe ON planned_recipe.id=i.recipe_id AND planned_recipe.household_id=m.household_id AND planned_recipe.production_type<>'none'
        WHERE m.household_id=$1 AND m.prepared_at IS NULL AND m.meal_date <= $3::date
        GROUP BY i.recipe_id
      ), prepared_batches AS (

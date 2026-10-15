@@ -25,7 +25,7 @@ test('product stock follows counted inventory, confirmed purchases, meal cooking
     await pool.query("INSERT INTO recipes(id,household_id,name,yield_amount,yield_unit_id,production_type) VALUES($1,$2,'Batch cake',1,'portion','batch_cooking')",[batch,householdId]);
     await pool.query("INSERT INTO recipe_lines(id,recipe_id,food_id,quantity,unit_id) VALUES(gen_random_uuid(),$1,$2,150,'g'),(gen_random_uuid(),$3,$2,150,'g')",[everyday,foodId,batch]);
     const meal=await savePlannedMeal(pool,null,{householdId,mealDate:date,slot:'lunch',notes:'',attendeeIds:[personId],items:[{recipeId:everyday,role:'main',amounts:[{personId,quantity:1}]}]});
-    assert.equal((await listPreparationsToMake(pool,householdId,date,date))[0].toMakeQuantity,1);
+    assert.equal((await listPreparationsToMake(pool,householdId,date,date)).some(item=>item.recipeId===everyday),false);
     assert.equal((await listShoppingRequirements(pool,householdId,date,date))[0].neededQuantity,150);
     assert.ok(validateProductCount({householdId,foodId,quantity:0,unitId:'g',version:0}).data);
     assert.equal((await countProductInventory(pool,{householdId,foodId,quantity:50,unitId:'g',version:0})).quantityG,50);
