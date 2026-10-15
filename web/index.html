@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=0.2.59">
+    <link rel="stylesheet" href="/style.css?v=0.2.60">
   </head>
   <body>
     <header class="topbar">
@@ -148,7 +148,7 @@
         <div class="section-heading"><div><h2>Courses & stocks</h2><p>Les achats, les repas à préparer et le stock du foyer au même endroit.</p></div></div>
         <div class="shopping-overview">
           <section class="card"><h3>Routines du foyer</h3><p class="muted">Les courses fraîches sont prévues chaque lundi par défaut. Tu peux choisir un lundi sur deux.</p><form id="routines-form"><div id="routine-list" class="routine-list"></div><div class="form-actions"><button class="primary" type="submit">Enregistrer le planning</button></div><p class="form-message" id="routines-message" role="status"></p></form></section>
-          <section class="card preparations-card"><div class="preparations-heading"><div><h3>Préparations à faire</h3><p class="hint">Recettes des repas non préparés avec une production à suivre configurée.</p></div><span id="preparations-count" class="preparations-count"></span></div><div id="preparations-list" class="preparations-list"><p class="empty">Choisis une période.</p></div></section>
+          <section class="card preparations-card"><div class="preparations-heading"><div><h3>Préparations à faire</h3><p class="hint">Recettes des repas non préparés, regroupées par production sur la période des courses. Le batch cooking est prévu chaque lundi après les courses de frais.</p></div><span id="preparations-count" class="preparations-count"></span></div><div id="preparations-list" class="preparations-list"><p class="empty">Choisis une période.</p></div></section>
         </div>
         <section class="card shopping-list-card"><h3>Liste de courses</h3><p class="hint">Ouvre un magasin, puis un produit pour saisir le stock, valider l’achat ou modifier ses réglages. La case à cocher masque l’achat sans changer le stock.</p><div class="shopping-range"><label>Du<input id="shopping-start" type="date"></label><label>Au<input id="shopping-end" type="date"></label><button class="secondary" type="button" id="refresh-shopping">Actualiser</button></div><label class="shopping-filter-label">Afficher<select id="shopping-store-filter"><option value="all">Tous les magasins</option></select></label><p id="shopping-export-message" class="form-message" role="status"></p><div id="shopping-list" class="shopping-groups"><p class="empty">Choisis une période.</p></div></section>
         <section class="card order-links-card"><h3>Magasins et achats en ligne</h3><p class="hint">Ajoute un magasin physique ou un site, puis associe-lui les aliments achetés habituellement. Le lien web est facultatif.</p><form id="order-link-form" class="order-link-form"><label>Nom du magasin<input name="label" maxlength="100" placeholder="Ex. Grand Frais, Aldi, Nutripure…" required></label><label>Site HTTPS (facultatif)<input name="url" type="url" placeholder="https://…"></label><div class="order-link-form-actions"><button class="secondary" type="submit">Ajouter le magasin</button><button class="secondary hidden" id="cancel-order-link-edit" type="button">Annuler</button></div></form><p id="order-link-message" class="form-message" role="status"></p><div id="order-links" class="order-links"><p class="empty">Chargement…</p></div>
@@ -262,6 +262,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.59"></script>
+    <script type="module" src="/app.js?v=0.2.60"></script>
   </body>
 </html>

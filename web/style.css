@@ -494,7 +494,15 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .preparations-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
 .preparations-heading .hint { margin:3px 0 10px; }
 .preparations-count { flex:none; color:var(--accent,#27d3df); font-size:.85rem; font-weight:700; }
-.preparations-list { display:grid; gap:8px; max-height:430px; overflow:auto; padding-right:4px; }
+.preparations-list { display:grid; gap:8px; }
+.preparation-group { min-width:0; border:1px solid var(--line,#344766); border-radius:12px; background:#142039; }
+.preparation-group>summary { cursor:pointer; padding:12px 14px; font-weight:700; color:var(--text,#e6edf9); }
+.preparation-group>summary::marker { color:var(--accent,#27d3df); }
+.preparation-group-body { display:grid; gap:8px; padding:0 10px 10px; }
+.preparation-group:not([open])>.preparation-group-body { display:none; }
+.preparation-group-body>.empty { margin:0; padding:8px 4px; }
+.preparation-week { background:#182944; }
+.preparation-week-hint { margin:0 4px 2px; }
 .preparation-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 10px; padding:11px 12px; border:1px solid var(--line,#344766); border-radius:12px; background:#142039; }
 .preparation-row strong { overflow-wrap:anywhere; }
 .preparation-row small { color:var(--muted,#9bb0d1); }
@@ -523,6 +531,6 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .extra-production label { margin-top:12px; }
 .ingredient-section>summary { cursor:pointer; font-size:1.1rem; font-weight:700; }
 .ingredient-section[open]>summary { margin-bottom:14px; }
-@media(max-width:1220px){.shopping-overview{grid-template-columns:1fr}.preparations-list{max-height:360px}}
+@media(max-width:1220px){.shopping-overview{grid-template-columns:1fr}}
 @media(max-width:700px){.shopping-item-head{grid-template-columns:24px minmax(0,1fr) auto;gap:7px}.shopping-stock-quantity{grid-column:2/-1;text-align:left}.shopping-item-main{padding-left:14px}.preparation-row{grid-template-columns:1fr}.preparation-row .preparation-amount{grid-column:1;grid-row:auto;text-align:left}}
 @media(max-width:560px){.shopping-overview .routine-row{grid-template-columns:1fr 1fr}.shopping-overview .routine-row strong{grid-column:1/-1}.shopping-overview .routine-row button{justify-self:start}.preparations-heading{flex-direction:column}.shopping-store-actions{justify-content:flex-start}}
