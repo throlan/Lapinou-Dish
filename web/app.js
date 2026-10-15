@@ -2006,6 +2006,7 @@ function renderOccasionEnergy() {
 
 function updateMealType() {
   const isOccasion=$('#meal-form').elements.isOccasion.checked;
+  $('#add-planned-dessert').classList.toggle('hidden',isOccasion||!individualDessertSlot($('#meal-form').elements.slot.value));
   $('#occasion-fields').classList.toggle('hidden',!isOccasion);
   $('#regular-meal-fields').classList.toggle('hidden',isOccasion);
   $$('#regular-meal-fields input, #regular-meal-fields select, #regular-meal-fields button').forEach(control=>control.disabled=isOccasion);
@@ -2153,6 +2154,12 @@ function updateMealProteinSummary() {
 }
 
 function allPlanningRecipes() { return state.recipes.flatMap(recipe => [recipe,...(recipe.servingParts ?? [])]); }
+function individualDessertSlot(slot) { return slot === 'lunch' || slot === 'dinner'; }
+function plannedItemRoleOptions(currentRole) {
+  const options = [['main', 'Recette principale · 70 %'], ['accompaniment', 'Accompagnement · 20 %'], ['beverage', 'Boisson · choix individuel']];
+  if (currentRole === 'dessert') options.push(['dessert', 'Dessert · choix individuel']);
+  return options;
+}
 function recipesForPlanning(slot, role, selectedIds = []) {
   const selected = new Set(selectedIds.filter(Boolean));
   const eligible = allPlanningRecipes().filter((recipe) => {
@@ -2162,7 +2169,7 @@ function recipesForPlanning(slot, role, selectedIds = []) {
       if (isIndividualRole(role) && recipe.recipeType !== role) return false;
       if (role === 'accompaniment' && recipe.recipeType !== 'accompaniment') return false;
       if (role === 'main' && ['beverage', 'accompaniment'].includes(recipe.recipeType)) return false;
-      if (role === 'main' && recipe.recipeType === 'dessert' && slot !== 'breakfast') return false;
+      if (role === 'main' && recipe.recipeType === 'dessert' && !['breakfast', 'snack', 'evening_snack'].includes(slot)) return false;
     }
     if (recipe.parentRecipeId && recipe.servingPart === 'main') return false;
     return true;
@@ -2190,7 +2197,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     const select = document.createElement('select'); select.name = 'recipeId'; select.setAttribute('aria-label', 'Recette');
     select.add(new Option('Choisir une recette', ''));
     const role = document.createElement('select'); role.name = 'role'; role.setAttribute('aria-label', 'Catégorie de la recette');
-    [['main', 'Recette principale · 70 %'], ['accompaniment', 'Accompagnement · 20 %'], ['beverage', 'Boisson · choix individuel'], ['dessert', 'Dessert · choix individuel']].forEach(([value, label]) => role.add(new Option(label, value)));
+    plannedItemRoleOptions(item.role).forEach(([value, label]) => role.add(new Option(label, value)));
     role.value = item.role ?? 'main';
     const slot = $('#meal-form').elements.slot.value;
     recipesForPlanning(slot, role.value, [item.recipeId]).forEach((recipe) => select.add(new Option(`${recipe.name} · ${recipe.servingParts?.length?'portions en grammes estimés':`${recipe.yield.amount} ${recipe.yield.unitId}`}`, recipe.id)));
@@ -2376,6 +2383,7 @@ $('#add-planned-item').addEventListener('click', () => {
 });
 $('#recalculate-portions').addEventListener('click', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
 $('#add-planned-dessert').addEventListener('click',()=>{
+  if(!individualDessertSlot($('#meal-form').elements.slot.value))return;
   const items=currentFormAmounts();
   if(!Object.values(items).some(item=>item.role==='dessert'))items[Math.max(-1,...Object.keys(items).map(Number))+1]={recipeId:'',role:'dessert',assignments:{}};
   renderPlannedItems(items);
