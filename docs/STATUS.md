@@ -2,9 +2,11 @@
 
 ## Version de référence
 
-Le code **0.2.59** est fusionné sur `main` via la [PR 77](https://github.com/throlan/Lapinou-Dish/pull/77), commit `20b312a25db9929ab8ec240ffc79f60c2928f745`. Les 4 tests ciblés et le workflow PR #206 ont réussi. Les tests et la publication de l'image après fusion ont réussi dans le [workflow 38714448236](https://github.com/throlan/Lapinou-Dish/actions/runs/38714448236). La duplication est accessible depuis chaque carte de recette.
+Le code **0.2.61** est fusionné sur `main` au commit `e940609a728b33d9c0c93dd6a944771bc2a9bd6d`, après les PR [79](https://github.com/throlan/Lapinou-Dish/pull/79) et [80](https://github.com/throlan/Lapinou-Dish/pull/80). La PR 80 étend les recettes Dessert communes du petit-déjeuner aux deux collations ; le dessert individuel est proposé au déjeuner et au dîner avec le bouton « + Dessert ». Les tests et la publication GHCR ont réussi dans le [workflow 214](https://github.com/throlan/Lapinou-Dish/actions/runs/38793785916).
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 15 octobre](SESSION-2026-10-15.md).
+
+Les nouvelles pistes d’évolution (recettes, import, photos, usage mobile, comptes et communauté) sont consignées dans le [cahier des améliorations](AMELIORATIONS.md). Elles restent à prioriser et à préciser.
 
 **Règle impérative : aucune intervention de l'agent sur Unraid, y compris en lecture ou pour une vérification. L'utilisateur gère lui-même son installation et ses mises à jour.**
 
@@ -14,7 +16,7 @@ Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). P
 - Catalogue canonique Ciqual et aliments manuels, alias, conversions documentées, données inconnues conservées, édition et recherche de valeurs manquantes.
 - Création/édition de recettes, calcul par batch et rendement, types et moments distincts, filtres et recherche. Liste paginée (12 recettes), détails repliés et réglages de production/moments enregistrables directement sur chaque ligne sans modifier les ingrédients.
 - Import de texte/archives en brouillons, OpenAI optionnel et tentative de récupération de description Instagram avec repli texte.
-- Calendrier à cinq créneaux, participants explicites, repas multi-recettes, boissons/desserts individuels et duplication complète sur plusieurs dates. Au petit-déjeuner, les desserts adaptés peuvent aussi être ajoutés comme recette commune et bénéficier du calcul de portions.
+- Calendrier à cinq créneaux, participants explicites, repas multi-recettes, boissons/desserts individuels et duplication complète sur plusieurs dates. Au petit-déjeuner et aux deux collations, les desserts adaptés peuvent aussi être ajoutés comme recette commune et bénéficier du calcul de portions ; au déjeuner et au dîner, le dessert individuel s’ajoute avec « + Dessert ».
 - Préparation entière en grammes estimés, deux ou trois parties indépendantes, coefficients de cuisson, conversions des repas/lots existants et conservation des ingrédients crus.
 - Ingrédients en blocs lisibles ; liens en bas ; coefficient individuel affiché pour les féculents sélectionnés.
 - Administration : profils compacts et datés, relevés de poids et historiques ; répartition des kcal à 100 %, par défaut 15/40/10/25/10 %.
@@ -28,7 +30,7 @@ Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). P
 
 ## Vérification
 
-**172 tests réussis** dans le [workflow 197](https://github.com/throlan/Lapinou-Dish/actions/runs/38703038499) sur la version 0.2.56. La liste des recettes a été vérifiée dans Chrome avec 32 recettes fictives, sur ordinateur et mobile : pagination, recherche et sauvegarde ciblée.
+**181 tests réussis**, puis tests `main` et publication GHCR validés dans le [workflow 214](https://github.com/throlan/Lapinou-Dish/actions/runs/38793785916) pour la version 0.2.61. Les vérifications Chrome sur données fictives documentées ci-dessous correspondent à la version 0.2.56 et valident la liste paginée sur ordinateur et mobile.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 
@@ -66,7 +68,9 @@ Livré en 0.2.52 (PR 66, workflow 183) : stock initial par aliment, saisi dans l
 
 ## Suite
 
-La version **0.2.60** a été fusionnée et publiée : les préparations à faire sont regroupées par Pâtisserie, Pain, Pâtes et semaines de Batch cooking. La version **0.2.61** est en cours sur `feat/recipe-cooking-sheet` : une seule fiche de préparation par recette, même si elle est servie en trois parties ; lien vers la recette et fiche « Cuisiner » avec ingrédients ajustés au nombre de portions prévu ou choisi, instructions et enregistrement au stock pour les recettes suivies. La suite locale de 180 tests réussit. L'utilisateur met lui-même à jour son installation ; aucune vérification de celle-ci n'a été faite par l'agent.
+Les chantiers proposés sont détaillés dans [AMELIORATIONS.md](AMELIORATIONS.md) et ne sont pas encore planifiés. Prochaine étape conseillée : définir les critères de données nutritionnelles manquantes et le contenu des vignettes, puis préciser les parcours avant de toucher à l’interface.
+
+La fiche « Cuisiner » et le regroupement des préparations ont été livrés sur `main` (PR 79, version 0.2.61). Le dessert commun pour les deux collations est livré via la PR 80. L'utilisateur met lui-même à jour son installation ; l'agent ne la vérifie pas.
 
 ## Guides actuels du projet
 
@@ -79,3 +83,4 @@ La version **0.2.60** a été fusionnée et publiée : les préparations à fair
 - [Page Courses & stocks](SHOPPING-STOCK-PAGE.md)
 - [Achats en ligne par boutique](ONLINE-SHOPPING.md)
 - [Import OpenAI](OPENAI-RECIPE-IMPORT.md)
+- [Cahier des améliorations proposées](AMELIORATIONS.md)

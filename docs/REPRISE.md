@@ -2,15 +2,15 @@
 
 ## Point de départ
 
-Mise à jour du 15 octobre : `main` contient maintenant **0.2.60** (PR 78), avec les préparations classées par type et par semaine de batch cooking. La branche `feat/recipe-cooking-sheet` prépare **0.2.61** : une fiche par recette malgré ses trois parties servies, accès direct à la recette, et fiche « Cuisiner » avec quantité modifiable, ingrédients proportionnels et enregistrement au stock. Les 180 tests locaux passent ; ce travail reste à publier et fusionner. Les repères historiques ci-dessous restent conservés pour le contexte.
+Mise à jour du 15 octobre : `main` contient **0.2.61** au commit `e940609a728b33d9c0c93dd6a944771bc2a9bd6d`. La PR 79 a livré la fiche « Cuisiner » et le regroupement des préparations. La PR 80 étend les recettes Dessert communes aux deux collations ; le choix individuel reste accessible au déjeuner et au dîner par « + Dessert ». Les tests et la publication GHCR ont réussi dans le [workflow 214](https://github.com/throlan/Lapinou-Dish/actions/runs/38793785916). Les pistes demandées ensuite sont enregistrées dans [AMELIORATIONS.md](AMELIORATIONS.md) ; elles attendent d’être priorisées.
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish
-- Base de travail : `main`, commit `20b312a` après la [PR 77](https://github.com/throlan/Lapinou-Dish/pull/77) ; checkout local propre.
-- Dernier code fusionné : **0.2.59**, bouton de duplication des recettes. Les 4 tests ciblés et le workflow PR #206 ont réussi. Les tests et la publication de l'image après fusion ont réussi dans le [workflow 38714448236](https://github.com/throlan/Lapinou-Dish/actions/runs/38714448236). Voir le [journal du 15 octobre](SESSION-2026-10-15.md).
+- Base de reprise : `origin/main`, commit `e940609` après les PR [79](https://github.com/throlan/Lapinou-Dish/pull/79) et [80](https://github.com/throlan/Lapinou-Dish/pull/80). Voir le [journal du 15 octobre](SESSION-2026-10-15.md).
+- Dernière version publiée : **0.2.61**. La duplication des recettes (PR 77), les fiches de cuisine (PR 79) et les choix de desserts communs aux deux collations (PR 80) sont livrés.
 - Journaux : [13 octobre](SESSION-2026-10-13.md) et [14 octobre](SESSION-2026-10-14.md). État et tâches restantes : [STATUS.md](STATUS.md).
-- Derniers travaux livrés : stock des produits et préparation des repas (0.2.52, PR 66), puis correction de l'enregistrement du planning des courses (0.2.53, PR 67). Aucun accès à Unraid ni à Nginx.
-- Dernier travail livré : **0.2.55**, liste des recettes compacte et paginée, recherche, production à suivre et moments adaptés modifiables sur chaque ligne. La PR 71 et le workflow 193 ont réussi. La refonte de Courses & stocks demeure documentée dans [son guide](SHOPPING-STOCK-PAGE.md).
-- Dernier correctif : **0.2.56**, édition du nom et de l’adresse web des magasins ; les associations alimentaires et les listes Home Assistant restent liées au même magasin. Les préparations à faire ignorent désormais les recettes dont la production est « Aucune ». Voir la [PR 73](https://github.com/throlan/Lapinou-Dish/pull/73).
+- Cahier des améliorations proposées : [AMELIORATIONS.md](AMELIORATIONS.md), couvrant la page recettes/import, les photos, les données manquantes, le mobile/PWA, les comptes et la communauté publique.
+- Repères historiques : le stock des produits et la correction de l'enregistrement du planning des courses ont été livrés en 0.2.52/0.2.53 (PR 66/67).
+- En 0.2.55/0.2.56 (PR 71/73), la liste des recettes a été compactée et paginée, les réglages rapides ajoutés, puis les magasins rendus modifiables. Ces changements sont inclus dans la version actuelle ; voir [l'état du projet](STATUS.md) et le [guide Courses & stocks](SHOPPING-STOCK-PAGE.md).
 
 ## Règle d'exploitation impérative
 
@@ -21,7 +21,7 @@ Mise à jour du 15 octobre : `main` contient maintenant **0.2.60** (PR 78), avec
 1. Retrouver ou cloner le dépôt. Lire les éventuels `AGENTS.md`, puis exécuter `git status --short`, `git branch --show-current` et `git log -5 --oneline`.
 2. Préserver tout travail local. Ne pas utiliser de reset destructif, suppression de fichiers, nettoyage forcé ou écrasement des modifications.
 3. Récupérer `origin/main`. Un checkout propre sur `main` peut être mis à jour par `git pull --ff-only`. Si le checkout contient des changements ou une autre branche, inspecter avant de changer de base.
-4. Vérifier la version de `package.json` et lire [l'état du projet](STATUS.md), [le journal de session du 14 octobre](SESSION-2026-10-14.md), ce cahier et les guides pertinents avant toute modification.
+4. Vérifier la version de `package.json` et lire [l'état du projet](STATUS.md), le [cahier des améliorations](AMELIORATIONS.md), le dernier journal, ce cahier et les guides pertinents avant toute modification.
 5. Travailler avec une base locale dédiée et des données synthétiques. Ne pas importer les données de santé du foyer, secrets ou captures personnelles dans Git.
 
 Le chemin du checkout de cette session est `C:\Users\Plex\OneDrive\Documents\GitHub\Lapinou-Dish`. Le chemin sera différent sur l'autre PC ; repère le dépôt à partir de son nom et de son dossier Git.
@@ -104,4 +104,4 @@ Workflow appliqué : branche de travail, tests adaptés, vérification navigateu
 
 ## Prompt de reprise sur un autre PC
 
-> Reprends le développement de Lapinou Dish. Retrouve le dépôt local, vérifie son état et préserve toute modification ou stash existant avant de récupérer `origin/main` sans écrasement. Lis `AGENTS.md` s'il existe, `docs/REPRISE.md`, `docs/STATUS.md` et le dernier journal dans `docs/`. Vérifie la version de `package.json` ainsi que les PR et workflows GitHub récents, puis fais-moi un état court des tâches restantes avant toute nouvelle modification. Règle absolue : n'accède jamais à Unraid ni à Nginx ; je gère moi-même le déploiement. Les vérifications en navigateur local sur données fictives sont autorisées.
+> Reprends le développement de Lapinou Dish. Retrouve le dépôt local, vérifie son état et préserve toute modification ou stash existant avant de récupérer `origin/main` sans écrasement. Lis `AGENTS.md` s'il existe, `docs/REPRISE.md`, `docs/STATUS.md`, `docs/PRODUCT.md`, `docs/AMELIORATIONS.md` et le dernier journal dans `docs/`. `main` était au commit `e940609` après les PR 79 et 80 ; vérifie l’état GitHub actuel, la version de `package.json` et l’état de la PR documentaire associée au cahier des améliorations. Fais-moi un état court des tâches restantes et propose les prochaines étapes sans commencer de nouvelle modification avant ma demande. Règle absolue : n'accède jamais à Unraid ni à Nginx ; je gère moi-même le déploiement. Les vérifications dans un navigateur local sur des données fictives sont autorisées.

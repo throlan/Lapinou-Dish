@@ -71,6 +71,10 @@ Ce produit aide à organiser les repas. Il ne diagnostique pas, ne prescrit pas 
 - Recherche avant listes longues; filtres utiles et filtres persistants.
 - Pas de scroll dans scroll dans les vues de planification. L'information secondaire se replie; les totaux et actions principales restent visibles.
 
+## Évolutions produit à cadrer
+
+Les prochaines pistes demandées — page dédiée à l'import, vignettes et filtres de recettes, photos, détection des données manquantes, usage mobile/PWA, comptes liés aux profils du foyer et bibliothèque communautaire — sont recensées dans le [cahier des améliorations](AMELIORATIONS.md). Elles restent des propositions à prioriser et ne modifient pas les objectifs produit ni les règles de confidentialité ci-dessus.
+
 ## Jalons de validation
 
 1. **Fondation:** catalogue global, profil synthétique, recette avec lignes alimentaires structurées, calcul nutritionnel vérifiable.
