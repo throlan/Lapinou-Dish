@@ -1,8 +1,8 @@
 # Desserts individuels facultatifs
 
-Dans l'éditeur d'un repas, sélectionner les personnes présentes puis cliquer sur **+ Dessert**. La ligne **Dessert · choix individuel** propose, pour chacune, **Aucun dessert** ou une recette de type **Dessert**. Chacun peut choisir un produit différent et sa quantité. Une quantité à zéro n'ajoute aucun dessert à la personne.
+Au déjeuner et au dîner, sélectionner les personnes présentes puis cliquer sur **+ Dessert**. La ligne **Dessert · choix individuel** propose, pour chacune, **Aucun dessert** ou une recette de type **Dessert**. Chacun peut choisir un produit différent et sa quantité. Une quantité à zéro n'ajoute aucun dessert à la personne. Ce choix individuel ne se crée que par le bouton **+ Dessert**.
 
-Au petit-déjeuner, une recette de type **Dessert** peut aussi être ajoutée comme recette commune avec **+ Ajouter une recette**. Elle est alors calculée avec les quantités par personne et la proposition automatique du repas. Les moments adaptés continuent de filtrer les recettes : un dessert dont les moments sont renseignés doit inclure **Petit-déjeuner** pour être proposé dans ce créneau. Le bouton **+ Dessert** conserve le choix individuel.
+Au petit-déjeuner et aux deux collations, une recette de type **Dessert** peut être ajoutée comme recette commune avec **+ Ajouter une recette**. Elle est alors calculée avec les quantités par personne et la proposition automatique du créneau. Les moments adaptés continuent de filtrer les recettes : **Petit-déjeuner** pour le matin et **Collation** pour les deux collations. Les anciens choix individuels déjà enregistrés restent modifiables lors de la réouverture du repas.
 
 Les choix viennent des recettes : créer une petite recette de type **Dessert** pour un yaourt Frutos, une compote, un Viennois chocolat, etc., avec son aliment exact du catalogue et les quantités de l'étiquette. Par exemple, un pot peut avoir un rendement de **1 portion** et une ligne de **125 g** du produit concerné. Les moments adaptés peuvent être laissés vides ou limités au déjeuner/dîner selon le besoin. Aucune donnée nutritionnelle de marque n'est inventée.
 
