@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-**0.2.53** publiée après la [PR 67](https://github.com/throlan/Lapinou-Dish/pull/67), fusionnée sur `main` dans le commit `8b53d5eb4fd283ca6140c9d3b06e8e8335079bf3`. Le [workflow GitHub 185](https://github.com/throlan/Lapinou-Dish/actions/runs/38564017664) a réussi. **0.2.54** porte la refonte de Courses & stocks ; voir le [guide de la page](SHOPPING-STOCK-PAGE.md).
+**0.2.54** publiée après la [PR 69](https://github.com/throlan/Lapinou-Dish/pull/69), fusionnée sur `main` au commit `788b1b419cb4e6a69a606808b2d365e47abe703e`. Le [workflow GitHub 189](https://github.com/throlan/Lapinou-Dish/actions/runs/38698284489) a réussi. Cette version refond Courses & stocks ; voir le [guide de la page](SHOPPING-STOCK-PAGE.md).
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 15 octobre](SESSION-2026-10-15.md).
 
@@ -28,7 +28,7 @@ Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). P
 
 ## Vérification
 
-**171 tests réussis** avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` (Node v24.19.0) sur la version 0.2.53. Le formulaire des routines a été vérifié dans Chrome avec une base locale fictive, jusqu'au rechargement de la page.
+**171 tests réussis** avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` (Node v24.19.0) sur la version 0.2.54. La page Courses & stocks a été vérifiée dans Chrome avec une base locale fictive, sur ordinateur et mobile.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 
