@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=0.2.53">
+    <link rel="stylesheet" href="/style.css?v=0.2.54">
   </head>
   <body>
     <header class="topbar">
@@ -143,8 +143,12 @@
       </section>
 
       <section id="shopping-view" class="view hidden">
-        <div class="section-heading"><div><h2>Courses & productions</h2><p>Planifie les achats, les préparations et le stock du foyer.</p></div></div>
-        <section class="card"><h3>Routines du foyer</h3><p class="muted">Les courses fraîches sont prévues chaque lundi par défaut. Tu peux choisir un lundi sur deux.</p><form id="routines-form"><div id="routine-list" class="routine-list"></div><div class="form-actions"><button class="primary" type="submit">Enregistrer le planning</button></div><p class="form-message" id="routines-message" role="status"></p></form></section>
+        <div class="section-heading"><div><h2>Courses & stocks</h2><p>Les achats, les repas à préparer et le stock du foyer au même endroit.</p></div></div>
+        <div class="shopping-overview">
+          <section class="card"><h3>Routines du foyer</h3><p class="muted">Les courses fraîches sont prévues chaque lundi par défaut. Tu peux choisir un lundi sur deux.</p><form id="routines-form"><div id="routine-list" class="routine-list"></div><div class="form-actions"><button class="primary" type="submit">Enregistrer le planning</button></div><p class="form-message" id="routines-message" role="status"></p></form></section>
+          <section class="card preparations-card"><div class="preparations-heading"><div><h3>Préparations à faire</h3><p class="hint">Recettes des repas non préparés sur la période des courses.</p></div><span id="preparations-count" class="preparations-count"></span></div><div id="preparations-list" class="preparations-list"><p class="empty">Choisis une période.</p></div></section>
+        </div>
+        <section class="card shopping-list-card"><h3>Liste de courses</h3><p class="hint">Ouvre un magasin, puis un produit pour saisir le stock, valider l’achat ou modifier ses réglages. La case à cocher masque l’achat sans changer le stock.</p><div class="shopping-range"><label>Du<input id="shopping-start" type="date"></label><label>Au<input id="shopping-end" type="date"></label><button class="secondary" type="button" id="refresh-shopping">Actualiser</button></div><label class="shopping-filter-label">Afficher<select id="shopping-store-filter"><option value="all">Tous les magasins</option></select></label><p id="shopping-export-message" class="form-message" role="status"></p><div id="shopping-list" class="shopping-groups"><p class="empty">Choisis une période.</p></div></section>
         <section class="card order-links-card"><h3>Magasins et achats en ligne</h3><p class="hint">Ajoute un magasin physique ou un site, puis associe-lui les aliments achetés habituellement. Le lien web est facultatif.</p><form id="order-link-form" class="order-link-form"><label>Nom du magasin<input name="label" maxlength="100" placeholder="Ex. Grand Frais, Aldi, Nutripure…" required></label><label>Site HTTPS (facultatif)<input name="url" type="url" placeholder="https://…"></label><button class="secondary" type="submit">Ajouter le magasin</button></form><p id="order-link-message" class="form-message" role="status"></p><div id="order-links" class="order-links"><p class="empty">Chargement…</p></div>
           <details class="food-store-panel"><summary>Associer les aliments aux magasins</summary>
             <p class="hint">Recherche des aliments (légumes, épicerie, whey…), sélectionne-les et choisis leur magasin habituel. Un magasin par aliment, valable pour toutes les périodes.</p>
@@ -159,12 +163,9 @@
             <h4>Affectations enregistrées</h4><div id="food-store-assignments"><p class="empty">Chargement…</p></div>
           </details>
         </section>
-        <div class="shopping-columns">
-          <section class="card shopping-list-card"><h3>Liste de courses</h3><p class="hint">Chaque magasin a sa liste. « Saisir le stock déjà présent » enregistre l’inventaire de départ ; « Valider l’achat » ajoute la quantité réellement achetée au stock. La case à cocher masque simplement une ligne pour cette période, sans mouvement de stock. « Copier » ou « Télécharger » permet de partager la liste.</p><div class="shopping-range"><label>Du<input id="shopping-start" type="date"></label><label>Au<input id="shopping-end" type="date"></label><button class="secondary" type="button" id="refresh-shopping">Actualiser</button></div><label class="shopping-filter-label">Afficher<select id="shopping-store-filter"><option value="all">Tous les magasins</option></select></label><p id="shopping-export-message" class="form-message" role="status"></p><div id="shopping-list" class="shopping-groups"><p class="empty">Choisis une période.</p></div></section>
-          <section class="card"><h3>Enregistrer une production</h3><form id="production-form"><label>Préparation<select name="recipeId" required></select></label><div class="yield-row"><label>Date<input name="producedOn" type="date" required></label><label>Quantité produite<input name="quantity" type="number" min="0.01" step="any" required></label></div><label>Conservation<select name="storage"><option value="freezer">Congélateur</option><option value="fridge">Réfrigérateur</option><option value="pantry">Placard</option></select></label><label>Note (facultatif)<input name="note" maxlength="500"></label><button class="primary" type="submit">Ajouter au stock</button><p id="production-message" class="form-message" role="status"></p></form><h3>Stock des préparations</h3><p class="hint">Le stock disponible tient compte des quantités déjà prévues dans les repas.</p><div id="stock-list"><p class="empty">Chargement…</p></div></section>
-        </div>
-        <section class="card ingredient-section">
-          <h3>Stock des produits</h3>
+        <section class="card production-card"><h3>Enregistrer une production</h3><p class="hint">Choisis une recette à produire pour les menus affichés, ou ajoute une préparation supplémentaire.</p><form id="production-form"><label>Préparation des menus<select name="recipeId" required></select></label><details class="extra-production"><summary>+ Préparation supplémentaire</summary><label>Autre recette à produire<select id="extra-production-recipe"><option value="">Choisir une autre préparation…</option></select></label></details><div class="yield-row"><label>Date<input name="producedOn" type="date" required></label><label>Quantité produite<input name="quantity" type="number" min="0.01" step="any" required></label></div><label>Conservation<select name="storage"><option value="freezer">Congélateur</option><option value="fridge">Réfrigérateur</option><option value="pantry">Placard</option></select></label><label>Note (facultatif)<input name="note" maxlength="500"></label><button class="primary" type="submit">Ajouter au stock</button><p id="production-message" class="form-message" role="status"></p></form><details class="finished-stock"><summary>Stock des préparations déjà produites</summary><p class="hint">Le stock disponible tient compte des quantités déjà prévues dans les repas.</p><div id="stock-list"><p class="empty">Chargement…</p></div></details></section>
+        <details class="card ingredient-section">
+          <summary>Gestion détaillée du stock des produits</summary>
           <p class="hint">Renseigne les produits déjà présents. Les achats validés augmentent le stock ; les productions et les repas marqués « Préparé » retirent les ingrédients utilisés. Les quantités de stock sont en grammes. Laisse les seuils à zéro si tu ne souhaites pas de surveillance.</p>
           <form id="ingredient-stock-form">
             <div class="yield-row"><label>Rechercher dans les aliments<input id="ingredient-search" type="search" placeholder="Ail, farine…" autocomplete="off"></label><label>Produit à stocker<select name="foodId" required><option value="">Rechercher puis choisir un aliment…</option></select></label></div>
@@ -179,7 +180,7 @@
             <p id="ingredient-message" class="form-message" role="status"></p>
           </form>
           <div id="ingredient-stock-list"><p class="empty">Aucun produit en stock.</p></div>
-        </section>
+        </details>
       </section>
 
     </main>
@@ -259,6 +260,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.53"></script>
+    <script type="module" src="/app.js?v=0.2.54"></script>
   </body>
 </html>

@@ -1,12 +1,13 @@
-# Cahier de reprise — 14 octobre 2026
+# Cahier de reprise — 15 octobre 2026
 
 ## Point de départ
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish
 - Branche de référence : `main`, commit `8b53d5eb4fd283ca6140c9d3b06e8e8335079bf3` après la [PR 67](https://github.com/throlan/Lapinou-Dish/pull/67).
-- Dernière version publiée vérifiée : **0.2.53**. Tests et publication de l'image réussis dans le [workflow GitHub 185](https://github.com/throlan/Lapinou-Dish/actions/runs/38564017664).
+- Version publiée vérifiée avant la refonte : **0.2.53**. Tests et publication de l'image réussis dans le [workflow GitHub 185](https://github.com/throlan/Lapinou-Dish/actions/runs/38564017664). Le travail 0.2.54 est décrit dans le [journal du 15 octobre](SESSION-2026-10-15.md).
 - Journaux : [13 octobre](SESSION-2026-10-13.md) et [14 octobre](SESSION-2026-10-14.md). État et tâches restantes : [STATUS.md](STATUS.md).
 - Derniers travaux livrés : stock des produits et préparation des repas (0.2.52, PR 66), puis correction de l'enregistrement du planning des courses (0.2.53, PR 67). **171 tests réussis** ; parcours Chrome local vérifiés avec des données synthétiques. Aucun correctif de cette session n'attend une fusion ou une publication GitHub.
+- Travail suivant : **0.2.54**, refonte de la page Courses & stocks avec une liste de préparations couvrant tous les repas de la période. Voir [le guide](SHOPPING-STOCK-PAGE.md). Vérifier sa PR et son workflow avant d'annoncer sa publication.
 
 ## Règle d'exploitation impérative
 
@@ -99,4 +100,4 @@ Workflow appliqué : branche de travail, tests adaptés, vérification navigateu
 
 ## Prompt de reprise sur un autre PC
 
-> Reprends le développement de Lapinou Dish. Retrouve le dépôt local, vérifie son état et préserve toute modification ou stash existant avant de récupérer `origin/main` sans écrasement. La dernière version vérifiée est 0.2.53, fusionnée via la PR 67 au commit `8b53d5eb4fd283ca6140c9d3b06e8e8335079bf3` ; les tests et la publication de l'image ont réussi dans le workflow GitHub 185. Lis `AGENTS.md` s'il existe, `docs/REPRISE.md`, `docs/STATUS.md` et `docs/SESSION-2026-10-14.md`. Fais-moi un état court de la version et des éventuelles tâches restantes avant toute nouvelle modification. Règle absolue : n'accède jamais à Unraid ni à Nginx ; je gère moi-même le déploiement. Les vérifications en navigateur local sur données fictives sont autorisées.
+> Reprends le développement de Lapinou Dish. Retrouve le dépôt local, vérifie son état et préserve toute modification ou stash existant avant de récupérer `origin/main` sans écrasement. Lis `AGENTS.md` s'il existe, `docs/REPRISE.md`, `docs/STATUS.md` et le dernier journal dans `docs/`. Vérifie la version de `package.json` ainsi que les PR et workflows GitHub récents, puis fais-moi un état court des tâches restantes avant toute nouvelle modification. Règle absolue : n'accède jamais à Unraid ni à Nginx ; je gère moi-même le déploiement. Les vérifications en navigateur local sur données fictives sont autorisées.

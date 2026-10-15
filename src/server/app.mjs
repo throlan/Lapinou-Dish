@@ -16,7 +16,7 @@ import { extractRecipeWithOpenAI } from './openai-recipe-import.mjs';
 import { retrieveInstagramCaption, instagramPostUrl } from './instagram-caption.mjs';
 import { addProfileHistory, addWeightEntry, createPerson, listPeople, validatePersonInput, validateProfileHistoryInput, validateWeightInput } from './people.mjs';
 import { deletePlannedMeal, duplicatePlannedMeal, listPlannedMeals, savePlannedMeal, validateMealDuplication, validatePlannedMeal } from './planning.mjs';
-import { addStockLot, cancelStockLot, completeRoutine, deleteOrderLink, getRoutineSettings, listOrderLinks, listShoppingRequirements, listStock, saveOrderLink, saveRoutineSettings, saveShoppingLineState, validateOrderLinkInput, validateProductionInput, validateRoutineSettings, validateShoppingLineState } from './household-planning.mjs';
+import { addStockLot, cancelStockLot, completeRoutine, deleteOrderLink, getRoutineSettings, listOrderLinks, listPreparationsToMake, listShoppingRequirements, listStock, saveOrderLink, saveRoutineSettings, saveShoppingLineState, validateOrderLinkInput, validateProductionInput, validateRoutineSettings, validateShoppingLineState } from './household-planning.mjs';
 import { parseRecipeArchive, parseRecipeText } from '../domain/recipe-import.mjs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -319,6 +319,16 @@ export async function handleRequest(request, response, pool, appPassword = null,
       if ((new Date(endDate) - new Date(startDate)) / 86400000 > 62) return send(response, 400, { error: 'shopping-period-too-long' });
       try { return send(response, 200, { items: await listShoppingRequirements(pool, householdId, startDate, endDate) }); }
       catch { return send(response, 500, { error: 'shopping-list-read-failed' }); }
+    }
+    if (url.pathname === '/api/household-planning/preparations' && request.method === 'GET') {
+      const householdId=url.searchParams.get('householdId');
+      const startDate=url.searchParams.get('startDate');
+      const endDate=url.searchParams.get('endDate');
+      if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});
+      if(!isValidDate(startDate)||!isValidDate(endDate)||endDate<startDate)return send(response,400,{error:'invalid-shopping-period'});
+      if((new Date(endDate)-new Date(startDate))/86400000>62)return send(response,400,{error:'shopping-period-too-long'});
+      try{return send(response,200,{preparations:await listPreparationsToMake(pool,householdId,startDate,endDate)});}
+      catch{return send(response,500,{error:'preparations-read-failed'});}
     }
     if(url.pathname==='/api/household-purchase-units' && request.method==='GET'){
       const householdId=url.searchParams.get('householdId');if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});

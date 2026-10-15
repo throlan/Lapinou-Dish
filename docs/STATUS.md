@@ -1,10 +1,10 @@
-# État du projet — 14 octobre 2026
+# État du projet — 15 octobre 2026
 
 ## Version de référence
 
-**0.2.53** publiée après la [PR 67](https://github.com/throlan/Lapinou-Dish/pull/67), fusionnée sur `main` dans le commit `8b53d5eb4fd283ca6140c9d3b06e8e8335079bf3`. Le [workflow GitHub 185](https://github.com/throlan/Lapinou-Dish/actions/runs/38564017664) a réussi. Cette version corrige l'enregistrement du planning des courses ; la 0.2.52 avait livré la gestion du stock des produits.
+**0.2.53** publiée après la [PR 67](https://github.com/throlan/Lapinou-Dish/pull/67), fusionnée sur `main` dans le commit `8b53d5eb4fd283ca6140c9d3b06e8e8335079bf3`. Le [workflow GitHub 185](https://github.com/throlan/Lapinou-Dish/actions/runs/38564017664) a réussi. **0.2.54** porte la refonte de Courses & stocks ; voir le [guide de la page](SHOPPING-STOCK-PAGE.md).
 
-Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 14 octobre](SESSION-2026-10-14.md).
+Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 15 octobre](SESSION-2026-10-15.md).
 
 **Règle impérative : aucune intervention de l'agent sur Unraid, y compris en lecture ou pour une vérification. L'utilisateur gère lui-même son installation et ses mises à jour.**
 
@@ -23,6 +23,7 @@ Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). P
 - Rééquilibrage de la journée pour les adultes : aperçu, correction du petit-déjeuner, réduction éventuelle du déjeuner/dîner, conservation du repère protéique de ces repas et refus des aperçus obsolètes.
 - Stocks de produits et de préparations : inventaire initial, achats reçus, productions et repas marqués « Préparé », historique, annulations transactionnelles et protection contre les doubles déductions ; courses déduisant les stocks disponibles.
 - Planning des routines de courses modifiable et persistant, avec confirmation visible après enregistrement.
+- Courses regroupées par magasin et produit dans des panneaux repliables ; préparations de tous les repas non préparés sur la période, avec besoins restants après stock de plats.
 - Docker/Compose pour environnement dédié, migrations ordonnées, import Ciqual idempotent et publication CI de l'image.
 
 ## Vérification
@@ -75,5 +76,6 @@ Aucune modification déjà demandée pendant cette session n'attend de fusion. L
 - [Desserts individuels](INDIVIDUAL-DESSERTS.md)
 - [Ingrédients surveillés](INGREDIENT-STOCK.md)
 - [Stock des produits](PRODUCT-INVENTORY.md)
+- [Page Courses & stocks](SHOPPING-STOCK-PAGE.md)
 - [Achats en ligne par boutique](ONLINE-SHOPPING.md)
 - [Import OpenAI](OPENAI-RECIPE-IMPORT.md)

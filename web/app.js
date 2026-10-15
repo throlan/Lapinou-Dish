@@ -9,10 +9,11 @@ import { PLATE_PARTS, validPlateRatios } from './meal-config.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, importingDraftId: null, editingFoodFromRecipe: false, people: [], recipes: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, mealOccasionEnergy: {} };
+const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, importingDraftId: null, people: [], recipes: [], preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
 const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbohydrateG', 'g gluc.'], ['fatG', 'g lip.']];
 const selectedStoreFoods=new Map();
 let visibleStoreFoods=[],storeSearchSequence=0,storeSearchTimer;
+let preparationsRequest=0;
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -239,11 +240,7 @@ async function refreshShopping() {
     renderRoutines(planning.routines);
     state.ingredients = planning.ingredients ?? [];
     renderIngredientStock(state.ingredients);
-    const productionSelect = $('#production-form').elements.recipeId;
-    productionSelect.replaceChildren(new Option('Choisir une préparation…',''));
-    state.recipes.filter((recipe) => recipe.productionType && recipe.productionType !== 'none').forEach((recipe) => {
-      productionSelect.add(new Option(`${recipe.name} · rendement ${formatQty(recipe.yield.amount)} ${recipe.yield.unitId}`,recipe.id));
-    });
+    renderProductionOptions();
     const stockRoot = $('#stock-list');
     stockRoot.replaceChildren(...(planning.stock.length ? planning.stock.map((item) => {
       const card=document.createElement('article'); card.className='stock-row';
@@ -393,10 +390,67 @@ $('#food-store-form').addEventListener('submit',async event=>{
   }catch(error){showMessage(message,'Affectation non enregistrée : '+(error.body?.error??error.message));}
   finally{updateStoreSelection();}
 });
+function renderProductionOptions() {
+  const select=$('#production-form').elements.recipeId;
+  const extra=$('#extra-production-recipe');
+  const previous=select.value;
+  const available=state.recipes.filter(recipe=>recipe.productionType&&recipe.productionType!=='none'&&!recipe.parentRecipeId);
+  const plannedIds=new Set(state.preparations.filter(item=>item.toMakeQuantity>0&&item.productionType!=='none')
+    .map(item=>item.parentRecipeId??item.recipeId));
+  select.replaceChildren(new Option('Choisir une préparation des menus…',''));
+  for(const recipe of available.filter(item=>plannedIds.has(item.id)))select.add(new Option(`${recipe.name} · ${formatQty(recipe.yield.amount)} ${recipe.yield.unitId}`,recipe.id));
+  if(previous&&[...select.options].some(option=>option.value===previous))select.value=previous;
+  extra.replaceChildren(new Option('Choisir une autre préparation…',''),...available.map(recipe=>new Option(recipe.name,recipe.id)));
+}
+async function refreshPreparations(start,end) {
+  const root=$('#preparations-list'),count=$('#preparations-count');
+  const request=++preparationsRequest;
+  root.replaceChildren(emptyMessage('Calcul des préparations…'));
+  try {
+    const {preparations}=await api(`/api/household-planning/preparations?householdId=${encodeURIComponent(state.household.id)}&startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`);
+    if(request!==preparationsRequest)return;
+    state.preparations=preparations;
+    renderProductionOptions();
+    const needed=preparations.filter(item=>item.toMakeQuantity>0.00001);
+    count.textContent=`${needed.length} à faire · ${preparations.length} suivies`;
+    if(!preparations.length){root.replaceChildren(emptyMessage('Aucune recette planifiée sur cette période.'));return;}
+    root.replaceChildren(...preparations.map(item=>{
+      const row=document.createElement('article');row.className='preparation-row'+(item.toMakeQuantity<=0.00001?' is-covered':'');
+      const title=document.createElement('strong');title.textContent=item.name;
+      const dates=document.createElement('small');dates.textContent=`${item.mealCount} repas · ${displayDate(item.firstDate)}${item.lastDate!==item.firstDate?' au '+displayDate(item.lastDate):''}`;
+      const amount=document.createElement('span');amount.className='preparation-amount';
+      amount.textContent=item.toMakeQuantity<=0.00001?'Couvert par le stock':`${formatQty(item.toMakeQuantity)} ${item.unitId} à ${item.productionType==='none'?'cuisiner':'produire'}`;
+      const detail=document.createElement('small');detail.textContent=`Prévu : ${formatQty(item.plannedQuantity)} ${item.unitId}${item.productionType!=='none'?` · stock couvrant ${formatQty(item.coveredQuantity)} ${item.unitId}`:''}`;
+      row.append(title,dates,amount,detail);
+      if(item.productionType!=='none'&&item.toMakeQuantity>0.00001){
+        const choose=document.createElement('button');choose.type='button';choose.className='secondary';choose.textContent='Enregistrer une production';
+        choose.addEventListener('click',()=>{
+          const recipeId=item.parentRecipeId??item.recipeId;
+          const select=$('#production-form').elements.recipeId;
+          if(![...select.options].some(option=>option.value===recipeId)){
+            const recipe=state.recipes.find(entry=>entry.id===recipeId);
+            if(recipe)select.add(new Option(recipe.name,recipe.id));
+          }
+          select.value=recipeId;select.dispatchEvent(new Event('change'));
+          const recipe=state.recipes.find(entry=>entry.id===recipeId);
+          if(recipe){const quantity=item.parentRecipeId
+            ?item.toMakeQuantity/item.yieldAmount*recipe.yield.amount:item.toMakeQuantity;
+            $('#production-form').elements.quantity.value=String(Number(quantity.toFixed(3)));}
+          $('#production-form').scrollIntoView({behavior:'smooth',block:'center'});
+        });row.append(choose);
+      }
+      const calendar=document.createElement('button');calendar.type='button';calendar.className='secondary';calendar.textContent='Voir le repas dans le calendrier';
+      calendar.addEventListener('click',()=>{state.calendarWeekStart=mondayOf(item.firstDate);setView('calendar');});
+      row.append(calendar);
+      return row;
+    }));
+  }catch(error){if(request===preparationsRequest){root.replaceChildren(emptyMessage('Préparations indisponibles : '+(error.body?.error??error.message)));count.textContent='';}}
+}
 async function refreshShoppingList() {
   const start=$('#shopping-start').value, end=$('#shopping-end').value, root=$('#shopping-list');
   if (!state.household || !start || !end) return;
-  const openDetails=new Set([...root.querySelectorAll('.shopping-item-options[open]')].map(detail=>detail.parentElement.dataset.key));
+  void refreshPreparations(start,end);
+  const openDetails=new Set([...root.querySelectorAll('.shopping-item-options[open]')].map(detail=>detail.closest('.shopping-item')?.dataset.key));
   root.replaceChildren(emptyMessage('Calcul de la liste…'));
   try {
     const {items}=await api(`/api/shopping-list?householdId=${encodeURIComponent(state.household.id)}&startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`);
@@ -411,7 +465,13 @@ async function refreshShoppingList() {
       root.replaceChildren(...sorted.filter(([id])=>filter.value==='all'||filter.value===id).map(([id,bucket])=>{
         const section=document.createElement('section');section.className='shopping-store-card';
         const header=document.createElement('div');header.className='shopping-store-header';
-        const heading=document.createElement('h4');heading.textContent=`${bucket.store?.label??'Sans magasin'} · ${bucket.items.length} article${bucket.items.length>1?'s':''}`;
+        const heading=document.createElement('button');heading.type='button';heading.className='shopping-store-toggle';
+        const remaining=bucket.items.filter(item=>!item.checked).length;
+        heading.textContent=`${bucket.store?.label??'Sans magasin'} · ${remaining} produit${remaining>1?'s':''} à acheter`;
+        const storeOpen=state.openShoppingStores.has(id);heading.setAttribute('aria-expanded',String(storeOpen));
+        const itemsRoot=document.createElement('div');itemsRoot.className='shopping-store-items';itemsRoot.hidden=!storeOpen;
+        heading.addEventListener('click',()=>{itemsRoot.hidden=!itemsRoot.hidden;heading.setAttribute('aria-expanded',String(!itemsRoot.hidden));
+          if(itemsRoot.hidden)state.openShoppingStores.delete(id);else state.openShoppingStores.add(id);});
         const actions=document.createElement('div');actions.className='shopping-store-actions';
         if(bucket.store?.url){const link=document.createElement('a');link.href=bucket.store.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Site ↗';actions.append(link);}
         const lines=bucket.items.filter(item=>!item.checked).map(item=>`${item.name} — ${item.purchase.text}${item.purchase.detail?` (${item.purchase.detail})`:''}`);
@@ -429,7 +489,7 @@ async function refreshShoppingList() {
           try{const result=await api('/api/shopping-list/export/home-assistant',{method:'POST',body:JSON.stringify({householdId:state.household.id,storeId:id,startDate:start,endDate:end})});showMessage($('#shopping-export-message'),`${bucket.store.label} : ${result.added} article(s) ajoutés, ${result.skipped} déjà présents.`,true);}
           catch(error){const code=error.body?.error??error.message;showMessage($('#shopping-export-message'),code==='home-assistant-not-configured'?'Home Assistant doit être configuré côté serveur avant l’export.':`Export impossible : ${code}`);}finally{ha.disabled=false;}
         });actions.append(ha);}
-        header.append(heading,actions);section.append(header);
+        header.append(heading,actions);section.append(header,itemsRoot);
         for(const item of bucket.items){
           const row=document.createElement('div');row.className='shopping-item'+(item.checked?' checked':'');row.dataset.key=`${item.foodId}:${item.unitId}`;
           const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=item.checked;checkbox.setAttribute('aria-label','Masquer sans ajouter au stock : '+item.name);
@@ -437,7 +497,18 @@ async function refreshShoppingList() {
           const title=document.createElement('strong');title.className='shopping-item-title';title.textContent=item.name;
           const qty=document.createElement('span');qty.className='shopping-quantity';qty.textContent=item.purchase.text;
           const detail=document.createElement('small');detail.textContent=item.purchase.detail;
-          main.append(title,qty,detail);
+          const existing=state.ingredients.find(entry=>entry.foodId===item.foodId);
+          const stock=document.createElement('span');stock.className='shopping-stock-quantity';stock.textContent=`Stock : ${formatQty(existing?.quantityG??0)} g`;
+          const itemHeader=document.createElement('div');itemHeader.className='shopping-item-head';
+          const itemToggle=document.createElement('button');itemToggle.type='button';itemToggle.className='shopping-item-toggle';
+          itemToggle.append(title);itemToggle.setAttribute('aria-label',`Détails de ${item.name}`);
+          const itemOpen=state.openShoppingProducts.has(row.dataset.key);main.hidden=!itemOpen;row.classList.toggle('is-open',itemOpen);
+          itemToggle.setAttribute('aria-expanded',String(itemOpen));
+          itemToggle.addEventListener('click',()=>{main.hidden=!main.hidden;row.classList.toggle('is-open',!main.hidden);
+            itemToggle.setAttribute('aria-expanded',String(!main.hidden));
+            if(main.hidden)state.openShoppingProducts.delete(row.dataset.key);else state.openShoppingProducts.add(row.dataset.key);});
+          itemHeader.append(checkbox,itemToggle,qty,stock);
+          main.append(detail);
           const inventoryActions=document.createElement('div');inventoryActions.className='shopping-inventory-actions';
           const countStock=document.createElement('details');countStock.className='shopping-count-stock';
           const countSummary=document.createElement('summary');countSummary.textContent='Saisir le stock déjà présent';countStock.append(countSummary);
@@ -445,7 +516,7 @@ async function refreshShoppingList() {
           const countLabel=document.createElement('label');countLabel.textContent=`Quantité totale présente (${item.unitId})`;
           const countQuantity=document.createElement('input');countQuantity.type='number';countQuantity.min='0';countQuantity.step='any';countQuantity.required=true;countQuantity.placeholder='Ex. 3';countLabel.append(countQuantity);
           const countButton=document.createElement('button');countButton.type='submit';countButton.className='secondary';countButton.textContent='Enregistrer le stock compté';
-          const countHint=document.createElement('small');const existing=state.ingredients.find(row=>row.foodId===item.foodId);
+          const countHint=document.createElement('small');
           countHint.textContent=`Cette quantité remplace le stock actuel${existing?` (${formatQty(existing.quantityG)} g)`:''}. Conversion en grammes requise.`;
           countForm.append(countLabel,countButton);countStock.append(countForm,countHint);
           countForm.addEventListener('submit',async event=>{
@@ -536,7 +607,7 @@ async function refreshShoppingList() {
             try{await saveFoodStoreSelection([item.foodId],storeChoice.value||null);await refreshFoodStores();await refreshShoppingList();}
             catch(error){showMessage($('#shopping-export-message'),'Magasin non enregistré : '+(error.body?.error??error.message));storeChoice.value=item.store?.id??'';storeChoice.disabled=false;}
           });
-          row.append(checkbox,main,options);section.append(row);
+          main.append(options);row.append(itemHeader,main);itemsRoot.append(row);
         }
         return section;
       }));
@@ -584,6 +655,13 @@ $('#order-link-form').addEventListener('submit',async event=>{
   finally{button.disabled=false;}
 });
 $('#production-form').elements.recipeId.addEventListener('change', event => { const recipe=state.recipes.find(item=>item.id===event.target.value); if(recipe) $('#production-form').elements.quantity.value=recipe.yield.amount; });
+$('#extra-production-recipe').addEventListener('change',event=>{
+  const recipe=state.recipes.find(item=>item.id===event.target.value);
+  if(!recipe)return;
+  const select=$('#production-form').elements.recipeId;
+  if(![...select.options].some(option=>option.value===recipe.id))select.add(new Option(recipe.name,recipe.id));
+  select.value=recipe.id;select.dispatchEvent(new Event('change'));
+});
 
 
 function newProductionRequestId() {
