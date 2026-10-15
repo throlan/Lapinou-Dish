@@ -34,6 +34,40 @@ export function validateRecipeInput(input) {
   return { data: { ...serving.data, name: input.name.trim(), description: typeof input.description === 'string' ? input.description.slice(0, 5000) : '', instructions: typeof input.instructions === 'string' ? input.instructions.slice(0, 20000) : '', sourceUrl: typeof input.sourceUrl === 'string' && /^https:\/\//i.test(input.sourceUrl) ? input.sourceUrl.slice(0, 2000) : null, recipeType, productionType, mealMoments: [...moments], householdId: input.householdId, yield: { amount, unitId }, lines } };
 }
 
+export function validateRecipeSettings(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input) || !isUuid(input.householdId)) return { error: 'invalid-household-id' };
+  if (!Number.isSafeInteger(input.version) || input.version < 0) return { error: 'invalid-recipe-version' };
+  if (!['none', 'batch_cooking', 'pasta', 'pastry', 'bread'].includes(input.productionType)) return { error: 'invalid-production-type' };
+  const moments = input.mealMoments;
+  if (!Array.isArray(moments) || moments.length > 4 || moments.some(moment => !['breakfast', 'lunch', 'dinner', 'snack'].includes(moment)) || new Set(moments).size !== moments.length) return { error: 'invalid-meal-moments' };
+  return { data: { householdId: input.householdId, version: input.version, productionType: input.productionType, mealMoments: moments } };
+}
+
+export async function updateRecipeSettings(pool, id, data) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await lockHouseholdInventory(client, data.householdId);
+    const current = await client.query('SELECT version, production_type FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL FOR UPDATE', [id, data.householdId]);
+    if (!current.rowCount) { await client.query('ROLLBACK'); return null; }
+    if (Number(current.rows[0].version) !== data.version) { await client.query('ROLLBACK'); return { error: 'recipe-version-conflict' }; }
+    if (current.rows[0].production_type !== data.productionType) {
+      const prepared = await client.query(`SELECT 1 FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
+        JOIN recipes used ON used.id=i.recipe_id WHERE m.household_id=$1 AND m.prepared_at IS NOT NULL
+        AND (used.id=$2 OR used.parent_recipe_id=$2) LIMIT 1`, [data.householdId, id]);
+      if (prepared.rowCount) { await client.query('ROLLBACK'); return { error: 'recipe-used-in-prepared-meal' }; }
+    }
+    await client.query(`UPDATE recipes SET production_type=$2, meal_moments=$3, version=version+1, updated_at=now()
+      WHERE household_id=$4 AND (id=$1 OR parent_recipe_id=$1)`, [id, data.productionType, data.mealMoments, data.householdId]);
+    const recipe = await readRecipe(client, id);
+    await client.query('COMMIT');
+    return recipe;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally { client.release(); }
+}
+
 export async function createRecipe(pool, data) {
   const client = await pool.connect();
   const id = randomUUID();
@@ -121,7 +155,7 @@ export async function updateRecipe(pool, id, data) {
 
 export async function readRecipe(client, id) {
   const recipeResult = await client.query(
-    `SELECT id, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type, meal_moments,separate_starch,serving_weights,cooking_factors,parent_recipe_id,serving_part
+    `SELECT id, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type, meal_moments,separate_starch,serving_weights,cooking_factors,parent_recipe_id,serving_part,version
        FROM recipes WHERE id = $1`, [id],
   );
   const row = recipeResult.rows[0];
@@ -172,7 +206,7 @@ export async function readRecipe(client, id) {
   }
   return {
     separateStarch:row.separate_starch ?? false,servingWeights:row.serving_weights ?? {},cookingFactors:row.cooking_factors ?? {main:1,starch:3},parentRecipeId:row.parent_recipe_id ?? null,servingPart:row.serving_part ?? null,servingParts,
-    id: row.id, name: row.name, description: row.description, instructions: row.instructions ?? '', sourceUrl: row.source_url ?? null,
+    id: row.id, version: Number(row.version ?? 0), name: row.name, description: row.description, instructions: row.instructions ?? '', sourceUrl: row.source_url ?? null,
     recipeType: row.recipe_type ?? 'dish', productionType: row.production_type ?? 'none', mealMoments: row.meal_moments ?? [],
     yield: { amount: Number(row.yield_amount), unitId: row.yield_unit_id },
     lines: lines.map((line, index) => ({ ...line, foodName: foodById.get(line.foodId)?.name ?? null, resolved: !nutrition.unresolvedLineIndexes.includes(index) })),
