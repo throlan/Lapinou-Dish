@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-**0.2.54** publiée après la [PR 69](https://github.com/throlan/Lapinou-Dish/pull/69), fusionnée sur `main` au commit `788b1b419cb4e6a69a606808b2d365e47abe703e`. Le [workflow GitHub 189](https://github.com/throlan/Lapinou-Dish/actions/runs/38698284489) a réussi. Cette version refond Courses & stocks ; voir le [guide de la page](SHOPPING-STOCK-PAGE.md).
+**0.2.55** publiée après la [PR 71](https://github.com/throlan/Lapinou-Dish/pull/71), fusionnée sur `main` au commit `379eff2ee50376e21c4d31f2218bf4b71dee4ebb`. Le [workflow GitHub 193](https://github.com/throlan/Lapinou-Dish/actions/runs/38700708048) a réussi. Cette version compacte la liste des recettes et ajoute l’édition directe des réglages de production et des moments adaptés.
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 15 octobre](SESSION-2026-10-15.md).
 
@@ -12,7 +12,7 @@ Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). P
 
 - Authentification par mot de passe de foyer et session HTTP-only ; connexion sans actualisation nécessaire.
 - Catalogue canonique Ciqual et aliments manuels, alias, conversions documentées, données inconnues conservées, édition et recherche de valeurs manquantes.
-- Création/édition de recettes, calcul par batch et rendement, types et moments distincts, filtres, sauvegarde des tags.
+- Création/édition de recettes, calcul par batch et rendement, types et moments distincts, filtres et recherche. Liste paginée (12 recettes), détails repliés et réglages de production/moments enregistrables directement sur chaque ligne sans modifier les ingrédients.
 - Import de texte/archives en brouillons, OpenAI optionnel et tentative de récupération de description Instagram avec repli texte.
 - Calendrier à cinq créneaux, participants explicites, repas multi-recettes, boissons/desserts individuels et duplication complète sur plusieurs dates.
 - Préparation entière en grammes estimés, deux ou trois parties indépendantes, coefficients de cuisson, conversions des repas/lots existants et conservation des ingrédients crus.
@@ -28,7 +28,7 @@ Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). P
 
 ## Vérification
 
-**171 tests réussis** avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` (Node v24.19.0) sur la version 0.2.54. La page Courses & stocks a été vérifiée dans Chrome avec une base locale fictive, sur ordinateur et mobile.
+**172 tests réussis** avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` (Node v24.19.0) sur la version 0.2.55. La liste des recettes a été vérifiée dans Chrome avec 32 recettes fictives, sur ordinateur et mobile : pagination, recherche et sauvegarde ciblée.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 
