@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-**0.2.55** publiée après la [PR 71](https://github.com/throlan/Lapinou-Dish/pull/71), fusionnée sur `main` au commit `379eff2ee50376e21c4d31f2218bf4b71dee4ebb`. Le [workflow GitHub 193](https://github.com/throlan/Lapinou-Dish/actions/runs/38700708048) a réussi. Cette version compacte la liste des recettes et ajoute l’édition directe des réglages de production et des moments adaptés.
+**0.2.56** publiée après la [PR 73](https://github.com/throlan/Lapinou-Dish/pull/73), fusionnée sur `main` au commit `b285dbf68e32213af49b1e2cded99de768f5bdd0`. Le [workflow GitHub 198](https://github.com/throlan/Lapinou-Dish/actions/runs/38703114682) a réussi. Cette version permet de modifier les magasins et réserve « Préparations à faire » aux recettes avec une production à suivre.
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 15 octobre](SESSION-2026-10-15.md).
 
@@ -23,12 +23,12 @@ Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). P
 - Rééquilibrage de la journée pour les adultes : aperçu, correction du petit-déjeuner, réduction éventuelle du déjeuner/dîner, conservation du repère protéique de ces repas et refus des aperçus obsolètes.
 - Stocks de produits et de préparations : inventaire initial, achats reçus, productions et repas marqués « Préparé », historique, annulations transactionnelles et protection contre les doubles déductions ; courses déduisant les stocks disponibles.
 - Planning des routines de courses modifiable et persistant, avec confirmation visible après enregistrement.
-- Courses regroupées par magasin et produit dans des panneaux repliables ; préparations de tous les repas non préparés sur la période, avec besoins restants après stock de plats.
+- Courses regroupées par magasin et produit dans des panneaux repliables ; magasins modifiables sans perdre leurs associations d’aliments ni leur cible Home Assistant. « Préparations à faire » ne garde que les recettes avec une production à suivre, avec besoins restants après stock de plats.
 - Docker/Compose pour environnement dédié, migrations ordonnées, import Ciqual idempotent et publication CI de l'image.
 
 ## Vérification
 
-**172 tests réussis** avec `node --experimental-strip-types --test test/*.test.ts test/*.test.mjs` (Node v24.19.0) sur la version 0.2.55. La liste des recettes a été vérifiée dans Chrome avec 32 recettes fictives, sur ordinateur et mobile : pagination, recherche et sauvegarde ciblée.
+**172 tests réussis** dans le [workflow 197](https://github.com/throlan/Lapinou-Dish/actions/runs/38703038499) sur la version 0.2.56. La liste des recettes a été vérifiée dans Chrome avec 32 recettes fictives, sur ordinateur et mobile : pagination, recherche et sauvegarde ciblée.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 
