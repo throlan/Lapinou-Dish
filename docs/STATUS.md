@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-Le code **0.2.57** (desserts partagés au petit-déjeuner) a été fusionné via la [PR 75](https://github.com/throlan/Lapinou-Dish/pull/75), commit `741a758834775418ba09860580b8d6e8f3c3b4f6`. Les tests et la publication de l'image après fusion ne sont pas vérifiés ici ; la dernière publication vérifiée est **0.2.56**. La correction locale en cours est **0.2.58** : retour du mode « Préparation servie ensemble » aux proportions de rendement d'origine. Suite complète locale : **174 tests réussis**.
+Le code **0.2.58** a été fusionné sur `main` via la [PR 76](https://github.com/throlan/Lapinou-Dish/pull/76), commit `fd9bf92c41dbc72ef4a40dc6d4f98f95c0bfc20b`. La suite locale (**174 tests**) et le workflow PR #203 ont réussi. Le workflow de publication de l'image après fusion reste à vérifier ; dernière image confirmée publiée : **0.2.56**.
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 15 octobre](SESSION-2026-10-15.md).
 

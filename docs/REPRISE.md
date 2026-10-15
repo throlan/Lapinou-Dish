@@ -3,10 +3,10 @@
 ## Point de départ
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish
-- Base de travail : `main`, commit `741a758834775418ba09860580b8d6e8f3c3b4f6` après la [PR 75](https://github.com/throlan/Lapinou-Dish/pull/75) ; correction locale de la version **0.2.58** en cours.
-- Dernière version de code fusionnée : **0.2.57**, desserts de petit-déjeuner partagés comme repas. Les tests et la publication de l'image du workflow principal après fusion ne sont pas vérifiés ici. La dernière publication d'image vérifiée reste **0.2.56** (workflows 197 et 198). Voir le [journal du 15 octobre](SESSION-2026-10-15.md).
+- Base de travail : `main`, commit `fd9bf92c41dbc72ef4a40dc6d4f98f95c0bfc20b` après la [PR 76](https://github.com/throlan/Lapinou-Dish/pull/76) ; checkout local propre.
+- Dernier code fusionné : **0.2.58**, retour de « Préparation servie ensemble » aux proportions de rendement d'origine. Les **174 tests** locaux et le workflow PR #203 ont réussi. Le workflow principal de publication après fusion reste à vérifier ; dernière image dont la publication est confirmée : **0.2.56** (workflows 197 et 198). Voir le [journal du 15 octobre](SESSION-2026-10-15.md).
 - Journaux : [13 octobre](SESSION-2026-10-13.md) et [14 octobre](SESSION-2026-10-14.md). État et tâches restantes : [STATUS.md](STATUS.md).
-- Derniers travaux livrés : stock des produits et préparation des repas (0.2.52, PR 66), puis correction de l'enregistrement du planning des courses (0.2.53, PR 67). Le dernier test complet vérifié sur le code 0.2.57 comptait **173 tests** ; le workflow PR #201 a réussi. Aucun accès à Unraid ni à Nginx.
+- Derniers travaux livrés : stock des produits et préparation des repas (0.2.52, PR 66), puis correction de l'enregistrement du planning des courses (0.2.53, PR 67). Aucun accès à Unraid ni à Nginx.
 - Dernier travail livré : **0.2.55**, liste des recettes compacte et paginée, recherche, production à suivre et moments adaptés modifiables sur chaque ligne. La PR 71 et le workflow 193 ont réussi. La refonte de Courses & stocks demeure documentée dans [son guide](SHOPPING-STOCK-PAGE.md).
 - Dernier correctif : **0.2.56**, édition du nom et de l’adresse web des magasins ; les associations alimentaires et les listes Home Assistant restent liées au même magasin. Les préparations à faire ignorent désormais les recettes dont la production est « Aucune ». Voir la [PR 73](https://github.com/throlan/Lapinou-Dish/pull/73).
 
