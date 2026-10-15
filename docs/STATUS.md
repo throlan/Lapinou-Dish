@@ -66,7 +66,7 @@ Livré en 0.2.52 (PR 66, workflow 183) : stock initial par aliment, saisi dans l
 
 ## Suite
 
-La version **0.2.60** est en préparation sur la branche `feat/preparation-lists` : regroupement des préparations à faire par Pâtisserie, Pain, Pâtes et semaines de Batch cooking. La suite locale de 178 tests réussit ; cette version n'est pas encore fusionnée ni publiée. Les pistes éventuelles sur les composants de recettes restent facultatives. L'utilisateur met lui-même à jour son installation ; aucune vérification de celle-ci n'a été faite par l'agent.
+La version **0.2.60** a été fusionnée et publiée : les préparations à faire sont regroupées par Pâtisserie, Pain, Pâtes et semaines de Batch cooking. La version **0.2.61** est en cours sur `feat/recipe-cooking-sheet` : une seule fiche de préparation par recette, même si elle est servie en trois parties ; lien vers la recette et fiche « Cuisiner » avec ingrédients ajustés au nombre de portions prévu ou choisi, instructions et enregistrement au stock pour les recettes suivies. La suite locale de 180 tests réussit. L'utilisateur met lui-même à jour son installation ; aucune vérification de celle-ci n'a été faite par l'agent.
 
 ## Guides actuels du projet
 

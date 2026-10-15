@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=0.2.60">
+    <link rel="stylesheet" href="/style.css?v=0.2.61">
   </head>
   <body>
     <header class="topbar">
@@ -187,6 +187,21 @@
 
     </main>
 
+    <dialog id="cook-dialog" class="cook-dialog">
+      <form id="cook-form">
+        <div class="dialog-heading"><div><p class="eyebrow">FICHE CUISINE</p><h2 id="cook-title"></h2></div><button type="button" class="icon-button" id="close-cook-dialog" aria-label="Fermer">×</button></div>
+        <p id="cook-description" class="muted"></p>
+        <div class="yield-row"><label>Quantité à fabriquer<input name="quantity" type="number" min="0.01" max="100000" step="any" required></label><p id="cook-unit" class="cook-unit"></p></div>
+        <p id="cook-base-yield" class="hint"></p>
+        <h3>Ingrédients à préparer</h3><div id="cook-ingredients" class="cook-ingredients"></div>
+        <h3>Préparation</h3><div id="cook-instructions" class="cook-instructions"></div>
+        <p id="cook-source"></p>
+        <div id="cook-production-fields"><div class="yield-row"><label>Date de production<input name="producedOn" type="date" required></label><label>Conservation<select name="storage"><option value="freezer">Congélateur</option><option value="fridge">Réfrigérateur</option><option value="pantry">Placard</option></select></label></div><label>Note (facultatif)<input name="note" maxlength="500"></label></div>
+        <p id="cook-message" class="form-message" role="status"></p>
+        <div class="form-actions"><button type="button" class="secondary" id="cancel-cook">Fermer</button><button type="submit" class="primary" id="save-cook">Ajouter la production au stock</button></div>
+      </form>
+    </dialog>
+
     <dialog id="rebalance-dialog">
       <div class="dialog-heading"><h2>Rééquilibrer la journée</h2><button type="button" class="icon-button" id="close-rebalance" aria-label="Fermer">×</button></div>
       <p>Pour les adultes : le petit-déjeuner est ramené à deux unités maximum pour les préparations à la pièce, puis le dépassement éventuel est réparti sur le déjeuner et le dîner. Les boissons et desserts restent inchangés. Les réductions du déjeuner et du dîner conservent leur repère de 40 g de protéines, ou leur apport actuel s’il est déjà inférieur.</p>
@@ -262,6 +277,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.60"></script>
+    <script type="module" src="/app.js?v=0.2.61"></script>
   </body>
 </html>
