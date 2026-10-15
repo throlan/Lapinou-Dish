@@ -262,6 +262,7 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
 .shopping-columns { display:grid; grid-template-columns:minmax(0,1fr); gap:18px; align-items:start; margin-top:18px; }
 .order-links-card { margin-top:18px; }
 .order-link-form { display:grid; grid-template-columns:minmax(180px,.7fr) minmax(280px,1.5fr) auto; gap:12px; align-items:end; }
+.order-link-form-actions,.order-link-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .order-links { display:grid; gap:8px; margin-top:12px; }
 .order-link-row { display:grid; grid-template-columns:minmax(120px,1fr) minmax(100px,1fr) auto; gap:12px; align-items:center; padding:10px 12px; border:1px solid var(--line,#344766); border-radius:12px; }
 .order-link-row a { color:var(--accent,#27d3df); font-weight:600; overflow-wrap:anywhere; }
