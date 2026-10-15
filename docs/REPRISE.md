@@ -3,11 +3,12 @@
 ## Point de départ
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish
-- Branche de référence : `main`, commit `379eff2ee50376e21c4d31f2218bf4b71dee4ebb` après la [PR 71](https://github.com/throlan/Lapinou-Dish/pull/71).
-- Dernière version publiée vérifiée : **0.2.55**. Tests et publication de l'image réussis dans le [workflow GitHub 193](https://github.com/throlan/Lapinou-Dish/actions/runs/38700708048). Voir le [journal du 15 octobre](SESSION-2026-10-15.md).
+- Branche de référence : `main`, commit `b285dbf68e32213af49b1e2cded99de768f5bdd0` après la [PR 73](https://github.com/throlan/Lapinou-Dish/pull/73).
+- Dernière version publiée vérifiée : **0.2.56**. Tests réussis dans le [workflow 197](https://github.com/throlan/Lapinou-Dish/actions/runs/38703038499), publication de l'image réussie dans le [workflow 198](https://github.com/throlan/Lapinou-Dish/actions/runs/38703114682). Voir le [journal du 15 octobre](SESSION-2026-10-15.md).
 - Journaux : [13 octobre](SESSION-2026-10-13.md) et [14 octobre](SESSION-2026-10-14.md). État et tâches restantes : [STATUS.md](STATUS.md).
 - Derniers travaux livrés : stock des produits et préparation des repas (0.2.52, PR 66), puis correction de l'enregistrement du planning des courses (0.2.53, PR 67). **171 tests réussis** ; parcours Chrome local vérifiés avec des données synthétiques. Aucun correctif de cette session n'attend une fusion ou une publication GitHub.
 - Dernier travail livré : **0.2.55**, liste des recettes compacte et paginée, recherche, production à suivre et moments adaptés modifiables sur chaque ligne. La PR 71 et le workflow 193 ont réussi. La refonte de Courses & stocks demeure documentée dans [son guide](SHOPPING-STOCK-PAGE.md).
+- Dernier correctif : **0.2.56**, édition du nom et de l’adresse web des magasins ; les associations alimentaires et les listes Home Assistant restent liées au même magasin. Les préparations à faire ignorent désormais les recettes dont la production est « Aucune ». Voir la [PR 73](https://github.com/throlan/Lapinou-Dish/pull/73).
 
 ## Règle d'exploitation impérative
 
