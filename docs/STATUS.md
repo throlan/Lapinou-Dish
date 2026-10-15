@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-Le code **0.2.59** est fusionné sur `main` via la [PR 77](https://github.com/throlan/Lapinou-Dish/pull/77), commit `20b312a25db9929ab8ec240ffc79f60c2928f745`. Les 4 tests ciblés et le workflow PR #206 ont réussi. Le workflow de publication de l'image après fusion reste à vérifier ; dernière image confirmée publiée : **0.2.56**. La duplication est accessible depuis chaque carte de recette.
+Le code **0.2.59** est fusionné sur `main` via la [PR 77](https://github.com/throlan/Lapinou-Dish/pull/77), commit `20b312a25db9929ab8ec240ffc79f60c2928f745`. Les 4 tests ciblés et le workflow PR #206 ont réussi. Les tests et la publication de l'image après fusion ont réussi dans le [workflow 38714448236](https://github.com/throlan/Lapinou-Dish/actions/runs/38714448236). La duplication est accessible depuis chaque carte de recette.
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 15 octobre](SESSION-2026-10-15.md).
 
@@ -66,7 +66,7 @@ Livré en 0.2.52 (PR 66, workflow 183) : stock initial par aliment, saisi dans l
 
 ## Suite
 
-Aucune modification déjà demandée pendant cette session n'attend de fusion. La prochaine demande fonctionnelle est à définir avec l'utilisateur. Les pistes éventuelles sur les composants de recettes restent facultatives. L'utilisateur met lui-même à jour son installation ; aucune vérification de celle-ci n'a été faite par l'agent.
+La version **0.2.60** est en préparation sur la branche `feat/preparation-lists` : regroupement des préparations à faire par Pâtisserie, Pain, Pâtes et semaines de Batch cooking. La suite locale de 178 tests réussit ; cette version n'est pas encore fusionnée ni publiée. Les pistes éventuelles sur les composants de recettes restent facultatives. L'utilisateur met lui-même à jour son installation ; aucune vérification de celle-ci n'a été faite par l'agent.
 
 ## Guides actuels du projet
 

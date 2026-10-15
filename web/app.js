@@ -6,6 +6,7 @@ import { calculateDailyEnergy } from './portion-planner.js';
 import { breakfastServingLimit } from './portion-planner.js';
 import { suggestPlatePortions } from './portion-planner.js';
 import { PLATE_PARTS, validPlateRatios } from './meal-config.js';
+import { preparationWeeks } from './preparation-weeks.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -409,48 +410,81 @@ function renderProductionOptions() {
   if(previous&&[...select.options].some(option=>option.value===previous))select.value=previous;
   extra.replaceChildren(new Option('Choisir une autre préparation…',''),...available.map(recipe=>new Option(recipe.name,recipe.id)));
 }
+function preparationRow(item,productionDate) {
+  const row=document.createElement('article');row.className='preparation-row'+(item.toMakeQuantity<=0.00001?' is-covered':'');
+  const title=document.createElement('strong');title.textContent=item.name;
+  const dates=document.createElement('small');dates.textContent=`${item.mealCount} repas · ${displayDate(item.firstDate)}${item.lastDate!==item.firstDate?' au '+displayDate(item.lastDate):''}`;
+  const amount=document.createElement('span');amount.className='preparation-amount';
+  amount.textContent=item.toMakeQuantity<=0.00001?'Couvert par le stock':`${formatQty(item.toMakeQuantity)} ${item.unitId} à ${item.productionType==='none'?'cuisiner':'produire'}`;
+  const detail=document.createElement('small');detail.textContent=`Prévu : ${formatQty(item.plannedQuantity)} ${item.unitId}${item.productionType!=='none'?` · stock couvrant ${formatQty(item.coveredQuantity)} ${item.unitId}`:''}`;
+  row.append(title,dates,amount,detail);
+  if(item.productionType!=='none'&&item.toMakeQuantity>0.00001){
+    const choose=document.createElement('button');choose.type='button';choose.className='secondary';choose.textContent='Enregistrer une production';
+    choose.addEventListener('click',()=>{
+      const recipeId=item.parentRecipeId??item.recipeId;
+      const select=$('#production-form').elements.recipeId;
+      if(![...select.options].some(option=>option.value===recipeId)){
+        const recipe=state.recipes.find(entry=>entry.id===recipeId);
+        if(recipe)select.add(new Option(recipe.name,recipe.id));
+      }
+      select.value=recipeId;select.dispatchEvent(new Event('change'));
+      const recipe=state.recipes.find(entry=>entry.id===recipeId);
+      if(recipe){const quantity=item.parentRecipeId
+        ?item.toMakeQuantity/item.yieldAmount*recipe.yield.amount:item.toMakeQuantity;
+        $('#production-form').elements.quantity.value=String(Number(quantity.toFixed(3)));}
+      if(productionDate)$('#production-form').elements.producedOn.value=productionDate;
+      $('#production-form').scrollIntoView({behavior:'smooth',block:'center'});
+    });row.append(choose);
+  }
+  const calendar=document.createElement('button');calendar.type='button';calendar.className='secondary';calendar.textContent='Voir le repas dans le calendrier';
+  calendar.addEventListener('click',()=>{state.calendarWeekStart=mondayOf(item.firstDate);setView('calendar');});
+  row.append(calendar);
+  return row;
+}
+function preparationGroup(label,key,items,openKeys,emptyText,productionDate) {
+  const group=document.createElement('details');group.className='preparation-group';group.dataset.key=key;group.open=openKeys.has(key);
+  const summary=document.createElement('summary');summary.textContent=`${label} · ${items.length} recette${items.length>1?'s':''}`;
+  const body=document.createElement('div');body.className='preparation-group-body';
+  body.replaceChildren(...(items.length?items.map(item=>preparationRow(item,productionDate)):[emptyMessage(emptyText)]));
+  group.append(summary,body);return group;
+}
 async function refreshPreparations(start,end) {
   const root=$('#preparations-list'),count=$('#preparations-count');
   const request=++preparationsRequest;
+  const openKeys=new Set([...root.querySelectorAll('details[open]')].map(group=>group.dataset.key));
   root.replaceChildren(emptyMessage('Calcul des préparations…'));
   try {
-    const {preparations}=await api(`/api/household-planning/preparations?householdId=${encodeURIComponent(state.household.id)}&startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`);
+    const path=(from,to)=>`/api/household-planning/preparations?householdId=${encodeURIComponent(state.household.id)}&startDate=${encodeURIComponent(from)}&endDate=${encodeURIComponent(to)}`;
+    const {preparations}=await api(path(start,end));
+    if(request!==preparationsRequest)return;
+    const weeks=preparationWeeks(start,end);
+    const batchWeeks=preparations.some(item=>item.productionType==='batch_cooking')
+      ?await Promise.all(weeks.map(async week=>({...week,items:(await api(path(week.start,week.end))).preparations.filter(item=>item.productionType==='batch_cooking')})))
+      :weeks.map(week=>({...week,items:[]}));
     if(request!==preparationsRequest)return;
     state.preparations=preparations;
     renderProductionOptions();
-    const needed=preparations.filter(item=>item.toMakeQuantity>0.00001);
-    count.textContent=`${needed.length} à faire · ${preparations.length} suivies`;
-    if(!preparations.length){root.replaceChildren(emptyMessage('Aucune recette avec une production à suivre sur cette période.'));return;}
-    root.replaceChildren(...preparations.map(item=>{
-      const row=document.createElement('article');row.className='preparation-row'+(item.toMakeQuantity<=0.00001?' is-covered':'');
-      const title=document.createElement('strong');title.textContent=item.name;
-      const dates=document.createElement('small');dates.textContent=`${item.mealCount} repas · ${displayDate(item.firstDate)}${item.lastDate!==item.firstDate?' au '+displayDate(item.lastDate):''}`;
-      const amount=document.createElement('span');amount.className='preparation-amount';
-      amount.textContent=item.toMakeQuantity<=0.00001?'Couvert par le stock':`${formatQty(item.toMakeQuantity)} ${item.unitId} à ${item.productionType==='none'?'cuisiner':'produire'}`;
-      const detail=document.createElement('small');detail.textContent=`Prévu : ${formatQty(item.plannedQuantity)} ${item.unitId}${item.productionType!=='none'?` · stock couvrant ${formatQty(item.coveredQuantity)} ${item.unitId}`:''}`;
-      row.append(title,dates,amount,detail);
-      if(item.productionType!=='none'&&item.toMakeQuantity>0.00001){
-        const choose=document.createElement('button');choose.type='button';choose.className='secondary';choose.textContent='Enregistrer une production';
-        choose.addEventListener('click',()=>{
-          const recipeId=item.parentRecipeId??item.recipeId;
-          const select=$('#production-form').elements.recipeId;
-          if(![...select.options].some(option=>option.value===recipeId)){
-            const recipe=state.recipes.find(entry=>entry.id===recipeId);
-            if(recipe)select.add(new Option(recipe.name,recipe.id));
-          }
-          select.value=recipeId;select.dispatchEvent(new Event('change'));
-          const recipe=state.recipes.find(entry=>entry.id===recipeId);
-          if(recipe){const quantity=item.parentRecipeId
-            ?item.toMakeQuantity/item.yieldAmount*recipe.yield.amount:item.toMakeQuantity;
-            $('#production-form').elements.quantity.value=String(Number(quantity.toFixed(3)));}
-          $('#production-form').scrollIntoView({behavior:'smooth',block:'center'});
-        });row.append(choose);
-      }
-      const calendar=document.createElement('button');calendar.type='button';calendar.className='secondary';calendar.textContent='Voir le repas dans le calendrier';
-      calendar.addEventListener('click',()=>{state.calendarWeekStart=mondayOf(item.firstDate);setView('calendar');});
-      row.append(calendar);
-      return row;
-    }));
+    const pastry=preparations.filter(item=>item.productionType==='pastry');
+    const bread=preparations.filter(item=>item.productionType==='bread');
+    const pasta=preparations.filter(item=>item.productionType==='pasta');
+    const tasks=[...pastry,...bread,...pasta,...batchWeeks.flatMap(week=>week.items)];
+    count.textContent=`${tasks.filter(item=>item.toMakeQuantity>0.00001).length} à faire · ${tasks.length} suivies`;
+    const batch=document.createElement('details');batch.className='preparation-group';batch.dataset.key='batch';batch.open=openKeys.has('batch');
+    const batchSummary=document.createElement('summary');batchSummary.textContent=`Batch cooking · ${batchWeeks.length} semaine${batchWeeks.length>1?'s':''}`;
+    const batchBody=document.createElement('div');batchBody.className='preparation-group-body';
+    batchBody.replaceChildren(...batchWeeks.map((week,index)=>{
+      const label=`Semaine ${index+1} · du ${displayDate(week.start)} au ${displayDate(week.end)}`;
+      const group=preparationGroup(label,`week-${week.monday}`,week.items,openKeys,'Aucune préparation pour cette semaine.',week.monday);
+      const hint=document.createElement('p');hint.className='hint preparation-week-hint';hint.textContent=`Production prévue le lundi ${displayDate(week.monday)}, après les courses de frais.`;
+      group.querySelector('.preparation-group-body').prepend(hint);
+      group.classList.add('preparation-week');return group;
+    }));batch.append(batchSummary,batchBody);
+    root.replaceChildren(
+      preparationGroup('Pâtisserie','pastry',pastry,openKeys,'Aucune pâtisserie sur cette période.'),
+      preparationGroup('Pain','bread',bread,openKeys,'Aucun pain sur cette période.'),
+      preparationGroup('Pâtes','pasta',pasta,openKeys,'Aucune pâte sur cette période.'),
+      batch,
+    );
   }catch(error){if(request===preparationsRequest){root.replaceChildren(emptyMessage('Préparations indisponibles : '+(error.body?.error??error.message)));count.textContent='';}}
 }
 async function refreshShoppingList() {

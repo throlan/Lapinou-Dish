@@ -28,6 +28,7 @@ const staticFiles = new Map([
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/portion-planner.js', ['portion-planner.js', 'text/javascript; charset=utf-8']],
   ['/meal-config.js', ['meal-config.js', 'text/javascript; charset=utf-8']],
+  ['/preparation-weeks.js', ['preparation-weeks.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
 ]);
 

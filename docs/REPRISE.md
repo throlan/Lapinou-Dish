@@ -4,7 +4,7 @@
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish
 - Base de travail : `main`, commit `20b312a` après la [PR 77](https://github.com/throlan/Lapinou-Dish/pull/77) ; checkout local propre.
-- Dernier code fusionné : **0.2.59**, bouton de duplication des recettes. Les 4 tests ciblés et le workflow PR #206 ont réussi. Le workflow principal de publication après fusion reste à vérifier ; dernière image dont la publication est confirmée : **0.2.56** (workflows 197 et 198). Voir le [journal du 15 octobre](SESSION-2026-10-15.md).
+- Dernier code fusionné : **0.2.59**, bouton de duplication des recettes. Les 4 tests ciblés et le workflow PR #206 ont réussi. Les tests et la publication de l'image après fusion ont réussi dans le [workflow 38714448236](https://github.com/throlan/Lapinou-Dish/actions/runs/38714448236). Voir le [journal du 15 octobre](SESSION-2026-10-15.md).
 - Journaux : [13 octobre](SESSION-2026-10-13.md) et [14 octobre](SESSION-2026-10-14.md). État et tâches restantes : [STATUS.md](STATUS.md).
 - Derniers travaux livrés : stock des produits et préparation des repas (0.2.52, PR 66), puis correction de l'enregistrement du planning des courses (0.2.53, PR 67). Aucun accès à Unraid ni à Nginx.
 - Dernier travail livré : **0.2.55**, liste des recettes compacte et paginée, recherche, production à suivre et moments adaptés modifiables sur chaque ligne. La PR 71 et le workflow 193 ont réussi. La refonte de Courses & stocks demeure documentée dans [son guide](SHOPPING-STOCK-PAGE.md).

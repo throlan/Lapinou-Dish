@@ -37,6 +37,17 @@ test('home page loads the application module as a versioned same-origin asset', 
   assert.equal(plannerResponse.status, 200);
   assert.ok(plannerResponse.headers['Content-Type'].startsWith('text/javascript'));
   assert.match(plannerResponse.body, /export function suggestQuantity/);
+  const weeksResponse = {
+    status: 200,
+    headers: {},
+    setHeader(name, value) { this.headers[name] = value; },
+    writeHead(status) { this.status = status; },
+    end(body) { this.body = body.toString(); },
+  };
+  await handleRequest({ method: 'GET', url: '/preparation-weeks.js', headers: {} }, weeksResponse, {});
+  assert.equal(weeksResponse.status, 200);
+  assert.match(weeksResponse.headers['Content-Type'], /^text\/javascript/);
+  assert.match(weeksResponse.body, /export function preparationWeeks/);
 });
 
 test('health endpoint checks the database and returns service state', async () => {
