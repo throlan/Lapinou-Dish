@@ -78,6 +78,41 @@ export async function syncServingParts(client, id, data) {
   }
 }
 
+export async function restoreOriginalServingMode(client, id) {
+  const parent=await client.query('SELECT yield_amount FROM recipes WHERE id=$1 FOR UPDATE',[id]);
+  const parts = await client.query('SELECT id,serving_part,yield_amount FROM recipes WHERE parent_recipe_id=$1 FOR UPDATE', [id]);
+  if (!parts.rows.length) return;
+  // A whole-preparation mode has one gram-based child, so its quantities can be
+  // converted back to the recipe yield without guessing between serving parts.
+  if (parts.rowCount !== 1 || parts.rows[0].serving_part !== 'main' || !(Number(parts.rows[0].yield_amount) > 0)) {
+    throw new Error('serving-parts-cannot-be-disabled');
+  }
+  const part = parts.rows[0];
+  const yieldAmount = Number(parent.rows[0]?.yield_amount);
+  const gramYield = Number(part.yield_amount);
+  const planned = await client.query(
+    `SELECT i.id,a.person_id,a.quantity FROM planned_meal_items i
+       JOIN planned_amounts a ON a.planned_item_id=i.id
+      WHERE i.recipe_id=$1 ORDER BY i.meal_id,i.sort_order FOR UPDATE OF i,a`, [part.id]);
+  await client.query('UPDATE planned_meal_items SET recipe_id=$2 WHERE recipe_id=$1',[part.id,id]);
+  for (const row of planned.rows) await client.query(
+    'UPDATE planned_amounts SET quantity=$3 WHERE planned_item_id=$1 AND person_id=$2',
+    [row.id,row.person_id,Number(row.quantity)/gramYield*yieldAmount]);
+
+  const childLots=await client.query('SELECT id,parent_lot_id FROM stock_lots WHERE recipe_id=$1 FOR UPDATE',[part.id]);
+  const linked=childLots.rows.filter(lot=>lot.parent_lot_id);
+  if (linked.length) {
+    await client.query('UPDATE stock_lots SET is_serving_bundle=false WHERE id=ANY($1::uuid[])',[linked.map(lot=>lot.parent_lot_id)]);
+    await client.query('DELETE FROM stock_lots WHERE id=ANY($1::uuid[])',[linked.map(lot=>lot.id)]);
+  }
+  const standalone=childLots.rows.filter(lot=>!lot.parent_lot_id).map(lot=>lot.id);
+  if (standalone.length) await client.query(
+    'UPDATE stock_lots SET recipe_id=$2,quantity=quantity*$3 WHERE id=ANY($1::uuid[])',
+    [standalone,id,yieldAmount/gramYield]);
+  await client.query('DELETE FROM recipe_lines WHERE recipe_id=$1',[part.id]);
+  await client.query('DELETE FROM recipes WHERE id=$1',[part.id]);
+}
+
 async function splitExistingWholePreparation(client, oldMain, parts, householdId) {
   const main = parts.find(part=>part.part === 'main');
   const extraParts = parts.filter(part=>part.part !== 'main');
