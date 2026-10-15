@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=0.2.54">
+    <link rel="stylesheet" href="/style.css?v=0.2.55">
   </head>
   <body>
     <header class="topbar">
@@ -99,12 +99,14 @@
           <p class="form-message" id="recipe-archive-message" role="status"></p>
           <div><h3>Importations à vérifier</h3><div id="recipe-import-list" class="recipe-list"><p class="empty">Aucun brouillon importé.</p></div></div>
         </details>
-        <div class="recipe-filters" aria-label="Filtrer les recettes">
+        <div id="recipe-filters-anchor" class="recipe-filters" aria-label="Filtrer les recettes">
+          <label class="recipe-search">Rechercher une recette<input id="recipe-search" type="search" placeholder="Nom de la recette…" autocomplete="off"></label>
           <div><strong>Type</strong><div id="recipe-type-filters" class="recipe-filter-buttons"></div></div>
           <div><strong>Moment</strong><div id="recipe-moment-filters" class="recipe-filter-buttons"></div></div>
           <p id="recipe-filter-count" class="muted" role="status"></p>
         </div>
         <div id="recipe-list" class="recipe-list"><p class="empty">Chargement des recettes…</p></div>
+        <nav id="recipe-pagination" class="recipe-pagination" aria-label="Pages de recettes"></nav>
         <form id="recipe-form" class="card form-card hidden">
           <div class="section-heading"><div><h2 id="recipe-form-title">Nouvelle recette</h2><p>Choisis les aliments du catalogue et saisis leurs quantités.</p></div><button type="button" class="secondary" id="cancel-recipe">Annuler</button></div>
           <label>Nom de la recette<input name="name" required maxlength="200" placeholder="Ex. Muffins pomme-cannelle"></label>
@@ -260,6 +262,6 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.54"></script>
+    <script type="module" src="/app.js?v=0.2.55"></script>
   </body>
 </html>

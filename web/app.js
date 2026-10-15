@@ -1227,24 +1227,38 @@ const recipeFilterChoices={
   type:[['','Tous'],['dish','Plat'],['beverage','Boisson'],['accompaniment','Accompagnement'],['dessert','Dessert']],
   moment:[['','Tous'],['breakfast','Petit-déjeuner'],['lunch','Déjeuner'],['snack','Collation'],['dinner','Dîner'],['untagged','Sans tag']],
 };
-const recipeFilters={type:'',moment:''};
+const recipeFilters={type:'',moment:'',query:'',page:1};
+const recipesPerPage=12;
 try{
   const saved=JSON.parse(localStorage.getItem('lapinou-recipe-filters')??'{}');
   for(const key of ['type','moment'])if(recipeFilterChoices[key].some(([value])=>value===saved[key]))recipeFilters[key]=saved[key];
 }catch{}
 function renderFilteredRecipes(){
   const recipes=state.recipes.filter(recipe=>(!recipeFilters.type||(recipe.recipeType??'dish')===recipeFilters.type)
-    && (!recipeFilters.moment||(recipeFilters.moment==='untagged'?!recipe.mealMoments?.length:recipe.mealMoments?.includes(recipeFilters.moment))));
-  $('#recipe-list').replaceChildren(...(recipes.length?recipes.map(recipeCard):[emptyMessage(state.recipes.length?'Aucune recette avec ces tags. Clique sur Tous pour élargir la sélection.':'Aucune recette enregistrée.')]));
+    && (!recipeFilters.moment||(recipeFilters.moment==='untagged'?!recipe.mealMoments?.length:recipe.mealMoments?.includes(recipeFilters.moment)))
+    && recipe.name.toLocaleLowerCase('fr').includes(recipeFilters.query.toLocaleLowerCase('fr')));
+  const pages=Math.max(1,Math.ceil(recipes.length/recipesPerPage));
+  recipeFilters.page=Math.min(recipeFilters.page,pages);
+  const start=(recipeFilters.page-1)*recipesPerPage;
+  $('#recipe-list').replaceChildren(...(recipes.length?recipes.slice(start,start+recipesPerPage).map(recipeCard):[emptyMessage(state.recipes.length?'Aucune recette avec ces filtres.':'Aucune recette enregistrée.')]));
   $('#recipe-filter-count').textContent=`${recipes.length} recette${recipes.length===1?'':'s'} affichée${recipes.length===1?'':'s'} sur ${state.recipes.length}`;
+  const pagination=$('#recipe-pagination');pagination.replaceChildren();
+  if(pages>1){
+    for(const [label,page] of [['← Précédent',recipeFilters.page-1],[`Page ${recipeFilters.page} / ${pages}`,null],['Suivant →',recipeFilters.page+1]]){
+      if(page===null){const position=document.createElement('span');position.textContent=label;pagination.append(position);continue;}
+      const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=label;button.disabled=page<1||page>pages;
+      button.addEventListener('click',()=>{recipeFilters.page=page;renderFilteredRecipes();$('#recipe-filters-anchor').scrollIntoView({block:'start'});});pagination.append(button);
+    }
+  }
   for(const key of ['type','moment']){
     const root=$(`#recipe-${key}-filters`);root.replaceChildren(...recipeFilterChoices[key].map(([value,label])=>{
       const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=label;button.setAttribute('aria-pressed',String(recipeFilters[key]===value));
-      button.addEventListener('click',()=>{recipeFilters[key]=value;try{localStorage.setItem('lapinou-recipe-filters',JSON.stringify(recipeFilters));}catch{}renderFilteredRecipes();});
+      button.addEventListener('click',()=>{recipeFilters[key]=value;recipeFilters.page=1;try{localStorage.setItem('lapinou-recipe-filters',JSON.stringify({type:recipeFilters.type,moment:recipeFilters.moment}));}catch{}renderFilteredRecipes();});
       return button;
     }));
   }
 }
+$('#recipe-search')?.addEventListener('input',event=>{recipeFilters.query=event.target.value.trim();recipeFilters.page=1;renderFilteredRecipes();});
 async function refreshRecipes() {
   const list = $('#recipe-list');
   if (!state.household) { list.innerHTML = '<p class="empty">Crée d’abord un foyer pour enregistrer des recettes.</p>'; return; }
@@ -1374,27 +1388,61 @@ $('#recipe-archive-file').addEventListener('change', async (event) => {
 
 function recipeCard(recipe) {
   const card = document.createElement('article'); card.className = 'recipe-card';
-  const details = document.createElement('div');
-  const title = document.createElement('h3'); title.textContent = recipe.name; details.append(title);
-  const taxonomy = document.createElement('p'); taxonomy.className = 'recipe-taxonomy-badges';
   const typeLabels = { dish: 'Plat', beverage: 'Boisson', accompaniment: 'Accompagnement', dessert: 'Dessert' };
   const momentLabels = { breakfast: 'Petit-déjeuner', lunch: 'Déjeuner', dinner: 'Dîner', snack: 'Collation' };
-  const tags = [typeLabels[recipe.recipeType], ...(recipe.mealMoments ?? []).map((moment) => momentLabels[moment]).filter(Boolean)];
-  if (tags.length) { taxonomy.textContent = tags.join(' · '); details.append(taxonomy); }
-  const subtitle = document.createElement('p'); subtitle.textContent = `${recipe.lines.length} ingrédient${recipe.lines.length === 1 ? '' : 's'} · rendement ${format(recipe.yield.amount)} ${recipe.yield.unitId}`; details.append(subtitle);
+  const header=document.createElement('div');header.className='recipe-row-header';
+  const identity=document.createElement('div');identity.className='recipe-row-identity';
+  const title=document.createElement('h3');title.textContent=recipe.name;
+  const subtitle=document.createElement('p');subtitle.textContent=`${typeLabels[recipe.recipeType]??'Recette'} · ${recipe.lines.length} ingrédient${recipe.lines.length===1?'':'s'} · ${format(recipe.yield.amount)} ${recipe.yield.unitId}`;
+  identity.append(title,subtitle);
+  const nutrition=document.createElement('p');nutrition.className='recipe-nutrition';
+  nutrition.textContent=`${format(recipe.nutrition.perYieldUnit.energyKcal)} kcal · P ${format(recipe.nutrition.perYieldUnit.proteinG)} g / ${recipe.yield.unitId}`;
+  const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='Modifier';edit.setAttribute('aria-label',`Modifier ${recipe.name}`);edit.addEventListener('click',()=>openRecipeEditor(recipe.id));
+  header.append(identity,nutrition,edit);card.append(header);
+  const settings=document.createElement('div');settings.className='recipe-row-settings';
+  const production=document.createElement('label');production.textContent='Production à suivre';
+  const select=document.createElement('select');select.setAttribute('aria-label',`Production à suivre pour ${recipe.name}`);
+  for(const [value,label] of [['none','Aucune'],['batch_cooking','Batch cooking'],['pasta','Pâtes'],['pastry','Pâtisserie'],['bread','Pain']]){
+    const option=document.createElement('option');option.value=value;option.textContent=label;select.append(option);
+  }
+  select.value=recipe.productionType??'none';production.append(select);
+  const moments=document.createElement('fieldset');moments.className='recipe-row-moments';
+  const legend=document.createElement('legend');legend.textContent='Moments adaptés';moments.append(legend);
+  for(const [value,label] of Object.entries(momentLabels)){
+    const item=document.createElement('label');const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.value=value;checkbox.checked=(recipe.mealMoments??[]).includes(value);
+    item.append(checkbox,document.createTextNode(label));moments.append(item);
+  }
+  const save=document.createElement('button');save.type='button';save.className='secondary recipe-row-save';save.textContent='Enregistrer';save.disabled=true;
+  const status=document.createElement('span');status.className='recipe-row-status';status.setAttribute('role','status');
+  const currentMoments=()=>[...moments.querySelectorAll('input:checked')].map(input=>input.value);
+  const updateDirty=()=>{save.disabled=select.value===(recipe.productionType??'none')&&JSON.stringify(currentMoments().sort())===JSON.stringify([...(recipe.mealMoments??[])].sort());status.textContent=save.disabled?'':'Modifications non enregistrées';};
+  select.addEventListener('change',updateDirty);moments.addEventListener('change',updateDirty);
+  save.addEventListener('click',async()=>{
+    save.disabled=true;select.disabled=true;moments.disabled=true;status.textContent='Enregistrement…';
+    try{
+      const result=await api(`/api/recipes/${recipe.id}`,{method:'PATCH',body:JSON.stringify({householdId:state.household.id,version:recipe.version,productionType:select.value,mealMoments:currentMoments()})});
+      Object.assign(recipe,result.recipe);status.textContent='Enregistré';
+      const index=state.recipes.findIndex(item=>item.id===recipe.id);if(index!==-1)state.recipes[index]=recipe;
+    }catch(error){status.textContent=error.body?.error==='recipe-version-conflict'?'Recette modifiée ailleurs. Actualise la liste.':error.body?.error==='recipe-used-in-prepared-meal'?'Repas déjà préparé : change d’abord son état.':`Échec : ${error.body?.error??error.message}`;}
+    finally{
+      select.disabled=false;moments.disabled=false;
+      save.disabled=select.value===(recipe.productionType??'none')&&JSON.stringify(currentMoments().sort())===JSON.stringify([...(recipe.mealMoments??[])].sort());
+    }
+  });
+  settings.append(production,moments,save,status);card.append(settings);
+  const more=document.createElement('details');more.className='recipe-row-more';
+  const summary=document.createElement('summary');summary.textContent=recipe.nutrition.complete?'Détails nutritionnels et portions':`Détails · ${recipe.nutrition.lineIssues?.length??0} point(s) à vérifier`;
+  more.append(summary);
+  const details=document.createElement('div');details.className='recipe-row-more-content';
   if (recipe.servingParts?.length) {
     const weights=document.createElement('p'); weights.className='muted'; weights.textContent='Poids estimés du batch : '+recipe.servingParts.map(part=>`${part.servingPart==='starch'?'féculents':part.servingPart==='vegetables'?'légumes':recipe.servingParts.length>2?'viande / protéines':recipe.servingParts.length>1?'viande et légumes':'plat entier'} ${formatQty(part.yield.amount)} g`).join(' · '); details.append(weights);
   }
-  const nutrition = document.createElement('p'); nutrition.className = 'recipe-nutrition';
-  nutrition.textContent = `${format(recipe.nutrition.perYieldUnit.energyKcal)} kcal · P ${format(recipe.nutrition.perYieldUnit.proteinG)} g · G ${format(recipe.nutrition.perYieldUnit.carbohydrateG)} g · L ${format(recipe.nutrition.perYieldUnit.fatG)} g / ${recipe.yield.unitId}`;
-  details.append(nutrition);
+  const macros=document.createElement('p');macros.textContent=`${format(recipe.nutrition.perYieldUnit.energyKcal)} kcal · P ${format(recipe.nutrition.perYieldUnit.proteinG)} g · G ${format(recipe.nutrition.perYieldUnit.carbohydrateG)} g · L ${format(recipe.nutrition.perYieldUnit.fatG)} g / ${recipe.yield.unitId}`;details.append(macros);
   if (recipe.nutrition.unresolvedLineIndexes?.length) {
     const partial = document.createElement('p'); partial.className = 'muted'; partial.textContent = 'Sous-total partiel : les ingrédients sans conversion sont exclus.'; details.append(partial);
   }
   if (!recipe.nutrition.complete) details.append(nutritionIssues(recipe));
-  const actions = document.createElement('div'); actions.className = 'recipe-card-actions';
-  const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'secondary'; edit.textContent = 'Modifier'; edit.addEventListener('click', () => openRecipeEditor(recipe.id));
-  actions.append(edit); card.append(details, actions); return card;
+  more.append(details);card.append(more);return card;
 }
 
 function renderRecipe(recipe) {
