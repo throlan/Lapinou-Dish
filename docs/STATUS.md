@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-Le code **0.2.58** a été fusionné sur `main` via la [PR 76](https://github.com/throlan/Lapinou-Dish/pull/76), commit `fd9bf92c41dbc72ef4a40dc6d4f98f95c0bfc20b`. La suite locale (**174 tests**) et le workflow PR #203 ont réussi. Le workflow de publication de l'image après fusion reste à vérifier ; dernière image confirmée publiée : **0.2.56**.
+Le code **0.2.58** a été fusionné sur `main` via la [PR 76](https://github.com/throlan/Lapinou-Dish/pull/76), commit `fd9bf92c41dbc72ef4a40dc6d4f98f95c0bfc20b`. La suite locale (**174 tests**) et le workflow PR #203 ont réussi. Le workflow de publication de l'image après fusion reste à vérifier ; dernière image confirmée publiée : **0.2.56**. La version **0.2.59** est en cours : duplication des recettes depuis leur carte.
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 15 octobre](SESSION-2026-10-15.md).
 

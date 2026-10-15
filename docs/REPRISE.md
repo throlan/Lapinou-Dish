@@ -3,7 +3,7 @@
 ## Point de départ
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish
-- Base de travail : `main`, commit `fd9bf92c41dbc72ef4a40dc6d4f98f95c0bfc20b` après la [PR 76](https://github.com/throlan/Lapinou-Dish/pull/76) ; checkout local propre.
+- Base de travail : `main`, commit `fe532f9` après la [PR 76](https://github.com/throlan/Lapinou-Dish/pull/76) et la mise à jour de la documentation ; nouvelle correction **0.2.59** en cours.
 - Dernier code fusionné : **0.2.58**, retour de « Préparation servie ensemble » aux proportions de rendement d'origine. Les **174 tests** locaux et le workflow PR #203 ont réussi. Le workflow principal de publication après fusion reste à vérifier ; dernière image dont la publication est confirmée : **0.2.56** (workflows 197 et 198). Voir le [journal du 15 octobre](SESSION-2026-10-15.md).
 - Journaux : [13 octobre](SESSION-2026-10-13.md) et [14 octobre](SESSION-2026-10-14.md). État et tâches restantes : [STATUS.md](STATUS.md).
 - Derniers travaux livrés : stock des produits et préparation des repas (0.2.52, PR 66), puis correction de l'enregistrement du planning des courses (0.2.53, PR 67). Aucun accès à Unraid ni à Nginx.

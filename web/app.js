@@ -1196,20 +1196,20 @@ $('#recipe-form').addEventListener('submit', async (event) => {
   }
 });
 
-async function openRecipeEditor(id = null) {
+async function openRecipeEditor(id = null, duplicate = false) {
   const form = $('#recipe-form');
   $('#recipe-import-source')?.remove();
   form.reset();
   $('#recipe-lines').replaceChildren();
   $('#recipe-message').textContent = '';
   $('#recipe-result').classList.add('hidden');
-  state.editingRecipeId = id;
+  state.editingRecipeId = duplicate ? null : id;
   state.importingDraftId = null;
-  $('#recipe-form-title').textContent = id ? 'Modifier la recette' : 'Nouvelle recette';
+  $('#recipe-form-title').textContent = duplicate ? 'Dupliquer une recette' : id ? 'Modifier la recette' : 'Nouvelle recette';
   if (id) {
     try {
       const { recipe } = await api(`/api/recipes/${id}`);
-      form.elements.name.value = recipe.name;
+      form.elements.name.value = duplicate ? `${recipe.name.slice(0,190)} (variante)` : recipe.name;
       form.elements.description.value = recipe.description ?? '';
       form.elements.recipeType.value = recipe.recipeType ?? 'dish';
       for (const checkbox of form.querySelectorAll('input[name="mealMoments"]')) checkbox.checked = (recipe.mealMoments ?? []).includes(checkbox.value);
@@ -1411,7 +1411,9 @@ function recipeCard(recipe) {
   const nutrition=document.createElement('p');nutrition.className='recipe-nutrition';
   nutrition.textContent=`${format(recipe.nutrition.perYieldUnit.energyKcal)} kcal · P ${format(recipe.nutrition.perYieldUnit.proteinG)} g / ${recipe.yield.unitId}`;
   const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='Modifier';edit.setAttribute('aria-label',`Modifier ${recipe.name}`);edit.addEventListener('click',()=>openRecipeEditor(recipe.id));
-  header.append(identity,nutrition,edit);card.append(header);
+  const duplicate=document.createElement('button');duplicate.type='button';duplicate.className='secondary';duplicate.textContent='Dupliquer';duplicate.setAttribute('aria-label',`Dupliquer ${recipe.name}`);duplicate.addEventListener('click',()=>openRecipeEditor(recipe.id,true));
+  const actions=document.createElement('div');actions.className='recipe-card-actions';actions.append(duplicate,edit);
+  header.append(identity,nutrition,actions);card.append(header);
   const settings=document.createElement('div');settings.className='recipe-row-settings';
   const production=document.createElement('label');production.textContent='Production à suivre';
   const select=document.createElement('select');select.setAttribute('aria-label',`Production à suivre pour ${recipe.name}`);
