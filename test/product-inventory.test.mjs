@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile,readdir} from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
 import {countProductInventory,listIngredientStock,recordPurchaseReceipt,validateProductCount,validatePurchaseReceipt} from '../src/server/ingredient-stock.mjs';
-import {listShoppingRequirements,addStockLot,cancelStockLot} from '../src/server/household-planning.mjs';
+import {listShoppingRequirements,listPreparationsToMake,addStockLot,cancelStockLot} from '../src/server/household-planning.mjs';
 import {savePlannedMeal,deletePlannedMeal,listPlannedMeals} from '../src/server/planning.mjs';
 import {setMealPrepared} from '../src/server/meal-preparation.mjs';
 
@@ -25,6 +25,7 @@ test('product stock follows counted inventory, confirmed purchases, meal cooking
     await pool.query("INSERT INTO recipes(id,household_id,name,yield_amount,yield_unit_id,production_type) VALUES($1,$2,'Batch cake',1,'portion','batch_cooking')",[batch,householdId]);
     await pool.query("INSERT INTO recipe_lines(id,recipe_id,food_id,quantity,unit_id) VALUES(gen_random_uuid(),$1,$2,150,'g'),(gen_random_uuid(),$3,$2,150,'g')",[everyday,foodId,batch]);
     const meal=await savePlannedMeal(pool,null,{householdId,mealDate:date,slot:'lunch',notes:'',attendeeIds:[personId],items:[{recipeId:everyday,role:'main',amounts:[{personId,quantity:1}]}]});
+    assert.equal((await listPreparationsToMake(pool,householdId,date,date))[0].toMakeQuantity,1);
     assert.equal((await listShoppingRequirements(pool,householdId,date,date))[0].neededQuantity,150);
     assert.ok(validateProductCount({householdId,foodId,quantity:0,unitId:'g',version:0}).data);
     assert.equal((await countProductInventory(pool,{householdId,foodId,quantity:50,unitId:'g',version:0})).quantityG,50);
@@ -51,10 +52,13 @@ test('product stock follows counted inventory, confirmed purchases, meal cooking
     assert.equal((await setMealPrepared(pool,householdId,meal.id,true)).deductions[0].usedG,150);
     assert.equal((await setMealPrepared(pool,householdId,meal.id,false)).restored[0].quantityG,150);
     const batchMeal=await savePlannedMeal(pool,null,{householdId,mealDate:date,slot:'dinner',notes:'',attendeeIds:[personId],items:[{recipeId:batch,role:'main',amounts:[{personId,quantity:1}]}]});
+    assert.equal((await listPreparationsToMake(pool,householdId,date,date)).find(row=>row.recipeId===batch).toMakeQuantity,1);
     assert.equal((await setMealPrepared(pool,householdId,batchMeal.id,true)).error,'prepared-batch-insufficient');
     const lot=await addStockLot(pool,{householdId,recipeId:batch,producedOn:date,quantity:1,storage:'fridge',note:'',requestId:null});
     assert.equal(lot.deductions[0].usedG,150);
+    assert.equal((await listPreparationsToMake(pool,householdId,date,date)).find(row=>row.recipeId===batch).toMakeQuantity,0);
     assert.equal((await setMealPrepared(pool,householdId,batchMeal.id,true)).prepared,true);
+    assert.equal((await listPreparationsToMake(pool,householdId,date,date)).some(row=>row.recipeId===batch),false);
     assert.equal((await listIngredientStock(pool,householdId))[0].quantityG,0);
     assert.equal((await cancelStockLot(pool,householdId,lot.id)).error,'production-already-used');
     assert.equal((await setMealPrepared(pool,householdId,batchMeal.id,false)).prepared,false);

@@ -285,6 +285,53 @@ export async function listStock(pool, householdId) {
   }));
 }
 
+export async function listPreparationsToMake(pool, householdId, startDate, endDate) {
+  const result = await pool.query(
+    `WITH planned AS (
+       SELECT i.recipe_id,
+              COALESCE(sum(a.quantity) FILTER (WHERE m.meal_date BETWEEN $2::date AND $3::date),0) AS wanted,
+              COALESCE(sum(a.quantity) FILTER (WHERE m.meal_date < $2::date),0) AS earlier,
+              min(m.meal_date) FILTER (WHERE m.meal_date BETWEEN $2::date AND $3::date) AS first_date,
+              max(m.meal_date) FILTER (WHERE m.meal_date BETWEEN $2::date AND $3::date) AS last_date,
+              count(DISTINCT m.id) FILTER (WHERE m.meal_date BETWEEN $2::date AND $3::date) AS meal_count
+       FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
+       JOIN planned_amounts a ON a.planned_item_id=i.id
+       WHERE m.household_id=$1 AND m.prepared_at IS NULL AND m.meal_date <= $3::date
+       GROUP BY i.recipe_id
+     ), prepared_batches AS (
+       SELECT i.recipe_id,sum(a.quantity) AS quantity
+       FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
+       JOIN planned_amounts a ON a.planned_item_id=i.id JOIN recipes r ON r.id=i.recipe_id
+       WHERE m.household_id=$1 AND m.prepared_at IS NOT NULL AND r.production_type<>'none'
+       GROUP BY i.recipe_id
+     ), produced AS (
+       SELECT s.recipe_id,GREATEST(sum(s.quantity)-COALESCE(b.quantity,0),0) AS quantity
+       FROM stock_lots s LEFT JOIN prepared_batches b ON b.recipe_id=s.recipe_id
+       WHERE s.household_id=$1 AND s.cancelled_at IS NULL AND NOT s.is_serving_bundle
+       GROUP BY s.recipe_id,b.quantity
+     )
+     SELECT r.id AS "recipeId",r.parent_recipe_id AS "parentRecipeId",r.name,
+            r.production_type AS "productionType",r.yield_amount AS "yieldAmount",r.yield_unit_id AS "unitId",
+            p.wanted AS "plannedQuantity",p.earlier AS "earlierQuantity",
+            COALESCE(s.quantity,0) AS "stockQuantity",p.first_date::text AS "firstDate",
+            p.last_date::text AS "lastDate",p.meal_count AS "mealCount"
+     FROM planned p JOIN recipes r ON r.id=p.recipe_id AND r.household_id=$1
+     LEFT JOIN produced s ON s.recipe_id=r.id
+     WHERE p.wanted>0 ORDER BY p.first_date,r.name`,
+    [householdId,startDate,endDate],
+  );
+  return result.rows.map(row => {
+    const plannedQuantity=Number(row.plannedQuantity);
+    const stockQuantity=Number(row.stockQuantity);
+    const reservedEarlier=Number(row.earlierQuantity);
+    const coveredQuantity=row.productionType==='none' ? 0 : Math.min(plannedQuantity,Math.max(stockQuantity-reservedEarlier,0));
+    return {recipeId:row.recipeId,parentRecipeId:row.parentRecipeId,name:row.name,
+      productionType:row.productionType,unitId:row.unitId,yieldAmount:Number(row.yieldAmount),
+      plannedQuantity,stockQuantity,coveredQuantity,toMakeQuantity:Math.max(plannedQuantity-coveredQuantity,0),
+      firstDate:row.firstDate,lastDate:row.lastDate,mealCount:Number(row.mealCount)};
+  });
+}
+
 export async function listShoppingRequirements(pool, householdId, startDate, endDate) {
   const [requirements, stocks, settings, packages, stores, purchaseUnits] = await Promise.all([
     rawShoppingRequirements(pool,householdId,startDate,endDate),
