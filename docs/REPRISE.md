@@ -3,11 +3,11 @@
 ## Point de départ
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish
-- Branche de référence : `main`, commit `8b53d5eb4fd283ca6140c9d3b06e8e8335079bf3` après la [PR 67](https://github.com/throlan/Lapinou-Dish/pull/67).
-- Version publiée vérifiée avant la refonte : **0.2.53**. Tests et publication de l'image réussis dans le [workflow GitHub 185](https://github.com/throlan/Lapinou-Dish/actions/runs/38564017664). Le travail 0.2.54 est décrit dans le [journal du 15 octobre](SESSION-2026-10-15.md).
+- Branche de référence : `main`, commit `788b1b419cb4e6a69a606808b2d365e47abe703e` après la [PR 69](https://github.com/throlan/Lapinou-Dish/pull/69).
+- Dernière version publiée vérifiée : **0.2.54**. Tests et publication de l'image réussis dans le [workflow GitHub 189](https://github.com/throlan/Lapinou-Dish/actions/runs/38698284489). Voir le [journal du 15 octobre](SESSION-2026-10-15.md).
 - Journaux : [13 octobre](SESSION-2026-10-13.md) et [14 octobre](SESSION-2026-10-14.md). État et tâches restantes : [STATUS.md](STATUS.md).
 - Derniers travaux livrés : stock des produits et préparation des repas (0.2.52, PR 66), puis correction de l'enregistrement du planning des courses (0.2.53, PR 67). **171 tests réussis** ; parcours Chrome local vérifiés avec des données synthétiques. Aucun correctif de cette session n'attend une fusion ou une publication GitHub.
-- Travail suivant : **0.2.54**, refonte de la page Courses & stocks avec une liste de préparations couvrant tous les repas de la période. Voir [le guide](SHOPPING-STOCK-PAGE.md). Vérifier sa PR et son workflow avant d'annoncer sa publication.
+- Dernier travail livré : **0.2.54**, refonte de la page Courses & stocks avec une liste de préparations couvrant tous les repas de la période. Voir [le guide](SHOPPING-STOCK-PAGE.md). La PR 69 et le workflow 189 ont réussi.
 
 ## Règle d'exploitation impérative
 
