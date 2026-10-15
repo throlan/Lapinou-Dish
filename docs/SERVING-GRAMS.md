@@ -2,7 +2,7 @@
 
 Dans une recette, « Portions dans le calendrier » propose quatre modes :
 
-- Portions actuelles : conserve le fonctionnement existant.
+- Proportions du rendement de la recette : conserve l’unité et le rendement d’origine (pièces, portions, etc.).
 - Préparation servie ensemble : une seule quantité estimée en grammes par personne. Convient aux lasagnes, gratins ou autres plats mélangés ; ne sépare pas physiquement les ingrédients.
 - Viande et légumes ensemble, féculents à part : choisir la partie de chaque ingrédient. Le calendrier crée deux lignes liées au même plat, ajustables indépendamment en grammes.
 - Viande, légumes et féculents séparés : affecter les ingrédients à Viande / protéines et sauce, Légumes ou Féculents. Les trois parties sont ajustables indépendamment en grammes. Chaque partie doit contenir au moins un ingrédient.
@@ -33,7 +33,7 @@ Les quantités existantes et les copies ne changent pas : utiliser explicitement
 
 Configurer le mode et les coefficients une fois par recette. Aucune classification automatique ne déplace le riz d'un plat existant : les féculents restent mélangés tant que la séparation n'est pas choisie.
 
-Lors de l'activation des grammes, les repas qui utilisaient les portions de cette recette sont convertis proportionnellement, sans rééquilibrage automatique : par exemple 1 portion sur un rendement de 4 devient un quart du poids estimé de chaque partie. Les quantités deviennent ensuite indépendantes. Les duplications copient ces grammes.
+Lors de l'activation des grammes, les repas qui utilisaient les portions de cette recette sont convertis proportionnellement, sans rééquilibrage automatique : par exemple 1 portion sur un rendement de 4 devient un quart du poids estimé de chaque partie. Les quantités deviennent ensuite indépendantes. Les duplications copient ces grammes. Pour une recette servie entièrement en une seule partie, repasser aux proportions de la recette reconvertit les repas en fonction du poids estimé du batch et de son rendement d’origine. Les lots de stock liés retrouvent le lot complet en unité d’origine, sans nouvelle déduction des ingrédients. Les préparations déjà marquées comme faites restent verrouillées.
 
 Lors du passage de deux à trois parties, les grammes planifiés et les lots de viande-légumes sont répartis proportionnellement entre viande et légumes selon les poids du batch. La partie féculents garde ses quantités. Cette conversion ne redéduit pas les ingrédients et ne se répète pas à chaque sauvegarde. Les identifiants des parties existantes restent stables.
 
@@ -41,8 +41,8 @@ Les propositions automatiques du plat principal en grammes et des légumes sépa
 
 Les lots existants actifs sont convertis de la même façon, sans déduire à nouveau les ingrédients. Enregistrer un nouveau batch complet crée les stocks de ses parties et déduit les ingrédients une seule fois. Annuler le lot de l'une des parties annule le batch complet et restaure une seule fois les déductions enregistrées. Les courses utilisent les ingrédients crus nécessaires aux grammes planifiés, en tenant compte du stock préparé.
 
-Les parties techniques restent rattachées à la recette et ne créent pas de cartes supplémentaires dans le catalogue. Leurs identifiants restent stables lors d'une modification. Les stocks déjà produits conservent leurs grammes enregistrés ; modifier ensuite une recette ou un coefficient actualise sa nutrition et ses nouveaux rendements, pas rétroactivement les poids des anciens lots. Pour protéger les repas et lots existants, une partie déjà créée ne peut pas être supprimée implicitement, et le mode en grammes ne peut pas être désactivé après activation.
+Les parties techniques restent rattachées à la recette et ne créent pas de cartes supplémentaires dans le catalogue. Leurs identifiants restent stables lors d'une modification. Les stocks déjà produits conservent leurs grammes enregistrés ; modifier ensuite une recette ou un coefficient actualise sa nutrition et ses nouveaux rendements, pas rétroactivement les poids des anciens lots. Le mode « Préparation servie ensemble » peut revenir au rendement d’origine avec conversion des repas et des lots. Les modes à plusieurs parties ne peuvent pas être regroupés automatiquement : leur répartition indépendante serait perdue.
 
 ## Vérification
 
-Tests PostgreSQL/PGlite : calcul brut→grammes estimés, recette entière sans séparation, précision nutritionnelle, portions indépendantes, duplication, courses, conversion des repas et lots existants, déduction unique, annulation de batch et transactions annulées si une conversion manque. Aucun serveur Unraid utilisé.
+Tests PostgreSQL/PGlite : calcul brut→grammes estimés, recette entière sans séparation, précision nutritionnelle, portions indépendantes, duplication, courses, conversions aller-retour des repas et lots en mode préparation entière, déduction unique, annulation de batch et transactions annulées si une conversion manque. Aucun serveur Unraid utilisé.

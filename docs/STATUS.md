@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-**0.2.56** publiée après la [PR 73](https://github.com/throlan/Lapinou-Dish/pull/73), fusionnée sur `main` au commit `b285dbf68e32213af49b1e2cded99de768f5bdd0`. Le [workflow GitHub 198](https://github.com/throlan/Lapinou-Dish/actions/runs/38703114682) a réussi. Cette version permet de modifier les magasins et réserve « Préparations à faire » aux recettes avec une production à suivre. La version locale en cours de préparation est **0.2.57**.
+Le code **0.2.57** (desserts partagés au petit-déjeuner) a été fusionné via la [PR 75](https://github.com/throlan/Lapinou-Dish/pull/75), commit `741a758834775418ba09860580b8d6e8f3c3b4f6`. Les tests et la publication de l'image après fusion ne sont pas vérifiés ici ; la dernière publication vérifiée est **0.2.56**. La correction locale en cours est **0.2.58** : retour du mode « Préparation servie ensemble » aux proportions de rendement d'origine. Suite complète locale : **174 tests réussis**.
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 15 octobre](SESSION-2026-10-15.md).
 

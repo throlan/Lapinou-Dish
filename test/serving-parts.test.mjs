@@ -132,6 +132,28 @@ test('gram preparations preserve nutrition, shopping, stock and complete meal du
       await cancelStockLot(pool,h,production.id);
       assert.equal((await listIngredientStock(pool,h))[0].quantityG,ingredientBefore+250);
     });
+    await t.test('a whole gram preparation can return to recipe pieces with its meals and stock preserved',async()=>{
+      const originalYield={amount:24,unitId:'piece'};
+      const wholeLines=input().lines.map(line=>({...line,servingPart:'main',cookingFactor:line.foodId===rice?3:null}));
+      const whole=await createRecipe(pool,checked(input({name:'Muffins',yield:originalYield,servingMode:'whole',lines:wholeLines})));
+      const part=whole.servingParts[0];
+      const meal=await savePlannedMeal(pool,null,{householdId:h,mealDate:'2026-10-23',slot:'breakfast',notes:'',attendeeIds:[person],items:[{recipeId:part.id,role:'main',amounts:[{personId:person,quantity:part.yield.amount/4}]}]});
+      await addStockLot(pool,{householdId:h,recipeId:whole.id,producedOn:date,quantity:24,storage:'freezer',note:'Muffins',requestId:null});
+      assert.equal((await listStock(pool,h)).some(stock=>stock.recipeId===part.id),true);
+      const restored=await updateRecipe(pool,whole.id,checked(input({name:'Muffins',yield:originalYield,separateStarch:false,servingMode:'original',lines:wholeLines})));
+      assert.equal(restored.error,undefined);
+      assert.equal(restored.separateStarch,false);
+      assert.equal(restored.servingParts.length,0);
+      const saved=(await listPlannedMeals(pool,h,'2026-10-23')).find(entry=>entry.id===meal.id);
+      assert.equal(saved.items.length,1);
+      assert.equal(saved.items[0].recipe.id,whole.id);
+      assert.equal(saved.items[0].recipe.yield.unitId,'piece');
+      assert.equal(saved.items[0].amounts[0].quantity,6);
+      const stock=(await listStock(pool,h)).find(entry=>entry.recipeId===whole.id);
+      assert.equal(stock.producedQuantity,24);
+      assert.equal(stock.plannedQuantity,6);
+      assert.equal(Number((await pool.query('SELECT count(*) FROM recipes WHERE parent_recipe_id=$1',[whole.id])).rows[0].count),0);
+    });
     await t.test('two components become three without changing the existing starch, repeating deductions or losing reservations',async()=>{
       const two=await createRecipe(pool,checked(input({name:'Deux puis trois',servingMode:'separate'})));
       const oldMain=two.servingParts.find(p=>p.servingPart==='main'),ricePart=two.servingParts.find(p=>p.servingPart==='starch');

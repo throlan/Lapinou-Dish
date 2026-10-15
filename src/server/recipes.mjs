@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { calculateRecipeNutrition } from '../domain/foods.ts';
-import { syncServingParts, validateServingParts } from './serving-parts.mjs';
+import { restoreOriginalServingMode, syncServingParts, validateServingParts } from './serving-parts.mjs';
 import { lockHouseholdInventory } from './ingredient-stock.mjs';
 
 export function validateRecipeInput(input) {
@@ -117,19 +117,16 @@ export async function updateRecipe(pool, id, data) {
       JOIN recipes used ON used.id=i.recipe_id WHERE m.household_id=$1 AND m.prepared_at IS NOT NULL
       AND (used.id=$2 OR used.parent_recipe_id=$2) LIMIT 1`,[data.householdId,id]);
     if(prepared.rowCount){await client.query('ROLLBACK');return {error:'recipe-used-in-prepared-meal'};}
+    if (!data.separateStarch) await restoreOriginalServingMode(client,id);
     const updated = await client.query(
       `UPDATE recipes SET name = $3, description = $4, yield_amount = $5,
-              yield_unit_id = $6, instructions = $7, source_url = $8, recipe_type = $9, production_type = $10, meal_moments = $11,separate_starch=$12,cooking_factors=$13::jsonb, version = version + 1, updated_at = now()
+              yield_unit_id = $6, instructions = $7, source_url = $8, recipe_type = $9, production_type = $10, meal_moments = $11,separate_starch=$12,serving_weights=CASE WHEN $12 THEN serving_weights ELSE '{}'::jsonb END,cooking_factors=$13::jsonb, version = version + 1, updated_at = now()
         WHERE id = $1 AND household_id = $2 AND parent_recipe_id IS NULL RETURNING id`,
       [id, data.householdId, data.name, data.description, data.yield.amount, data.yield.unitId, data.instructions, data.sourceUrl, data.recipeType, data.productionType, data.mealMoments,data.separateStarch ?? false,JSON.stringify(data.cookingFactors ?? {main:1,starch:3})],
     );
     if (!updated.rowCount) {
       await client.query('ROLLBACK');
       return null;
-    }
-    if (!data.separateStarch) {
-      const parts = await client.query('SELECT id FROM recipes WHERE parent_recipe_id=$1', [id]);
-      if (parts.rows.length) { await client.query('ROLLBACK'); return {error:'serving-parts-cannot-be-disabled'}; }
     }
     await client.query('DELETE FROM recipe_lines WHERE recipe_id = $1', [id]);
     for (const [index, line] of data.lines.entries()) {

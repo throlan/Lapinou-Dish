@@ -1188,7 +1188,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
       'serving-weight-conversion-required':'Pour estimer les grammes, complète la conversion en grammes des ingrédients exprimés en ml, cuillères ou pièces dans leurs fiches aliments.',
       'invalid-serving-parts':'La séparation des féculents est réservée aux plats. Garde au moins un ingrédient dans la partie principale.',
       'invalid-cooking-factor':'Le coefficient de cuisson doit être un nombre positif, au maximum 10.',
-      'serving-parts-cannot-be-disabled':'Cette recette possède déjà des portions en grammes. Conserve ce mode pour protéger les repas et stocks liés.',
+      'serving-parts-cannot-be-disabled':'Le retour aux proportions de la recette est prévu pour « Préparation servie ensemble ». Les modes avec plusieurs parties ne peuvent pas être regroupés automatiquement.',
       'serving-part-removal-not-supported':'Une partie déjà utilisée ne peut pas être supprimée implicitement. Conserve les parties existantes pour protéger le planning et le stock.',
       'recipe-used-in-prepared-meal':'Cette recette est liée à un repas déjà marqué préparé. Annule d’abord la préparation de ce repas pour modifier ses ingrédients.',
     };
