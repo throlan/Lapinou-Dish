@@ -48,6 +48,15 @@ test('home page loads the application module as a versioned same-origin asset', 
   assert.equal(weeksResponse.status, 200);
   assert.match(weeksResponse.headers['Content-Type'], /^text\/javascript/);
   assert.match(weeksResponse.body, /export function preparationWeeks/);
+  const cookingResponse = {
+    status: 200, headers: {},
+    setHeader(name, value) { this.headers[name] = value; },
+    writeHead(status) { this.status = status; },
+    end(body) { this.body = body.toString(); },
+  };
+  await handleRequest({ method: 'GET', url: '/cooking-sheet.js', headers: {} }, cookingResponse, {});
+  assert.equal(cookingResponse.status, 200);
+  assert.match(cookingResponse.body, /export function groupPreparations/);
 });
 
 test('health endpoint checks the database and returns service state', async () => {

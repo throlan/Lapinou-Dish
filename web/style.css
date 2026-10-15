@@ -510,6 +510,20 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .preparation-row.is-covered .preparation-amount { color:#63d7b0; }
 .preparation-row button { grid-column:1/-1; justify-self:start; padding:7px 10px; margin-top:4px; font-size:.8rem; }
 .preparation-row button+button { margin-top:0; }
+.preparation-parts { grid-column:1/-1; margin:3px 0 6px; padding-left:20px; color:var(--muted,#9bb0d1); font-size:.85rem; }
+.preparation-parts li+li { margin-top:3px; }
+.cook-dialog { width:min(820px,calc(100vw - 28px)); }
+.cook-dialog form { max-height:calc(90vh - 48px); }
+.cook-dialog h3 { margin:20px 0 10px; color:#c8f8fb; }
+.cook-unit { align-self:end; margin-bottom:10px; }
+.cook-ingredients { display:grid; gap:10px; }
+.cook-part { border:1px solid #364866; border-radius:12px; padding:12px 16px; background:#142039; }
+.cook-part h4 { margin:0 0 8px; color:#c8f8fb; }
+.cook-part ul { list-style:none; margin:0; padding:0; }
+.cook-part li+li { border-top:1px solid #364866; margin-top:8px; padding-top:8px; }
+.cook-part label { display:flex; align-items:center; gap:8px; cursor:pointer; }
+.cook-part label:has(input:checked) { text-decoration:line-through; opacity:.6; }
+.cook-instructions { white-space:pre-wrap; line-height:1.6; }
 .shopping-list-card,.order-links-card,.production-card { margin-top:18px; }
 .shopping-store-header { min-height:62px; }
 .shopping-store-toggle,.shopping-item-toggle { border:0; background:none; color:var(--text,#e6edf9); text-align:left; cursor:pointer; font:inherit; }

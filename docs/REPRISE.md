@@ -2,6 +2,8 @@
 
 ## Point de départ
 
+Mise à jour du 15 octobre : `main` contient maintenant **0.2.60** (PR 78), avec les préparations classées par type et par semaine de batch cooking. La branche `feat/recipe-cooking-sheet` prépare **0.2.61** : une fiche par recette malgré ses trois parties servies, accès direct à la recette, et fiche « Cuisiner » avec quantité modifiable, ingrédients proportionnels et enregistrement au stock. Les 180 tests locaux passent ; ce travail reste à publier et fusionner. Les repères historiques ci-dessous restent conservés pour le contexte.
+
 - Dépôt : https://github.com/throlan/Lapinou-Dish
 - Base de travail : `main`, commit `20b312a` après la [PR 77](https://github.com/throlan/Lapinou-Dish/pull/77) ; checkout local propre.
 - Dernier code fusionné : **0.2.59**, bouton de duplication des recettes. Les 4 tests ciblés et le workflow PR #206 ont réussi. Les tests et la publication de l'image après fusion ont réussi dans le [workflow 38714448236](https://github.com/throlan/Lapinou-Dish/actions/runs/38714448236). Voir le [journal du 15 octobre](SESSION-2026-10-15.md).
