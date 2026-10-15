@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-**0.2.56** publiée après la [PR 73](https://github.com/throlan/Lapinou-Dish/pull/73), fusionnée sur `main` au commit `b285dbf68e32213af49b1e2cded99de768f5bdd0`. Le [workflow GitHub 198](https://github.com/throlan/Lapinou-Dish/actions/runs/38703114682) a réussi. Cette version permet de modifier les magasins et réserve « Préparations à faire » aux recettes avec une production à suivre.
+**0.2.56** publiée après la [PR 73](https://github.com/throlan/Lapinou-Dish/pull/73), fusionnée sur `main` au commit `b285dbf68e32213af49b1e2cded99de768f5bdd0`. Le [workflow GitHub 198](https://github.com/throlan/Lapinou-Dish/actions/runs/38703114682) a réussi. Cette version permet de modifier les magasins et réserve « Préparations à faire » aux recettes avec une production à suivre. La version locale en cours de préparation est **0.2.57**.
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 15 octobre](SESSION-2026-10-15.md).
 
@@ -14,7 +14,7 @@ Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). P
 - Catalogue canonique Ciqual et aliments manuels, alias, conversions documentées, données inconnues conservées, édition et recherche de valeurs manquantes.
 - Création/édition de recettes, calcul par batch et rendement, types et moments distincts, filtres et recherche. Liste paginée (12 recettes), détails repliés et réglages de production/moments enregistrables directement sur chaque ligne sans modifier les ingrédients.
 - Import de texte/archives en brouillons, OpenAI optionnel et tentative de récupération de description Instagram avec repli texte.
-- Calendrier à cinq créneaux, participants explicites, repas multi-recettes, boissons/desserts individuels et duplication complète sur plusieurs dates.
+- Calendrier à cinq créneaux, participants explicites, repas multi-recettes, boissons/desserts individuels et duplication complète sur plusieurs dates. Au petit-déjeuner, les desserts adaptés peuvent aussi être ajoutés comme recette commune et bénéficier du calcul de portions.
 - Préparation entière en grammes estimés, deux ou trois parties indépendantes, coefficients de cuisson, conversions des repas/lots existants et conservation des ingrédients crus.
 - Ingrédients en blocs lisibles ; liens en bas ; coefficient individuel affiché pour les féculents sélectionnés.
 - Administration : profils compacts et datés, relevés de poids et historiques ; répartition des kcal à 100 %, par défaut 15/40/10/25/10 %.

@@ -2,6 +2,8 @@
 
 Dans l'éditeur d'un repas, sélectionner les personnes présentes puis cliquer sur **+ Dessert**. La ligne **Dessert · choix individuel** propose, pour chacune, **Aucun dessert** ou une recette de type **Dessert**. Chacun peut choisir un produit différent et sa quantité. Une quantité à zéro n'ajoute aucun dessert à la personne.
 
+Au petit-déjeuner, une recette de type **Dessert** peut aussi être ajoutée comme recette commune avec **+ Ajouter une recette**. Elle est alors calculée avec les quantités par personne et la proposition automatique du repas. Les moments adaptés continuent de filtrer les recettes : un dessert dont les moments sont renseignés doit inclure **Petit-déjeuner** pour être proposé dans ce créneau. Le bouton **+ Dessert** conserve le choix individuel.
+
 Les choix viennent des recettes : créer une petite recette de type **Dessert** pour un yaourt Frutos, une compote, un Viennois chocolat, etc., avec son aliment exact du catalogue et les quantités de l'étiquette. Par exemple, un pot peut avoir un rendement de **1 portion** et une ligne de **125 g** du produit concerné. Les moments adaptés peuvent être laissés vides ou limités au déjeuner/dîner selon le besoin. Aucune donnée nutritionnelle de marque n'est inventée.
 
 Le choix d'un dessert initialise une quantité de 1 pièce/portion, ou au rendement de la recette si elle est exprimée en grammes ou millilitres. La quantité reste libre. Ajouter ou modifier le dessert conserve les quantités actuelles du plat; le dessert n'a pas de quota calorique fixe et ses quantités ne sont pas augmentées pour atteindre le repère de protéines.

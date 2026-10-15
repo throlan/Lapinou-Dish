@@ -2073,7 +2073,8 @@ function recipesForPlanning(slot, role, selectedIds = []) {
     if (recipe.recipeType) {
       if (isIndividualRole(role) && recipe.recipeType !== role) return false;
       if (role === 'accompaniment' && recipe.recipeType !== 'accompaniment') return false;
-      if (role === 'main' && ['beverage', 'accompaniment', 'dessert'].includes(recipe.recipeType)) return false;
+      if (role === 'main' && ['beverage', 'accompaniment'].includes(recipe.recipeType)) return false;
+      if (role === 'main' && recipe.recipeType === 'dessert' && slot !== 'breakfast') return false;
     }
     if (recipe.parentRecipeId && recipe.servingPart === 'main') return false;
     return true;
