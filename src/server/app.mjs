@@ -13,6 +13,7 @@ import { getOpenFoodFactsProduct, searchOpenFoodFacts } from './open-food-facts.
 import { createRecipe, listRecipes, readRecipe, updateRecipe, updateRecipeSettings, validateRecipeInput, validateRecipeSettings } from './recipes.mjs';
 import { listImportDrafts, saveImportDrafts } from './recipe-imports.mjs';
 import { extractRecipeWithOpenAI } from './openai-recipe-import.mjs';
+import { generateRecipeImage, readRecipeImage, removeRecipeImage, saveRecipeImage, validateRecipeImageUpload } from './recipe-images.mjs';
 import { retrieveInstagramCaption, instagramPostUrl } from './instagram-caption.mjs';
 import { addProfileHistory, addWeightEntry, createPerson, listPeople, validatePersonInput, validateProfileHistoryInput, validateWeightInput } from './people.mjs';
 import { deletePlannedMeal, duplicatePlannedMeal, listPlannedMeals, savePlannedMeal, validateMealDuplication, validatePlannedMeal } from './planning.mjs';
@@ -30,6 +31,7 @@ const staticFiles = new Map([
   ['/meal-config.js', ['meal-config.js', 'text/javascript; charset=utf-8']],
   ['/preparation-weeks.js', ['preparation-weeks.js', 'text/javascript; charset=utf-8']],
   ['/cooking-sheet.js', ['cooking-sheet.js', 'text/javascript; charset=utf-8']],
+  ['/recipe-directory.js', ['recipe-directory.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
 ]);
 
@@ -40,6 +42,7 @@ export function createApp(pool, { appPassword, recipeAI = {} } = {}) {
 const loginAttempts = new Map();
 const SESSION_SECONDS = 604800;
 const activeRecipeImports = new Set();
+const activeImageGenerations = new Set();
 
 export async function handleRequest(request, response, pool, appPassword = null, recipeAI = {}) {
     const url = new URL(request.url ?? '/', 'http://localhost');
@@ -458,8 +461,63 @@ export async function handleRequest(request, response, pool, appPassword = null,
         return send(response, 500, { error: 'recipe-list-failed' });
       }
     }
+    const recipeImageRoute = url.pathname.match(/^\/api\/recipes\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/image$/i);
+    const recipeImageGenerationRoute = url.pathname.match(/^\/api\/recipes\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/image\/ai$/i);
+    if (recipeImageRoute && request.method === 'GET') {
+      const householdId = url.searchParams.get('householdId');
+      if (!isUuid(householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      try {
+        const result = await readRecipeImage(pool, recipeImageRoute[1], householdId);
+        if (!result) return send(response, 404, { error: 'recipe-image-not-found' });
+        response.setHeader('Content-Type', result.mediaType);
+        response.setHeader('Cache-Control', 'private, max-age=300');
+        return response.end(result.image);
+      } catch { return send(response, 500, { error: 'recipe-image-read-failed' }); }
+    }
+    if (recipeImageRoute && request.method === 'PUT') {
+      const body = await readJson(request);
+      if (body.error) return send(response, body.status ?? 400, { error: body.error });
+      const validation = validateRecipeImageUpload(body.value);
+      if (validation.error) return send(response, 400, { error: validation.error });
+      try {
+        const result = await saveRecipeImage(pool, recipeImageRoute[1], validation.data);
+        return result ? send(response, 200, result) : send(response, 404, { error: 'recipe-not-found' });
+      } catch { return send(response, 500, { error: 'recipe-image-save-failed' }); }
+    }
+    if (recipeImageRoute && request.method === 'DELETE') {
+      const householdId = url.searchParams.get('householdId');
+      if (!isUuid(householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      try {
+        const result = await removeRecipeImage(pool, recipeImageRoute[1], householdId);
+        return result === null ? send(response, 404, { error: 'recipe-not-found' }) : send(response, 200, { imageAvailable: false });
+      } catch { return send(response, 500, { error: 'recipe-image-delete-failed' }); }
+    }
+    if (recipeImageGenerationRoute && request.method === 'POST') {
+      const body = await readJson(request);
+      if (body.error) return send(response, body.status ?? 400, { error: body.error });
+      const householdId = body.value?.householdId;
+      if (!isUuid(householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      const apiKey = recipeAI.apiKey ?? process.env.OPENAI_API_KEY;
+      if (!apiKey) return send(response, 503, { error: 'openai-not-configured' });
+      const key = `${householdId}:${recipeImageGenerationRoute[1]}`;
+      if (activeImageGenerations.has(key)) return send(response, 429, { error: 'recipe-image-generation-in-progress' });
+      activeImageGenerations.add(key);
+      try {
+        const owned = await pool.query('SELECT name FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL', [recipeImageGenerationRoute[1], householdId]);
+        if (!owned.rowCount) return send(response, 404, { error: 'recipe-not-found' });
+        const recipe = await readRecipe(pool, recipeImageGenerationRoute[1]);
+        const ingredients = recipe.lines.map(line => line.foodName).filter(Boolean).slice(0, 30);
+        const prompt = `Create a realistic, appetizing food photograph for a home-cooking recipe named “${recipe.name.slice(0, 200)}”. Main ingredients: ${ingredients.join(', ') || 'not specified'}. Show the finished dish naturally served on a simple plate, soft daylight, uncluttered background, no text, no labels, no people, no packaging. This is an illustrative image, not a nutrition or portion-size reference.`;
+        const generated = await generateRecipeImage(prompt, { apiKey, model: recipeAI.imageModel, fetchImpl: recipeAI.imageFetch });
+        if (generated.error) return send(response, generated.error === 'openai-not-configured' ? 503 : generated.error === 'openai-access-denied' || generated.error === 'openai-rate-limited' || generated.error === 'recipe-image-too-large' ? 422 : 502, generated);
+        const saved = await saveRecipeImage(pool, recipeImageGenerationRoute[1], { householdId, ...generated.data });
+        return saved ? send(response, 200, saved) : send(response, 404, { error: 'recipe-not-found' });
+      } catch { return send(response, 502, { error: 'openai-image-generation-failed' }); }
+      finally { activeImageGenerations.delete(key); }
+    }
     if (request.method === 'GET' && url.pathname === '/api/recipe-imports/config') {
-      return send(response, 200, { openaiEnabled: Boolean(recipeAI.apiKey ?? process.env.OPENAI_API_KEY) });
+      const openaiEnabled = Boolean(recipeAI.apiKey ?? process.env.OPENAI_API_KEY);
+      return send(response, 200, { openaiEnabled, imageGenerationEnabled: openaiEnabled });
     }
     if (request.method === 'POST' && url.pathname === '/api/recipe-imports/ai') {
       const body = await readJson(request);

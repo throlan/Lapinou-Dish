@@ -8,10 +8,12 @@ import { suggestPlatePortions } from './portion-planner.js';
 import { PLATE_PARTS, validPlateRatios } from './meal-config.js';
 import { preparationWeeks } from './preparation-weeks.js';
 import { groupPreparations, suggestedProductionQuantity, scaledIngredients } from './cooking-sheet.js';
+import { filterRecipeDirectory, recipeMissingData, recipeMomentLabel, recipeTypeLabel } from './recipe-directory.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, editingOrderLinkId: null, importingDraftId: null, people: [], recipes: [], preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
+const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, editingOrderLinkId: null, importingDraftId: null, generateImportedImage: false, people: [], recipes: [], preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
+let recipeImageConfig={enabled:false}, imageRecipeId=null;
 const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbohydrateG', 'g gluc.'], ['fatG', 'g lip.']];
 const selectedStoreFoods=new Map();
 let visibleStoreFoods=[],storeSearchSequence=0,storeSearchTimer;
@@ -38,6 +40,7 @@ function setView(name) {
   $('#home-view').classList.toggle('hidden', name !== 'home');
   $('#foods-view').classList.toggle('hidden', name !== 'foods');
   $('#recipes-view').classList.toggle('hidden', name !== 'recipes');
+  $('#import-view').classList.toggle('hidden', name !== 'import');
   $('#calendar-view').classList.toggle('hidden', name !== 'calendar');
   $('#profiles-view').classList.toggle('hidden', name !== 'admin');
   $('#shopping-view').classList.toggle('hidden', name !== 'shopping');
@@ -45,6 +48,7 @@ function setView(name) {
   $$('.nav-button').forEach((button) => button.classList.toggle('active', button.dataset.view === name));
   if (name === 'home') refreshDashboard();
   if (name === 'recipes') return refreshRecipes();
+  if (name === 'import') return Promise.all([refreshImportDrafts(),refreshRecipeAIConfig()]);
   if (name === 'calendar') refreshCalendar();
   if (name === 'profiles') refreshPeople();
   if (name === 'shopping') refreshShopping();
@@ -1198,6 +1202,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
     const path = state.editingRecipeId ? `/api/recipes/${state.editingRecipeId}` : '/api/recipes';
     const method = state.editingRecipeId ? 'PUT' : 'POST';
     const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, productionType: form.elements.productionType.value, recipeType: form.elements.recipeType.value, mealMoments: [...form.querySelectorAll('input[name="mealMoments"]:checked')].map((input) => input.value), instructions: form.elements.instructions.value, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, ...servingOptions, lines }) });
+    const generateImage=state.generateImportedImage;state.generateImportedImage=false;
     if (state.importingDraftId) {
       await api(`/api/recipe-imports/${state.importingDraftId}/converted`, { method: 'POST', body: JSON.stringify({ householdId: state.household.id }) });
       state.importingDraftId = null;
@@ -1206,6 +1211,11 @@ $('#recipe-form').addEventListener('submit', async (event) => {
     state.editingRecipeId = null;
     $('#recipe-form-title').textContent = 'Nouvelle recette';
     $('#recipe-form').classList.add('hidden');
+    if(generateImage&&recipeImageConfig.enabled){
+      showMessage(message,'Recette enregistrée. Création de son illustration…',true);
+      try{await api(`/api/recipes/${recipe.id}/image/ai`,{method:'POST',body:JSON.stringify({householdId:state.household.id}),signal:AbortSignal.timeout(100_000)});showMessage(message,'Recette enregistrée et illustration créée. Tu peux la remplacer par une photo personnelle.',true);}
+      catch(error){showMessage(message,`Recette enregistrée. Illustration non créée : ${error.body?.error??error.message}. Tu peux réessayer depuis le bouton Photo.`,false);}
+    }
     await refreshRecipes();
   } catch (error) {
     const servingErrors={
@@ -1231,6 +1241,7 @@ async function openRecipeEditor(id = null, duplicate = false) {
   $('#recipe-result').classList.add('hidden');
   state.editingRecipeId = duplicate ? null : id;
   state.importingDraftId = null;
+  state.generateImportedImage=false;
   $('#recipe-form-title').textContent = duplicate ? 'Dupliquer une recette' : id ? 'Modifier la recette' : 'Nouvelle recette';
   if (id) {
     try {
@@ -1266,7 +1277,7 @@ const recipeFilterChoices={
   type:[['','Tous'],['dish','Plat'],['beverage','Boisson'],['accompaniment','Accompagnement'],['dessert','Dessert']],
   moment:[['','Tous'],['breakfast','Petit-déjeuner'],['lunch','Déjeuner'],['snack','Collation'],['dinner','Dîner'],['untagged','Sans tag']],
 };
-const recipeFilters={type:'',moment:'',query:'',page:1};
+const recipeFilters={type:'',moment:'',query:'',missing:'',page:1};
 const recipesPerPage=12;
 async function showRecipeCard(recipeId){
   const recipe=state.recipes.find(item=>item.id===recipeId);if(!recipe)return;
@@ -1329,9 +1340,7 @@ try{
   for(const key of ['type','moment'])if(recipeFilterChoices[key].some(([value])=>value===saved[key]))recipeFilters[key]=saved[key];
 }catch{}
 function renderFilteredRecipes(){
-  const recipes=state.recipes.filter(recipe=>(!recipeFilters.type||(recipe.recipeType??'dish')===recipeFilters.type)
-    && (!recipeFilters.moment||(recipeFilters.moment==='untagged'?!recipe.mealMoments?.length:recipe.mealMoments?.includes(recipeFilters.moment)))
-    && recipe.name.toLocaleLowerCase('fr').includes(recipeFilters.query.toLocaleLowerCase('fr')));
+  const recipes=filterRecipeDirectory(state.recipes,recipeFilters);
   const pages=Math.max(1,Math.ceil(recipes.length/recipesPerPage));
   recipeFilters.page=Math.min(recipeFilters.page,pages);
   const start=(recipeFilters.page-1)*recipesPerPage;
@@ -1352,8 +1361,12 @@ function renderFilteredRecipes(){
       return button;
     }));
   }
+  $('#recipe-missing-filter').value=recipeFilters.missing;
 }
 $('#recipe-search')?.addEventListener('input',event=>{recipeFilters.query=event.target.value.trim();recipeFilters.page=1;renderFilteredRecipes();});
+$('#recipe-missing-filter')?.addEventListener('change',event=>{recipeFilters.missing=event.target.value;recipeFilters.page=1;renderFilteredRecipes();});
+$('#open-recipe-import')?.addEventListener('click',()=>setView('import'));
+$('#back-to-recipes')?.addEventListener('click',()=>setView('recipes'));
 async function refreshRecipes() {
   const list = $('#recipe-list');
   if (!state.household) { list.innerHTML = '<p class="empty">Crée d’abord un foyer pour enregistrer des recettes.</p>'; return; }
@@ -1365,7 +1378,6 @@ async function refreshRecipes() {
   } catch (error) {
     const message = document.createElement('p'); message.className = 'empty'; message.textContent = `Liste indisponible : ${error.body?.error ?? error.message}`; list.replaceChildren(message);
   }
-  await refreshImportDrafts();
 }
 
 function emptyMessage(text) { const item = document.createElement('p'); item.className = 'empty'; item.textContent = text; return item; }
@@ -1381,7 +1393,7 @@ async function refreshImportDrafts() {
       const copy = document.createElement('div'); const title = document.createElement('strong'); title.textContent = draft.name || 'Recette importée';
       const details = document.createElement('p'); details.className = 'muted'; details.textContent = `${draft.ingredients.length} ingrédient${draft.ingredients.length === 1 ? '' : 's'} · ${draft.sourcePlatform || draft.sourceKind}${draft.sourceUrl ? ` · ${draft.sourceUrl}` : ''}`; copy.append(title, details);
       const actions = document.createElement('div'); actions.className = 'recipe-card-actions';
-      const button = document.createElement('button'); button.type = 'button'; button.className = 'secondary'; button.textContent = 'Vérifier'; button.addEventListener('click', () => openImportDraft(draft));
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'secondary'; button.textContent = 'Vérifier'; button.addEventListener('click', () => { void openImportDraft(draft); });
       const discard = document.createElement('button'); discard.type = 'button'; discard.className = 'secondary'; discard.textContent = 'Ignorer'; discard.addEventListener('click', async () => {
         try { await api(`/api/recipe-imports/${draft.id}/discarded`, { method: 'POST', body: JSON.stringify({ householdId: state.household.id }) }); await refreshImportDrafts(); }
         catch { showMessage($('#recipe-import-message'), 'Impossible d’ignorer ce brouillon.'); }
@@ -1391,7 +1403,8 @@ async function refreshImportDrafts() {
   } catch { list.replaceChildren(emptyMessage('Impossible de charger les brouillons importés.')); }
 }
 
-function openImportDraft(draft) {
+async function openImportDraft(draft) {
+  await setView('recipes');
   const form = $('#recipe-form'); form.reset(); $('#recipe-lines').replaceChildren();
   state.editingRecipeId = null; state.importingDraftId = draft.id;
   $('#recipe-form-title').textContent = 'Vérifier la recette importée';
@@ -1435,13 +1448,14 @@ $('#recipe-import-form').addEventListener('submit', async (event) => {
   if (!form.elements.text.value.trim() && !useAI) { showMessage($('#recipe-import-message'), 'Colle le texte de la recette ou active OpenAI pour importer depuis un lien Instagram.'); return; }
   const button = form.querySelector('button[type="submit"]');
   button.disabled = true; button.textContent = 'Analyse en cours…';
+  const generateImageAfterReview=form.elements.generateImage.checked;
   try {
     const result = await api(useAI ? '/api/recipe-imports/ai' : '/api/recipe-imports/text', { method: 'POST', body: JSON.stringify({ householdId: state.household.id, text: form.elements.text.value, sourceUrl: form.elements.sourceUrl.value || null }) });
     form.reset(); showMessage($('#recipe-import-message'), 'Recette ajoutée aux brouillons. Associe ses ingrédients aux aliments du catalogue.', true);
     await refreshImportDrafts();
     const { drafts } = await api(`/api/recipe-imports?householdId=${encodeURIComponent(state.household.id)}`);
     const draft = drafts.find((item) => item.id === result.drafts?.[0]?.id);
-    if (draft) openImportDraft(draft);
+    if (draft) { state.generateImportedImage=generateImageAfterReview; await openImportDraft(draft); }
   } catch (error) {
     const messages = {
       'instagram-caption-unavailable': 'Instagram ne permet pas de lire la description complète. Colle la description dans le champ texte, puis relance l’analyse.',
@@ -1458,14 +1472,62 @@ $('#recipe-import-form').addEventListener('submit', async (event) => {
 
 async function refreshRecipeAIConfig() {
   const checkbox = $('#recipe-import-form').elements.useAI;
+  const imageCheckbox=$('#recipe-import-form').elements.generateImage;
   try {
     const config = await api('/api/recipe-imports/config');
+    recipeImageConfig={enabled:Boolean(config.imageGenerationEnabled)};
     checkbox.disabled = !config.openaiEnabled;
+    imageCheckbox.disabled=!recipeImageConfig.enabled;
     $('#recipe-ai-status').textContent = config.openaiEnabled
       ? 'En activant OpenAI, le texte de la recette est envoyé à ton API pour analyse (utilisation facturée sur ton compte). Vérifie le brouillon avant enregistrement.'
       : 'OpenAI n’est pas configuré. L’import par texte reste disponible.';
-  } catch { checkbox.disabled = true; $('#recipe-ai-status').textContent = 'OpenAI indisponible. L’import par texte reste disponible.'; }
+    $('#recipe-image-ai-status').textContent=recipeImageConfig.enabled?'La génération d’image est facultative. Elle démarre après validation/enregistrement, et peut entraîner des frais OpenAI.':'La génération d’image IA n’est pas configurée. Les photos personnelles restent disponibles.';
+  } catch { recipeImageConfig={enabled:false};checkbox.disabled = true;imageCheckbox.disabled=true; $('#recipe-ai-status').textContent = 'OpenAI indisponible. L’import par texte reste disponible.';$('#recipe-image-ai-status').textContent='OpenAI indisponible. Les photos personnelles restent disponibles.'; }
 }
+
+function refreshRecipeImagePreview() {
+  const image=$('#recipe-image-preview'),placeholder=$('#recipe-image-placeholder');
+  if(!imageRecipeId){image.classList.add('hidden');placeholder.classList.remove('hidden');return;}
+  const recipe=state.recipes.find(item=>item.id===imageRecipeId);
+  if(!recipe?.imageAvailable){image.removeAttribute('src');image.classList.add('hidden');placeholder.classList.remove('hidden');return;}
+  image.src=`/api/recipes/${imageRecipeId}/image?householdId=${encodeURIComponent(state.household.id)}&v=${Date.now()}`;
+  image.classList.remove('hidden');placeholder.classList.add('hidden');
+}
+function openRecipeImageEditor(recipe){
+  imageRecipeId=recipe.id;$('#recipe-image-title').textContent=`Photo · ${recipe.name}`;
+  $('#generate-recipe-image').disabled=!recipeImageConfig.enabled;$('#recipe-image-file').value='';
+  showMessage($('#recipe-image-message'),recipeImageConfig.enabled?'Choisis une photo, ou demande une illustration IA. Une nouvelle image remplacera l’actuelle.':'Choisis une photo personnelle. La génération IA n’est pas configurée.');
+  refreshRecipeImagePreview();$('#recipe-image-dialog').showModal();
+}
+$('#close-recipe-image')?.addEventListener('click',()=>$('#recipe-image-dialog').close());
+$('#recipe-image-file')?.addEventListener('change',async event=>{
+  const file=event.target.files?.[0];if(!file||!imageRecipeId)return;
+  if(file.size>15*1024*1024){showMessage($('#recipe-image-message'),'Image trop volumineuse. Choisis un fichier de moins de 15 Mo.');return;}
+  try{
+    const bitmap=await createImageBitmap(file),scale=Math.min(1,1200/Math.max(bitmap.width,bitmap.height)),canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+    canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.84));if(!blob)throw new Error('conversion-failed');
+    if(blob.size>5*1024*1024)throw new Error('image-too-large');
+    const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
+    showMessage($('#recipe-image-message'),'Enregistrement de la photo…');
+    await api(`/api/recipes/${imageRecipeId}/image`,{method:'PUT',body:JSON.stringify({householdId:state.household.id,mediaType:'image/jpeg',imageBase64:btoa(binary)})});
+    const recipe=state.recipes.find(item=>item.id===imageRecipeId);if(recipe)recipe.imageAvailable=true;renderFilteredRecipes();refreshRecipeImagePreview();showMessage($('#recipe-image-message'),'Photo personnelle enregistrée.',true);
+  }catch(error){showMessage($('#recipe-image-message'),error.message==='image-too-large'?'Photo encore trop volumineuse après redimensionnement.':`Impossible d’enregistrer la photo : ${error.body?.error??error.message}`);}
+  finally{event.target.value='';}
+});
+$('#generate-recipe-image')?.addEventListener('click',async()=>{
+  if(!imageRecipeId)return;const button=$('#generate-recipe-image');button.disabled=true;
+  showMessage($('#recipe-image-message'),'Création de l’illustration… cela peut prendre un peu de temps.');
+  try{await api(`/api/recipes/${imageRecipeId}/image/ai`,{method:'POST',body:JSON.stringify({householdId:state.household.id}),signal:AbortSignal.timeout(100_000)});const recipe=state.recipes.find(item=>item.id===imageRecipeId);if(recipe)recipe.imageAvailable=true;renderFilteredRecipes();refreshRecipeImagePreview();showMessage($('#recipe-image-message'),'Illustration créée. Tu peux la remplacer quand tu veux.',true);}
+  catch(error){showMessage($('#recipe-image-message'),`Illustration non créée : ${error.body?.error??error.message}`);}
+  finally{button.disabled=!recipeImageConfig.enabled;}
+});
+$('#delete-recipe-image')?.addEventListener('click',async()=>{
+  if(!imageRecipeId)return;
+  try{await api(`/api/recipes/${imageRecipeId}/image?householdId=${encodeURIComponent(state.household.id)}`,{method:'DELETE'});const recipe=state.recipes.find(item=>item.id===imageRecipeId);if(recipe)recipe.imageAvailable=false;renderFilteredRecipes();refreshRecipeImagePreview();showMessage($('#recipe-image-message'),'Photo supprimée.',true);}
+  catch(error){showMessage($('#recipe-image-message'),`Impossible de supprimer la photo : ${error.body?.error??error.message}`);}
+});
 
 $('#recipe-archive-file').addEventListener('change', async (event) => {
   const file = event.target.files?.[0]; if (!file) return;
@@ -1483,23 +1545,27 @@ $('#recipe-archive-file').addEventListener('change', async (event) => {
 
 function recipeCard(recipe) {
   const card = document.createElement('article'); card.className = 'recipe-card';card.dataset.recipeId=recipe.id;
-  const typeLabels = { dish: 'Plat', beverage: 'Boisson', accompaniment: 'Accompagnement', dessert: 'Dessert' };
-  const momentLabels = { breakfast: 'Petit-déjeuner', lunch: 'Déjeuner', dinner: 'Dîner', snack: 'Collation' };
   const header=document.createElement('div');header.className='recipe-row-header';
+  const visual=document.createElement('div');visual.className='recipe-card-visual';
+  if(recipe.imageAvailable){const image=document.createElement('img');image.src=`/api/recipes/${recipe.id}/image?householdId=${encodeURIComponent(state.household.id)}&v=${recipe.version}`;image.alt='';image.loading='lazy';visual.append(image);}
+  else {const placeholder=document.createElement('span');placeholder.textContent='Photo';visual.append(placeholder);}
   const identity=document.createElement('div');identity.className='recipe-row-identity';
   const title=document.createElement('h3');title.textContent=recipe.name;
-  const subtitle=document.createElement('p');subtitle.textContent=`${typeLabels[recipe.recipeType]??'Recette'} · ${recipe.lines.length} ingrédient${recipe.lines.length===1?'':'s'} · ${format(recipe.yield.amount)} ${recipe.yield.unitId}`;
+  const subtitle=document.createElement('p');subtitle.textContent=`${recipeTypeLabel(recipe.recipeType)} · ${recipe.lines.length} ingrédient${recipe.lines.length===1?'':'s'} · ${format(recipe.yield.amount)} ${recipe.yield.unitId}`;
   identity.append(title,subtitle);
   const nutrition=document.createElement('p');nutrition.className='recipe-nutrition';
   nutrition.textContent=`${format(recipe.nutrition.perYieldUnit.energyKcal)} kcal · P ${format(recipe.nutrition.perYieldUnit.proteinG)} g / ${recipe.yield.unitId}`;
   const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='Modifier';edit.setAttribute('aria-label',`Modifier ${recipe.name}`);edit.addEventListener('click',()=>openRecipeEditor(recipe.id));
   const duplicate=document.createElement('button');duplicate.type='button';duplicate.className='secondary';duplicate.textContent='Dupliquer';duplicate.setAttribute('aria-label',`Dupliquer ${recipe.name}`);duplicate.addEventListener('click',()=>openRecipeEditor(recipe.id,true));
+  const photo=document.createElement('button');photo.type='button';photo.className='secondary';photo.textContent='Photo';photo.addEventListener('click',()=>openRecipeImageEditor(recipe));
   const cook=document.createElement('button');cook.type='button';cook.className='secondary';cook.textContent='Cuisiner';cook.setAttribute('aria-label',`Cuisiner ${recipe.name}`);cook.addEventListener('click',()=>{
     const planned=groupPreparations(state.preparations).find(group=>group.recipeId===recipe.id);
     openCookingSheet(recipe.id,planned?suggestedProductionQuantity(planned,recipe)||recipe.yield.amount:recipe.yield.amount);
   });
-  const actions=document.createElement('div');actions.className='recipe-card-actions';actions.append(cook,duplicate,edit);
-  header.append(identity,nutrition,actions);card.append(header);
+  const actions=document.createElement('div');actions.className='recipe-card-actions';actions.append(photo,cook,duplicate,edit);
+  header.append(visual,identity,nutrition,actions);card.append(header);
+  const missing=recipeMissingData(recipe);
+  if(missing.length){const badges=document.createElement('p');badges.className='recipe-missing-badges';for(const item of missing){const badge=document.createElement('span');badge.textContent=item.label;badges.append(badge);}card.append(badges);}
   const settings=document.createElement('div');settings.className='recipe-row-settings';
   const production=document.createElement('label');production.textContent='Production à suivre';
   const select=document.createElement('select');select.setAttribute('aria-label',`Production à suivre pour ${recipe.name}`);
@@ -1509,7 +1575,7 @@ function recipeCard(recipe) {
   select.value=recipe.productionType??'none';production.append(select);
   const moments=document.createElement('fieldset');moments.className='recipe-row-moments';
   const legend=document.createElement('legend');legend.textContent='Moments adaptés';moments.append(legend);
-  for(const [value,label] of Object.entries(momentLabels)){
+  for(const [value,label] of Object.entries({breakfast:'Petit-déjeuner',lunch:'Déjeuner',dinner:'Dîner',snack:'Collation'})){
     const item=document.createElement('label');const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.value=value;checkbox.checked=(recipe.mealMoments??[]).includes(value);
     item.append(checkbox,document.createTextNode(label));moments.append(item);
   }
@@ -1530,7 +1596,8 @@ function recipeCard(recipe) {
       save.disabled=select.value===(recipe.productionType??'none')&&JSON.stringify(currentMoments().sort())===JSON.stringify([...(recipe.mealMoments??[])].sort());
     }
   });
-  settings.append(production,moments,save,status);card.append(settings);
+  settings.append(production,moments,save,status);
+  const settingsDetails=document.createElement('details');settingsDetails.className='recipe-card-settings';const settingsSummary=document.createElement('summary');settingsSummary.textContent='Réglages rapides';settingsDetails.append(settingsSummary,settings);card.append(settingsDetails);
   const more=document.createElement('details');more.className='recipe-row-more';
   const summary=document.createElement('summary');summary.textContent=recipe.nutrition.complete?'Détails nutritionnels et portions':`Détails · ${recipe.nutrition.lineIssues?.length??0} point(s) à vérifier`;
   more.append(summary);

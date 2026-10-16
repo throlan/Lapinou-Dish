@@ -152,7 +152,8 @@ export async function updateRecipe(pool, id, data) {
 
 export async function readRecipe(client, id) {
   const recipeResult = await client.query(
-    `SELECT id, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type, meal_moments,separate_starch,serving_weights,cooking_factors,parent_recipe_id,serving_part,version
+    `SELECT id, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type, meal_moments,separate_starch,serving_weights,cooking_factors,parent_recipe_id,serving_part,version,
+            EXISTS (SELECT 1 FROM recipe_images WHERE recipe_id=recipes.id) AS image_available
        FROM recipes WHERE id = $1`, [id],
   );
   const row = recipeResult.rows[0];
@@ -202,7 +203,7 @@ export async function readRecipe(client, id) {
     for (const child of children.rows) servingParts.push(await readRecipe(client,child.id));
   }
   return {
-    separateStarch:row.separate_starch ?? false,servingWeights:row.serving_weights ?? {},cookingFactors:row.cooking_factors ?? {main:1,starch:3},parentRecipeId:row.parent_recipe_id ?? null,servingPart:row.serving_part ?? null,servingParts,
+    separateStarch:row.separate_starch ?? false,servingWeights:row.serving_weights ?? {},cookingFactors:row.cooking_factors ?? {main:1,starch:3},parentRecipeId:row.parent_recipe_id ?? null,servingPart:row.serving_part ?? null,servingParts,imageAvailable:Boolean(row.image_available),
     id: row.id, version: Number(row.version ?? 0), name: row.name, description: row.description, instructions: row.instructions ?? '', sourceUrl: row.source_url ?? null,
     recipeType: row.recipe_type ?? 'dish', productionType: row.production_type ?? 'none', mealMoments: row.meal_moments ?? [],
     yield: { amount: Number(row.yield_amount), unitId: row.yield_unit_id },
