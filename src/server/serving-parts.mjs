@@ -12,7 +12,7 @@ export function validateServingParts(input, recipeType) {
   if (input.servingMode === 'whole' && groups.size !== 1) return {error:'invalid-serving-parts'};
   if (input.servingMode === 'separate' && groups.has('vegetables')) return {error:'invalid-serving-parts'};
   if (!groups.has('main') || [...groups].some(key => !['main','starch','vegetables'].includes(key))) return { error: 'invalid-serving-parts' };
-  if (groups.has('starch') && recipeType !== 'dish') return { error: 'invalid-serving-parts' };
+  if (groups.has('starch') && !['dish','salad'].includes(recipeType)) return { error: 'invalid-serving-parts' };
   const factors = {};
   for (const key of groups) {
     const factor = input.cookingFactors?.[key] ?? (key === 'starch' ? 3 : 1);

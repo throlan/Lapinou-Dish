@@ -39,3 +39,23 @@ test('protein adjustment cannot bypass the main serving ceiling; piece recipes k
   assert.equal(planner.mainServingLimit(child, { yield: { amount: 24, unitId: 'piece' } }), Infinity);
   assert.equal(planner.mainServingLimit({ ...child, servingPart: 'starch' }, parent), Infinity);
 });
+
+test('sauce calories fit within the meal budget without increasing a fixed sauce quantity to chase protein',()=>{
+  const salad={id:'salad',recipeType:'salad',yield:{amount:4,unitId:'portion'},nutrition:{perYieldUnit:{energyKcal:400,proteinG:30}}};
+  const sauce={id:'sauce',recipeType:'sauce',yield:{amount:200,unitId:'g'},nutrition:{perYieldUnit:{energyKcal:5,proteinG:0.01}}};
+  const people=[{id:'a',displayName:'A'},{id:'b',displayName:'B'},{id:'c',displayName:'C'}];
+  const items={0:{recipeId:'salad',role:'main'},1:{recipeId:'sauce',role:'sauce',amounts:{a:'40',b:'0'}}};
+  const root={replaceChildren(){}};
+  const context={...planner,state:{recipes:[salad,sauce],people,calendarMeals:[]},
+    $:selector=>selector==='#meal-form'?{elements:{mealDate:{value:'2026-10-19'},slot:{value:'lunch'}}}:root,
+    allPlanningRecipes:()=>[salad,sauce],isIndividualRole:()=>false,latestProfile:()=>({dailyEnergyKcal:1500}),
+    plannedCaloriesForPerson:()=>0,document:{createElement:()=>({append(){}})}};
+  const helper=source.slice(source.indexOf('function sauceDefaultQuantity('),source.indexOf('function plannedItemRoleOptions('));
+  runInNewContext(helper+source.slice(start,end)+'\nglobalThis.calculate=applyAutomaticPortions;',context);
+  context.calculate(items,people.map(p=>p.id));
+  assert.deepEqual(items[1].amounts,{a:'40',b:'0',c:'30'});
+  for(const person of people){
+    const total=Number(items[0].amounts[person.id])*400+Number(items[1].amounts[person.id])*5;
+    assert.ok(total<=700,`${person.id}: ${total} kcal exceeds the slot envelope`);
+  }
+});

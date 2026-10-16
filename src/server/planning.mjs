@@ -32,9 +32,10 @@ export function validatePlannedMeal(input) {
   for (const item of input.items) {
     if (!item || !isUuid(item.recipeId) || !Array.isArray(item.amounts)) return { error: 'invalid-planned-item' };
     const role = item.role ?? 'main';
-    if (!['main', 'accompaniment', 'beverage', 'dessert'].includes(role)) return { error: 'invalid-planned-item-role' };
-    if (!['beverage','dessert'].includes(role) && item.amounts.length !== attendeeIds.length) return { error: 'amounts-must-match-attendees' };
-    if (['beverage','dessert'].includes(role) && (item.amounts.length < 1 || item.amounts.length > attendeeIds.length)) return { error: `invalid-${role}-amounts` };
+    if (!['main', 'accompaniment', 'beverage', 'dessert', 'sauce'].includes(role)) return { error: 'invalid-planned-item-role' };
+    const optional = ['beverage','dessert','sauce'].includes(role);
+    if (!optional && item.amounts.length !== attendeeIds.length) return { error: 'amounts-must-match-attendees' };
+    if (optional && (item.amounts.length < 1 || item.amounts.length > attendeeIds.length)) return { error: `invalid-${role}-amounts` };
     const seen = new Set();
     const amounts = [];
     for (const amount of item.amounts) {
@@ -44,7 +45,7 @@ export function validatePlannedMeal(input) {
       seen.add(amount.personId);
       amounts.push({ personId: amount.personId, quantity });
     }
-    if (!['beverage','dessert'].includes(role) && seen.size !== attendeeIds.length) return { error: 'amounts-must-match-attendees' };
+    if (!optional && seen.size !== attendeeIds.length) return { error: 'amounts-must-match-attendees' };
     items.push({ recipeId: item.recipeId, role, amounts });
   }
   return { data: { householdId: input.householdId, mealDate: input.mealDate, slot: input.slot, notes, attendeeIds, items, isOccasion, occasionTitle, occasionEnergy } };

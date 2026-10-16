@@ -26,3 +26,12 @@ test('recipe taxonomy rejects unsupported tags and duplicate moments', () => {
   assert.equal(validateRecipeInput({ ...base, recipeType: 'drink' }).error, 'invalid-recipe-type');
   assert.equal(validateRecipeInput({ ...base, mealMoments: ['breakfast', 'breakfast'] }).error, 'invalid-meal-moments');
 });
+
+test('salads and sauces are explicit preparation types with the usual meal tags',()=>{
+  for(const recipeType of ['salad','sauce']){
+    const result=validateRecipeInput({...base,recipeType,mealMoments:['lunch','dinner']});
+    assert.equal(result.error,undefined);
+    assert.equal(result.data.recipeType,recipeType);
+    assert.deepEqual(result.data.mealMoments,['lunch','dinner']);
+  }
+});

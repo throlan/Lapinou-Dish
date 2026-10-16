@@ -41,6 +41,18 @@ test('breakfast desserts can be shared; moment tags and individual dessert choic
 
 test('individual dessert is offered through the dessert button at lunch and dinner only', () => {
   assert.deepEqual(['breakfast', 'lunch', 'snack', 'dinner', 'evening_snack'].filter(context.individualDessertSlot), ['lunch', 'dinner']);
-  assert.deepEqual(Array.from(context.plannedItemRoleOptions('main'), ([role]) => role), ['main', 'accompaniment', 'beverage']);
-  assert.deepEqual(Array.from(context.plannedItemRoleOptions('dessert'), ([role]) => role), ['main', 'accompaniment', 'beverage', 'dessert']);
+  assert.deepEqual(Array.from(context.plannedItemRoleOptions('main'), ([role]) => role), ['main', 'accompaniment', 'beverage', 'sauce']);
+  assert.deepEqual(Array.from(context.plannedItemRoleOptions('dessert'), ([role]) => role), ['main', 'accompaniment', 'beverage', 'sauce', 'dessert']);
+});
+
+test('salads can be mains or sides while sauces have a dedicated selector',()=>{
+  const extra=[{id:'salad',recipeType:'salad',mealMoments:['lunch','dinner']},{id:'sauce',recipeType:'sauce',mealMoments:['lunch','dinner']}];
+  const isolated={...context,allPlanningRecipes:()=>[...recipes,...extra]};
+  runInNewContext(source.slice(start,end)+'\nglobalThis.selectRecipes=recipesForPlanning; globalThis.defaultSauce=sauceDefaultQuantity;',isolated);
+  assert.deepEqual(Array.from(isolated.selectRecipes('dinner','main'),r=>r.id),['salad']);
+  assert.deepEqual(Array.from(isolated.selectRecipes('dinner','accompaniment'),r=>r.id),['salad']);
+  assert.deepEqual(Array.from(isolated.selectRecipes('dinner','sauce'),r=>r.id),['sauce']);
+  assert.deepEqual(Array.from(isolated.selectRecipes('breakfast','sauce'),r=>r.id),[]);
+  assert.equal(isolated.defaultSauce({yield:{unitId:'g'}}),30);
+  assert.equal(isolated.defaultSauce({yield:{unitId:'portion'}}),1);
 });

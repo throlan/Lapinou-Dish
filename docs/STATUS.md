@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-La version actuelle est **0.2.68**, fusionnée au commit `31d8e356790e5f8e708bc78890978ba7d9acee54` par la PR [90](https://github.com/throlan/Lapinou-Dish/pull/90). Les conversions par aliment couvrent les cuillères à café et à soupe, les pincées, les scoops et les pièces. Les besoins convertibles se regroupent en utilisant le format de paquet existant ; l'export Home Assistant retire les anciennes lignes gérées qui ne sont plus nécessaires. La page Courses & stocks affiche le besoin même quand une ligne est repliée, propose un accès direct aux mesures de l'aliment et exporte des tâches Home Assistant plus lisibles sur téléphone. Les 192 tests et la publication GHCR ont réussi dans le [workflow 234](https://github.com/throlan/Lapinou-Dish/actions/runs/38913116749). Voir le [journal du 16 octobre](SESSION-2026-10-16.md).
+Le code est en version **0.2.72** : catégories Salade et Sauce, mêmes services et calculs pour les salades que pour les plats, ajout de sauces au calendrier avec quantités fixes modifiables par personne. Validation locale : **213 tests réussis** et parcours Chrome/PostgreSQL fictif vérifié. Les dernières livraisons vérifiées sont les kcal dans les choix de recettes (0.2.70, PR 97) et les recettes liées aux aliments (0.2.71, PR 98). Les filtres nutritionnels planifiés, badges et retour interne sont livrés par la PR 96. Voir le [journal du 16 octobre](SESSION-2026-10-16.md) ; vérifier le workflow du dernier commit de main pour confirmer sa publication GHCR.
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 16 octobre](SESSION-2026-10-16.md).
 

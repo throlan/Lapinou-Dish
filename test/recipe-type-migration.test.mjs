@@ -6,7 +6,7 @@ import { PGlite } from '@electric-sql/pglite';
 test('removing ambiguous recipe types preserves moments and the previous classification',async t=>{
   const db=new PGlite();t.after(()=>db.close());
   const folder=new URL('../db/migrations/',import.meta.url),name='20261013_recipe_types_cleanup.sql';
-  for(const file of (await readdir(folder)).filter(file=>file.endsWith('.sql')&&file!==name).sort())await db.exec(await readFile(new URL(file,folder),'utf8'));
+  for(const file of (await readdir(folder)).filter(file=>file.endsWith('.sql')&&file<name).sort())await db.exec(await readFile(new URL(file,folder),'utf8'));
   await db.exec(`
     INSERT INTO households(id,name) VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','Synthetic household');
     INSERT INTO recipes(id,household_id,name,yield_amount,yield_unit_id,recipe_type,meal_moments) VALUES

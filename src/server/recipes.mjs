@@ -11,7 +11,7 @@ export function validateRecipeInput(input) {
   const unitId = input.yield?.unitId;
   if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 || amount > 100000) return { error: 'invalid-yield' };
   if (typeof unitId !== 'string' || !/^[a-z][a-z0-9_-]{0,30}$/.test(unitId)) return { error: 'invalid-yield-unit' };
-  const recipeTypes = ['dish', 'beverage', 'accompaniment', 'dessert'];
+  const recipeTypes = ['dish', 'salad', 'sauce', 'beverage', 'accompaniment', 'dessert'];
   const productionTypes = ['none', 'batch_cooking', 'pasta', 'pastry', 'bread'];
   const mealMoments = ['breakfast', 'lunch', 'dinner', 'snack'];
   const recipeType = input.recipeType == null ? 'dish' : input.recipeType;
