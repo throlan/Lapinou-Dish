@@ -534,9 +534,11 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .shopping-store-toggle[aria-expanded="true"]::before,.shopping-item-toggle[aria-expanded="true"]::before { content:'▾'; }
 .shopping-store-items[hidden],.shopping-item-main[hidden] { display:none; }
 .shopping-item { display:block; border-top:1px solid var(--line,#344766); padding:0; }
-.shopping-item-head { display:grid; grid-template-columns:24px minmax(0,1fr) minmax(110px,auto) minmax(90px,auto); align-items:center; gap:10px; padding:12px 14px; }
+.shopping-item-head { display:grid; grid-template-columns:24px minmax(0,1fr) minmax(110px,auto) minmax(90px,auto) auto; align-items:center; gap:10px; padding:12px 14px; }
 .shopping-item-head>input { width:18px; height:18px; margin:0; }
-.shopping-item-toggle { min-width:0; padding:0; font-weight:700; overflow-wrap:anywhere; }
+.shopping-item-toggle { display:flex; min-width:0; align-items:baseline; flex-wrap:wrap; gap:3px 9px; padding:0; font-weight:700; overflow-wrap:anywhere; }
+.shopping-item-inline-need { color:var(--muted,#9bb0d1); font-size:.78rem; font-weight:400; }
+.shopping-food-config { padding:6px 9px; font-size:.76rem; white-space:nowrap; }
 .shopping-stock-quantity { color:var(--muted,#9bb0d1); font-size:.85rem; text-align:right; white-space:nowrap; }
 .shopping-item-main { display:block; padding:0 14px 14px 48px; }
 .shopping-item-main>small { display:block; margin-bottom:6px; }
@@ -548,7 +550,7 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .ingredient-section>summary { cursor:pointer; font-size:1.1rem; font-weight:700; }
 .ingredient-section[open]>summary { margin-bottom:14px; }
 @media(max-width:1220px){.shopping-overview{grid-template-columns:1fr}}
-@media(max-width:700px){.shopping-item-head{grid-template-columns:24px minmax(0,1fr) auto;gap:7px}.shopping-stock-quantity{grid-column:2/-1;text-align:left}.shopping-item-main{padding-left:14px}.preparation-row{grid-template-columns:1fr}.preparation-row .preparation-amount{grid-column:1;grid-row:auto;text-align:left}}
+@media(max-width:700px){.shopping-item-head{grid-template-columns:24px minmax(0,1fr) auto;gap:7px}.shopping-stock-quantity{grid-column:2;grid-row:2;text-align:left}.shopping-food-config{grid-column:3;grid-row:2;justify-self:end}.shopping-item-main{padding-left:14px}.preparation-row{grid-template-columns:1fr}.preparation-row .preparation-amount{grid-column:1;grid-row:auto;text-align:left}}
 @media(max-width:560px){.shopping-overview .routine-row{grid-template-columns:1fr 1fr}.shopping-overview .routine-row strong{grid-column:1/-1}.shopping-overview .routine-row button{justify-self:start}.preparations-heading{flex-direction:column}.shopping-store-actions{justify-content:flex-start}}
 
 /* Recipe directory and replaceable recipe photos. */

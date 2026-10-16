@@ -41,5 +41,9 @@ export function suggestedPurchaseUnit(item) {
 
 export function shoppingExportLine(item) {
   const purchase=purchaseDescription(item);
-  return `${item.name} — ${purchase.text}${purchase.detail ? ` (${purchase.detail})` : ''}`;
+  return `${item.name} — ${purchase.text}`;
+}
+
+export function shoppingExportDescription(item) {
+  return purchaseDescription(item).detail;
 }

@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-La version actuelle est **0.2.66**, fusionnée au commit `645ef3b06bd9ed61e099a79800c556538ece8064` par la PR [87](https://github.com/throlan/Lapinou-Dish/pull/87). Les conversions par aliment couvrent désormais les cuillères à café et à soupe, les pincées, les scoops et les pièces. Les pincées restent dans les courses et le stock sans rendre les calculs nutritionnels incomplets ; leur poids doit être renseigné pour convertir les besoins en grammes. Les tests et la publication GHCR ont réussi dans le [workflow 228](https://github.com/throlan/Lapinou-Dish/actions/runs/38908946611). Voir le [journal du 16 octobre](SESSION-2026-10-16.md).
+La version actuelle est **0.2.67**, fusionnée au commit `85f65096cc6ece062eb66162db2c75ab83329b11` par la PR [89](https://github.com/throlan/Lapinou-Dish/pull/89). Les conversions par aliment couvrent les cuillères à café et à soupe, les pincées, les scoops et les pièces. Les besoins convertibles se regroupent en utilisant le format de paquet existant ; l'export Home Assistant retire les anciennes lignes gérées qui ne sont plus nécessaires. Les tests et la publication GHCR ont réussi dans le [workflow 232](https://github.com/throlan/Lapinou-Dish/actions/runs/38911373988). Voir le [journal du 16 octobre](SESSION-2026-10-16.md).
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 16 octobre](SESSION-2026-10-16.md).
 
@@ -34,7 +34,7 @@ Les photos sont stockées dans un dossier configurable (`RECIPE_IMAGE_DIR`) avec
 
 ## Vérification
 
-La suite complète locale et CI est réussie pour la version 0.2.66 (192 tests locaux). Les conversions de cuillères et pincées sont couvertes ainsi que leur agrégation dans les achats. Le [workflow 228](https://github.com/throlan/Lapinou-Dish/actions/runs/38908946611) a validé les tests et publié l'image GHCR. Les vérifications Chrome sur données fictives documentées ci-dessous correspondent à la version 0.2.56 et valident la liste paginée sur ordinateur et mobile. Le workflow 214 de la version 0.2.61 est conservé comme repère historique.
+La suite complète locale et CI est réussie pour la version 0.2.67 (192 tests locaux). Le [workflow 232](https://github.com/throlan/Lapinou-Dish/actions/runs/38911373988) a validé les tests et publié l'image GHCR. Les vérifications Chrome sur données fictives documentées ci-dessous correspondent à la version 0.2.56 et valident la liste paginée sur ordinateur et mobile. Le workflow 214 de la version 0.2.61 est conservé comme repère historique.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 
