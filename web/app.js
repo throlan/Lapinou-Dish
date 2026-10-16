@@ -548,6 +548,17 @@ async function refreshShoppingList() {
           const foodConfig=document.createElement('button');foodConfig.type='button';foodConfig.className='secondary shopping-food-config';foodConfig.textContent='Mesures';
           foodConfig.title='Configurer les équivalences en grammes de cet aliment';foodConfig.setAttribute('aria-label',`Configurer les conversions en grammes de ${item.name}`);
           foodConfig.addEventListener('click',()=>openFoodEditor(item.foodId,{fromShopping:true}));itemHeader.append(foodConfig);
+          if(item.recipes?.length){
+            const recipeDetails=document.createElement('details');recipeDetails.className='shopping-recipes';
+            const recipeSummary=document.createElement('summary');recipeSummary.textContent=`Dans ${item.recipes.length} recette${item.recipes.length===1?'':'s'}`;
+            const recipeLinks=document.createElement('div');recipeLinks.className='shopping-recipe-links';
+            for(const recipe of item.recipes){
+              const link=document.createElement('button');link.type='button';link.className='text-link';link.textContent=recipe.name;
+              link.setAttribute('aria-label',`Ouvrir la fiche de recette ${recipe.name}`);
+              link.addEventListener('click',()=>showRecipeCard(recipe.id));recipeLinks.append(link);
+            }
+            recipeDetails.append(recipeSummary,recipeLinks);main.append(recipeDetails);
+          }
           const inventoryActions=document.createElement('div');inventoryActions.className='shopping-inventory-actions';
           const countStock=document.createElement('details');countStock.className='shopping-count-stock';
           const countSummary=document.createElement('summary');countSummary.textContent='Saisir le stock déjà présent';countStock.append(countSummary);
@@ -632,7 +643,6 @@ async function refreshShoppingList() {
             catch(error){showMessage($('#shopping-export-message'),'Réglage non enregistré : '+(error.body?.error??error.message));saveRule.disabled=false;}
           });
           options.append(packLabel,purchaseForm,groupLabel,storeLabel);
-          if(item.recipes?.length){const recipes=document.createElement('p');recipes.className='shopping-recipes';recipes.textContent=`Recettes : ${item.recipes.map(recipe=>recipe.name).join(', ')}`;options.append(recipes);}
           const save=async()=>{
             try{await api('/api/shopping-list/state',{method:'POST',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,unitId:item.unitId,startDate:start,endDate:end,groupId:group.value,checked:checkbox.checked,packageQuantity:pack.value===''?null:Number(pack.value)})});row.classList.toggle('checked',checkbox.checked);return true;}
             catch(error){showMessage($('#shopping-export-message'),'Liste non enregistrée : '+(error.body?.error??error.message));return false;}
