@@ -1214,7 +1214,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
     if(generateImage&&recipeImageConfig.enabled){
       showMessage(message,'Recette enregistrée. Création de son illustration…',true);
       try{await api(`/api/recipes/${recipe.id}/image/ai`,{method:'POST',body:JSON.stringify({householdId:state.household.id}),signal:AbortSignal.timeout(100_000)});showMessage(message,'Recette enregistrée et illustration créée. Tu peux la remplacer par une photo personnelle.',true);}
-      catch(error){showMessage(message,`Recette enregistrée. Illustration non créée : ${error.body?.error??error.message}. Tu peux réessayer depuis le bouton Photo.`,false);}
+      catch(error){showMessage(message,`Recette enregistrée. ${recipeImageErrorMessage(error)} Tu peux réessayer depuis le bouton Photo.`,false);}
     }
     await refreshRecipes();
   } catch (error) {
@@ -1499,6 +1499,20 @@ function openRecipeImageEditor(recipe){
   showMessage($('#recipe-image-message'),recipeImageConfig.enabled?'Choisis une photo, ou demande une illustration IA. Une nouvelle image remplacera l’actuelle.':'Choisis une photo personnelle. La génération IA n’est pas configurée.');
   refreshRecipeImagePreview();$('#recipe-image-dialog').showModal();
 }
+function recipeImageErrorMessage(error){
+  const body=error.body??{},code=String(body.providerCode??'').toLowerCase();
+  const detail={
+    invalid_api_key:'La clé API OpenAI est invalide ou révoquée. Vérifie la clé OPENAI_API_KEY utilisée par le conteneur.',
+    ip_not_authorized:'L’adresse IP du serveur Lapinou Dish n’est pas autorisée pour ce projet OpenAI.',
+    organization_verification_required:'OpenAI demande la vérification de l’organisation API pour les modèles image. Vérifie l’organisation sélectionnée dans la plateforme API, pas seulement ton profil personnel.',
+    organization_not_verified:'L’organisation API utilisée par cette clé n’est pas vérifiée ou son statut n’a pas encore été actualisé.',
+    model_not_found:'Le projet API n’a pas accès au modèle image configuré. Vérifie OPENAI_IMAGE_MODEL et les accès du projet.',
+    permission_denied:'La clé ou le projet OpenAI n’a pas la permission d’appeler le modèle image.',
+    unsupported_country_region_territory:'L’API OpenAI indique que la région de sortie du serveur n’est pas prise en charge.',
+  }[code];
+  const fallback=body.providerStatus===401?'OpenAI refuse l’authentification : vérifie la clé API du conteneur et le projet associé.':body.providerStatus===403?'OpenAI refuse l’accès : vérifie l’organisation API, ses autorisations et l’accès au modèle image.':body.error??error.message;
+  return `${detail??fallback}${body.providerStatus?` (HTTP ${body.providerStatus}${code?`, ${code}`:''})`:''}${body.requestId?` · Requête OpenAI ${body.requestId}`:''}`;
+}
 $('#close-recipe-image')?.addEventListener('click',()=>$('#recipe-image-dialog').close());
 $('#recipe-image-file')?.addEventListener('change',async event=>{
   const file=event.target.files?.[0];if(!file||!imageRecipeId)return;
@@ -1520,7 +1534,7 @@ $('#generate-recipe-image')?.addEventListener('click',async()=>{
   if(!imageRecipeId)return;const button=$('#generate-recipe-image');button.disabled=true;
   showMessage($('#recipe-image-message'),'Création de l’illustration… cela peut prendre un peu de temps.');
   try{await api(`/api/recipes/${imageRecipeId}/image/ai`,{method:'POST',body:JSON.stringify({householdId:state.household.id}),signal:AbortSignal.timeout(100_000)});const recipe=state.recipes.find(item=>item.id===imageRecipeId);if(recipe)recipe.imageAvailable=true;renderFilteredRecipes();refreshRecipeImagePreview();showMessage($('#recipe-image-message'),'Illustration créée. Tu peux la remplacer quand tu veux.',true);}
-  catch(error){showMessage($('#recipe-image-message'),`Illustration non créée : ${error.body?.error??error.message}`);}
+  catch(error){showMessage($('#recipe-image-message'),`Illustration non créée : ${recipeImageErrorMessage(error)}`);}
   finally{button.disabled=!recipeImageConfig.enabled;}
 });
 $('#delete-recipe-image')?.addEventListener('click',async()=>{

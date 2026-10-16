@@ -23,3 +23,9 @@ test('image generation avoids network without a key and validates returned image
   assert.equal(result.data.mediaType,'image/png');
   assert.equal(result.data.source,'openai');
 });
+
+test('image generation retains only safe OpenAI access diagnostics for 401 and 403 errors',async()=>{
+  const call=(status,code)=>generateRecipeImage('photo',{apiKey:'test-key',fetchImpl:async()=>({status,ok:false,headers:{get:name=>name==='x-request-id'?'req_123':null},json:async()=>({error:{code,message:'Do not expose provider message or secrets'}})})});
+  assert.deepEqual(await call(401,'invalid_api_key'),{error:'openai-access-denied',providerStatus:401,providerCode:'invalid_api_key',requestId:'req_123'});
+  assert.deepEqual(await call(403,'organization_verification_required'),{error:'openai-access-denied',providerStatus:403,providerCode:'organization_verification_required',requestId:'req_123'});
+});

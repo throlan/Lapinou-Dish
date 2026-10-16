@@ -41,7 +41,10 @@ export async function generateRecipeImage(prompt, { apiKey = process.env.OPENAI_
       method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, prompt }), signal: AbortSignal.timeout(90_000),
     });
-    if (response.status === 401 || response.status === 403) return { error: 'openai-access-denied' };
+    if (response.status === 401 || response.status === 403) {
+      const details = await readProviderError(response);
+      return { error: 'openai-access-denied', providerStatus: response.status, ...details };
+    }
     if (response.status === 429) return { error: 'openai-rate-limited' };
     if (!response.ok) return { error: 'openai-image-generation-failed' };
     const result = await response.json();
@@ -55,6 +58,16 @@ export async function generateRecipeImage(prompt, { apiKey = process.env.OPENAI_
   } catch (error) {
     return { error: error?.name === 'TimeoutError' || error?.name === 'AbortError' ? 'openai-timeout' : 'openai-image-generation-failed' };
   }
+}
+
+async function readProviderError(response) {
+  try {
+    const body = await response.json();
+    const rawCode = body?.error?.code ?? body?.error?.type;
+    const providerCode = typeof rawCode === 'string' && /^[a-z0-9_-]{1,80}$/i.test(rawCode) ? rawCode : null;
+    const requestId = response.headers?.get?.('x-request-id');
+    return { ...(providerCode ? { providerCode } : {}), ...(typeof requestId === 'string' && /^[a-z0-9_-]{1,100}$/i.test(requestId) ? { requestId } : {}) };
+  } catch { return {}; }
 }
 
 function detectImageType(image) {
