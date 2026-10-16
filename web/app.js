@@ -50,6 +50,7 @@ function setView(name, { recordHistory=true }={}) {
   $('#admin-view').classList.toggle('hidden', name !== 'admin');
   $$('.nav-button').forEach((button) => button.classList.toggle('active', button.dataset.view === name));
   if (name === 'home') refreshDashboard();
+  if (name === 'foods') return refreshFoods();
   if (name === 'recipes') return refreshRecipes();
   if (name === 'import') return Promise.all([refreshImportDrafts(),refreshRecipeAIConfig()]);
   if (name === 'calendar') refreshCalendar();
@@ -887,13 +888,16 @@ function profileCard(person) {
   histories.append(weights, history); card.append(histories); return card;
 }
 
+let foodsRequest=0;
 async function refreshFoods() {
+  const request=++foodsRequest;
   const params = new URLSearchParams({ limit: String(state.limit), offset: String(state.offset) });
   if (state.query) params.set('q', state.query);
   if (state.onlyIncomplete) params.set('incomplete', 'true');
   $('#food-rows').innerHTML = '<tr><td colspan="4" class="empty">Chargement…</td></tr>';
   try {
     const { foods, total } = await api(`/api/foods?${params}`);
+    if(request!==foodsRequest)return;
     state.total = total;
     $('#food-count').textContent = `${total.toLocaleString('fr-FR')} aliment${total > 1 ? 's' : ''}`;
     $('#page-label').textContent = total ? `${state.offset + 1}–${Math.min(state.offset + foods.length, total)} sur ${total}` : 'Aucun résultat';
@@ -903,13 +907,22 @@ async function refreshFoods() {
       $('#food-rows').innerHTML = '<tr><td colspan="4" class="empty">Aucun aliment trouvé.</td></tr>';
       return;
     }
-    $('#food-rows').replaceChildren(...foods.map(foodRow));
+    let usage=null;
+    if(state.household){
+      try {
+        const result=await api(`/api/foods/recipe-usage?${new URLSearchParams({householdId:state.household.id,foodIds:foods.map(food=>food.id).join(',')})}`);
+        usage=new Map(result.usage.map(entry=>[entry.foodId,entry.recipes]));
+      } catch { /* Keep the catalogue usable without presenting an error as zero references. */ }
+    }
+    if(request!==foodsRequest)return;
+    $('#food-rows').replaceChildren(...foods.map(food=>foodRow(food,usage?.get(food.id) ?? null)));
   } catch {
+    if(request!==foodsRequest)return;
     $('#food-rows').innerHTML = '<tr><td colspan="4" class="empty">Catalogue indisponible. Vérifie la connexion à la base.</td></tr>';
   }
 }
 
-function foodRow(food) {
+function foodRow(food, recipes = null) {
   const row = document.createElement('tr');
   const name = document.createElement('td');
   const strong = document.createElement('strong'); strong.textContent = food.name;
@@ -918,6 +931,19 @@ function foodRow(food) {
   const hasMissingNutrition = requiredValues.some((key) => food.nutrients_per_100g?.[key] == null);
   if (hasMissingNutrition) small.textContent += `${small.textContent ? ' · ' : ''}À compléter`;
   name.append(strong, small);
+  if(recipes){
+    const usage=document.createElement('details');usage.className='food-recipe-usage';
+    const summary=document.createElement('summary');summary.textContent=`Dans ${recipes.length} recette${recipes.length>1?'s':''}`;
+    const links=document.createElement('div');links.className='food-recipe-links';
+    for(const recipe of recipes){
+      const link=document.createElement('button');link.type='button';link.className='text-button';link.textContent=recipe.name;
+      link.addEventListener('click',()=>showRecipeCard(recipe.id,recipe.name));links.append(link);
+    }
+    if(!recipes.length){const empty=document.createElement('small');empty.textContent='Cet aliment n’apparaît dans aucune recette du foyer.';links.append(empty);}
+    usage.append(summary,links);name.append(usage);
+  } else {
+    const status=document.createElement('small');status.textContent=state.household?'Recettes liées indisponibles.':'Crée un foyer pour voir les recettes liées.';name.append(status);
+  }
   const source = document.createElement('td'); source.textContent = food.source === 'ciqual' ? 'Ciqual' : food.source === 'manual' ? 'Saisie manuelle' : food.source;
   const values = document.createElement('td'); values.className = 'food-nutrients';
   values.textContent = nutrientLabels.map(([key, unit]) => `${format(food.nutrients_per_100g?.[key === 'energyKcal' ? 'energy_kcal' : key === 'proteinG' ? 'protein_g' : key === 'carbohydrateG' ? 'carbohydrate_g' : 'fat_g'])} ${unit}`).join(' · ');
@@ -1077,7 +1103,7 @@ async function loadHouseholds() {
       $('#household-box').innerHTML = '<form id="household-form"><label for="household-name">Créer le foyer</label><input id="household-name" required maxlength="120" placeholder="Nom du foyer"><button class="primary">Créer</button></form>';
       $('#household-form').addEventListener('submit', async (event) => {
         event.preventDefault();
-        try { await api('/api/households', { method: 'POST', body: JSON.stringify({ name: $('#household-name').value }) }); await loadHouseholds(); }
+        try { await api('/api/households', { method: 'POST', body: JSON.stringify({ name: $('#household-name').value }) }); await loadHouseholds(); await refreshFoods(); }
         catch { $('#household-box').insertAdjacentText('beforeend', ' — création impossible'); }
       });
     }
@@ -1349,8 +1375,8 @@ const recipeFilterChoices={
 };
 const recipeFilters={type:'',moment:'',query:'',missing:'',page:1};
 const recipesPerPage=12;
-async function showRecipeCard(recipeId){
-  const recipe=recipeCardForSource(state.recipes,recipeId);
+async function showRecipeCard(recipeId,recipeName=null){
+  const recipe=recipeCardForSource(state.recipes,recipeId) ?? (recipeName?{id:recipeId,name:recipeName}:null);
   if(!recipe)return;
   recipeFilters.type='';recipeFilters.moment='';recipeFilters.missing='';recipeFilters.query=recipe.name;recipeFilters.page=1;
   $('#recipe-search').value=recipe.name;
@@ -1868,7 +1894,8 @@ async function init() {
     $('#connection').textContent = 'Base indisponible';
     $('#connection').classList.add('error');
   });
-  await Promise.all([refreshFoods(), loadHouseholds(), health]);
+  await loadHouseholds();
+  await Promise.all([refreshFoods(), health]);
   await Promise.all([refreshPeople(), refreshCalendar(), refreshDashboard(), refreshRecipeAIConfig()]);
   $('#shopping-start').value = localDateValue(); $('#shopping-end').value = addDays(localDateValue(), 29); $('#production-form').elements.producedOn.value = localDateValue();
   addRecipeLine();
