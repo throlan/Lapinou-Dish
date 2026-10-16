@@ -17,9 +17,13 @@ const MILLILITRES_PER_UNIT: Readonly<Record<string, number>> = {
   tsp: 5,
   teaspoon: 5,
   "c. a cafe": 5,
+  "c a cafe": 5,
+  "cuillere a cafe": 5,
   tbsp: 15,
   tablespoon: 15,
   "c. a soupe": 15,
+  "c a soupe": 15,
+  "cuillere a soupe": 15,
   cup: 240,
   tasse: 240,
 };
@@ -51,9 +55,17 @@ export function toGrams(quantity: number, unitId: string, food: Food): number | 
 
   const millilitres = MILLILITRES_PER_UNIT[unit];
   const volumeFactor = millilitres ?? directFactor;
-  if (volumeFactor == null || food.gramsPerMillilitre == null) return null;
-  if (!Number.isFinite(food.gramsPerMillilitre) || food.gramsPerMillilitre <= 0) return null;
-  return quantity * volumeFactor * food.gramsPerMillilitre;
+  if (volumeFactor == null) return null;
+
+  let density = food.gramsPerMillilitre;
+  if (density == null) {
+    const knownVolume = Object.entries(food.gramsPerUnit)
+      .map(([foodUnit, grams]) => ({ millilitres: MILLILITRES_PER_UNIT[key(foodUnit)], grams }))
+      .find((conversion) => conversion.millilitres != null && Number.isFinite(conversion.grams) && conversion.grams > 0);
+    if (knownVolume?.millilitres != null) density = knownVolume.grams / knownVolume.millilitres;
+  }
+  if (density == null || !Number.isFinite(density) || density <= 0) return null;
+  return quantity * volumeFactor * density;
 }
 
 const REQUIRED_NUTRIENTS = ["energyKcal", "proteinG", "carbohydrateG", "fatG"] as const;
@@ -89,6 +101,9 @@ export function calculateRecipeNutrition(
     fibreG: true,
   };
   lines.forEach((line, index) => {
+    // Pinches are seasoning measures: they still feed stock and shopping conversions,
+    // but must not make recipe nutrition incomplete when their tiny amount is unknown.
+    if (line.unitId === "pinch") return;
     const food = foodById.get(line.foodId);
     const grams = food ? toGrams(line.quantity, line.unitId, food) : null;
     if (!food || grams == null) {

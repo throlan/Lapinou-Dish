@@ -20,7 +20,7 @@ export function validatePurchaseReceipt(input) {
   const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
   if (!input || !uuid(input.householdId) || !uuid(input.foodId) || !uuid(input.requestId)
     || !Number.isFinite(input.quantity) || input.quantity <= 0 || input.quantity > 100000000
-    || !['g','kg','ml','l','piece','tsp','tbsp','cup'].includes(input.unitId)) return {error:'invalid-purchase-receipt'};
+    || !['g','kg','ml','l','piece','tsp','tbsp','cup','pinch','scoop'].includes(input.unitId)) return {error:'invalid-purchase-receipt'};
   return {data:{householdId:input.householdId,foodId:input.foodId,requestId:input.requestId,
     quantity:input.quantity,unitId:input.unitId}};
 }

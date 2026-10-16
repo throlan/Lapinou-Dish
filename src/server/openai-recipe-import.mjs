@@ -1,7 +1,7 @@
 const nullableText = { type: ['string', 'null'] };
 const ingredientSchema = {
   type: 'object', additionalProperties: false,
-  properties: { rawText: { type: 'string' }, foodName: { type: 'string' }, quantity: { type: ['number', 'null'] }, unitId: { type: ['string', 'null'], enum: ['g', 'kg', 'ml', 'l', 'piece', 'tsp', 'tbsp', 'cup', null] } },
+  properties: { rawText: { type: 'string' }, foodName: { type: 'string' }, quantity: { type: ['number', 'null'] }, unitId: { type: ['string', 'null'], enum: ['g', 'kg', 'ml', 'l', 'piece', 'tsp', 'tbsp', 'cup', 'pinch', 'scoop', null] } },
   required: ['rawText', 'foodName', 'quantity', 'unitId'],
 };
 export const recipeExtractionSchema = {
@@ -24,7 +24,7 @@ export function validateExtraction(data, sourceText) {
   if (data.yieldAmount !== null && (!Number.isFinite(data.yieldAmount) || data.yieldAmount <= 0 || data.yieldAmount > 1_000_000)) return false;
   if (!['portion', 'piece', 'g', 'ml'].includes(data.yieldUnitId)) return false;
   if (!Array.isArray(data.warnings) || data.warnings.length > 100 || data.warnings.some((s) => typeof s !== 'string' || s.length > 2000)) return false;
-  const lineValid = (line) => line && typeof line.foodName === 'string' && line.foodName.trim() && line.foodName.length <= 500 && typeof line.rawText === 'string' && line.rawText.trim() && sourceText.includes(line.rawText) && (line.quantity === null || (Number.isFinite(line.quantity) && line.quantity > 0 && line.quantity <= 1_000_000)) && ['g', 'kg', 'ml', 'l', 'piece', 'tsp', 'tbsp', 'cup', null].includes(line.unitId);
+  const lineValid = (line) => line && typeof line.foodName === 'string' && line.foodName.trim() && line.foodName.length <= 500 && typeof line.rawText === 'string' && line.rawText.trim() && sourceText.includes(line.rawText) && (line.quantity === null || (Number.isFinite(line.quantity) && line.quantity > 0 && line.quantity <= 1_000_000)) && ['g', 'kg', 'ml', 'l', 'piece', 'tsp', 'tbsp', 'cup', 'pinch', 'scoop', null].includes(line.unitId);
   if (!Array.isArray(data.ingredients) || !data.ingredients.length || data.ingredients.length > 300 || !data.ingredients.every(lineValid)) return false;
   return Array.isArray(data.variants) && data.variants.length <= 30 && data.variants.every((v) => typeof v.name === 'string' && v.name.length <= 200 && (v.instructions === null || typeof v.instructions === 'string' && v.instructions.length <= 2000) && Array.isArray(v.ingredients) && v.ingredients.length <= 100 && v.ingredients.every(lineValid));
 }

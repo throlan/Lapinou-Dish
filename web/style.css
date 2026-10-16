@@ -44,6 +44,8 @@ input:not([type="checkbox"]):focus,select:focus,textarea:focus { border-color:#7
 textarea { resize:vertical; }
 .form-card>label { margin:14px 0; }
 .yield-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin:12px 0; }
+.food-conversion-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin:12px 0; }
+@media(max-width:650px){.food-conversion-row{grid-template-columns:1fr}}
 .line-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:20px 0 10px; }
 .line-heading h3 { margin:0; }
 .recipe-line { display:grid; grid-template-columns:minmax(260px,1fr) 120px 135px 40px; align-items:center; gap:10px; margin:9px 0; }
