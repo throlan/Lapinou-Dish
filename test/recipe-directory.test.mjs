@@ -1,11 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { filterRecipeDirectory, recipeCardForSource, recipeMissingData } from '../web/recipe-directory.js';
+import { filterRecipeDirectory, recipeCardForSource, recipeMissingData, recipePlanningLabel } from '../web/recipe-directory.js';
 
 const recipes=[
   {name:'Soupe',recipeType:'dish',mealMoments:['dinner'],instructions:'Mixer.',imageAvailable:true,nutrition:{complete:true}},
   {name:'Skyr vanille',recipeType:'dessert',mealMoments:['breakfast'],instructions:'',imageAvailable:false,nutrition:{complete:false}},
 ];
+
+test('planning choices show calories per serving rather than for the whole batch',()=>{
+  const recipe={name:'Muffins',yield:{amount:12,unitId:'piece'},nutrition:{complete:true,batch:{energyKcal:2160},perYieldUnit:{energyKcal:180}}};
+  assert.equal(recipePlanningLabel(recipe),'Muffins · 180 kcal/pièce · 12 pièces');
+  assert.equal(recipePlanningLabel({...recipe,name:'Plat complet',yield:{amount:4,unitId:'portion'},servingParts:[{id:'rice'}]}),'Plat complet · 180 kcal/portion · portions en grammes estimés');
+});
+
+test('planning choices express weight and volume recipes per 100 units',()=>{
+  const recipe={name:'Skyr',yield:{amount:1000,unitId:'g'},nutrition:{complete:true,perYieldUnit:{energyKcal:0.63}}};
+  assert.equal(recipePlanningLabel(recipe),'Skyr · 63 kcal/100 g · 1000 g');
+  assert.match(recipePlanningLabel({...recipe,yield:{amount:250,unitId:'ml'}}),/63 kcal\/100 ml/);
+});
+
+test('planning choices distinguish missing calories, partial calculations and genuine zero',()=>{
+  const recipe={name:'Café',yield:{amount:1,unitId:'portion'},nutrition:{complete:true,perYieldUnit:{energyKcal:0}}};
+  assert.match(recipePlanningLabel(recipe),/0 kcal\/portion/);
+  assert.match(recipePlanningLabel({...recipe,nutrition:{perYieldUnit:{energyKcal:null}}}),/kcal à compléter/);
+  assert.match(recipePlanningLabel({...recipe,nutrition:{complete:false,perYieldUnit:{energyKcal:120}}}),/120 kcal\/portion \(calcul incomplet\)/);
+});
 
 test('recipe directory filters by normalized query, type, moment and missing data',()=>{
   assert.deepEqual(filterRecipeDirectory(recipes,{query:'soupe',type:'dish'}).map(r=>r.name),['Soupe']);
