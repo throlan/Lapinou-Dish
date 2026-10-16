@@ -12,7 +12,7 @@ import { filterRecipeDirectory, recipeCardForSource, recipeMissingData, recipeMo
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, editingFoodFromShopping: false, editingOrderLinkId: null, importingDraftId: null, generateImportedImage: false, people: [], recipes: [], preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
+const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, editingFoodFromShopping: false, editingOrderLinkId: null, importingDraftId: null, generateImportedImage: false, people: [], recipes: [], plannedRecipeIds: [], plannedRecipeLookupError: null, preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
 let recipeImageConfig={enabled:false}, imageRecipeId=null;
 const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbohydrateG', 'g gluc.'], ['fatG', 'g lip.']];
 const selectedStoreFoods=new Map();
@@ -35,8 +35,11 @@ function showMessage(target, text, success = false) {
   target.style.color = success ? '#63d7b0' : '';
 }
 
-function setView(name) {
+const appViewHistory=[];
+let currentAppView='home';
+function setView(name, { recordHistory=true }={}) {
   if(name === 'profiles')name='admin';
+  if(recordHistory&&name!==currentAppView){appViewHistory.push(currentAppView);currentAppView=name;$('#app-back').disabled=appViewHistory.length===0;}
   $('#home-view').classList.toggle('hidden', name !== 'home');
   $('#foods-view').classList.toggle('hidden', name !== 'foods');
   $('#recipes-view').classList.toggle('hidden', name !== 'recipes');
@@ -54,6 +57,12 @@ function setView(name) {
   if (name === 'shopping') refreshShopping();
   if (name === 'admin') refreshMealSettings();
 }
+$('#app-back')?.addEventListener('click',()=>{
+  const previous=appViewHistory.pop();
+  if(!previous)return;
+  currentAppView=previous;$('#app-back').disabled=appViewHistory.length===0;
+  setView(previous,{recordHistory:false});
+});
 
 const dashboardSlots = MEAL_ORDER;
 const dashboardSlotLabels = MEAL_LABELS;
@@ -420,11 +429,13 @@ function preparationRow(group,productionDate) {
   const first=parts[0],covered=parts.every(item=>item.toMakeQuantity<=0.00001);
   const row=document.createElement('article');row.className='preparation-row'+(covered?' is-covered':'');
   const title=document.createElement('strong');title.textContent=recipe?.name??first.name;
+  const nutritionBadge=recipe && !recipe.nutrition?.complete?document.createElement('span'):null;
+  if(nutritionBadge){nutritionBadge.className='incomplete-tag preparation-incomplete-tag';nutritionBadge.textContent='Données incomplètes';nutritionBadge.setAttribute('aria-label','Données nutritionnelles incomplètes');}
   const dates=document.createElement('small');dates.textContent=`${Math.max(...parts.map(item=>item.mealCount))} repas · ${displayDate(first.firstDate)}${first.lastDate!==first.firstDate?' au '+displayDate(first.lastDate):''}`;
   const amount=document.createElement('span');amount.className='preparation-amount';
   const suggested=suggestedProductionQuantity(group,recipe);
   amount.textContent=covered?'Couvert par le stock':recipe?`${formatQty(suggested)} ${recipe.yield.unitId} à produire`:'À produire';
-  row.append(title,dates,amount);
+  row.append(title);if(nutritionBadge)row.append(nutritionBadge);row.append(dates,amount);
   const details=document.createElement('ul');details.className='preparation-parts';
   for(const part of parts){const line=document.createElement('li');line.textContent=`${part.parentRecipeId?part.name.split(' — ').at(-1):'Recette entière'} : ${part.toMakeQuantity<=0.00001?'couvert':`${formatQty(part.toMakeQuantity)} ${part.unitId} à produire`} · prévu ${formatQty(part.plannedQuantity)} ${part.unitId} · stock couvrant ${formatQty(part.coveredQuantity)} ${part.unitId}`;details.append(line);}
   row.append(details);
@@ -1401,12 +1412,14 @@ try{
   for(const key of ['type','moment'])if(recipeFilterChoices[key].some(([value])=>value===saved[key]))recipeFilters[key]=saved[key];
 }catch{}
 function renderFilteredRecipes(){
-  const recipes=filterRecipeDirectory(state.recipes,recipeFilters);
+  const recipes=filterRecipeDirectory(state.recipes,{...recipeFilters,plannedRecipeIds:state.plannedRecipeIds});
   const pages=Math.max(1,Math.ceil(recipes.length/recipesPerPage));
   recipeFilters.page=Math.min(recipeFilters.page,pages);
   const start=(recipeFilters.page-1)*recipesPerPage;
   $('#recipe-list').replaceChildren(...(recipes.length?recipes.slice(start,start+recipesPerPage).map(recipeCard):[emptyMessage(state.recipes.length?'Aucune recette avec ces filtres.':'Aucune recette enregistrée.')]));
-  $('#recipe-filter-count').textContent=`${recipes.length} recette${recipes.length===1?'':'s'} affichée${recipes.length===1?'':'s'} sur ${state.recipes.length}`;
+    $('#recipe-filter-count').textContent=recipeFilters.missing==='nutrition-planned'&&state.plannedRecipeLookupError
+    ?'Le calendrier ne peut pas être vérifié pour le moment.'
+    :`${recipes.length} recette${recipes.length===1?'':'s'} affichée${recipes.length===1?'':'s'} sur ${state.recipes.length}`;
   const pagination=$('#recipe-pagination');pagination.replaceChildren();
   if(pages>1){
     for(const [label,page] of [['← Précédent',recipeFilters.page-1],[`Page ${recipeFilters.page} / ${pages}`,null],['Suivant →',recipeFilters.page+1]]){
@@ -1433,8 +1446,14 @@ async function refreshRecipes() {
   if (!state.household) { list.innerHTML = '<p class="empty">Crée d’abord un foyer pour enregistrer des recettes.</p>'; return; }
   list.innerHTML = '<p class="empty">Chargement des recettes…</p>';
   try {
-    const { recipes } = await api(`/api/recipes?householdId=${encodeURIComponent(state.household.id)}`);
+    const today=localDateValue(),monthStart=`${today.slice(0,7)}-01`;
+    const [{ recipes }, plannedLookup] = await Promise.all([
+      api(`/api/recipes?householdId=${encodeURIComponent(state.household.id)}`),
+      api(`/api/planning/recipe-ids?householdId=${encodeURIComponent(state.household.id)}&fromDate=${encodeURIComponent(monthStart)}`).then(value=>({value}),error=>({error})),
+    ]);
     state.recipes = recipes;
+    state.plannedRecipeIds = plannedLookup.value?.recipeIds ?? [];
+    state.plannedRecipeLookupError = plannedLookup.error ?? null;
     renderFilteredRecipes();
   } catch (error) {
     const message = document.createElement('p'); message.className = 'empty'; message.textContent = `Liste indisponible : ${error.body?.error ?? error.message}`; list.replaceChildren(message);

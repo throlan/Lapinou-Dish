@@ -16,7 +16,7 @@ import { extractRecipeWithOpenAI } from './openai-recipe-import.mjs';
 import { generateRecipeImage, inspectRecipeImageStorage, readRecipeImage, removeRecipeImage, saveRecipeImage, validateRecipeImageUpload } from './recipe-images.mjs';
 import { retrieveInstagramCaption, instagramPostUrl } from './instagram-caption.mjs';
 import { addProfileHistory, addWeightEntry, createPerson, listPeople, validatePersonInput, validateProfileHistoryInput, validateWeightInput } from './people.mjs';
-import { deletePlannedMeal, duplicatePlannedMeal, listPlannedMeals, savePlannedMeal, validateMealDuplication, validatePlannedMeal } from './planning.mjs';
+import { deletePlannedMeal, duplicatePlannedMeal, listPlannedMeals, listPlannedRecipeIds, savePlannedMeal, validateMealDuplication, validatePlannedMeal } from './planning.mjs';
 import { addStockLot, cancelStockLot, completeRoutine, deleteOrderLink, getRoutineSettings, listOrderLinks, listPreparationsToMake, listShoppingRequirements, listStock, saveOrderLink, saveRoutineSettings, saveShoppingLineState, validateOrderLinkInput, validateProductionInput, validateRoutineSettings, validateShoppingLineState } from './household-planning.mjs';
 import { parseRecipeArchive, parseRecipeText } from '../domain/recipe-import.mjs';
 import { readFile } from 'node:fs/promises';
@@ -381,6 +381,14 @@ export async function handleRequest(request, response, pool, appPassword = null,
       } catch { return send(response, 500, { error: 'shopping-list-state-save-failed' }); }
     }
 
+    if (request.method === 'GET' && url.pathname === '/api/planning/recipe-ids') {
+      const householdId = url.searchParams.get('householdId');
+      const fromDate = url.searchParams.get('fromDate');
+      if (!isUuid(householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      if (!isValidDate(fromDate)) return send(response, 400, { error: 'invalid-from-date' });
+      try { return send(response, 200, { recipeIds: await listPlannedRecipeIds(pool, householdId, fromDate) }); }
+      catch { return send(response, 500, { error: 'planning-list-failed' }); }
+    }
     if (request.method === 'GET' && url.pathname === '/api/planning') {
       const householdId = url.searchParams.get('householdId');
       const weekStart = url.searchParams.get('weekStart');

@@ -9,6 +9,7 @@
   <body>
     <header class="topbar">
       <a class="brand" href="/" aria-label="Lapinou Dish accueil"><span class="brand-mark">🐰</span><span>Lapinou <b>Dish</b></span></a>
+      <button type="button" class="secondary app-back" id="app-back" disabled aria-label="Revenir à la page précédente dans Lapinou Dish">← Retour</button>
       <nav aria-label="Navigation principale">
         <button class="nav-button active" data-view="home">Accueil</button>
         <button class="nav-button" data-view="foods">Aliments</button>
@@ -90,7 +91,7 @@
             <label class="recipe-search">Rechercher une recette<input id="recipe-search" type="search" placeholder="Nom de la recette…" autocomplete="off"></label>
             <div><strong>Type</strong><div id="recipe-type-filters" class="recipe-filter-buttons"></div></div>
             <div><strong>Moment</strong><div id="recipe-moment-filters" class="recipe-filter-buttons"></div></div>
-            <label>Fiches à afficher<select id="recipe-missing-filter"><option value="">Toutes les fiches</option><option value="any">Toute donnée à compléter</option><option value="nutrition">Calcul nutritionnel incomplet</option><option value="instructions">Instructions absentes</option><option value="image">Photo absente</option></select></label>
+            <label>Fiches à afficher<select id="recipe-missing-filter"><option value="">Toutes les fiches</option><option value="any">Toute donnée à compléter</option><option value="nutrition">Calcul nutritionnel incomplet</option><option value="nutrition-planned">Nutrition incomplète · au calendrier ce mois et après</option><option value="instructions">Instructions absentes</option><option value="image">Photo absente</option></select></label>
             <p id="recipe-filter-count" class="muted" role="status"></p>
           </aside>
           <div class="recipe-results">
