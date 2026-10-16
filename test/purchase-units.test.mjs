@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile,readdir } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
-import { applyPurchaseUnits,deletePurchaseUnit,listPurchaseUnits,savePurchaseUnit,validatePurchaseUnit } from '../src/server/purchase-units.mjs';
+import { applyPackageUnits,applyPurchaseUnits,deletePurchaseUnit,listPurchaseUnits,savePurchaseUnit,validatePurchaseUnit } from '../src/server/purchase-units.mjs';
 import { purchaseDescription } from '../src/server/shopping-presentation.mjs';
-import { listShoppingRequirements } from '../src/server/household-planning.mjs';
+import { listShoppingRequirements,saveShoppingLineState } from '../src/server/household-planning.mjs';
 import { createRecipe,validateRecipeInput } from '../src/server/recipes.mjs';
 import { savePlannedMeal } from '../src/server/planning.mjs';
 
@@ -78,5 +78,19 @@ test('purchase settings persist per household and can be removed without touchin
     assert.equal(await deletePurchaseUnit(pool,other,foodId),false);
     assert.equal(await deletePurchaseUnit(pool,householdId,foodId),true);
     assert.deepEqual(await listPurchaseUnits(pool,householdId),[]);
+
+    const butterId='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+    await pool.query("INSERT INTO foods(id,canonical_name,source) VALUES($1,'Beurre de cacahuète','manual')",[butterId]);
+    await pool.query("INSERT INTO food_unit_conversions(food_id,unit_id,grams_per_unit,source_note) VALUES($1,'tbsp',24,'Test')",[butterId]);
+    const butterRecipe=await createRecipe(pool,validateRecipeInput({householdId,name:'Beurre test',yield:{amount:1,unitId:'portion'},
+      lines:[{foodId:butterId,quantity:500,unitId:'g'},{foodId:butterId,quantity:8,unitId:'tbsp'}]}).data);
+    await savePlannedMeal(pool,null,{householdId,mealDate:'2026-10-20',slot:'dinner',notes:'',attendeeIds:[personId],
+      items:[{recipeId:butterRecipe.id,role:'main',amounts:[{personId,quantity:1}]}]});
+    await saveShoppingLineState(pool,{householdId,foodId:butterId,unitId:'g',startDate:'2026-10-19',endDate:'2026-10-25',groupId:'bulk',checked:false,packageQuantity:500});
+    const butterShopping=(await listShoppingRequirements(pool,householdId,'2026-10-19','2026-10-25')).filter(item=>item.foodId===butterId);
+    assert.equal(butterShopping.length,1);
+    assert.equal(butterShopping[0].neededQuantity,692);
+    assert.equal(butterShopping[0].quantity,1000);
+    assert.equal(butterShopping[0].purchase.text,'2 × 500 g');
   }finally{await db.close();}
 });
