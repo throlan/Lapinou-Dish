@@ -523,7 +523,7 @@ async function refreshShoppingList() {
         });actions.append(download);
         if(bucket.store?.homeAssistantEntityId){const ha=document.createElement('button');ha.type='button';ha.className='secondary';ha.textContent='Envoyer à Home Assistant';ha.addEventListener('click',async()=>{
           ha.disabled=true;
-          try{const result=await api('/api/shopping-list/export/home-assistant',{method:'POST',body:JSON.stringify({householdId:state.household.id,storeId:id,startDate:start,endDate:end})});showMessage($('#shopping-export-message'),`${bucket.store.label} : ${result.added} article(s) ajoutés, ${result.skipped} déjà présents.`,true);}
+          try{const result=await api('/api/shopping-list/export/home-assistant',{method:'POST',body:JSON.stringify({householdId:state.household.id,storeId:id,startDate:start,endDate:end})});showMessage($('#shopping-export-message'),`${bucket.store.label} : ${result.added} ajouté(s), ${result.removed} retiré(s), ${result.skipped} déjà présent(s).`,true);}
           catch(error){const code=error.body?.error??error.message;showMessage($('#shopping-export-message'),code==='home-assistant-not-configured'?'Home Assistant doit être configuré côté serveur avant l’export.':`Export impossible : ${code}`);}finally{ha.disabled=false;}
         });actions.append(ha);}
         header.append(heading,actions);section.append(header,itemsRoot);

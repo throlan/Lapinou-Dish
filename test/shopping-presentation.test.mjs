@@ -15,23 +15,26 @@ test('shopping presentation separates recipe needs from practical purchase units
   assert.equal(purchaseDescription({name:'Ail, cru',unitId:'piece',quantity:9,neededQuantity:9,packageQuantity:12,packageCount:1}).text,'1 × 12 piece');
 });
 
-test('Home Assistant export writes only unchecked, non-duplicate items to the chosen list',async()=>{
+test('Home Assistant export adds current items and removes stale Lapinou lines only',async()=>{
   const calls=[];
   const item={name:'Ail, cru',unitId:'piece',quantity:3,neededQuantity:3,checked:false};
   const line=shoppingExportLine(item);
+  const stale=shoppingExportLine({name:'Beurre de cacahuète',unitId:'g',quantity:500,neededQuantity:400});
   const fetchImpl=async(url,options)=>{
     calls.push({url,headers:options.headers,body:JSON.parse(options.body)});
-    return {ok:true,async json(){return url.includes('get_items')?{service_response:{'todo.grand_frais':{items:[{summary:line}]}}}:[];}};
+    return {ok:true,async json(){return url.includes('get_items')?{service_response:{'todo.grand_frais':{items:[{summary:line},{summary:stale,uid:'old-item'},{summary:'Rappel personnel'}]}}}:[];}};
   };
   const result=await exportToHomeAssistant([item,{...item,name:'Basilic',checked:true},{...item,name:'Gingembre',quantity:1}],
     'todo.grand_frais',{url:'http://localhost:8123',token:'test-secret',fetchImpl});
-  assert.deepEqual(result,{added:1,skipped:1});
-  assert.equal(calls.length,2);
+  assert.deepEqual(result,{added:1,skipped:1,removed:1});
+  assert.equal(calls.length,3);
   assert.equal(calls[0].url,'http://localhost:8123/api/services/todo/get_items?return_response=true');
   assert.deepEqual(calls[0].body,{entity_id:'todo.grand_frais',status:'needs_action'});
   assert.equal(calls[1].body.entity_id,'todo.grand_frais');
   assert.match(calls[1].body.item,/Gingembre/);
   assert.equal(calls[1].headers.Authorization,'Bearer test-secret');
+  assert.equal(calls[2].url,'http://localhost:8123/api/services/todo/remove_item');
+  assert.deepEqual(calls[2].body,{entity_id:'todo.grand_frais',item:'old-item'});
   assert.deepEqual(await exportToHomeAssistant([],'todo.grand_frais',{}),{error:'home-assistant-not-configured'});
   assert.deepEqual(await exportToHomeAssistant([],'light.test',{url:'http://localhost',token:'x',fetchImpl}),{error:'home-assistant-list-not-configured'});
 });

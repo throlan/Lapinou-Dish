@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { listFoodStores } from './food-stores.mjs';
 import { rawShoppingRequirements } from './shopping-requirements.mjs';
 import { purchaseDescription,suggestedPurchaseUnit } from './shopping-presentation.mjs';
-import { applyPurchaseUnits,listPurchaseUnits } from './purchase-units.mjs';
+import { applyPackageUnits,applyPurchaseUnits,listPurchaseUnits } from './purchase-units.mjs';
 import { ingredientProjection, lockHouseholdInventory, productionDeductions, readIngredientStock } from './ingredient-stock.mjs';
 
 const routineDefaults = [
@@ -359,7 +359,7 @@ export async function listShoppingRequirements(pool, householdId, startDate, end
         warning:`Stock : ${stock.quantityG} g · besoin : ${projection.neededG} g · minimum : ${stock.minimumG} g`});
     }
   }
-  return applyPurchaseUnits(items,purchaseUnits).map(row => {
+  return applyPurchaseUnits(applyPackageUnits(items,packages.rows),purchaseUnits).map(row => {
     const store=stores.find(item=>item.foodId===row.foodId);
     const setting = settings.rows.find(item => item.foodId===row.foodId && item.unitId===row.unitId);
     const purchasePack = packages.rows.find(item => item.foodId===row.foodId && item.unitId===row.unitId);
@@ -373,7 +373,9 @@ export async function listShoppingRequirements(pool, householdId, startDate, end
       quantityRounded:quantity!==rawQuantity,baseGroupId:setting?.groupId ?? row.groupId ?? 'bulk',
       groupId:store?'whey_flour':setting?.groupId ?? row.groupId ?? 'bulk',
       store:store?{id:store.orderLinkId,label:store.label,url:store.url,homeAssistantEntityId:store.homeAssistantEntityId}:null,
-      checked:setting?.checked ?? false};
+      checked:row.sourceUnitIds?.length
+        ? row.sourceUnitIds.every(unitId=>settings.rows.find(item=>item.foodId===row.foodId&&item.unitId===unitId)?.checked??false)
+        : setting?.checked ?? false};
   }).sort((a,b)=>a.groupId.localeCompare(b.groupId)||a.name.localeCompare(b.name));
 }
 

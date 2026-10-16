@@ -47,6 +47,31 @@ function inTargetUnit(row,unitId) {
   return grams!=null && gramsPerTarget!=null && gramsPerTarget>0?grams/gramsPerTarget:null;
 }
 
+// A package size saved in one unit (for example 500 g) also defines the useful
+// shopping unit for other recipe measures when this food has documented conversions.
+export function applyPackageUnits(rows,packages) {
+  const byFood=new Map();for(const row of rows){if(!byFood.has(row.foodId))byFood.set(row.foodId,[]);byFood.get(row.foodId).push(row);}
+  const packagesByFood=new Map();for(const pack of packages){if(!packagesByFood.has(pack.foodId))packagesByFood.set(pack.foodId,[]);packagesByFood.get(pack.foodId).push(pack);}
+  const result=[];
+  for(const group of byFood.values()) {
+    const foodPackages=packagesByFood.get(group[0].foodId)??[];
+    if(foodPackages.length!==1){result.push(...group);continue;}
+    const target=foodPackages[0].unitId,converted=[],unconverted=[];
+    for(const row of group){const quantity=inTargetUnit(row,target);
+      if(quantity===null)unconverted.push(row);
+      else converted.push({...row,convertedQuantity:quantity});}
+    if(converted.length){
+      const first=converted[0];result.push({...first,unitId:target,
+        quantity:converted.reduce((sum,row)=>sum+row.convertedQuantity,0),
+        recipes:converted.flatMap(row=>row.recipes??[]),
+        sourceNeeds:converted.map(row=>({quantity:Number(row.quantity),unitId:row.unitId})),
+        sourceUnitIds:converted.map(row=>row.unitId)});
+    }else result.push(...group);
+    result.push(...unconverted);
+  }
+  return result;
+}
+
 // Combine only lines whose unit relation is documented for this food.
 export function applyPurchaseUnits(rows,rules) {
   const byFood=new Map();for(const row of rows){if(!byFood.has(row.foodId))byFood.set(row.foodId,[]);byFood.get(row.foodId).push(row);}
