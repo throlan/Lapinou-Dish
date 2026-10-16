@@ -40,5 +40,19 @@ export function recipeCardForSource(recipes, sourceRecipeId) {
 }
 
 export function recipeTypeLabel(type) { return TYPE_LABELS[type] ?? 'Recette'; }
+export function recipePlanningLabel(recipe) {
+  const unit = recipe.yield.unitId;
+  const rawEnergy = recipe.nutrition?.perYieldUnit?.energyKcal;
+  const multiplier = ['g', 'ml'].includes(unit) ? 100 : 1;
+  const energy = rawEnergy == null ? null : Number(rawEnergy) * multiplier;
+  const energyUnit = { piece: 'pièce', portion: 'portion', g: '100 g', ml: '100 ml' }[unit] ?? unit;
+  const calories = energy != null && Number.isFinite(energy) && energy >= 0
+    ? `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(energy)} kcal/${energyUnit}${recipe.nutrition?.complete ? '' : ' (calcul incomplet)'}`
+    : 'kcal à compléter';
+  const yieldLabel = recipe.servingParts?.length
+    ? 'portions en grammes estimés'
+    : `${recipe.yield.amount} ${{ piece: Number(recipe.yield.amount) === 1 ? 'pièce' : 'pièces', portion: Number(recipe.yield.amount) === 1 ? 'portion' : 'portions', g: 'g', ml: 'ml' }[unit] ?? unit}`;
+  return `${recipe.name} · ${calories} · ${yieldLabel}`;
+}
 export function recipeMomentLabel(moment) { return MOMENT_LABELS[moment] ?? moment; }
 function normalize(value) { return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr'); }

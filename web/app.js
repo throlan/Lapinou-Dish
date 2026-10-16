@@ -8,7 +8,7 @@ import { suggestPlatePortions } from './portion-planner.js';
 import { PLATE_PARTS, validPlateRatios } from './meal-config.js';
 import { preparationWeeks } from './preparation-weeks.js';
 import { groupPreparations, suggestedProductionQuantity, scaledIngredients } from './cooking-sheet.js';
-import { filterRecipeDirectory, recipeCardForSource, recipeMissingData, recipeMomentLabel, recipeTypeLabel } from './recipe-directory.js';
+import { filterRecipeDirectory, recipeCardForSource, recipeMissingData, recipeMomentLabel, recipeTypeLabel, recipePlanningLabel } from './recipe-directory.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -2379,7 +2379,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     plannedItemRoleOptions(item.role).forEach(([value, label]) => role.add(new Option(label, value)));
     role.value = item.role ?? 'main';
     const slot = $('#meal-form').elements.slot.value;
-    recipesForPlanning(slot, role.value, [item.recipeId]).forEach((recipe) => select.add(new Option(`${recipe.name} · ${recipe.servingParts?.length?'portions en grammes estimés':`${recipe.yield.amount} ${recipe.yield.unitId}`}`, recipe.id)));
+    recipesForPlanning(slot, role.value, [item.recipeId]).forEach((recipe) => select.add(new Option(recipePlanningLabel(recipe), recipe.id)));
     select.value = item.recipeId ?? '';
     role.addEventListener('change', () => {
       const data=currentFormAmounts();data[index]={recipeId:'',role:role.value,...(isIndividualRole(role.value)?{assignments:{}}:{amounts:{}})};
@@ -2400,7 +2400,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
         const choiceLabel=role.value==='dessert'?'Dessert':'Boisson';
         const personSelect = document.createElement('select'); personSelect.dataset.personRecipe = 'true'; personSelect.setAttribute('aria-label', `${choiceLabel} pour ${person?.displayName ?? 'personne'}`);
         personSelect.add(new Option(role.value==='dessert'?'Aucun dessert':'Aucune boisson', ''));
-        recipesForPlanning(slot, role.value, [assignment.recipeId]).forEach((recipe) => personSelect.add(new Option(`${recipe.name} · ${recipe.yield.amount} ${recipe.yield.unitId}`, recipe.id)));
+        recipesForPlanning(slot, role.value, [assignment.recipeId]).forEach((recipe) => personSelect.add(new Option(recipePlanningLabel(recipe), recipe.id)));
         personSelect.value = assignment.recipeId ?? '';
         const recipe = allPlanningRecipes().find((entry) => entry.id === personSelect.value);
         const unit = recipe?.yield.unitId ?? 'portion';
