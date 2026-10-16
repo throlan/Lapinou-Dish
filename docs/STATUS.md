@@ -2,11 +2,11 @@
 
 ## Version de référence
 
-La version actuelle est **0.2.67**, fusionnée au commit `85f65096cc6ece062eb66162db2c75ab83329b11` par la PR [89](https://github.com/throlan/Lapinou-Dish/pull/89). Les conversions par aliment couvrent les cuillères à café et à soupe, les pincées, les scoops et les pièces. Les besoins convertibles se regroupent en utilisant le format de paquet existant ; l'export Home Assistant retire les anciennes lignes gérées qui ne sont plus nécessaires. Les tests et la publication GHCR ont réussi dans le [workflow 232](https://github.com/throlan/Lapinou-Dish/actions/runs/38911373988). Voir le [journal du 16 octobre](SESSION-2026-10-16.md).
+La version actuelle est **0.2.68**, fusionnée au commit `31d8e356790e5f8e708bc78890978ba7d9acee54` par la PR [90](https://github.com/throlan/Lapinou-Dish/pull/90). Les conversions par aliment couvrent les cuillères à café et à soupe, les pincées, les scoops et les pièces. Les besoins convertibles se regroupent en utilisant le format de paquet existant ; l'export Home Assistant retire les anciennes lignes gérées qui ne sont plus nécessaires. La page Courses & stocks affiche le besoin même quand une ligne est repliée, propose un accès direct aux mesures de l'aliment et exporte des tâches Home Assistant plus lisibles sur téléphone. Les 192 tests et la publication GHCR ont réussi dans le [workflow 234](https://github.com/throlan/Lapinou-Dish/actions/runs/38913116749). Voir le [journal du 16 octobre](SESSION-2026-10-16.md).
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 16 octobre](SESSION-2026-10-16.md).
 
-Les nouvelles pistes d’évolution (recettes, import, photos, usage mobile, comptes et communauté) sont consignées dans le [cahier des améliorations](AMELIORATIONS.md). Elles restent à prioriser et à préciser.
+Les prochaines pistes (confort de la page recettes et de l'import, usage mobile global, comptes et communauté) sont consignées dans le [cahier des améliorations](AMELIORATIONS.md). Le stockage persistant des photos et la génération d'illustrations sont déjà livrés en 0.2.65 ; ils ne sont plus des chantiers à démarrer.
 
 **Règle impérative : aucune intervention de l'agent sur Unraid, y compris en lecture ou pour une vérification. L'utilisateur gère lui-même son installation et ses mises à jour.**
 
@@ -34,7 +34,7 @@ Les photos sont stockées dans un dossier configurable (`RECIPE_IMAGE_DIR`) avec
 
 ## Vérification
 
-La suite complète locale et CI est réussie pour la version 0.2.67 (192 tests locaux). Le [workflow 232](https://github.com/throlan/Lapinou-Dish/actions/runs/38911373988) a validé les tests et publié l'image GHCR. Les vérifications Chrome sur données fictives documentées ci-dessous correspondent à la version 0.2.56 et valident la liste paginée sur ordinateur et mobile. Le workflow 214 de la version 0.2.61 est conservé comme repère historique.
+La suite complète locale a réussi pour la version 0.2.68 (192 tests). Le [workflow 234](https://github.com/throlan/Lapinou-Dish/actions/runs/38913116749) a validé les tests et publié l'image GHCR. Les vérifications Chrome sur données fictives documentées ci-dessous correspondent à la version 0.2.56 et valident la liste paginée sur ordinateur et mobile. Le workflow 214 de la version 0.2.61 est conservé comme repère historique.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 

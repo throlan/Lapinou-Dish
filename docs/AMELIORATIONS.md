@@ -1,6 +1,6 @@
 # Cahier des améliorations proposées
 
-Mis à jour le 15 octobre 2026. Ce document rassemble des pistes demandées ou suggérées. Elles ne sont pas encore engagées dans le développement ; chaque chantier devra être précisé avant sa mise en œuvre. Les fonctionnalités livrées restent décrites dans [STATUS.md](STATUS.md).
+Mis à jour le 16 octobre 2026. Ce document rassemble des pistes demandées ou suggérées. Chaque chantier devra être précisé avant sa mise en œuvre. Les fonctionnalités livrées restent décrites dans [STATUS.md](STATUS.md).
 
 ## Expérience des recettes
 
@@ -12,9 +12,9 @@ Déplacer l’import de recettes dans une page dédiée. La page Recettes serait
 
 Remplacer progressivement la liste paginée actuelle par une grille de fiches compactes, avec une colonne de filtres à gauche sur ordinateur. Chaque vignette pourrait montrer le nom, la photo si elle existe, les tags (type, moment, production), le rendement et un indicateur de complétude. Sur petit écran, la colonne devient un panneau de filtres repliable. Conserver la recherche, la pagination ou le chargement progressif et les réglages rapides sans ouvrir chaque fiche.
 
-### Ajouter des photos aux recettes
+### Améliorer l'affichage des photos dans les recettes
 
-Permettre d’ajouter, remplacer et retirer une photo dans la fiche recette, avec aperçu dans les vignettes et dans le mode cuisine. Décider avant développement où stocker les fichiers, leurs limites de taille et de format, les miniatures, les sauvegardes et les règles de suppression. Ne pas intégrer automatiquement les images des publications externes sans vérification des droits et sans action explicite.
+L'ajout, le remplacement, la suppression et la génération à la demande sont livrés. Le stockage persistant est configurable par `RECIPE_IMAGE_DIR`, avec repli PostgreSQL ; la configuration retenue dans le conteneur est `/images`. Il reste à afficher les photos dans les futures vignettes et à décider si le mode cuisine en a besoin. Ne pas intégrer automatiquement les images des publications externes sans vérification des droits et sans action explicite.
 
 ### Filtrer les recettes incomplètes
 
@@ -22,7 +22,7 @@ Ajouter un filtre « Données manquantes » et, si utile, des sous-filtres indiq
 
 ## Usage mobile et webapp
 
-Améliorer l’interface pour les petits écrans et l’usage tactile : navigation simple, boutons adaptés, calendrier lisible, formulaires praticables, filtres repliables et pages de cuisine faciles à consulter pendant la préparation. Évaluer une PWA installable (manifest, icônes et comportement de mise à jour). Le mode hors ligne et la synchronisation différée sont des sujets distincts à étudier après l’expérience mobile de base, car ils ajoutent des conflits de données et des contraintes de sécurité.
+La page Courses & stocks a reçu une première amélioration mobile en 0.2.68 : résumés Home Assistant plus courts, besoin visible sans déplier les produits et accès rapide aux mesures. Il reste à parcourir les autres pages sur petit écran, notamment calendrier, éditeurs de repas, recettes et mode cuisine. Évaluer une PWA installable (manifest, icônes et comportement de mise à jour) après ces améliorations. Le mode hors ligne et la synchronisation différée sont des sujets distincts à étudier ensuite, car ils ajoutent des conflits de données et des contraintes de sécurité.
 
 ## Comptes utilisateurs et foyer
 
@@ -45,9 +45,12 @@ Une première expérimentation pourrait se limiter à un catalogue public en lec
 
 ## Ordre de discussion suggéré
 
-1. Clarifier les critères de complétude nutritionnelle et la page de recettes : vignettes, filtres et filtre des données manquantes.
-2. Décider le périmètre du formulaire d’import et du traitement des brouillons.
-3. Choisir une stratégie de stockage et de gestion des photos.
-4. Valider les parcours mobiles, puis l’intérêt d’une PWA installable.
-5. Dessiner le modèle de comptes, d’associations personne/foyer et de droits avant toute modification d’authentification.
-6. Étudier la bibliothèque publique après avoir défini les droits, la modération et l’isolation stricte avec les données privées.
+1. Définir la prochaine évolution de la page Recettes : vignettes plus compactes, filtres et explication des données nutritionnelles incomplètes. La liste actuelle est déjà paginée et possède des réglages rapides.
+2. Préciser le parcours d'import : page dédiée, file de brouillons, association au catalogue et détection des doublons.
+3. Vérifier les parcours mobiles des pages restantes ; les courses ont déjà reçu leur première passe en 0.2.68. Décider ensuite si une PWA installable apporte une vraie valeur.
+4. Dessiner le modèle de comptes, d'associations personne/foyer et de droits avant toute modification d'authentification.
+5. Étudier la bibliothèque publique après avoir défini les droits, la modération et l'isolation stricte avec les données privées.
+
+## Prochaine décision
+
+Le meilleur prochain chantier à préciser est la page Recettes, en commençant par les filtres de complétude et la densité des fiches, puis en cadrant séparément la page d'import. Les photos persistantes sont déjà opérationnelles ; leur présentation dans les vignettes peut être intégrée à ce chantier.

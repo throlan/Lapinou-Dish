@@ -73,7 +73,7 @@ Ce produit aide à organiser les repas. Il ne diagnostique pas, ne prescrit pas 
 
 ## Évolutions produit à cadrer
 
-Les prochaines pistes demandées — page dédiée à l'import, vignettes et filtres de recettes, photos, détection des données manquantes, usage mobile/PWA, comptes liés aux profils du foyer et bibliothèque communautaire — sont recensées dans le [cahier des améliorations](AMELIORATIONS.md). Elles restent des propositions à prioriser et ne modifient pas les objectifs produit ni les règles de confidentialité ci-dessus.
+Les prochaines pistes demandées — page dédiée à l'import, vignettes et filtres de recettes, détection des données manquantes, usage mobile/PWA, comptes liés aux profils du foyer et bibliothèque communautaire — sont recensées dans le [cahier des améliorations](AMELIORATIONS.md). L'ajout de photos personnelles, leur stockage persistant et la génération d'illustrations à la demande sont déjà livrés ; leur affichage dans les futures vignettes reste à prévoir. Les propositions ne modifient pas les objectifs produit ni les règles de confidentialité ci-dessus.
 
 ## Jalons de validation
 
