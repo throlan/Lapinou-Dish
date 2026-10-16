@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { handleRequest } from '../src/server/app.mjs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 test('home page loads the application module as a versioned same-origin asset', async () => {
   const response = {
@@ -135,6 +138,23 @@ test('health endpoint reports a database outage', async () => {
   const response = await invoke('/api/health', { query: async () => { throw new Error('offline'); } });
   assert.equal(response.status, 503);
   assert.deepEqual(response.body, { status: 'database-unavailable' });
+});
+
+test('recipe configuration reports the active image storage path and writability', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'lapinou-image-config-'));
+  const previous = process.env.RECIPE_IMAGE_DIR;
+  process.env.RECIPE_IMAGE_DIR = directory;
+  try {
+    const response = await invoke('/api/recipe-imports/config', {});
+    assert.equal(response.status, 200);
+    assert.deepEqual(response.body.imageStorage.mode, 'filesystem');
+    assert.equal(response.body.imageStorage.directory, directory);
+    assert.equal(response.body.imageStorage.writable, true);
+  } finally {
+    if (previous === undefined) delete process.env.RECIPE_IMAGE_DIR;
+    else process.env.RECIPE_IMAGE_DIR = previous;
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test('food creation validates its input before attempting database writes', async () => {

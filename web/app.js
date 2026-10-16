@@ -901,6 +901,9 @@ function foodRow(food) {
   const values = document.createElement('td'); values.className = 'food-nutrients';
   values.textContent = nutrientLabels.map(([key, unit]) => `${format(food.nutrients_per_100g?.[key === 'energyKcal' ? 'energy_kcal' : key === 'proteinG' ? 'protein_g' : key === 'carbohydrateG' ? 'carbohydrate_g' : 'fat_g'])} ${unit}`).join(' · ');
   const action = document.createElement('td'); action.className = 'food-actions';
+  const duplicate = document.createElement('button'); duplicate.type = 'button'; duplicate.className = 'secondary'; duplicate.textContent = 'Dupliquer';
+  duplicate.setAttribute('aria-label', `Dupliquer ${food.name}`);
+  duplicate.addEventListener('click', () => openFoodEditor(food.id, { duplicate: true })); action.append(duplicate);
   const button = document.createElement('button'); button.className = 'secondary'; button.textContent = 'Modifier'; button.addEventListener('click', () => openFoodEditor(food.id)); action.append(button);
   if (hasMissingNutrition) {
     const complete = document.createElement('button'); complete.className = 'primary'; complete.textContent = 'Compléter';
@@ -920,19 +923,22 @@ function foodRow(food) {
 
 function format(value) { return value == null ? '—' : new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(Number(value)); }
 
-async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = false, fromShopping = false } = {}) {
+async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = false, fromShopping = false, duplicate = false } = {}) {
   state.editingFoodFromRecipe = fromRecipe;
   state.editingFoodFromShopping = fromShopping;
   const form = $('#food-form'); form.reset(); form.elements.id.value = '';
+  delete form.dataset.duplicateSource;
+  delete form.dataset.duplicateSourceNote;
+  delete form.dataset.duplicateNutrientSourceNote;
   $('#food-message').textContent = '';
-  $('#food-dialog-title').textContent = id ? 'Modifier cet aliment' : 'Nouvel aliment';
+  $('#food-dialog-title').textContent = duplicate ? 'Dupliquer cet aliment' : id ? 'Modifier cet aliment' : 'Nouvel aliment';
   if (id) {
     try {
       const { food } = await api(`/api/foods/${id}`);
-      form.elements.id.value = food.id;
-      form.elements.name.value = food.name;
+      form.elements.id.value = duplicate ? '' : food.id;
+      form.elements.name.value = duplicate ? `${food.name} (copie)` : food.name;
       form.elements.brand.value = food.brand ?? '';
-      form.elements.aliases.value = (food.aliases ?? []).filter((alias) => alias !== food.name).join(', ');
+      form.elements.aliases.value = duplicate ? '' : (food.aliases ?? []).filter((alias) => alias !== food.name).join(', ');
       for (const key of ['energyKcal', 'proteinG', 'carbohydrateG', 'fatG', 'fibreG']) form.elements[key].value = food.nutrientsPer100g?.[key] ?? '';
       form.elements.gramsPerMillilitre.value = food.gramsPerMillilitre ?? '';
       form.elements.tspGrams.value = food.gramsPerUnit?.tsp ?? '';
@@ -943,6 +949,14 @@ async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = 
       $('#nutrition-completion').classList.remove('hidden');
       $('#nutrition-matches').replaceChildren();
       $('#nutrition-matches').dataset.foodId = food.id;
+      if (duplicate) {
+        const reference = food.source_reference ? `, référence ${food.source_reference}` : '';
+        const provenance = `${food.source ?? 'source inconnue'}${reference}`;
+        form.dataset.duplicateSource = food.name;
+        form.dataset.duplicateSourceNote = `Fiche créée par duplication de « ${food.name} » (${provenance}). Vérifier les valeurs pour cette variante.`;
+        form.dataset.duplicateNutrientSourceNote = `Valeurs copiées de « ${food.name} » (${provenance}) ; à vérifier pour cette variante.`;
+        showMessage($('#food-message'), 'Les valeurs nutritionnelles et conversions sont préremplies. Modifie le nom, puis vérifie les données propres à cette variante.', true);
+      }
     } catch { showMessage($('#food-message'), 'Impossible de charger cette fiche.'); return; }
   } else {
     $('#nutrition-completion').classList.add('hidden');
@@ -1015,6 +1029,10 @@ $('#food-form').addEventListener('submit', async (event) => {
     gramsPerMillilitre: numeric('gramsPerMillilitre'),
     gramsPerUnit: Object.fromEntries([['tsp', numeric('tspGrams')], ['tbsp', numeric('tbspGrams')], ['pinch', numeric('pinchGrams')], ['scoop', numeric('scoopGrams')], ['piece', numeric('pieceGrams')]].filter(([, grams]) => grams !== null)),
   };
+  if (form.dataset.duplicateSource) {
+    payload.sourceNote = form.dataset.duplicateSourceNote;
+    payload.nutrientSourceNote = form.dataset.duplicateNutrientSourceNote;
+  }
   const id = form.elements.id.value;
   try {
     const result = await api(id ? `/api/foods/${id}` : '/api/foods', { method: id ? 'PATCH' : 'POST', body: JSON.stringify(payload) });
@@ -1507,14 +1525,25 @@ async function refreshRecipeAIConfig() {
   const imageCheckbox=$('#recipe-import-form').elements.generateImage;
   try {
     const config = await api('/api/recipe-imports/config');
-    recipeImageConfig={enabled:Boolean(config.imageGenerationEnabled)};
+    recipeImageConfig={enabled:Boolean(config.imageGenerationEnabled),storage:config.imageStorage};
+    renderRecipeImageStorageStatus(config.imageStorage);
     checkbox.disabled = !config.openaiEnabled;
     imageCheckbox.disabled=!recipeImageConfig.enabled;
     $('#recipe-ai-status').textContent = config.openaiEnabled
       ? 'En activant OpenAI, le texte de la recette est envoyé à ton API pour analyse (utilisation facturée sur ton compte). Vérifie le brouillon avant enregistrement.'
       : 'OpenAI n’est pas configuré. L’import par texte reste disponible.';
     $('#recipe-image-ai-status').textContent=recipeImageConfig.enabled?'La génération d’image est facultative. Elle démarre après validation/enregistrement, et peut entraîner des frais OpenAI.':'La génération d’image IA n’est pas configurée. Les photos personnelles restent disponibles.';
-  } catch { recipeImageConfig={enabled:false};checkbox.disabled = true;imageCheckbox.disabled=true; $('#recipe-ai-status').textContent = 'OpenAI indisponible. L’import par texte reste disponible.';$('#recipe-image-ai-status').textContent='OpenAI indisponible. Les photos personnelles restent disponibles.'; }
+  } catch { recipeImageConfig={enabled:false,storage:null};renderRecipeImageStorageStatus(null);checkbox.disabled = true;imageCheckbox.disabled=true; $('#recipe-ai-status').textContent = 'OpenAI indisponible. L’import par texte reste disponible.';$('#recipe-image-ai-status').textContent='OpenAI indisponible. Les photos personnelles restent disponibles.'; }
+}
+
+function renderRecipeImageStorageStatus(storage) {
+  const target=$('#recipe-image-storage-status');if(!target)return;
+  if(!storage){target.textContent='Configuration du stockage indisponible.';return;}
+  if(storage.mode==='database'){target.textContent='Stockage actuel : base PostgreSQL. Aucun dossier RECIPE_IMAGE_DIR n’est configuré.';return;}
+  const directory=storage.directory||'/images';
+  if(storage.mounted===false){target.textContent=`Attention : ${directory} n’est pas un volume monté dans le conteneur ; les images risquent de disparaître lors de son remplacement.`;return;}
+  if(storage.writable===false){target.textContent=`Attention : ${directory} est configuré, mais le serveur ne peut pas y écrire. Vérifie les droits du dossier monté.`;return;}
+  target.textContent=`Stockage configuré : ${directory} dans le conteneur${storage.mounted===true?` (volume monté sur ${storage.mountPoint})`:''}${storage.writable===true?' ; écriture autorisée.':'.'}`;
 }
 
 function refreshRecipeImagePreview() {
@@ -1557,18 +1586,24 @@ $('#recipe-image-file')?.addEventListener('change',async event=>{
     if(blob.size>5*1024*1024)throw new Error('image-too-large');
     const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
     showMessage($('#recipe-image-message'),'Enregistrement de la photo…');
-    await api(`/api/recipes/${imageRecipeId}/image`,{method:'PUT',body:JSON.stringify({householdId:state.household.id,mediaType:'image/jpeg',imageBase64:btoa(binary)})});
-    const recipe=state.recipes.find(item=>item.id===imageRecipeId);if(recipe)recipe.imageAvailable=true;renderFilteredRecipes();refreshRecipeImagePreview();showMessage($('#recipe-image-message'),'Photo personnelle enregistrée.',true);
+    const result=await api(`/api/recipes/${imageRecipeId}/image`,{method:'PUT',body:JSON.stringify({householdId:state.household.id,mediaType:'image/jpeg',imageBase64:btoa(binary)})});
+    if(result.storage)renderRecipeImageStorageStatus(result.storage);
+    const recipe=state.recipes.find(item=>item.id===imageRecipeId);if(recipe)recipe.imageAvailable=true;renderFilteredRecipes();refreshRecipeImagePreview();showMessage($('#recipe-image-message'),imageSavedMessage('Photo personnelle enregistrée.',result.storage),true);
   }catch(error){showMessage($('#recipe-image-message'),error.message==='image-too-large'?'Photo encore trop volumineuse après redimensionnement.':`Impossible d’enregistrer la photo : ${error.body?.error??error.message}`);}
   finally{event.target.value='';}
 });
 $('#generate-recipe-image')?.addEventListener('click',async()=>{
   if(!imageRecipeId)return;const button=$('#generate-recipe-image');button.disabled=true;
   showMessage($('#recipe-image-message'),'Création de l’illustration… cela peut prendre un peu de temps.');
-  try{await api(`/api/recipes/${imageRecipeId}/image/ai`,{method:'POST',body:JSON.stringify({householdId:state.household.id}),signal:AbortSignal.timeout(100_000)});const recipe=state.recipes.find(item=>item.id===imageRecipeId);if(recipe)recipe.imageAvailable=true;renderFilteredRecipes();refreshRecipeImagePreview();showMessage($('#recipe-image-message'),'Illustration créée. Tu peux la remplacer quand tu veux.',true);}
+  try{const result=await api(`/api/recipes/${imageRecipeId}/image/ai`,{method:'POST',body:JSON.stringify({householdId:state.household.id}),signal:AbortSignal.timeout(100_000)});if(result.storage)renderRecipeImageStorageStatus(result.storage);const recipe=state.recipes.find(item=>item.id===imageRecipeId);if(recipe)recipe.imageAvailable=true;renderFilteredRecipes();refreshRecipeImagePreview();showMessage($('#recipe-image-message'),imageSavedMessage('Illustration créée.',result.storage)+' Tu peux la remplacer quand tu veux.',true);}
   catch(error){showMessage($('#recipe-image-message'),`Illustration non créée : ${recipeImageErrorMessage(error)}`);}
   finally{button.disabled=!recipeImageConfig.enabled;}
 });
+function imageSavedMessage(label,storage) {
+  if(storage?.mode==='database')return `${label} Enregistrée dans PostgreSQL (aucun dossier de fichiers configuré).`;
+  if(storage?.mode==='filesystem')return `${label} Enregistrée dans ${storage.directory} dans le conteneur.`;
+  return label;
+}
 $('#delete-recipe-image')?.addEventListener('click',async()=>{
   if(!imageRecipeId)return;
   try{await api(`/api/recipes/${imageRecipeId}/image?householdId=${encodeURIComponent(state.household.id)}`,{method:'DELETE'});const recipe=state.recipes.find(item=>item.id===imageRecipeId);if(recipe)recipe.imageAvailable=false;renderFilteredRecipes();refreshRecipeImagePreview();showMessage($('#recipe-image-message'),'Photo supprimée.',true);}

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=0.2.68">
+    <link rel="stylesheet" href="/style.css?v=0.2.69">
   </head>
   <body>
     <header class="topbar">
@@ -293,11 +293,12 @@
       <img id="recipe-image-preview" class="recipe-image-preview hidden" alt="Illustration de la recette">
       <p id="recipe-image-placeholder" class="recipe-image-placeholder">Aucune photo pour cette recette.</p>
       <label>Choisir une photo personnelle<input id="recipe-image-file" type="file" accept="image/jpeg,image/png,image/webp"></label>
-      <p class="hint">La photo est redimensionnée dans ton navigateur puis stockée dans la base du foyer. PNG, JPEG ou WebP jusqu’à 5 Mo.</p>
+      <p class="hint">La photo est redimensionnée dans ton navigateur avant enregistrement. PNG, JPEG ou WebP jusqu’à 5 Mo.</p>
+      <p class="hint" id="recipe-image-storage-status" role="status">Vérification du dossier de stockage…</p>
       <div class="recipe-image-actions"><button type="button" class="secondary" id="generate-recipe-image">Créer une illustration avec l’IA</button><button type="button" class="secondary danger-button" id="delete-recipe-image">Supprimer la photo</button></div>
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.68"></script>
+    <script type="module" src="/app.js?v=0.2.69"></script>
   </body>
 </html>
