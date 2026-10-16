@@ -12,7 +12,7 @@ import { filterRecipeDirectory, recipeMissingData, recipeMomentLabel, recipeType
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, editingOrderLinkId: null, importingDraftId: null, generateImportedImage: false, people: [], recipes: [], preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
+const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, editingFoodFromShopping: false, editingOrderLinkId: null, importingDraftId: null, generateImportedImage: false, people: [], recipes: [], preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
 let recipeImageConfig={enabled:false}, imageRecipeId=null;
 const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbohydrateG', 'g gluc.'], ['fatG', 'g lip.']];
 const selectedStoreFoods=new Map();
@@ -538,14 +538,16 @@ async function refreshShoppingList() {
           const stock=document.createElement('span');stock.className='shopping-stock-quantity';stock.textContent=`Stock : ${formatQty(existing?.quantityG??0)} g`;
           const itemHeader=document.createElement('div');itemHeader.className='shopping-item-head';
           const itemToggle=document.createElement('button');itemToggle.type='button';itemToggle.className='shopping-item-toggle';
-          itemToggle.append(title);itemToggle.setAttribute('aria-label',`Détails de ${item.name}`);
+          detail.className='shopping-item-inline-need';itemToggle.append(title,detail);itemToggle.setAttribute('aria-label',`Détails et besoin pour ${item.name}`);
           const itemOpen=state.openShoppingProducts.has(row.dataset.key);main.hidden=!itemOpen;row.classList.toggle('is-open',itemOpen);
           itemToggle.setAttribute('aria-expanded',String(itemOpen));
           itemToggle.addEventListener('click',()=>{main.hidden=!main.hidden;row.classList.toggle('is-open',!main.hidden);
             itemToggle.setAttribute('aria-expanded',String(!main.hidden));
             if(main.hidden)state.openShoppingProducts.delete(row.dataset.key);else state.openShoppingProducts.add(row.dataset.key);});
           itemHeader.append(checkbox,itemToggle,qty,stock);
-          main.append(detail);
+          const foodConfig=document.createElement('button');foodConfig.type='button';foodConfig.className='secondary shopping-food-config';foodConfig.textContent='Mesures';
+          foodConfig.title='Configurer les équivalences en grammes de cet aliment';foodConfig.setAttribute('aria-label',`Configurer les conversions en grammes de ${item.name}`);
+          foodConfig.addEventListener('click',()=>openFoodEditor(item.foodId,{fromShopping:true}));itemHeader.append(foodConfig);
           const inventoryActions=document.createElement('div');inventoryActions.className='shopping-inventory-actions';
           const countStock=document.createElement('details');countStock.className='shopping-count-stock';
           const countSummary=document.createElement('summary');countSummary.textContent='Saisir le stock déjà présent';countStock.append(countSummary);
@@ -918,8 +920,9 @@ function foodRow(food) {
 
 function format(value) { return value == null ? '—' : new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(Number(value)); }
 
-async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = false } = {}) {
+async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = false, fromShopping = false } = {}) {
   state.editingFoodFromRecipe = fromRecipe;
+  state.editingFoodFromShopping = fromShopping;
   const form = $('#food-form'); form.reset(); form.elements.id.value = '';
   $('#food-message').textContent = '';
   $('#food-dialog-title').textContent = id ? 'Modifier cet aliment' : 'Nouvel aliment';
@@ -1017,6 +1020,7 @@ $('#food-form').addEventListener('submit', async (event) => {
     const result = await api(id ? `/api/foods/${id}` : '/api/foods', { method: id ? 'PATCH' : 'POST', body: JSON.stringify(payload) });
     $('#food-dialog').close();
     await refreshFoods();
+    if (state.editingFoodFromShopping) { state.editingFoodFromShopping = false; await refreshShoppingList(); }
     if (state.editingFoodFromRecipe) showMessage($('#recipe-message'), 'Fiche mise à jour. Les valeurs seront recalculées à l’enregistrement de la recette.', true);
   } catch (error) {
     const duplicates = error.body?.matches?.map((food) => food.name).join(', ');
