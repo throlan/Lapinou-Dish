@@ -1,8 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateRecipeImage, validateRecipeImageUpload } from '../src/server/recipe-images.mjs';
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { generateRecipeImage, migrateLegacyRecipeImages, readRecipeImage, removeRecipeImage, saveRecipeImage, validateRecipeImageUpload } from '../src/server/recipe-images.mjs';
 
 const householdId='11111111-1111-4111-8111-111111111111';
+const recipeId='22222222-2222-4222-8222-222222222222';
 const png=Buffer.from([137,80,78,71,13,10,26,10,0,0,0,0]);
 
 test('personal uploads accept only supported image signatures and bounded base64',()=>{
@@ -28,4 +32,59 @@ test('image generation retains only safe OpenAI access diagnostics for 401 and 4
   const call=(status,code)=>generateRecipeImage('photo',{apiKey:'test-key',fetchImpl:async()=>({status,ok:false,headers:{get:name=>name==='x-request-id'?'req_123':null},json:async()=>({error:{code,message:'Do not expose provider message or secrets'}})})});
   assert.deepEqual(await call(401,'invalid_api_key'),{error:'openai-access-denied',providerStatus:401,providerCode:'invalid_api_key',requestId:'req_123'});
   assert.deepEqual(await call(403,'organization_verification_required'),{error:'openai-access-denied',providerStatus:403,providerCode:'organization_verification_required',requestId:'req_123'});
+});
+
+test('recipe images are stored as private files, can be read, replaced and removed',async()=>{
+  const directory=await mkdtemp(path.join(tmpdir(),'lapinou-images-'));
+  let row=null;
+  const pool={async query(sql,values=[]){
+    if(sql.startsWith('SELECT id FROM recipes'))return{rowCount:1,rows:[{id:recipeId}]};
+    if(sql.startsWith('SELECT file_name FROM recipe_images'))return{rowCount:row?1:0,rows:row?[{file_name:row.file_name}]:[]};
+    if(sql.startsWith('INSERT INTO recipe_images')){row={recipe_id:values[0],media_type:values[1],source:values[2],image_bytes:values[3],file_name:values[4]};return{rowCount:1,rows:[]};}
+    if(sql.includes('SELECT i.media_type'))return{rowCount:row?1:0,rows:row?[row]:[]};
+    if(sql.startsWith('DELETE FROM recipe_images')){const deleted=row;row=null;return{rowCount:deleted?1:0,rows:deleted?[{recipe_id:recipeId,file_name:deleted.file_name}]:[]};}
+    throw new Error(`Unexpected query: ${sql}`);
+  }};
+  try{
+    const data={householdId,mediaType:'image/png',image:png,source:'personal'};
+    await saveRecipeImage(pool,recipeId,data,{imageDirectory:directory});
+    assert.equal(row.image_bytes,null);
+    assert.match(row.file_name,/^22222222-2222-4222-8222-222222222222-[0-9a-f-]{36}\.png$/);
+    assert.deepEqual(await readFile(path.join(directory,row.file_name)),png);
+    assert.deepEqual(await readRecipeImage(pool,recipeId,householdId,{imageDirectory:directory}),{mediaType:'image/png',image:png});
+    const firstFile=row.file_name;
+    await saveRecipeImage(pool,recipeId,{...data,source:'openai'},{imageDirectory:directory});
+    assert.notEqual(row.file_name,firstFile);
+    assert.deepEqual(await readdir(directory),[row.file_name]);
+    assert.equal(await removeRecipeImage(pool,recipeId,householdId,{imageDirectory:directory}),true);
+    assert.deepEqual(await readdir(directory),[]);
+  }finally{await rm(directory,{recursive:true,force:true});}
+});
+
+test('existing database images migrate to files without losing image content',async()=>{
+  const directory=await mkdtemp(path.join(tmpdir(),'lapinou-images-'));
+  let row={recipe_id:recipeId,media_type:'image/png',image_bytes:png,file_name:null};
+  const pool={async query(sql,values=[]){
+    if(sql.startsWith('SELECT recipe_id, media_type, image_bytes'))return{rows:row?.image_bytes?[{...row}]:[]};
+    if(sql.startsWith('UPDATE recipe_images')){row={...row,image_bytes:null,file_name:values[1]};return{rowCount:1,rows:[]};}
+    throw new Error(`Unexpected query: ${sql}`);
+  }};
+  try{
+    assert.equal(await migrateLegacyRecipeImages(pool,{imageDirectory:directory}),1);
+    assert.equal(row.image_bytes,null);
+    assert.deepEqual(await readFile(path.join(directory,row.file_name)),png);
+  }finally{await rm(directory,{recursive:true,force:true});}
+});
+
+test('recipe images stay in PostgreSQL when no persistent folder is configured',async()=>{
+  let row=null;
+  const pool={async query(sql,values=[]){
+    if(sql.startsWith('SELECT id FROM recipes'))return{rowCount:1,rows:[{id:recipeId}]};
+    if(sql.startsWith('SELECT file_name FROM recipe_images'))return{rows:[]};
+    if(sql.startsWith('INSERT INTO recipe_images')){row={media_type:values[1],image_bytes:values[3],file_name:values[4]};return{rowCount:1,rows:[]};}
+    if(sql.includes('SELECT i.media_type'))return{rows:[row]};
+    throw new Error(`Unexpected query: ${sql}`);
+  }};
+  await saveRecipeImage(pool,recipeId,{householdId,mediaType:'image/png',image:png,source:'personal'},{imageDirectory:null});
+  assert.deepEqual(await readRecipeImage(pool,recipeId,householdId,{imageDirectory:null}),{mediaType:'image/png',image:png});
 });

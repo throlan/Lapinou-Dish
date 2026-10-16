@@ -1,10 +1,10 @@
-# État du projet — 15 octobre 2026
+# État du projet — 16 octobre 2026
 
 ## Version de référence
 
-Le code **0.2.61** est fusionné sur `main` au commit `e940609a728b33d9c0c93dd6a944771bc2a9bd6d`, après les PR [79](https://github.com/throlan/Lapinou-Dish/pull/79) et [80](https://github.com/throlan/Lapinou-Dish/pull/80). La PR 80 étend les recettes Dessert communes du petit-déjeuner aux deux collations ; le dessert individuel est proposé au déjeuner et au dîner avec le bouton « + Dessert ». Les tests et la publication GHCR ont réussi dans le [workflow 214](https://github.com/throlan/Lapinou-Dish/actions/runs/38793785916).
+La dernière version fusionnée est **0.2.64**, au commit `f762ffbcaea2ace4066c4f72890637cfdb784af5` (PR 84). La branche de travail prépare la **0.2.65** avec stockage persistant des photos sous `/images`, migration des images existantes depuis PostgreSQL et modèles OpenAI configurables séparément. Le montage attendu est `/mnt/user/appdata/lapinoudish/images` vers `/images`. Voir le [journal du 16 octobre](SESSION-2026-10-16.md).
 
-Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 15 octobre](SESSION-2026-10-15.md).
+Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 16 octobre](SESSION-2026-10-16.md).
 
 Les nouvelles pistes d’évolution (recettes, import, photos, usage mobile, comptes et communauté) sont consignées dans le [cahier des améliorations](AMELIORATIONS.md). Elles restent à prioriser et à préciser.
 
@@ -27,6 +27,10 @@ Les nouvelles pistes d’évolution (recettes, import, photos, usage mobile, com
 - Planning des routines de courses modifiable et persistant, avec confirmation visible après enregistrement.
 - Courses regroupées par magasin et produit dans des panneaux repliables ; magasins modifiables sans perdre leurs associations d’aliments ni leur cible Home Assistant. « Préparations à faire » ne garde que les recettes avec une production à suivre, avec besoins restants après stock de plats.
 - Docker/Compose pour environnement dédié, migrations ordonnées, import Ciqual idempotent et publication CI de l'image.
+
+## Photos persistantes et génération d'illustrations — 0.2.65 en préparation
+
+Les photos sont stockées dans un dossier configurable (`RECIPE_IMAGE_DIR`) avec PostgreSQL comme repli si aucun dossier n'est déclaré. Le chemin choisi pour le conteneur est `/images`, mappé côté hôte vers `/mnt/user/appdata/lapinoudish/images`. Au démarrage, les anciennes images PostgreSQL sont transférées dans le dossier configuré. L'import et la génération utilisent des variables de modèle distinctes (`OPENAI_RECIPE_MODEL` et `OPENAI_IMAGE_MODEL`). Une erreur `403 model_not_found` signale un accès absent au modèle image du projet associé à la clé API. Détails : [journal du 16 octobre](SESSION-2026-10-16.md).
 
 ## Vérification
 
