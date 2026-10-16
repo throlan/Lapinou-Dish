@@ -43,7 +43,7 @@ test('AI extraction uses structured output, preserves base/variants and never se
 });
 
 test('AI rejects unsupported units, invented source quotations and invalid quantities', () => {
-  for (const changes of [{ rawText: '50 g de sucre' }, { unitId: 'scoop' }, { quantity: -2 }, { quantity: '90' }]) {
+  for (const changes of [{ rawText: '50 g de sucre' }, { unitId: 'ounce' }, { quantity: -2 }, { quantity: '90' }]) {
     const data = extracted(); Object.assign(data.ingredients[0], changes);
     assert.equal(validateExtraction(data, text), false);
   }

@@ -82,6 +82,30 @@ test("converts mass exactly but requires a food conversion for pieces and volume
   assert.equal(toGrams(2, "c. à café", { ...egg, gramsPerMillilitre: 1.05 }), 10.5);
 });
 
+test("uses a food's teaspoon weight to convert other volume units", () => {
+  const cocoa: Food = { ...rice, id: "food-cocoa", name: "Cacao", gramsPerUnit: { tsp: 6 } };
+  assert.equal(toGrams(1, "c. à café", cocoa), 6);
+  assert.equal(toGrams(1, "tbsp", cocoa), 18);
+  assert.equal(toGrams(8, "c. à soupe", cocoa), 144);
+  assert.equal(toGrams(1, "ml", cocoa), 1.2);
+  assert.equal(toGrams(1, "c. à soupe", { ...cocoa, gramsPerUnit: { tbsp: 15 } }), 15);
+  assert.equal(toGrams(1, "tsp", { ...cocoa, gramsPerUnit: { tbsp: 15 } }), 5);
+  assert.equal(toGrams(2, "pinch", { ...cocoa, gramsPerUnit: { pinch: 0.4 } }), 0.8);
+  assert.equal(toGrams(1, "scoop", { ...cocoa, gramsPerUnit: { scoop: 30 } }), 30);
+  assert.equal(toGrams(1, "tbsp", { ...cocoa, gramsPerUnit: { scoop: 30 } }), null);
+});
+
+test("a pinch of seasoning does not make recipe nutrition incomplete", () => {
+  const result = calculateRecipeNutrition(
+    [recipeLine(chicken.id, 100), recipeLine("food-seasoning", 1, "pinch")],
+    [chicken],
+    1,
+  );
+  assert.equal(result.complete, true);
+  assert.deepEqual(result.unresolvedLineIndexes, []);
+  assert.equal(result.batch.energyKcal, 110);
+});
+
 test("uses density for volume and never treats missing nutrients as zero", () => {
   const yoghurt: Food = {
     ...rice,

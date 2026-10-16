@@ -31,6 +31,27 @@ test('documented conversions combine a food into one purchase line; unknown conv
   assert.equal(unresolved[1].purchaseRuleApplied,false);
 });
 
+test('a teaspoon weight converts recipe spoons and combines them for package shopping',()=>{
+  const cocoaRule={...rule,singularLabel:'paquet',pluralLabel:'paquets',coveredQuantity:250,coveredUnitId:'g',estimateNote:''};
+  const base={foodId,name:'Cacao',gramsPerUnit:{tsp:6},gramsPerMillilitre:null,recipes:[]};
+  const combined=applyPurchaseUnits([
+    {...base,unitId:'tsp',quantity:1},
+    {...base,unitId:'tbsp',quantity:8},
+  ],[cocoaRule]);
+  assert.equal(combined.length,1);
+  assert.equal(combined[0].quantity,150);
+  assert.equal(purchaseDescription({...combined[0],neededQuantity:150}).text,'1 paquet');
+});
+
+test('a configured pinch remains a shopping need and converts to grams for buying',()=>{
+  const spiceRule={...rule,singularLabel:'pot',pluralLabel:'pots',coveredQuantity:100,coveredUnitId:'g',estimateNote:''};
+  const spice={foodId,name:'Paprika',gramsPerUnit:{pinch:0.3},gramsPerMillilitre:null,recipes:[]};
+  const [item]=applyPurchaseUnits([{...spice,unitId:'pinch',quantity:4}],[spiceRule]);
+  assert.equal(item.quantity,1.2);
+  assert.equal(item.unitId,'g');
+  assert.equal(purchaseDescription({...item,neededQuantity:1.2}).text,'1 pot');
+});
+
 test('purchase settings persist per household and can be removed without touching other households',async()=>{
   const db=new PGlite();
   try{

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=0.2.65">
+    <link rel="stylesheet" href="/style.css?v=0.2.66">
   </head>
   <body>
     <header class="topbar">
@@ -272,8 +272,8 @@
           <button type="button" class="secondary" id="find-external-nutrition">Chercher hors Ciqual</button>
           <div id="nutrition-matches" class="nutrition-matches" aria-live="polite"></div>
         </section>
-        <div class="yield-row"><label>Densité (g/ml)<input name="gramsPerMillilitre" type="number" min="0.001" step="any" placeholder="Si connue"></label><label>Poids d'une pièce (g)<input name="pieceGrams" type="number" min="0.001" step="any" placeholder="Si applicable"></label></div>
-        <p class="hint">Laisse une valeur vide si elle est inconnue. Elle restera inconnue dans le calcul.</p>
+        <div class="food-conversion-row"><label>Densité (g/ml)<input name="gramsPerMillilitre" type="number" min="0.001" step="any" placeholder="Si connue"></label><label>Poids d'une c. à café (g)<input name="tspGrams" type="number" min="0.001" step="any" placeholder="Si connu"></label><label>Poids d'une c. à soupe (g)<input name="tbspGrams" type="number" min="0.001" step="any" placeholder="Si connu"></label><label>Poids d'une pincée (g)<input name="pinchGrams" type="number" min="0.001" step="any" placeholder="Si connu"></label><label>Poids d'un scoop (g)<input name="scoopGrams" type="number" min="0.001" step="any" placeholder="Selon le doseur"></label><label>Poids d'une pièce (g)<input name="pieceGrams" type="number" min="0.001" step="any" placeholder="Si applicable"></label></div>
+        <p class="hint">Renseigne le poids des mesures utilisées dans tes recettes pour convertir les courses et les stocks en grammes. Une pincée ne rend pas le calcul nutritionnel incomplet ; sans son poids, elle reste toutefois affichée en pincées dans les courses.</p>
         <div class="form-actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" id="save-food" value="default">Enregistrer</button></div>
         <p class="form-message" id="food-message" role="status"></p>
       </form>
@@ -298,6 +298,6 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.65"></script>
+    <script type="module" src="/app.js?v=0.2.66"></script>
   </body>
 </html>
