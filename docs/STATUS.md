@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-La version actuelle est **0.2.65**, fusionnée au commit `ee4923d5bf6ad6abdc219aadb64093e2d66691e6` par la PR [85](https://github.com/throlan/Lapinou-Dish/pull/85). Les photos sont persistantes sous `/images`, monté depuis `/mnt/user/appdata/lapinoudish/images`, les anciennes images PostgreSQL sont transférées au démarrage et les modèles OpenAI sont configurables séparément. Les tests et la publication GHCR ont réussi dans le [workflow 224](https://github.com/throlan/Lapinou-Dish/actions/runs/38871978052). Voir le [journal du 16 octobre](SESSION-2026-10-16.md).
+La version actuelle est **0.2.66**, fusionnée au commit `645ef3b06bd9ed61e099a79800c556538ece8064` par la PR [87](https://github.com/throlan/Lapinou-Dish/pull/87). Les conversions par aliment couvrent désormais les cuillères à café et à soupe, les pincées, les scoops et les pièces. Les pincées restent dans les courses et le stock sans rendre les calculs nutritionnels incomplets ; leur poids doit être renseigné pour convertir les besoins en grammes. Les tests et la publication GHCR ont réussi dans le [workflow 228](https://github.com/throlan/Lapinou-Dish/actions/runs/38908946611). Voir le [journal du 16 octobre](SESSION-2026-10-16.md).
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 16 octobre](SESSION-2026-10-16.md).
 
@@ -28,13 +28,13 @@ Les nouvelles pistes d’évolution (recettes, import, photos, usage mobile, com
 - Courses regroupées par magasin et produit dans des panneaux repliables ; magasins modifiables sans perdre leurs associations d’aliments ni leur cible Home Assistant. « Préparations à faire » ne garde que les recettes avec une production à suivre, avec besoins restants après stock de plats.
 - Docker/Compose pour environnement dédié, migrations ordonnées, import Ciqual idempotent et publication CI de l'image.
 
-## Photos persistantes et génération d'illustrations — 0.2.65 en préparation
+## Photos persistantes et génération d'illustrations — 0.2.65
 
 Les photos sont stockées dans un dossier configurable (`RECIPE_IMAGE_DIR`) avec PostgreSQL comme repli si aucun dossier n'est déclaré. Le chemin choisi pour le conteneur est `/images`, mappé côté hôte vers `/mnt/user/appdata/lapinoudish/images`. Au démarrage, les anciennes images PostgreSQL sont transférées dans le dossier configuré. L'import et la génération utilisent des variables de modèle distinctes (`OPENAI_RECIPE_MODEL` et `OPENAI_IMAGE_MODEL`). Une erreur `403 model_not_found` signale un accès absent au modèle image du projet associé à la clé API. Détails : [journal du 16 octobre](SESSION-2026-10-16.md).
 
 ## Vérification
 
-La suite complète locale et CI est réussie pour la version 0.2.65. Les contrôles de stockage couvrent l'écriture, la lecture, le remplacement, la suppression, la migration d'images existantes et le repli PostgreSQL. Tests et publication GHCR sont validés dans le [workflow 224](https://github.com/throlan/Lapinou-Dish/actions/runs/38871978052). Les vérifications Chrome sur données fictives documentées ci-dessous correspondent à la version 0.2.56 et valident la liste paginée sur ordinateur et mobile. Le workflow 214 de la version 0.2.61 est conservé comme repère historique.
+La suite complète locale et CI est réussie pour la version 0.2.66 (192 tests locaux). Les conversions de cuillères et pincées sont couvertes ainsi que leur agrégation dans les achats. Le [workflow 228](https://github.com/throlan/Lapinou-Dish/actions/runs/38908946611) a validé les tests et publié l'image GHCR. Les vérifications Chrome sur données fictives documentées ci-dessous correspondent à la version 0.2.56 et valident la liste paginée sur ordinateur et mobile. Le workflow 214 de la version 0.2.61 est conservé comme repère historique.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 
