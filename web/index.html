@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=0.2.63">
+    <link rel="stylesheet" href="/style.css?v=0.2.64">
   </head>
   <body>
     <header class="topbar">
@@ -99,7 +99,7 @@
           </div>
         </div>
         <form id="recipe-form" class="card form-card hidden">
-          <div class="section-heading"><div><h2 id="recipe-form-title">Nouvelle recette</h2><p>Choisis les aliments du catalogue et saisis leurs quantités.</p></div><button type="button" class="secondary" id="cancel-recipe">Annuler</button></div>
+          <div class="section-heading"><div><h2 id="recipe-form-title">Nouvelle recette</h2><p>Choisis les aliments du catalogue et saisis leurs quantités.</p></div><div class="recipe-card-actions"><button type="button" class="secondary hidden" id="ignore-import-draft">Ignorer ce brouillon</button><button type="button" class="secondary" id="cancel-recipe">Annuler</button></div></div>
           <label>Nom de la recette<input name="name" required maxlength="200" placeholder="Ex. Muffins pomme-cannelle"></label>
           <label>Description<textarea name="description" rows="2" maxlength="5000" placeholder="Facultatif"></textarea></label>
           <div class="recipe-taxonomy">
@@ -298,6 +298,6 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.63"></script>
+    <script type="module" src="/app.js?v=0.2.64"></script>
   </body>
 </html>

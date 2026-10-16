@@ -1173,6 +1173,27 @@ $('#recipe-form').elements.recipeType.addEventListener('change', () => {
 });
 $('#new-recipe').addEventListener('click', () => openRecipeEditor());
 $('#cancel-recipe').addEventListener('click', () => { $('#recipe-form').classList.add('hidden'); $('#recipe-result').classList.add('hidden'); });
+$('#ignore-import-draft').addEventListener('click', async (event) => {
+  const draftId = state.importingDraftId;
+  if (!draftId || !state.household) return;
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    await api(`/api/recipe-imports/${draftId}/discarded`, { method: 'POST', body: JSON.stringify({ householdId: state.household.id }) });
+    state.importingDraftId = null;
+    state.generateImportedImage = false;
+    button.classList.add('hidden');
+    $('#recipe-form').classList.add('hidden');
+    $('#recipe-result').classList.add('hidden');
+    $('#recipe-import-source')?.remove();
+    await setView('import');
+    showMessage($('#recipe-import-message'), 'Brouillon ignoré.', true);
+  } catch {
+    showMessage($('#recipe-message'), 'Impossible d’ignorer ce brouillon.');
+  } finally {
+    button.disabled = false;
+  }
+});
 $('#recipe-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const message = $('#recipe-message'); message.textContent = '';
@@ -1206,6 +1227,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
     if (state.importingDraftId) {
       await api(`/api/recipe-imports/${state.importingDraftId}/converted`, { method: 'POST', body: JSON.stringify({ householdId: state.household.id }) });
       state.importingDraftId = null;
+      $('#ignore-import-draft')?.classList.add('hidden');
     }
     renderRecipe(recipe); showMessage(message, 'Recette enregistrée. Les valeurs affichées sont calculées depuis le catalogue.', true);
     state.editingRecipeId = null;
@@ -1241,6 +1263,7 @@ async function openRecipeEditor(id = null, duplicate = false) {
   $('#recipe-result').classList.add('hidden');
   state.editingRecipeId = duplicate ? null : id;
   state.importingDraftId = null;
+  $('#ignore-import-draft')?.classList.add('hidden');
   state.generateImportedImage=false;
   $('#recipe-form-title').textContent = duplicate ? 'Dupliquer une recette' : id ? 'Modifier la recette' : 'Nouvelle recette';
   if (id) {
@@ -1407,6 +1430,7 @@ async function openImportDraft(draft) {
   await setView('recipes');
   const form = $('#recipe-form'); form.reset(); $('#recipe-lines').replaceChildren();
   state.editingRecipeId = null; state.importingDraftId = draft.id;
+  $('#ignore-import-draft').classList.remove('hidden');
   $('#recipe-form-title').textContent = 'Vérifier la recette importée';
   form.elements.name.value = draft.name || '';
   form.elements.description.value = draft.description || '';
