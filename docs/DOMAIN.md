@@ -1,6 +1,6 @@
 # Modèle métier
 
-Ce modèle exprime le produit Lapinou Dish. Il n'est pas une traduction des tables de Norish.
+Ce modèle exprime les concepts métier, pas une liste exacte des tables implémentées. Account/Membership et les variantes indépendantes sont des évolutions à cadrer ; l’accès actuel utilise une session de foyer. Voir [STATUS.md](STATUS.md) pour le livré. Aucun journal de consommation après repas n’est demandé.
 
 ## Entités principales
 
@@ -19,7 +19,6 @@ Ce modèle exprime le produit Lapinou Dish. Il n'est pas une traduction des tabl
 - **RecipeLine** : `food_id`, quantité décimale, `unit_id`, état de l'aliment, composant, variante et ordre. Pas de nom alimentaire libre faisant autorité.
 - **MealPlan / PlannedMeal / PlannedItem** : date, créneau, personnes présentes et recettes/composants prévus.
 - **PlannedAmount** : quantité par personne et par élément/composant, avec unité claire. Les portions sont des quantités, pas une valeur implicite héritée d'un autre système.
-- **ConsumptionLog / ConsumedItem** : action réelle datée et quantité réellement consommée; garde un snapshot des apports et leur provenance à la validation.
 - **ProductionSession / ProductionRun** : recettes/variantes, rendement cible et réel, étapes et date de fabrication.
 - **StockLot / StockMovement** : lot produit/acheté, quantité disponible, état, emplacement et mouvements explicites de production, consommation, perte ou correction.
 - **ShoppingList / ShoppingLine** : besoin agrégé, unité d'achat, format de paquet, quantité proposée, stock déduit et état de validation.
@@ -31,10 +30,10 @@ Ce modèle exprime le produit Lapinou Dish. Il n'est pas une traduction des tabl
 2. `RecipeLine` est la seule source de la composition et des quantités d'une recette.
 3. Un calcul nutritionnel est une fonction déterministe des lignes, de leurs conversions documentées, de la variante et du rendement demandé.
 4. Une valeur inconnue produit un résultat partiel/incomplet. Aucune inconnue n'est convertie en zéro.
-5. Le plan et le journal sont des faits distincts. Le journal conserve le résultat nutritionnel utilisé à la date de consommation.
+5. Les apports sont prévisionnels, calculés depuis le calendrier ; aucun journal nutritionnel du consommé n’est tenu.
 6. Les mesures corporelles et niveaux d'activité sont des données saisies par l'utilisateur et datées; une modification ajoute une entrée, elle ne réécrit pas l'historique.
 7. Une estimation de besoin quotidien conserve sa méthode, ses entrées, sa provenance et sa validation; elle n'est pas confondue avec une cible alimentaire.
-8. Le stock se calcule par mouvements de lots; réserver un lot à un repas ne le décrémente pas avant confirmation de consommation.
+8. Le stock se calcule par mouvements explicites. Planifier réserve sans sortie physique ; une production ou un repas marqué « Préparé » déduit les ingrédients sans double prélèvement pour un batch déjà produit.
 9. Les unités restent qualifiées par état: g cru, g sec, g cuit ne sont jamais substitués silencieusement.
 
 ## Relations structurantes
@@ -46,7 +45,6 @@ Recipe 1 ── * RecipeComponent (optional)
 PlannedMeal 1 ── * PlannedItem ── 1 Recipe
 PlannedItem 1 ── * PlannedAmount ── 1 Person
 ProductionRun 1 ── * StockLot 1 ── * StockMovement
-ConsumedItem ── snapshot nutrition at time of logging
 ```
 
 ## Invariants à tester
@@ -55,7 +53,7 @@ ConsumedItem ── snapshot nutrition at time of logging
 - Chaque ligne active référence un aliment; les imports non résolus restent des brouillons et ne sont pas comptés dans un calcul complet.
 - La somme des quantités attribuées + restes correspond au rendement produit/prévu dans la même unité de rendement.
 - Une quantité volumique ne donne une masse qu'avec conversion générique valide ou facteur spécifique documenté.
-- Une édition de fiche alimentaire recalcule l'affichage actuel des recettes; elle ne change jamais les snapshots du journal passé.
+- Une édition de fiche alimentaire recalcule l'affichage actuel des recettes; les quantités sauvegardées des repas restent conservées, sans recalcul implicite des portions.
 - Les profils/mesures n'apparaissent ni dans des événements publics, ni des journaux ordinaires, ni dans des fixtures réelles.
 - Un relevé de poids est explicite, saisi par l'utilisateur et daté; aucune mesure manquante n'est extrapolée.
-- Les estimations et objectifs restent distincts; les changements de profil ne réécrivent ni les relevés passés ni les consommations historisées.
+- Les estimations et objectifs restent distincts; les changements de profil ne réécrivent ni les relevés passés ni les mesures historisées.

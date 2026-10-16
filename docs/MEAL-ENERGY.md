@@ -53,3 +53,7 @@ Le rééquilibrage change les prévisions et les réservations liées aux repas,
 - Rééquilibrage : `src/server/daily-rebalance.mjs` ; API `GET /api/planning/rebalance-preview` et `POST /api/planning/rebalance`.
 - Aperçu signé par empreinte SHA-256 de ses entrées et propositions ; application transactionnelle avec verrou du foyer et isolation sérialisable.
 - Tests : `test/meal-settings.test.mjs`, `test/meal-energy-summary.test.mjs`, `test/automatic-main-portions.test.mjs`, `test/daily-rebalance.test.mjs`.
+
+## Salades et sauces — 0.2.72
+
+Une salade suit les mêmes règles qu’un plat. Une sauce ajoutée par « + Sauce » compte dans les kcal et protéines du repas, avec quantité initiale 30 g/ml ou une unité selon le rendement, modifiable par personne et pouvant être nulle. Sa quantité est fixe pendant les suggestions et le rééquilibrage : elle ne sert pas à compléter un pourcentage ou un objectif protéique. Les quantités ajustables du plat tiennent compte de ses apports.

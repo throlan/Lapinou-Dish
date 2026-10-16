@@ -2,20 +2,22 @@
 
 ## Version de référence
 
-Le code est en version **0.2.72** : catégories Salade et Sauce, mêmes services et calculs pour les salades que pour les plats, ajout de sauces au calendrier avec quantités fixes modifiables par personne. Validation locale : **213 tests réussis** et parcours Chrome/PostgreSQL fictif vérifié. Les dernières livraisons vérifiées sont les kcal dans les choix de recettes (0.2.70, PR 97) et les recettes liées aux aliments (0.2.71, PR 98). Les filtres nutritionnels planifiés, badges et retour interne sont livrés par la PR 96. Voir le [journal du 16 octobre](SESSION-2026-10-16.md) ; vérifier le workflow du dernier commit de main pour confirmer sa publication GHCR.
+Application **0.2.72**, fusionnée par la **PR #99**, commit `191fca91b6e3bd35a9c4ed20d79bea0c0946a1c8`. Catégories Salade et Sauce, services et calculs identiques aux plats pour les salades, sauces à quantité fixe modifiable par personne. Validation locale : **213 tests réussis** et parcours Chrome/PostgreSQL fictif vérifié. Le [workflow de livraison](https://github.com/throlan/Lapinou-Dish/actions/runs/38965953820) a réussi : tests et publication GHCR confirmés le 16 octobre. Voir le [journal](SESSION-2026-10-16.md).
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 16 octobre](SESSION-2026-10-16.md).
 
-Les prochaines pistes (confort de la page recettes et de l'import, usage mobile global, comptes et communauté) sont consignées dans le [cahier des améliorations](AMELIORATIONS.md). Le stockage persistant des photos et la génération d'illustrations sont déjà livrés en 0.2.65 ; ils ne sont plus des chantiers à démarrer.
+Les tâches réellement restantes et les fonctions déjà livrées sont séparées dans [TODO.md](TODO.md). Les pistes détaillées restent dans [AMELIORATIONS.md](AMELIORATIONS.md) ; aucune nouvelle modification fonctionnelle ne doit démarrer sans demande de l’utilisateur.
 
-**Règle impérative : aucune intervention de l'agent sur Unraid, y compris en lecture ou pour une vérification. L'utilisateur gère lui-même son installation et ses mises à jour.**
+**Règle impérative : aucune intervention de l'agent sur Unraid ni sur Nginx, y compris en lecture ou pour une vérification. L'utilisateur gère lui-même son installation et ses mises à jour.**
 
 ## Implémenté
 
 - Authentification par mot de passe de foyer et session HTTP-only ; connexion sans actualisation nécessaire.
 - Catalogue canonique Ciqual et aliments manuels, alias, conversions documentées, données inconnues conservées, édition et recherche de valeurs manquantes.
-- Création/édition de recettes, calcul par batch et rendement, types et moments distincts, filtres et recherche. Liste paginée (12 recettes), détails repliés et réglages de production/moments enregistrables directement sur chaque ligne sans modifier les ingrédients.
-- Import de texte/archives en brouillons, OpenAI optionnel et tentative de récupération de description Instagram avec repli texte.
+- Duplication des aliments et volet « Dans X recettes » avec liens vers les recettes mères distinctes.
+- Filtres de données manquantes et de nutrition incomplète planifiée depuis le début du mois courant ; badges dans les préparations, retour interne et kcal dans les choix de recettes du calendrier.
+- Création/édition de recettes, calcul par batch et rendement, types et moments distincts, filtres et recherche. Grille de vignettes paginée (12 recettes), photos, filtres latéraux, détails repliés et réglages de production/moments enregistrables directement sur chaque ligne sans modifier les ingrédients.
+- Page Importer distincte ; import de texte/archives en brouillons, OpenAI optionnel et tentative de récupération de description Instagram avec repli texte.
 - Calendrier à cinq créneaux, participants explicites, repas multi-recettes, boissons/desserts individuels et duplication complète sur plusieurs dates. Au petit-déjeuner et aux deux collations, les desserts adaptés peuvent aussi être ajoutés comme recette commune et bénéficier du calcul de portions ; au déjeuner et au dîner, le dessert individuel s’ajoute avec « + Dessert ».
 - Préparation entière en grammes estimés, deux ou trois parties indépendantes, coefficients de cuisson, conversions des repas/lots existants et conservation des ingrédients crus.
 - Ingrédients en blocs lisibles ; liens en bas ; coefficient individuel affiché pour les féculents sélectionnés.
@@ -34,7 +36,7 @@ Les photos sont stockées dans un dossier configurable (`RECIPE_IMAGE_DIR`) avec
 
 ## Vérification
 
-La suite complète locale a réussi pour la version 0.2.68 (192 tests). Le [workflow 234](https://github.com/throlan/Lapinou-Dish/actions/runs/38913116749) a validé les tests et publié l'image GHCR. Les vérifications Chrome sur données fictives documentées ci-dessous correspondent à la version 0.2.56 et valident la liste paginée sur ordinateur et mobile. Le workflow 214 de la version 0.2.61 est conservé comme repère historique.
+La suite complète locale a réussi pour la version **0.2.72 : 213 tests**. Les vérifications Chrome locales couvrent notamment les types Salade/Sauce, les services, les quantités de sauce (défaut, saisie manuelle et zéro), le recalcul puis la sauvegarde/réouverture. Les validations des versions antérieures restent archivées dans les journaux. Le workflow de livraison lié ci-dessus a confirmé les tests CI et la publication de cette version.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 
@@ -72,7 +74,7 @@ Livré en 0.2.52 (PR 66, workflow 183) : stock initial par aliment, saisi dans l
 
 ## Suite
 
-Les chantiers proposés sont détaillés dans [AMELIORATIONS.md](AMELIORATIONS.md) et ne sont pas encore planifiés. Prochaine étape conseillée : définir les critères de données nutritionnelles manquantes et le contenu des vignettes, puis préciser les parcours avant de toucher à l’interface.
+Voir [TODO.md](TODO.md) pour les prochaines décisions : nettoyage du catalogue, aide à la correction nutritionnelle, mobile/PWA, comptes et communauté. Les filtres, les vignettes avec photos et la page Importer sont déjà livrés ; ils ne sont plus des chantiers à démarrer.
 
 La fiche « Cuisiner » et le regroupement des préparations ont été livrés sur `main` (PR 79, version 0.2.61). Le dessert commun pour les deux collations est livré via la PR 80. L'utilisateur met lui-même à jour son installation ; l'agent ne la vérifie pas.
 
