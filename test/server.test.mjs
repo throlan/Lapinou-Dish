@@ -258,3 +258,14 @@ function assertSqlParenthesesBalanced(sql) {
   assert.equal(inString, false, 'SQL string literal is closed');
   assert.equal(depth, 0, 'SQL parentheses are balanced');
 }
+
+
+test('planned recipe ID lookup validates the household and start date before querying',async()=>{
+  let called=false;const pool={query:async(sql,values)=>{called=true;assert.match(sql,/COALESCE\(r\.parent_recipe_id,r\.id\)/);assert.deepEqual(values,['11111111-1111-4111-8111-111111111111','2026-10-01']);return{rows:[{recipe_id:'22222222-2222-4222-8222-222222222222'}]};}};
+  const invalid=await invoke('/api/planning/recipe-ids?householdId=bad&fromDate=2026-10-01',pool);
+  assert.equal(invalid.status,400);assert.equal(called,false);
+  const invalidDate=await invoke('/api/planning/recipe-ids?householdId=11111111-1111-4111-8111-111111111111&fromDate=2026-02-30',pool);
+  assert.equal(invalidDate.status,400);assert.equal(called,false);
+  const valid=await invoke('/api/planning/recipe-ids?householdId=11111111-1111-4111-8111-111111111111&fromDate=2026-10-01',pool);
+  assert.equal(valid.status,200);assert.deepEqual(valid.body,{recipeIds:['22222222-2222-4222-8222-222222222222']});assert.equal(called,true);
+});

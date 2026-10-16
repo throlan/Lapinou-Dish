@@ -60,6 +60,19 @@ export async function listPlannedMeals(pool, householdId, weekStart) {
   return meals;
 }
 
+export async function listPlannedRecipeIds(pool, householdId, fromDate) {
+  const result = await pool.query(
+    `SELECT DISTINCT COALESCE(r.parent_recipe_id,r.id) AS recipe_id
+     FROM planned_meals m
+     JOIN planned_meal_items i ON i.meal_id=m.id
+     JOIN recipes r ON r.id=i.recipe_id AND r.household_id=m.household_id
+     WHERE m.household_id=$1 AND m.meal_date >= $2::date
+     ORDER BY recipe_id`,
+    [householdId, fromDate],
+  );
+  return result.rows.map(row => row.recipe_id);
+}
+
 export async function savePlannedMeal(pool, id, data) {
   const client = await pool.connect();
   const mealId = id ?? randomUUID();

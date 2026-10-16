@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { listPlannedMeals, validatePlannedMeal } from '../src/server/planning.mjs';
+import { listPlannedMeals, listPlannedRecipeIds, validatePlannedMeal } from '../src/server/planning.mjs';
 
 const householdId = '11111111-1111-4111-8111-111111111111';
 const recipeId = '22222222-2222-4222-8222-222222222222';
@@ -108,4 +108,14 @@ test('planned meals keep their exact calendar date when listed', async () => {
 test('accepts meal item categories and rejects unsupported categories', () => {
   assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, role: 'beverage', amounts: [{ personId: personA, quantity: 1 }, { personId: personB, quantity: 1 }] }] })).data.items[0].role, 'beverage');
   assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, role: 'dessert', amounts: [{ personId: personA, quantity: 1 }, { personId: personB, quantity: 1 }] }] })).data.items[0].role, 'dessert');
+});
+
+
+test('planned recipe lookup returns distinct parent recipe IDs from the requested date onward', async () => {
+  const queries=[];
+  const pool={query:async(sql,values)=>{queries.push({sql,values});return {rows:[{recipe_id:recipeId}]};}};
+  assert.deepEqual(await listPlannedRecipeIds(pool,householdId,'2026-10-01'),[recipeId]);
+  assert.match(queries[0].sql,/COALESCE\(r\.parent_recipe_id,r\.id\)/);
+  assert.match(queries[0].sql,/m\.meal_date >= \$2::date/);
+  assert.deepEqual(queries[0].values,[householdId,'2026-10-01']);
 });

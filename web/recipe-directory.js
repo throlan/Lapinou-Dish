@@ -18,7 +18,14 @@ export function filterRecipeDirectory(recipes, filters) {
     if (query && !normalize(recipe.name).includes(query)) return false;
     const missing = recipeMissingData(recipe);
     if (filters.missing === 'any' && !missing.length) return false;
-    if (filters.missing && filters.missing !== 'any' && !missing.some(item => item.id === filters.missing)) return false;
+    if (filters.missing && filters.missing !== 'any' && filters.missing !== 'nutrition-planned' && !missing.some(item => item.id === filters.missing)) return false;
+    if (filters.missing === 'nutrition-planned') {
+      const plannedIds = filters.plannedRecipeIds instanceof Set ? filters.plannedRecipeIds : new Set(filters.plannedRecipeIds ?? []);
+      const isPlanned = plannedIds.has(recipe.id)
+        || (recipe.parentRecipeId && plannedIds.has(recipe.parentRecipeId))
+        || (recipe.servingParts ?? []).some(part => plannedIds.has(part.id));
+      if (!isPlanned || !missing.some(item => item.id === 'nutrition')) return false;
+    }
     return true;
   });
 }

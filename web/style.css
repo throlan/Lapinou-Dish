@@ -5,7 +5,8 @@ button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 .topbar { height: 72px; position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 0 max(28px, calc((100vw - 1440px)/2)); background: #fff; border-bottom: 1px solid #e5e1d7; box-shadow: 0 5px 18px #20282012; }
 .brand { display:flex; align-items:center; gap:10px; color:#315f42; font-family: Georgia,serif; font-weight:700; text-decoration:none; font-size:19px; white-space:nowrap; }.brand b { color:#9d4b91; }.brand-mark { font-size:25px; }
-.topbar nav { display:flex; gap:8px; }.nav-button { border:0; background:transparent; color:#59645e; padding:11px 18px; border-radius:24px; }.nav-button:hover,.nav-button.active { color:#315f42; background:#e9eee6; }
+.topbar nav { display:flex; gap:8px; }.app-back { white-space:nowrap; }
+.nav-button { border:0; background:transparent; color:#59645e; padding:11px 18px; border-radius:24px; }.nav-button:hover,.nav-button.active { color:#315f42; background:#e9eee6; }
 .connection { color:#66756b; font-size:13px; }.connection.error { color:#ae394c; }
 main { max-width:1440px; margin:0 auto; padding:28px 40px 56px; }
 .intro { display:flex; justify-content:space-between; align-items:center; gap:24px; margin:5px 0 28px; }.eyebrow { color:#6c806f; font-size:11px; font-weight:700; letter-spacing:.12em; margin:0 0 7px; }.intro h1 { font:700 30px Georgia,serif; color:#315f42; margin:0 0 5px; }.intro p:not(.eyebrow) { color:#69716c; margin:0; }
@@ -507,6 +508,7 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .preparation-week-hint { margin:0 4px 2px; }
 .preparation-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 10px; padding:11px 12px; border:1px solid var(--line,#344766); border-radius:12px; background:#142039; }
 .preparation-row strong { overflow-wrap:anywhere; }
+.preparation-incomplete-tag { grid-column:1; justify-self:start; }
 .preparation-row small { color:var(--muted,#9bb0d1); }
 .preparation-row .preparation-amount { grid-column:2; grid-row:1 / span 2; color:#c6ed75; font-weight:700; text-align:right; }
 .preparation-row.is-covered .preparation-amount { color:#63d7b0; }
