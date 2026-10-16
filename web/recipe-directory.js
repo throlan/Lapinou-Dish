@@ -1,4 +1,4 @@
-const TYPE_LABELS = { dish: 'Plat', beverage: 'Boisson', accompaniment: 'Accompagnement', dessert: 'Dessert' };
+const TYPE_LABELS = { dish: 'Plat', salad: 'Salade', sauce: 'Sauce', beverage: 'Boisson', accompaniment: 'Accompagnement', dessert: 'Dessert' };
 const MOMENT_LABELS = { breakfast: 'Petit-déjeuner', lunch: 'Déjeuner', dinner: 'Dîner', snack: 'Collation' };
 
 export function recipeMissingData(recipe) {

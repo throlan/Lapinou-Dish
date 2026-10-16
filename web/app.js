@@ -1240,8 +1240,8 @@ function updateServingConfiguration() {
 $('#recipe-form').elements.servingMode.addEventListener('change',updateServingConfiguration);
 $('#recipe-form').elements.recipeType.addEventListener('change', () => {
   const form = $('#recipe-form');
-  if (form.elements.recipeType.value !== 'dish' && ['separate','three'].includes(form.elements.servingMode.value)) form.elements.servingMode.value = 'whole';
-  if (['dessert','beverage'].includes(form.elements.recipeType.value)) form.elements.servingMode.value = 'original';
+  if (!['dish','salad'].includes(form.elements.recipeType.value) && ['separate','three'].includes(form.elements.servingMode.value)) form.elements.servingMode.value = 'whole';
+  if (['dessert','beverage','sauce'].includes(form.elements.recipeType.value)) form.elements.servingMode.value = 'original';
   updateServingConfiguration();
 });
 $('#new-recipe').addEventListener('click', () => openRecipeEditor());
@@ -1370,7 +1370,7 @@ async function openRecipeEditor(id = null, duplicate = false) {
 }
 
 const recipeFilterChoices={
-  type:[['','Tous'],['dish','Plat'],['beverage','Boisson'],['accompaniment','Accompagnement'],['dessert','Dessert']],
+  type:[['','Tous'],['dish','Plat'],['salad','Salade'],['sauce','Sauce'],['beverage','Boisson'],['accompaniment','Accompagnement'],['dessert','Dessert']],
   moment:[['','Tous'],['breakfast','Petit-déjeuner'],['lunch','Déjeuner'],['snack','Collation'],['dinner','Dîner'],['untagged','Sans tag']],
 };
 const recipeFilters={type:'',moment:'',query:'',missing:'',page:1};
@@ -2256,10 +2256,14 @@ function applyAutomaticPortions(items, attendeeIds) {
       const kcal = recipe?.nutrition?.perYieldUnit?.energyKcal;
       const recipeUnit = recipe?.yield.unitId ?? 'portion';
       const step = recipeUnit === 'piece' ? 1 : recipeUnit === 'g' ? 10 : 0.5;
-      if (isIndividualRole(role)) {
-        const quantity = Number(assignment.quantity);
+      if (isIndividualRole(role) || role === 'sauce') {
+        if(role === 'sauce'){
+          item.amounts ??= {};
+          if(item.amounts[personId] == null || item.amounts[personId] === '') item.amounts[personId]=String(sauceDefaultQuantity(recipe));
+        }
+        const quantity = Number(role === 'sauce' ? item.amounts[personId] : assignment.quantity);
         proposals.push({ item, assignment, personId, role, quantity: Number.isFinite(quantity) && quantity >= 0 ? quantity : 0, step, recipeKcal: Number(kcal), proteinG: recipe?.nutrition?.perYieldUnit?.proteinG == null ? null : Number(recipe.nutrition.perYieldUnit.proteinG), maxQuantity: Infinity });
-        if (kcal == null) messages.add(`${recipe?.name ?? 'Une boisson'} : calories inconnues, le respect du budget ne peut pas être vérifié.`);
+        if (kcal == null) messages.add(`${recipe?.name ?? (role === 'sauce' ? 'Une sauce' : 'Une boisson')} : calories inconnues, le respect du budget ne peut pas être vérifié.`);
         continue;
       }
       const extraSaving=Number(state.calendarReserveOverview?.accounts?.find(account=>account.personId===personId)?.savingsPlans?.find(plan=>plan.startsOn<=date&&plan.endsOn>=date)?.dailyKcal??0);
@@ -2313,7 +2317,7 @@ function applyAutomaticPortions(items, attendeeIds) {
         if (isIndividualRole(proposal.role)) proposal.assignment.quantity = String(proposal.quantity);
         else proposal.item.amounts[personId] = proposal.quantity == null ? '' : String(proposal.quantity);
       });
-      if (!result.withinBudget) messages.add(`${person?.displayName ?? 'Une personne'} : le repas dépasse encore l’enveloppe avec les portions minimales; réduis une boisson ou ajuste le repas.`);
+      if (!result.withinBudget) messages.add(`${person?.displayName ?? 'Une personne'} : le repas dépasse encore l’enveloppe avec les portions minimales; ajuste une boisson, une sauce ou le repas.`);
       if (!result.proteinKnown) messages.add(`${person?.displayName ?? 'Une personne'} : données protéiques incomplètes, le seuil de ${MIN_PROTEIN_G_PER_MEAL} g ne peut pas être vérifié.`);
       else if (!result.proteinTargetMet) messages.add(`${person?.displayName ?? 'Une personne'} : impossible d’atteindre ${MIN_PROTEIN_G_PER_MEAL} g de protéines sans dépasser l’enveloppe ou les portions maximales.`);
     }
@@ -2361,8 +2365,9 @@ function updateMealProteinSummary() {
 
 function allPlanningRecipes() { return state.recipes.flatMap(recipe => [recipe,...(recipe.servingParts ?? [])]); }
 function individualDessertSlot(slot) { return slot === 'lunch' || slot === 'dinner'; }
+function sauceDefaultQuantity(recipe) { return ['g','ml'].includes(recipe?.yield?.unitId) ? 30 : 1; }
 function plannedItemRoleOptions(currentRole) {
-  const options = [['main', 'Recette principale · 70 %'], ['accompaniment', 'Accompagnement · 20 %'], ['beverage', 'Boisson · choix individuel']];
+  const options = [['main', 'Recette principale · 70 %'], ['accompaniment', 'Accompagnement · 20 %'], ['beverage', 'Boisson · choix individuel'], ['sauce', 'Sauce · quantité au choix']];
   if (currentRole === 'dessert') options.push(['dessert', 'Dessert · choix individuel']);
   return options;
 }
@@ -2373,8 +2378,9 @@ function recipesForPlanning(slot, role, selectedIds = []) {
     if (moments.length && !moments.includes(slot === 'evening_snack' ? 'snack' : slot)) return false;
     if (recipe.recipeType) {
       if (isIndividualRole(role) && recipe.recipeType !== role) return false;
-      if (role === 'accompaniment' && recipe.recipeType !== 'accompaniment') return false;
-      if (role === 'main' && ['beverage', 'accompaniment'].includes(recipe.recipeType)) return false;
+      if (role === 'sauce' && recipe.recipeType !== 'sauce') return false;
+      if (role === 'accompaniment' && !['accompaniment','salad'].includes(recipe.recipeType)) return false;
+      if (role === 'main' && ['beverage', 'accompaniment', 'sauce'].includes(recipe.recipeType)) return false;
       if (role === 'main' && recipe.recipeType === 'dessert' && !['breakfast', 'snack', 'evening_snack'].includes(slot)) return false;
     }
     if (recipe.parentRecipeId && recipe.servingPart === 'main') return false;
@@ -2464,14 +2470,18 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
         const recipe = allPlanningRecipes().find((entry) => entry.id === item.recipeId);
         const unit = recipe?.yield.unitId ?? 'portion';
         const step = unit === 'piece' ? '1' : unit === 'g' ? '10' : '0.5';
-        const input = document.createElement('input'); input.type = 'number'; input.min = unit === 'g' ? '0.01' : step; input.step = unit === 'g' ? 'any' : step; input.required = true; input.dataset.personId = personId;
-        input.value = item.amounts?.[personId] ?? ''; input.placeholder = 'Ex. 1'; input.setAttribute('aria-label', `Quantité pour ${person?.displayName ?? 'personne'}`);
+        const input = document.createElement('input'); input.type = 'number'; input.min = role.value === 'sauce' ? '0' : unit === 'g' ? '0.01' : step; input.step = ['g','ml'].includes(unit) ? 'any' : step; input.required = true; input.dataset.personId = personId;
+        input.value = item.amounts?.[personId] ?? (role.value === 'sauce' && recipe ? String(sauceDefaultQuantity(recipe)) : ''); input.placeholder = role.value === 'sauce' ? '0 si aucune' : 'Ex. 1'; input.setAttribute('aria-label', `Quantité pour ${person?.displayName ?? 'personne'}`);
         input.addEventListener('input',updateMealProteinSummary);
         label.append(input); quantities.append(label);
       }
       select.addEventListener('change', () => {
         const data = currentFormAmounts();
         const recipe = state.recipes.find(recipe => recipe.id === select.value);
+        if(role.value === 'sauce'){
+          data[index]={recipeId:select.value,role:'sauce',amounts:Object.fromEntries(attendees.map(personId=>[personId,String(sauceDefaultQuantity(recipe))]))};
+          renderPlannedItems(data,{autoSuggest:true});return;
+        }
         if (recipe?.servingParts?.length) {
           const main = recipe.servingParts.find(part => part.servingPart === 'main');
           const starch = recipe.servingParts.find(part => part.servingPart === 'starch');
@@ -2528,7 +2538,10 @@ async function openMealEditor(date, slot, meal = null) {
     } else {
       items[nextItemIndex++] = {
         recipeId: item.recipeId, role: item.role ?? 'main',
-        amounts: Object.fromEntries(item.amounts.map((amount) => [amount.personId, String(amount.quantity)])),
+        amounts: Object.fromEntries([
+          ...(item.role === 'sauce' ? (meal.attendees ?? []).map(person=>[person.id,'0']) : []),
+          ...item.amounts.map(amount=>[amount.personId,String(amount.quantity)]),
+        ]),
       };
     }
   }
@@ -2587,6 +2600,11 @@ $('#manage-profiles').addEventListener('click', () => setView('profiles'));
 $('#add-planned-item').addEventListener('click', () => {
   const items = currentFormAmounts(); items[Math.max(-1, ...Object.keys(items).map(Number)) + 1] = { recipeId: '', amounts: {} }; renderPlannedItems(items);
 });
+$('#add-planned-sauce').addEventListener('click',()=>{
+  const items=currentFormAmounts();
+  items[Math.max(-1,...Object.keys(items).map(Number))+1]={recipeId:'',role:'sauce',amounts:{}};
+  renderPlannedItems(items);
+});
 $('#recalculate-portions').addEventListener('click', () => renderPlannedItems(currentFormAmounts(), { autoSuggest: true }));
 $('#add-planned-dessert').addEventListener('click',()=>{
   if(!individualDessertSlot($('#meal-form').elements.slot.value))return;
@@ -2638,11 +2656,11 @@ async function saveMeal(event) {
   const rows = $$('.planned-item-editor', $('#planned-items'));
   const items = isOccasion ? [] : rows.flatMap((row) => {
     const role = $('select[name="role"]', row).value;
-    if (!isIndividualRole(role)) return [{
-      recipeId: $('select[name="recipeId"]', row).value,
-      role,
-      amounts: $$('input[data-person-id]', row).map((input) => ({ personId: input.dataset.personId, quantity: Number(input.value) })),
-    }];
+    if (!isIndividualRole(role)) {
+      const amounts=$$('input[data-person-id]', row).map(input=>({personId:input.dataset.personId,quantity:Number(input.value)}));
+      const included=role==='sauce'?amounts.filter(amount=>amount.quantity>0):amounts;
+      return included.length?[{recipeId:$('select[name="recipeId"]',row).value,role,amounts:included}]:[];
+    }
     const byRecipe = new Map();
     $$('.beverage-person', row).forEach((personRow) => {
       const recipeId = $('select[data-person-recipe]', personRow).value;
@@ -2658,7 +2676,7 @@ async function saveMeal(event) {
   if (!attendeeIds.length) { showMessage($('#meal-message'), 'Sélectionne les personnes présentes pour ce repas.'); return; }
   if(!isOccasion && (!items.length || items.some((item) => !item.recipeId))) { showMessage($('#meal-message'), 'Choisis au moins une recette pour ce repas.'); return; }
   if(isOccasion && (!form.elements.occasionTitle.value.trim() || occasionEnergy.length!==attendeeIds.length || occasionEnergy.some(entry=>!Number.isFinite(entry.kcal)||entry.kcal<0))){showMessage($('#meal-message'),'Indique le nom de l’occasion et une estimation kcal pour chaque personne présente.');return;}
-  if (items.some((item) => !isIndividualRole(item.role) && item.amounts.length !== attendeeIds.length)
+  if (items.some((item) => !isIndividualRole(item.role) && item.role !== 'sauce' && item.amounts.length !== attendeeIds.length)
     || items.some((item) => item.amounts.length < 1 || item.amounts.some((amount) => !Number.isFinite(amount.quantity) || (isIndividualRole(item.role) ? amount.quantity < 0 : amount.quantity <= 0)))) {
     showMessage($('#meal-message'), 'Indique une quantité positive pour chaque personne concernée par les recettes choisies.');
     return;
