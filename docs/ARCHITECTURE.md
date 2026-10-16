@@ -1,8 +1,12 @@
 # Décisions techniques initiales
 
-État: décisions de départ, à vérifier par un prototype technique. Toute modification se fait ici avant d'accumuler des compromis dans le code.
+État : les ADR initiales ci-dessous sont historiques ; les décisions appliquées plus bas font autorité.
 
 Les ADR initiales ci-dessous gardent leur contexte historique. L'implémentation actuelle est décrite dans [STATUS.md](STATUS.md) et les décisions de session ci-après ; l'agent ne doit jamais accéder ni intervenir sur Unraid.
+
+## Architecture actuelle — 0.2.72
+
+Node.js 24+, serveur HTTP monolithique, modules métier JavaScript et domaine TypeScript natif ; interface HTML/CSS/JavaScript sans framework. PostgreSQL via pg, migrations SQL explicites et tests PGlite ; aucun ORM. Session de foyer, comptes individuels non livrés. Images dans un dossier configurable avec repli PostgreSQL. GitHub Actions teste les PR puis publie sur GHCR après fusion sur main. Les propositions historiques de framework/ORM ne sont plus des tâches ouvertes. Aucun accès de l’agent à Unraid ni à Nginx.
 
 ## ADR-0001 — Application neuve, domaine et interface propres
 

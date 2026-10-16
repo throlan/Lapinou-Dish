@@ -6,19 +6,19 @@ Mis à jour le 16 octobre 2026. Ce document rassemble des pistes demandées ou s
 
 ### Séparer l’import des recettes
 
-Déplacer l’import de recettes dans une page dédiée. La page Recettes serait consacrée à la consultation, la recherche, aux filtres et aux fiches. La page Importer proposerait l’import par texte, archive ou lien, puis une file de brouillons à vérifier et à associer au catalogue avant validation. Conserver les brouillons et les doublons repérables.
+**Livré** : page Importer dédiée, imports et brouillons à vérifier avant association au catalogue et validation. Les améliorations de détection des doublons et de confort du parcours restent à préciser ; ne pas recréer cette page.
 
 ### Afficher les recettes en vignettes avec des filtres latéraux
 
-Remplacer progressivement la liste paginée actuelle par une grille de fiches compactes, avec une colonne de filtres à gauche sur ordinateur. Chaque vignette pourrait montrer le nom, la photo si elle existe, les tags (type, moment, production), le rendement et un indicateur de complétude. Sur petit écran, la colonne devient un panneau de filtres repliable. Conserver la recherche, la pagination ou le chargement progressif et les réglages rapides sans ouvrir chaque fiche.
+**Livré** : grille paginée de vignettes avec photos, recherche et filtres latéraux sur ordinateur. Les réglages rapides sont conservés. Restent à évaluer la densité des fiches et le confort mobile des filtres, notamment un panneau repliable ; la grille elle-même n’est plus à créer.
 
 ### Améliorer l'affichage des photos dans les recettes
 
-L'ajout, le remplacement, la suppression et la génération à la demande sont livrés. Le stockage persistant est configurable par `RECIPE_IMAGE_DIR`, avec repli PostgreSQL ; la configuration retenue dans le conteneur est `/images`. Il reste à afficher les photos dans les futures vignettes et à décider si le mode cuisine en a besoin. Ne pas intégrer automatiquement les images des publications externes sans vérification des droits et sans action explicite.
+L'ajout, le remplacement, la suppression et la génération à la demande sont livrés. Le stockage persistant est configurable par `RECIPE_IMAGE_DIR`, avec repli PostgreSQL ; la configuration retenue dans le conteneur est `/images`. Les photos sont affichées dans les vignettes. Reste à décider si le mode cuisine en a besoin. Ne pas intégrer automatiquement les images des publications externes sans vérification des droits et sans action explicite.
 
 ### Filtrer les recettes incomplètes
 
-Ajouter un filtre « Données manquantes » et, si utile, des sous-filtres indiquant la cause : valeurs nutritionnelles absentes, ingrédient non associé au catalogue, conversion inconnue, rendement ou instructions absents, photo manquante. Distinguer les champs facultatifs des champs qui empêchent un calcul nutritionnel fiable. Un indicateur doit expliquer ce qui manque, sans convertir une valeur inconnue en zéro.
+**Livré** : filtres données manquantes, nutrition, instructions et photo ; filtre nutrition incomplète parmi les recettes planifiées depuis le premier jour du mois courant et à venir, et badge dans les préparations à faire. Les liens et les quantités restent indépendants de ces filtres. Prolongement possible : détailler la cause par ingrédient ou conversion et faciliter sa correction. Une donnée inconnue ne devient jamais zéro.
 
 ## Usage mobile et webapp
 
@@ -43,14 +43,6 @@ Envisager une bibliothèque publique de recettes partageables, consultables et i
 
 Une première expérimentation pourrait se limiter à un catalogue public en lecture seule, alimenté par des recettes explicitement proposées par leurs auteurs et approuvées. Les commentaires, comptes publics, notes et contributions ouvertes sont des extensions à évaluer séparément.
 
-## Ordre de discussion suggéré
+## Prochaines décisions
 
-1. Définir la prochaine évolution de la page Recettes : vignettes plus compactes, filtres et explication des données nutritionnelles incomplètes. La liste actuelle est déjà paginée et possède des réglages rapides.
-2. Préciser le parcours d'import : page dédiée, file de brouillons, association au catalogue et détection des doublons.
-3. Vérifier les parcours mobiles des pages restantes ; les courses ont déjà reçu leur première passe en 0.2.68. Décider ensuite si une PWA installable apporte une vraie valeur.
-4. Dessiner le modèle de comptes, d'associations personne/foyer et de droits avant toute modification d'authentification.
-5. Étudier la bibliothèque publique après avoir défini les droits, la modération et l'isolation stricte avec les données privées.
-
-## Prochaine décision
-
-Le meilleur prochain chantier à préciser est la page Recettes, en commençant par les filtres de complétude et la densité des fiches, puis en cadrant séparément la page d'import. Les photos persistantes sont déjà opérationnelles ; leur présentation dans les vignettes peut être intégrée à ce chantier.
+La liste synthétique à jour est dans [TODO.md](TODO.md). Propositions à confirmer : nettoyage du catalogue à partir des utilisations déjà visibles, aide à la correction des données manquantes, puis confort mobile, comptes et communauté. Aucun ordre de développement n’est imposé ; attendre la prochaine demande de l’utilisateur.

@@ -6,25 +6,25 @@ Ce dépôt est une application neuve. Il ne dépend pas du code, du schéma, des
 
 ## Produit
 
-Lire [le cahier de reprise](docs/REPRISE.md), [l'état actuel](docs/STATUS.md) et [le journal de session](docs/SESSION-2026-10-13.md), puis [le cahier produit](docs/PRODUCT.md), [le modèle métier](docs/DOMAIN.md) et [les décisions techniques](docs/ARCHITECTURE.md).
+Lire [le cahier de reprise](docs/REPRISE.md), [l'état actuel](docs/STATUS.md) et [le journal de session](docs/SESSION-2026-10-16.md), puis [le cahier produit](docs/PRODUCT.md), [le modèle métier](docs/DOMAIN.md) et [les décisions techniques](docs/ARCHITECTURE.md).
 
 ## Principes
 
 - L'aliment du catalogue est la source unique des noms et données nutritionnelles.
 - Une recette contient des références à des aliments, des quantités et des unités structurées. Le texte importé n'est qu'une proposition à valider.
 - Toutes les valeurs nutritionnelles sont calculées depuis les ingrédients; une donnée absente reste inconnue.
-- Le plan et la consommation réelle sont deux enregistrements distincts.
+- Le calendrier suit les apports prévus ; aucune saisie de consommation après repas n’est demandée. Les mouvements de stock restent explicites.
 - Le rendement fabriqué, les quantités attribuées et le stock restant doivent toujours se réconcilier.
 - Interface d'abord conçue pour ordinateur, compacte, avec calendrier semaine visible sans défilement vertical de page.
 - Les données personnelles et médicales réelles ne sont pas des données de développement.
 
 ## État
 
-Version applicative de référence : **0.2.41**. Catalogue et recettes, calendrier à cinq créneaux, duplication, desserts/boissons individuels, parties de service en grammes estimés, stocks et courses, profils compacts, objectifs kcal administrables et rééquilibrage avec aperçu sont implémentés. Voir [les règles kcal et portions](docs/MEAL-ENERGY.md).
+Version applicative de référence : **0.2.72**. Catalogue et recettes, calendrier à cinq créneaux, duplication, desserts/boissons individuels, parties de service en grammes estimés, stocks et courses, profils compacts, objectifs kcal administrables et rééquilibrage avec aperçu sont implémentés. Voir [les règles kcal et portions](docs/MEAL-ENERGY.md).
 
 L'import de texte et d'archives crée des brouillons à vérifier. Avec l'analyse OpenAI optionnelle, un lien Instagram peut permettre de récupérer sa description ; si la lecture est bloquée, coller le texte. Une transcription YouTube doit être fournie. Les ingrédients sont associés au catalogue avant enregistrement et les valeurs nutritionnelles sont recalculées depuis celui-ci.
 
-Le conteneur applique les migrations et le catalogue Ciqual au démarrage. **L'agent ne doit jamais accéder, vérifier, modifier ou déployer sur Unraid ; l'utilisateur effectue lui-même toutes les mises à jour.** La réserve kcal et les occasions restent en [brouillon archivé](docs/drafts/ENERGY-RESERVE.md).
+Le conteneur applique les migrations et le catalogue Ciqual au démarrage. **L'agent ne doit jamais accéder, vérifier, modifier ou déployer sur Unraid ni Nginx ; l'utilisateur effectue lui-même toutes les mises à jour.** La réserve kcal et les occasions sont livrées depuis 0.2.42 ; leur brouillon est une archive. Les prochaines tâches sont dans [TODO.md](docs/TODO.md).
 
 ## Démarrage de test avec Docker Compose
 

@@ -46,3 +46,7 @@ Les parties techniques restent rattachées à la recette et ne créent pas de ca
 ## Vérification
 
 Tests PostgreSQL/PGlite : calcul brut→grammes estimés, recette entière sans séparation, précision nutritionnelle, portions indépendantes, duplication, courses, conversions aller-retour des repas et lots en mode préparation entière, déduction unique, annulation de batch et transactions annulées si une conversion manque. Aucun serveur Unraid utilisé.
+
+## Catégories Salade et Sauce — 0.2.72
+
+Une salade conserve les mêmes rendements, modes de service (entier, deux ou trois parties), coefficients, courses et stocks qu’un plat. Changer Plat en Salade ne supprime pas les services existants. La sauce est une recette ajoutée avec une quantité par personne, fixe pendant les ajustements automatiques et incluse dans la nutrition.

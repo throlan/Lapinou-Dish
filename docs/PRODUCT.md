@@ -4,7 +4,7 @@ Ce document décrit le produit cible. Pour les fonctions effectivement livrées,
 
 ## Objectif
 
-Aider un foyer à décider quoi manger, en quelle quantité pour chaque personne, quoi acheter et quoi fabriquer à l'avance. Le logiciel affiche les apports calculés à partir des aliments réellement utilisés et sépare les prévisions de ce qui a été mangé.
+Aider un foyer à décider quoi manger, en quelle quantité pour chaque personne, quoi acheter et quoi fabriquer à l'avance. Le logiciel affiche les apports calculés à partir des aliments réellement utilisés sans demander de journal alimentaire après les repas.
 
 Ce produit aide à organiser les repas. Il ne diagnostique pas, ne prescrit pas et ne transforme pas une estimation en conseil médical.
 
@@ -38,14 +38,13 @@ Ce produit aide à organiser les repas. Il ne diagnostique pas, ne prescrit pas 
 - Pour un plat composé, les quantités de chaque composant sont personnalisables indépendamment par personne. Un plat mélangé permet une attribution par poids, pièce ou fraction de rendement.
 - Le total préparé, les quantités attribuées et les restes sont visibles et doivent s'équilibrer.
 
-## Planification, consommation et objectifs
+## Planification et objectifs
 
 - Calendrier hebdomadaire sur écran ordinateur: 7 jours lisibles, créneaux visibles, navigation compacte et résumés par personne. Pas de colonne étroite avec défilement intérieur imbriqué ni de page interminable.
 - Ajouter/modifier un repas se fait dans un panneau latéral ou une fenêtre compacte, en gardant la semaine visible.
 - Chaque repas indique qui sera présent; le foyer entier n'est jamais supposé automatiquement.
 - Le plan affiche par personne les portions et apports nutritionnels prévus, avec indicateurs de complétude et provenance.
-- Un geste simple confirme le repas prévu comme consommé ou ajuste chaque item; une collation additionnelle peut être ajoutée rapidement.
-- Les totaux réellement consommés sont distincts des objectifs et du plan. Un journal historique conserve un instantané nutritionnel afin qu'une modification ultérieure de recette ne réécrive pas le passé.
+- Les totaux représentent des prévisions. L’utilisateur ne souhaite pas de saisie après repas ni de journal du consommé ; « Préparé » gère les stocks, pas un relevé nutritionnel réel.
 - Les propositions de portions sont optionnelles, explicables, modifiables et limitées aux données connues. Elles ne s'appliquent jamais sans validation.
 
 ## Production en lots et stocks
@@ -61,7 +60,7 @@ Ce produit aide à organiser les repas. Il ne diagnostique pas, ne prescrit pas 
 
 - Les besoins de menus et de sessions de production peuvent alimenter une liste de courses, après révision explicite.
 - Les mêmes aliments du catalogue sont consolidés; quantité exacte nécessaire et quantité d'achat arrondie au paquet sont distinctes.
-- Le stock placard et congélateur confirmé est déduit. Courses de fond (quinzaine) et produits frais de complément peuvent être séparés.
+- Le stock placard et congélateur confirmé est déduit. Grosses courses mensuelles, frais chaque lundi par défaut et achats en ligne mensuels sont séparables et configurables.
 - Une substitution/variante reste visible; aucune liste n'est modifiée en ouvrant simplement un calcul.
 
 ## Interface
@@ -75,13 +74,13 @@ Ce produit aide à organiser les repas. Il ne diagnostique pas, ne prescrit pas 
 
 ## Évolutions produit à cadrer
 
-Les prochaines pistes demandées — page dédiée à l'import, vignettes et filtres de recettes, détection des données manquantes, usage mobile/PWA, comptes liés aux profils du foyer et bibliothèque communautaire — sont recensées dans le [cahier des améliorations](AMELIORATIONS.md). L'ajout de photos personnelles, leur stockage persistant et la génération d'illustrations à la demande sont déjà livrés ; leur affichage dans les futures vignettes reste à prévoir. Les propositions ne modifient pas les objectifs produit ni les règles de confidentialité ci-dessus.
+La page Importer, les vignettes avec photos, les filtres de données manquantes et la réserve kcal sont livrés. Les évolutions restantes — confort mobile/PWA, comptes individuels liés aux personnes et au foyer, communauté publique et nettoyage du catalogue — sont recensées dans [TODO.md](TODO.md) et [AMELIORATIONS.md](AMELIORATIONS.md). Les variantes et la fusion sûre des doublons décrites dans le produit cible ne sont pas à considérer comme entièrement implémentées.
 
 ## Jalons de validation
 
 1. **Fondation:** catalogue global, profil synthétique, recette avec lignes alimentaires structurées, calcul nutritionnel vérifiable.
 2. **Repas familial:** recette composée, personnes présentes, quantités indépendantes par composant, calendrier semaine desktop sans scroll vertical global.
-3. **Journal:** prévu/réel distinct, correction en un geste, historique nutritionnel immuable.
+3. **Prévisions et réserve :** objectifs datés, épargne glissante et occasions ; pas de journal de consommation.
 4. **Production:** rendement unitaire, usine petit déjeuner et pâtes, sessions, inventaire congelé.
 5. **Courses:** consolidation depuis menu et production avec déduction du stock et arrondi de paquets.
 
@@ -95,5 +94,5 @@ Chaque jalon aura des scénarios d'acceptation exécutables et une validation na
 - Les boissons et desserts peuvent être choisis individuellement. La duplication conserve les recettes, personnes, quantités et notes, sans recalcul implicite.
 - Le calcul ne remplit pas les budgets à tout prix : plafonds de portions du batch et du petit-déjeuner, saisie manuelle possible et limites protéiques visibles.
 - Le rééquilibrage des adultes passe par un aperçu : petit-déjeuner puis déjeuner/dîner si nécessaire. Les adolescents ne subissent pas cette réduction automatique ; une donnée inconnue ne devient pas un objectif implicite.
-- La réserve hebdomadaire/mensuelle et le mode Occasion avec estimation globale par adulte sont acceptés comme besoin, mais restent non livrés. Voir [le brouillon](drafts/ENERGY-RESERVE.md).
+- Repère historique du 13 octobre, désormais livré en 0.2.42 : réserve glissante et occasions avec estimation globale par adulte. Le [brouillon](drafts/ENERGY-RESERVE.md) reste archivé et ne doit pas être réappliqué.
 - L'utilisateur gère seul Unraid. Aucun accès, contrôle ou déploiement par l'agent n'est autorisé.
