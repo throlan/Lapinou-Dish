@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=0.2.61">
+    <link rel="stylesheet" href="/style.css?v=0.2.62">
   </head>
   <body>
     <header class="topbar">
@@ -13,6 +13,7 @@
         <button class="nav-button active" data-view="home">Accueil</button>
         <button class="nav-button" data-view="foods">Aliments</button>
         <button class="nav-button" data-view="recipes">Recettes</button>
+        <button class="nav-button" data-view="import">Importer</button>
         <button class="nav-button" data-view="calendar">Calendrier</button>
         <button class="nav-button" data-view="shopping">Courses & stocks</button>
         <button class="nav-button" data-view="admin">Administration</button>
@@ -83,30 +84,20 @@
       </section>
 
       <section id="recipes-view" class="view hidden">
-        <div class="section-heading"><div><h2>Recettes</h2><p>Les valeurs nutritionnelles sont recalculées depuis les aliments liés au catalogue.</p></div><button type="button" class="primary" id="new-recipe">+ Nouvelle recette</button></div>
-        <details class="card import-card">
-          <summary>Importer des recettes</summary>
-          <p class="hint">Avec OpenAI, colle le lien d’une publication Instagram pour tenter de récupérer sa description. Si la lecture est bloquée, colle le texte. Les recettes importées restent à vérifier avant enregistrement.</p>
-          <form id="recipe-import-form">
-            <label>Lien Instagram ou YouTube (facultatif)<input name="sourceUrl" type="url" placeholder="https://www.instagram.com/reel/… ou https://youtu.be/…"></label>
-            <label>Texte de la recette<textarea name="text" rows="8" maxlength="30000" placeholder="Facultatif pour un lien Instagram avec l’analyse OpenAI. Colle la description ici si Instagram bloque la lecture…"></textarea></label>
-            <label class="recipe-ai-option"><input name="useAI" type="checkbox" disabled> Analyser avec OpenAI</label>
-            <p id="recipe-ai-status" class="muted">Vérification de la disponibilité d’OpenAI…</p>
-            <div class="form-actions"><button class="primary" type="submit">Analyser et ajouter aux brouillons</button></div>
-            <p class="form-message" id="recipe-import-message" role="status"></p>
-          </form>
-          <label>Archive Norish ou export Tandoor (.zip, .norishrecipes)<input id="recipe-archive-file" type="file" accept=".zip,.norishrecipes,application/zip"></label>
-          <p class="form-message" id="recipe-archive-message" role="status"></p>
-          <div><h3>Importations à vérifier</h3><div id="recipe-import-list" class="recipe-list"><p class="empty">Aucun brouillon importé.</p></div></div>
-        </details>
-        <div id="recipe-filters-anchor" class="recipe-filters" aria-label="Filtrer les recettes">
-          <label class="recipe-search">Rechercher une recette<input id="recipe-search" type="search" placeholder="Nom de la recette…" autocomplete="off"></label>
-          <div><strong>Type</strong><div id="recipe-type-filters" class="recipe-filter-buttons"></div></div>
-          <div><strong>Moment</strong><div id="recipe-moment-filters" class="recipe-filter-buttons"></div></div>
-          <p id="recipe-filter-count" class="muted" role="status"></p>
+        <div class="section-heading"><div><h2>Recettes</h2><p>Recherche, filtres et fiches visuelles. Les valeurs restent calculées depuis le catalogue alimentaire.</p></div><div class="recipe-page-actions"><button type="button" class="secondary" id="open-recipe-import">Importer une recette</button><button type="button" class="primary" id="new-recipe">+ Nouvelle recette</button></div></div>
+        <div class="recipe-directory">
+          <aside id="recipe-filters-anchor" class="recipe-filters" aria-label="Filtrer les recettes">
+            <label class="recipe-search">Rechercher une recette<input id="recipe-search" type="search" placeholder="Nom de la recette…" autocomplete="off"></label>
+            <div><strong>Type</strong><div id="recipe-type-filters" class="recipe-filter-buttons"></div></div>
+            <div><strong>Moment</strong><div id="recipe-moment-filters" class="recipe-filter-buttons"></div></div>
+            <label>Fiches à afficher<select id="recipe-missing-filter"><option value="">Toutes les fiches</option><option value="any">Toute donnée à compléter</option><option value="nutrition">Calcul nutritionnel incomplet</option><option value="instructions">Instructions absentes</option><option value="image">Photo absente</option></select></label>
+            <p id="recipe-filter-count" class="muted" role="status"></p>
+          </aside>
+          <div class="recipe-results">
+            <div id="recipe-list" class="recipe-list recipe-grid"><p class="empty">Chargement des recettes…</p></div>
+            <nav id="recipe-pagination" class="recipe-pagination" aria-label="Pages de recettes"></nav>
+          </div>
         </div>
-        <div id="recipe-list" class="recipe-list"><p class="empty">Chargement des recettes…</p></div>
-        <nav id="recipe-pagination" class="recipe-pagination" aria-label="Pages de recettes"></nav>
         <form id="recipe-form" class="card form-card hidden">
           <div class="section-heading"><div><h2 id="recipe-form-title">Nouvelle recette</h2><p>Choisis les aliments du catalogue et saisis leurs quantités.</p></div><button type="button" class="secondary" id="cancel-recipe">Annuler</button></div>
           <label>Nom de la recette<input name="name" required maxlength="200" placeholder="Ex. Muffins pomme-cannelle"></label>
@@ -142,6 +133,26 @@
           <p class="form-message" id="recipe-message" role="status"></p>
         </form>
         <section id="recipe-result" class="card result hidden" aria-live="polite"></section>
+      </section>
+
+      <section id="import-view" class="view hidden">
+        <div class="section-heading"><div><h2>Importer des recettes</h2><p>Les imports arrivent en brouillon. Vérifie les aliments, les quantités et le rendement avant de les enregistrer.</p></div><button type="button" class="secondary" id="back-to-recipes">Retour aux recettes</button></div>
+        <section class="card import-card">
+          <p class="hint">Avec OpenAI, colle le lien d’une publication Instagram pour tenter de récupérer sa description. Si la lecture est bloquée, colle le texte. Les recettes importées restent à vérifier avant enregistrement.</p>
+          <form id="recipe-import-form">
+            <label>Lien Instagram ou YouTube (facultatif)<input name="sourceUrl" type="url" placeholder="https://www.instagram.com/reel/… ou https://youtu.be/…"></label>
+            <label>Texte de la recette<textarea name="text" rows="8" maxlength="30000" placeholder="Facultatif pour un lien Instagram avec l’analyse OpenAI. Colle la description ici si Instagram bloque la lecture…"></textarea></label>
+            <label class="recipe-ai-option"><input name="useAI" type="checkbox" disabled> Analyser avec OpenAI</label>
+            <p id="recipe-ai-status" class="muted">Vérification de la disponibilité d’OpenAI…</p>
+            <label class="recipe-ai-option"><input name="generateImage" type="checkbox" disabled> Générer automatiquement une illustration IA après validation de la recette</label>
+            <p id="recipe-image-ai-status" class="muted">Génération facultative, déclenchée uniquement sur demande et facturée sur le compte OpenAI configuré.</p>
+            <div class="form-actions"><button class="primary" type="submit">Analyser et ajouter aux brouillons</button></div>
+            <p class="form-message" id="recipe-import-message" role="status"></p>
+          </form>
+          <label>Archive Norish ou export Tandoor (.zip, .norishrecipes)<input id="recipe-archive-file" type="file" accept=".zip,.norishrecipes,application/zip"></label>
+          <p class="form-message" id="recipe-archive-message" role="status"></p>
+          <div><h3>Importations à vérifier</h3><div id="recipe-import-list" class="recipe-list"><p class="empty">Aucun brouillon importé.</p></div></div>
+        </section>
       </section>
 
       <section id="shopping-view" class="view hidden">
@@ -277,6 +288,16 @@
         <p class="form-message" id="login-message" role="alert"></p>
       </form>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.61"></script>
+    <dialog id="recipe-image-dialog" class="recipe-image-dialog">
+      <div class="dialog-heading"><h2 id="recipe-image-title">Photo de la recette</h2><button type="button" class="icon-button" id="close-recipe-image" aria-label="Fermer">×</button></div>
+      <img id="recipe-image-preview" class="recipe-image-preview hidden" alt="Illustration de la recette">
+      <p id="recipe-image-placeholder" class="recipe-image-placeholder">Aucune photo pour cette recette.</p>
+      <label>Choisir une photo personnelle<input id="recipe-image-file" type="file" accept="image/jpeg,image/png,image/webp"></label>
+      <p class="hint">La photo est redimensionnée dans ton navigateur puis stockée dans la base du foyer. PNG, JPEG ou WebP jusqu’à 5 Mo.</p>
+      <div class="recipe-image-actions"><button type="button" class="secondary" id="generate-recipe-image">Créer une illustration avec l’IA</button><button type="button" class="secondary danger-button" id="delete-recipe-image">Supprimer la photo</button></div>
+      <p id="recipe-image-message" class="form-message" role="status"></p>
+      <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
+    </dialog>
+    <script type="module" src="/app.js?v=0.2.62"></script>
   </body>
 </html>
