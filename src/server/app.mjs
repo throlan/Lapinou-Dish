@@ -8,7 +8,7 @@ import { readMealSettings, saveMealSettings, readPlateSettings, savePlateSetting
 import { deleteSavingPlan, getEnergyReserveOverview, saveSavingPlan, validateSavingPlan } from './energy-reserve.mjs';
 import { countProductInventory, listIngredientStock, recordPurchaseReceipt, saveIngredientStock, validateIngredientStock, validateProductCount, validatePurchaseReceipt } from './ingredient-stock.mjs';
 import { createHmac, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
-import { createFood, deleteFood, fillMissingNutritionFromExternal, getFood, updateFood, validateFoodInput } from './foods.mjs';
+import { createFood, deleteFood, fillMissingNutritionFromExternal, getFood, listFoodRecipeUsage, updateFood, validateFoodInput } from './foods.mjs';
 import { getOpenFoodFactsProduct, searchOpenFoodFacts } from './open-food-facts.mjs';
 import { createRecipe, listRecipes, readRecipe, updateRecipe, updateRecipeSettings, validateRecipeInput, validateRecipeSettings } from './recipes.mjs';
 import { listImportDrafts, saveImportDrafts } from './recipe-imports.mjs';
@@ -639,6 +639,15 @@ export async function handleRequest(request, response, pool, appPassword = null,
       } catch {
         return send(response, 500, { error: 'recipe-read-failed' });
       }
+    }
+
+    if (url.pathname === '/api/foods/recipe-usage' && request.method === 'GET') {
+      const householdId = url.searchParams.get('householdId');
+      const foodIds = [...new Set((url.searchParams.get('foodIds') ?? '').toLowerCase().split(','))];
+      if (!isUuid(householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      if (!foodIds.length || foodIds.length > 100 || foodIds.some(id => !isUuid(id))) return send(response, 400, { error: 'invalid-food-ids' });
+      try { return send(response, 200, { usage: await listFoodRecipeUsage(pool, householdId, foodIds) }); }
+      catch { return send(response, 500, { error: 'food-recipe-usage-failed' }); }
     }
 
     if (url.pathname === '/api/foods' && request.method === 'POST') {

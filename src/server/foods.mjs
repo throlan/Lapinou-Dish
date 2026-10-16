@@ -8,6 +8,23 @@ const nutrientIds = {
   fibreG: 'fibre_g',
 };
 
+export async function listFoodRecipeUsage(pool, householdId, foodIds) {
+  if (!foodIds.length) return [];
+  const result = await pool.query(
+    `SELECT DISTINCT rl.food_id, COALESCE(parent.id,r.id) AS id,
+                     COALESCE(parent.name,r.name) AS name
+       FROM recipe_lines rl
+       JOIN recipes r ON r.id=rl.recipe_id
+       LEFT JOIN recipes parent ON parent.id=r.parent_recipe_id AND parent.household_id=r.household_id
+      WHERE r.household_id=$1 AND rl.food_id=ANY($2::uuid[])
+      ORDER BY name,id,rl.food_id`,
+    [householdId, foodIds],
+  );
+  const recipesByFood = new Map(foodIds.map(id => [id, []]));
+  for (const { food_id, id, name } of result.rows) recipesByFood.get(food_id).push({ id, name });
+  return [...recipesByFood].map(([foodId, recipes]) => ({ foodId, recipes }));
+}
+
 export function validateFoodInput(input, { creating = false } = {}) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return { error: 'invalid-body' };
   const data = {};
