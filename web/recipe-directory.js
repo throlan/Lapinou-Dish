@@ -23,6 +23,15 @@ export function filterRecipeDirectory(recipes, filters) {
   });
 }
 
+export function recipeCardForSource(recipes, sourceRecipeId) {
+  const source = recipes.find(recipe => recipe.id === sourceRecipeId)
+    ?? recipes.find(recipe => recipe.servingParts?.some(part => part.id === sourceRecipeId));
+  if (!source) return null;
+  return source.parentRecipeId
+    ? recipes.find(recipe => recipe.id === source.parentRecipeId) ?? source
+    : source;
+}
+
 export function recipeTypeLabel(type) { return TYPE_LABELS[type] ?? 'Recette'; }
 export function recipeMomentLabel(moment) { return MOMENT_LABELS[moment] ?? moment; }
 function normalize(value) { return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr'); }

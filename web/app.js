@@ -8,7 +8,7 @@ import { suggestPlatePortions } from './portion-planner.js';
 import { PLATE_PARTS, validPlateRatios } from './meal-config.js';
 import { preparationWeeks } from './preparation-weeks.js';
 import { groupPreparations, suggestedProductionQuantity, scaledIngredients } from './cooking-sheet.js';
-import { filterRecipeDirectory, recipeMissingData, recipeMomentLabel, recipeTypeLabel } from './recipe-directory.js';
+import { filterRecipeDirectory, recipeCardForSource, recipeMissingData, recipeMomentLabel, recipeTypeLabel } from './recipe-directory.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -1339,11 +1339,13 @@ const recipeFilterChoices={
 const recipeFilters={type:'',moment:'',query:'',missing:'',page:1};
 const recipesPerPage=12;
 async function showRecipeCard(recipeId){
-  const recipe=state.recipes.find(item=>item.id===recipeId);if(!recipe)return;
-  recipeFilters.type='';recipeFilters.moment='';recipeFilters.query=recipe.name;recipeFilters.page=1;
+  const recipe=recipeCardForSource(state.recipes,recipeId);
+  if(!recipe)return;
+  recipeFilters.type='';recipeFilters.moment='';recipeFilters.missing='';recipeFilters.query=recipe.name;recipeFilters.page=1;
   $('#recipe-search').value=recipe.name;
+  $('#recipe-missing-filter').value='';
   await setView('recipes');
-  $('#recipe-list [data-recipe-id="'+recipeId+'"]')?.scrollIntoView({block:'center'});
+  $('#recipe-list [data-recipe-id="'+recipe.id+'"]')?.scrollIntoView({block:'center'});
 }
 let cookingRecipeId=null,cookingRequest=null;
 function renderCookingIngredients(){

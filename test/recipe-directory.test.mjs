@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { filterRecipeDirectory, recipeMissingData } from '../web/recipe-directory.js';
+import { filterRecipeDirectory, recipeCardForSource, recipeMissingData } from '../web/recipe-directory.js';
 
 const recipes=[
   {name:'Soupe',recipeType:'dish',mealMoments:['dinner'],instructions:'Mixer.',imageAvailable:true,nutrition:{complete:true}},
@@ -13,4 +13,11 @@ test('recipe directory filters by normalized query, type, moment and missing dat
   assert.deepEqual(filterRecipeDirectory(recipes,{missing:'any'}).map(r=>r.name),['Skyr vanille']);
   assert.deepEqual(filterRecipeDirectory(recipes,{missing:'image'}).map(r=>r.name),['Skyr vanille']);
   assert.deepEqual(recipeMissingData(recipes[0]),[]);
+});
+
+test('shopping sources for split preparations open their parent recipe card',()=>{
+  const parent={id:'parent',name:'Bœuf, riz et légumes',servingParts:[{id:'meat'},{id:'rice'},{id:'vegetables'}]};
+  assert.equal(recipeCardForSource([parent],'rice'),parent);
+  assert.equal(recipeCardForSource([parent],'parent'),parent);
+  assert.equal(recipeCardForSource([parent],'missing'),null);
 });
