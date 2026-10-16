@@ -17,9 +17,10 @@ COPY web ./web
 COPY docker ./docker
 RUN node scripts/seed-ciqual.mjs --output db/seeds/ciqual-2025.sql \
     && test -s db/seeds/ciqual-2025.sql \
-    && chown -R node:node /app
+    && mkdir -p /images \
+    && chown -R 99:100 /app /images
 
-USER node
+USER 99:100
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"

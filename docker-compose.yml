@@ -34,10 +34,14 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_RECIPE_MODEL: ${OPENAI_RECIPE_MODEL:-gpt-4.1-mini}
       OPENAI_IMAGE_MODEL: ${OPENAI_IMAGE_MODEL:-gpt-image-2.5-sunburst}
+      RECIPE_IMAGE_DIR: ${RECIPE_IMAGE_DIR:-/images}
       HOME_ASSISTANT_URL: ${HOME_ASSISTANT_URL:-}
       HOME_ASSISTANT_TOKEN: ${HOME_ASSISTANT_TOKEN:-}
+    volumes:
+      - lapinou_images:/images
     ports:
       - "127.0.0.1:3000:3000"
 
 volumes:
   lapinou_db:
+  lapinou_images:

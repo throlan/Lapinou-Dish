@@ -1,5 +1,10 @@
+import { randomUUID } from 'node:crypto';
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
+const EXTENSIONS = new Map([['image/png', 'png'], ['image/jpeg', 'jpg'], ['image/webp', 'webp']]);
 
 export function validateRecipeImageUpload(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return { error: 'invalid-recipe-image' };
@@ -10,28 +15,68 @@ export function validateRecipeImageUpload(input) {
   return { data: { householdId: input.householdId, mediaType: input.mediaType, image, source: 'personal' } };
 }
 
-export async function saveRecipeImage(pool, recipeId, data) {
+export async function saveRecipeImage(pool, recipeId, data, { imageDirectory = configuredImageDirectory() } = {}) {
   const owned = await pool.query('SELECT id FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL', [recipeId, data.householdId]);
   if (!owned.rowCount) return null;
-  await pool.query(`INSERT INTO recipe_images (recipe_id, media_type, source, image_bytes)
-    VALUES ($1,$2,$3,$4) ON CONFLICT (recipe_id) DO UPDATE
-    SET media_type=EXCLUDED.media_type, source=EXCLUDED.source, image_bytes=EXCLUDED.image_bytes, updated_at=now()`,
-  [recipeId, data.mediaType, data.source, data.image]);
+  const existing = await pool.query('SELECT file_name FROM recipe_images WHERE recipe_id=$1', [recipeId]);
+  let fileName = null;
+  if (imageDirectory) fileName = await writeImageFile(imageDirectory, recipeId, data.mediaType, data.image);
+  try {
+    await pool.query(`INSERT INTO recipe_images (recipe_id, media_type, source, image_bytes, file_name)
+      VALUES ($1,$2,$3,$4,$5) ON CONFLICT (recipe_id) DO UPDATE
+      SET media_type=EXCLUDED.media_type, source=EXCLUDED.source, image_bytes=EXCLUDED.image_bytes,
+          file_name=EXCLUDED.file_name, updated_at=now()`,
+    [recipeId, data.mediaType, data.source, fileName ? null : data.image, fileName]);
+  } catch (error) {
+    if (fileName) await unlink(path.join(imageDirectory, fileName)).catch(() => {});
+    throw error;
+  }
+  const previousFile = existing.rows[0]?.file_name;
+  if (previousFile && previousFile !== fileName && imageDirectory) await unlinkStoredFile(imageDirectory, previousFile);
   return { imageAvailable: true, source: data.source };
 }
 
-export async function readRecipeImage(pool, recipeId, householdId) {
-  const result = await pool.query(`SELECT i.media_type, i.image_bytes FROM recipe_images i
+export async function readRecipeImage(pool, recipeId, householdId, { imageDirectory = configuredImageDirectory() } = {}) {
+  const result = await pool.query(`SELECT i.media_type, i.image_bytes, i.file_name FROM recipe_images i
     JOIN recipes r ON r.id=i.recipe_id WHERE i.recipe_id=$1 AND r.household_id=$2 AND r.parent_recipe_id IS NULL`, [recipeId, householdId]);
-  return result.rows[0] ? { mediaType: result.rows[0].media_type, image: result.rows[0].image_bytes } : null;
+  const row = result.rows[0];
+  if (!row) return null;
+  if (row.file_name) {
+    if (!imageDirectory) throw new Error('recipe-image-directory-required');
+    return { mediaType: row.media_type, image: await readFile(storedFilePath(imageDirectory, row.file_name)) };
+  }
+  return row.image_bytes ? { mediaType: row.media_type, image: row.image_bytes } : null;
 }
 
-export async function removeRecipeImage(pool, recipeId, householdId) {
+export async function removeRecipeImage(pool, recipeId, householdId, { imageDirectory = configuredImageDirectory() } = {}) {
   const result = await pool.query(`DELETE FROM recipe_images i USING recipes r
-    WHERE i.recipe_id=$1 AND r.id=i.recipe_id AND r.household_id=$2 AND r.parent_recipe_id IS NULL RETURNING i.recipe_id`, [recipeId, householdId]);
-  if (result.rowCount) return true;
+    WHERE i.recipe_id=$1 AND r.id=i.recipe_id AND r.household_id=$2 AND r.parent_recipe_id IS NULL RETURNING i.recipe_id, i.file_name`, [recipeId, householdId]);
+  if (result.rowCount) {
+    if (result.rows[0]?.file_name && imageDirectory) await unlinkStoredFile(imageDirectory, result.rows[0].file_name);
+    return true;
+  }
   const owned = await pool.query('SELECT id FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL', [recipeId, householdId]);
   return owned.rowCount ? false : null;
+}
+
+export async function migrateLegacyRecipeImages(pool, { imageDirectory = configuredImageDirectory() } = {}) {
+  if (!imageDirectory) return 0;
+  const { rows } = await pool.query(`SELECT recipe_id, media_type, image_bytes FROM recipe_images
+    WHERE file_name IS NULL AND image_bytes IS NOT NULL ORDER BY recipe_id`);
+  let migrated = 0;
+  for (const row of rows) {
+    const fileName = await writeImageFile(imageDirectory, row.recipe_id, row.media_type, row.image_bytes);
+    try {
+      const updated = await pool.query(`UPDATE recipe_images SET image_bytes=NULL, file_name=$2, updated_at=now()
+        WHERE recipe_id=$1 AND file_name IS NULL AND image_bytes IS NOT NULL`, [row.recipe_id, fileName]);
+      if (updated.rowCount) migrated++;
+      else await unlinkStoredFile(imageDirectory, fileName);
+    } catch (error) {
+      await unlink(path.join(imageDirectory, fileName)).catch(() => {});
+      throw error;
+    }
+  }
+  return migrated;
 }
 
 export async function generateRecipeImage(prompt, { apiKey = process.env.OPENAI_API_KEY, model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2.5-sunburst', fetchImpl = fetch } = {}) {
@@ -60,6 +105,31 @@ export async function generateRecipeImage(prompt, { apiKey = process.env.OPENAI_
   }
 }
 
+async function writeImageFile(directory, recipeId, mediaType, image) {
+  const extension = EXTENSIONS.get(mediaType);
+  if (!extension || !isUuid(recipeId) || !Buffer.from(image).length || Buffer.byteLength(image) > MAX_IMAGE_BYTES || !matchesImageType(Buffer.from(image), mediaType)) throw new Error('invalid-recipe-image');
+  await mkdir(directory, { recursive: true });
+  const fileName = `${recipeId}-${randomUUID()}.${extension}`;
+  const destination = storedFilePath(directory, fileName);
+  try {
+    await writeFile(destination, image, { flag: 'wx', mode: 0o660 });
+    return fileName;
+  } catch (error) {
+    await unlink(destination).catch(() => {});
+    throw error;
+  }
+}
+
+function storedFilePath(directory, fileName) {
+  if (typeof fileName !== 'string' || !/^[0-9a-f-]{36}-[0-9a-f-]{36}\.(png|jpg|webp)$/.test(fileName)) throw new Error('invalid-recipe-image-path');
+  return path.join(directory, fileName);
+}
+
+async function unlinkStoredFile(directory, fileName) {
+  try { await unlink(storedFilePath(directory, fileName)); }
+  catch (error) { if (error?.code !== 'ENOENT') throw error; }
+}
+
 async function readProviderError(response) {
   try {
     const body = await response.json();
@@ -68,6 +138,11 @@ async function readProviderError(response) {
     const requestId = response.headers?.get?.('x-request-id');
     return { ...(providerCode ? { providerCode } : {}), ...(typeof requestId === 'string' && /^[a-z0-9_-]{1,100}$/i.test(requestId) ? { requestId } : {}) };
   } catch { return {}; }
+}
+
+function configuredImageDirectory() {
+  const directory = process.env.RECIPE_IMAGE_DIR?.trim();
+  return directory ? path.resolve(directory) : null;
 }
 
 function detectImageType(image) {
