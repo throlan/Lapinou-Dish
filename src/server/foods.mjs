@@ -21,6 +21,11 @@ export function validateFoodInput(input, { creating = false } = {}) {
     if (value !== null && (typeof value !== 'string' || value.length > 500)) return { error: `invalid-${key}` };
     data[key] = value?.trim() || null;
   }
+  if (creating || Object.hasOwn(input, 'nutrientSourceNote')) {
+    const value = input.nutrientSourceNote ?? null;
+    if (value !== null && (typeof value !== 'string' || value.length > 500)) return { error: 'invalid-nutrientSourceNote' };
+    data.nutrientSourceNote = value?.trim() || null;
+  }
   if (creating || Object.hasOwn(input, 'nutrientsPer100g')) {
     const values = input.nutrientsPer100g;
     if (!values || typeof values !== 'object' || Array.isArray(values)) return { error: 'invalid-nutrients' };
@@ -69,7 +74,7 @@ export async function createFood(pool, data) {
        VALUES ($1, $2, $3, 'manual', $4, $5)`,
       [id, data.name, data.brand, data.sourceNote, data.gramsPerMillilitre],
     );
-    await writeNutrients(client, id, data.nutrients, 'Saisie manuelle');
+    await writeNutrients(client, id, data.nutrients, data.nutrientSourceNote ?? 'Saisie manuelle');
     for (const [unit, grams] of Object.entries(data.gramsPerUnit)) {
       await client.query(
         `INSERT INTO food_unit_conversions (food_id, unit_id, grams_per_unit, source_note)

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { access, mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -13,6 +14,28 @@ export function validateRecipeImageUpload(input) {
   const image = Buffer.from(input.imageBase64, 'base64');
   if (!image.length || image.length > MAX_IMAGE_BYTES || !matchesImageType(image, input.mediaType)) return { error: 'invalid-recipe-image' };
   return { data: { householdId: input.householdId, mediaType: input.mediaType, image, source: 'personal' } };
+}
+
+export function recipeImageStorageConfig(directoryValue = process.env.RECIPE_IMAGE_DIR) {
+  const directory = typeof directoryValue === 'string' ? directoryValue.trim() : '';
+  return directory
+    ? { mode: 'filesystem', directory: path.resolve(directory) }
+    : { mode: 'database', directory: null };
+}
+
+export async function inspectRecipeImageStorage(directoryValue = process.env.RECIPE_IMAGE_DIR, { mountInfoPath = '/proc/self/mountinfo', platform = process.platform } = {}) {
+  const storage = recipeImageStorageConfig(directoryValue);
+  if (storage.mode === 'database') return { ...storage, mounted: null, mountPoint: null };
+  let writable = false;
+  try { await access(storage.directory, constants.W_OK); writable = true; } catch {}
+  if (platform !== 'linux') return { ...storage, mounted: null, mountPoint: null, writable };
+  try {
+    const contents = await readFile(mountInfoPath, 'utf8');
+    const mountPoint = findContainingMountPoint(storage.directory, contents);
+    return { ...storage, mounted: mountPoint !== null && mountPoint !== '/', mountPoint, writable };
+  } catch {
+    return { ...storage, mounted: null, mountPoint: null, writable };
+  }
 }
 
 export async function saveRecipeImage(pool, recipeId, data, { imageDirectory = configuredImageDirectory() } = {}) {
@@ -33,7 +56,7 @@ export async function saveRecipeImage(pool, recipeId, data, { imageDirectory = c
   }
   const previousFile = existing.rows[0]?.file_name;
   if (previousFile && previousFile !== fileName && imageDirectory) await unlinkStoredFile(imageDirectory, previousFile);
-  return { imageAvailable: true, source: data.source };
+  return { imageAvailable: true, source: data.source, storage: recipeImageStorageConfig(imageDirectory) };
 }
 
 export async function readRecipeImage(pool, recipeId, householdId, { imageDirectory = configuredImageDirectory() } = {}) {
@@ -140,9 +163,13 @@ async function readProviderError(response) {
   } catch { return {}; }
 }
 
-function configuredImageDirectory() {
-  const directory = process.env.RECIPE_IMAGE_DIR?.trim();
-  return directory ? path.resolve(directory) : null;
+function configuredImageDirectory() { return recipeImageStorageConfig().directory; }
+
+function findContainingMountPoint(directory, mountInfo) {
+  const matches = mountInfo.split('\n').map((line) => line.split(' ')).filter((fields) => fields.length > 4)
+    .map((fields) => fields[4].replace(/\\([0-7]{3})/g, (_, octal) => String.fromCharCode(Number.parseInt(octal, 8))))
+    .filter((mountPoint) => directory === mountPoint || directory.startsWith(`${mountPoint.replace(/\/$/, '')}/`));
+  return matches.sort((a, b) => b.length - a.length)[0] ?? null;
 }
 
 function detectImageType(image) {

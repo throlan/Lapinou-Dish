@@ -13,7 +13,7 @@ import { getOpenFoodFactsProduct, searchOpenFoodFacts } from './open-food-facts.
 import { createRecipe, listRecipes, readRecipe, updateRecipe, updateRecipeSettings, validateRecipeInput, validateRecipeSettings } from './recipes.mjs';
 import { listImportDrafts, saveImportDrafts } from './recipe-imports.mjs';
 import { extractRecipeWithOpenAI } from './openai-recipe-import.mjs';
-import { generateRecipeImage, readRecipeImage, removeRecipeImage, saveRecipeImage, validateRecipeImageUpload } from './recipe-images.mjs';
+import { generateRecipeImage, inspectRecipeImageStorage, readRecipeImage, removeRecipeImage, saveRecipeImage, validateRecipeImageUpload } from './recipe-images.mjs';
 import { retrieveInstagramCaption, instagramPostUrl } from './instagram-caption.mjs';
 import { addProfileHistory, addWeightEntry, createPerson, listPeople, validatePersonInput, validateProfileHistoryInput, validateWeightInput } from './people.mjs';
 import { deletePlannedMeal, duplicatePlannedMeal, listPlannedMeals, savePlannedMeal, validateMealDuplication, validatePlannedMeal } from './planning.mjs';
@@ -517,7 +517,8 @@ export async function handleRequest(request, response, pool, appPassword = null,
     }
     if (request.method === 'GET' && url.pathname === '/api/recipe-imports/config') {
       const openaiEnabled = Boolean(recipeAI.apiKey ?? process.env.OPENAI_API_KEY);
-      return send(response, 200, { openaiEnabled, imageGenerationEnabled: openaiEnabled });
+      const imageStorage = await inspectRecipeImageStorage();
+      return send(response, 200, { openaiEnabled, imageGenerationEnabled: openaiEnabled, imageStorage });
     }
     if (request.method === 'POST' && url.pathname === '/api/recipe-imports/ai') {
       const body = await readJson(request);

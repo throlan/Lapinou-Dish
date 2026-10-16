@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { generateRecipeImage, migrateLegacyRecipeImages, readRecipeImage, removeRecipeImage, saveRecipeImage, validateRecipeImageUpload } from '../src/server/recipe-images.mjs';
+import { generateRecipeImage, inspectRecipeImageStorage, migrateLegacyRecipeImages, readRecipeImage, recipeImageStorageConfig, removeRecipeImage, saveRecipeImage, validateRecipeImageUpload } from '../src/server/recipe-images.mjs';
 
 const householdId='11111111-1111-4111-8111-111111111111';
 const recipeId='22222222-2222-4222-8222-222222222222';
@@ -13,6 +13,23 @@ test('personal uploads accept only supported image signatures and bounded base64
   assert.equal(validateRecipeImageUpload({householdId,mediaType:'image/png',imageBase64:png.toString('base64')}).data.source,'personal');
   assert.equal(validateRecipeImageUpload({householdId,mediaType:'image/jpeg',imageBase64:png.toString('base64')}).error,'invalid-recipe-image');
   assert.equal(validateRecipeImageUpload({householdId,mediaType:'image/gif',imageBase64:'R0lGODlh'}).error,'invalid-recipe-image');
+});
+
+test('recipe image storage reports the configured directory and whether it is a mounted writable volume',async()=>{
+  const directory=await mkdtemp(path.join(tmpdir(),'lapinou-images-'));
+  const mountInfoPath=path.join(directory,'mountinfo');
+  try{
+    assert.deepEqual(recipeImageStorageConfig(' /images '),{mode:'filesystem',directory:path.resolve('/images')});
+    assert.deepEqual(recipeImageStorageConfig('  '),{mode:'database',directory:null});
+    await writeFile(mountInfoPath,`1 0 0:1 / / rw - overlay overlay rw\n2 1 0:2 / ${directory} rw - ext4 /dev/test rw`);
+    const status=await inspectRecipeImageStorage(directory,{mountInfoPath,platform:'linux'});
+    assert.equal(status.mode,'filesystem');
+    assert.equal(status.mounted,true);
+    assert.equal(status.mountPoint,directory);
+    assert.equal(status.writable,true);
+    await writeFile(mountInfoPath,'1 0 0:1 / / rw - overlay overlay rw');
+    assert.equal((await inspectRecipeImageStorage(directory,{mountInfoPath,platform:'linux'})).mounted,false);
+  }finally{await rm(directory,{recursive:true,force:true});}
 });
 
 test('image generation avoids network without a key and validates returned image data',async()=>{
@@ -47,7 +64,8 @@ test('recipe images are stored as private files, can be read, replaced and remov
   }};
   try{
     const data={householdId,mediaType:'image/png',image:png,source:'personal'};
-    await saveRecipeImage(pool,recipeId,data,{imageDirectory:directory});
+    const saved=await saveRecipeImage(pool,recipeId,data,{imageDirectory:directory});
+    assert.deepEqual(saved.storage,{mode:'filesystem',directory});
     assert.equal(row.image_bytes,null);
     assert.match(row.file_name,/^22222222-2222-4222-8222-222222222222-[0-9a-f-]{36}\.png$/);
     assert.deepEqual(await readFile(path.join(directory,row.file_name)),png);
