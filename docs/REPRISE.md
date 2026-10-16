@@ -2,11 +2,11 @@
 
 ## Point de départ
 
-Mise à jour du 16 octobre : `main` contient **0.2.64** au commit `f762ffbcaea2ace4066c4f72890637cfdb784af5` après la PR 84. Le travail en cours prépare la **0.2.65** : stockage persistant des photos sous `/images`, mappé depuis `/mnt/user/appdata/lapinoudish/images`, migration des images existantes depuis PostgreSQL et réglages séparés des modèles OpenAI. Voir le [journal du 16 octobre](SESSION-2026-10-16.md). La génération reste dépendante de l’accès au modèle image dans le projet de la clé API. Les pistes à prioriser sont dans [AMELIORATIONS.md](AMELIORATIONS.md).
+Mise à jour du 16 octobre : `main` contient **0.2.65** au commit `ee4923d5bf6ad6abdc219aadb64093e2d66691e6` après la PR [85](https://github.com/throlan/Lapinou-Dish/pull/85). Les photos sont stockées sous `/images`, mappé depuis `/mnt/user/appdata/lapinoudish/images`, et les anciennes images PostgreSQL y sont transférées au démarrage. Les modèles d'import et d'illustration sont configurables séparément. Tests et publication GHCR réussis dans le [workflow 224](https://github.com/throlan/Lapinou-Dish/actions/runs/38871978052). Voir le [journal du 16 octobre](SESSION-2026-10-16.md). La génération reste dépendante de l'accès au modèle image dans le projet de la clé API. Les pistes à prioriser sont dans [AMELIORATIONS.md](AMELIORATIONS.md).
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish
-- Base de reprise : `origin/main`, commit `f762ffb` après la PR [84](https://github.com/throlan/Lapinou-Dish/pull/84). Le développement 0.2.65 est en cours sur `feat/persistent-recipe-image-storage`. Voir le [journal du 16 octobre](SESSION-2026-10-16.md).
-- Dernière version publiée : **0.2.64**. La duplication des recettes (PR 77), les fiches de cuisine (PR 79) et les choix de desserts communs aux deux collations (PR 80) sont livrés.
+- Base de reprise : `origin/main`, commit `ee4923d` après les PR [84](https://github.com/throlan/Lapinou-Dish/pull/84) et [85](https://github.com/throlan/Lapinou-Dish/pull/85). Voir le [journal du 16 octobre](SESSION-2026-10-16.md).
+- Dernière version publiée : **0.2.65**. La duplication des recettes (PR 77), les fiches de cuisine (PR 79), les choix de desserts communs aux deux collations (PR 80) et le stockage persistant des photos (PR 85) sont livrés.
 - Journaux : [13 octobre](SESSION-2026-10-13.md), [14 octobre](SESSION-2026-10-14.md) et [15 octobre](SESSION-2026-10-15.md). État et tâches restantes : [STATUS.md](STATUS.md).
 - Cahier des améliorations proposées : [AMELIORATIONS.md](AMELIORATIONS.md), couvrant la page recettes/import, les photos, les données manquantes, le mobile/PWA, les comptes et la communauté publique.
 - Repères historiques : le stock des produits et la correction de l'enregistrement du planning des courses ont été livrés en 0.2.52/0.2.53 (PR 66/67).

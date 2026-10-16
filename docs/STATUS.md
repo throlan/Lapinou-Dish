@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-La dernière version fusionnée est **0.2.64**, au commit `f762ffbcaea2ace4066c4f72890637cfdb784af5` (PR 84). La branche de travail prépare la **0.2.65** avec stockage persistant des photos sous `/images`, migration des images existantes depuis PostgreSQL et modèles OpenAI configurables séparément. Le montage attendu est `/mnt/user/appdata/lapinoudish/images` vers `/images`. Voir le [journal du 16 octobre](SESSION-2026-10-16.md).
+La version actuelle est **0.2.65**, fusionnée au commit `ee4923d5bf6ad6abdc219aadb64093e2d66691e6` par la PR [85](https://github.com/throlan/Lapinou-Dish/pull/85). Les photos sont persistantes sous `/images`, monté depuis `/mnt/user/appdata/lapinoudish/images`, les anciennes images PostgreSQL sont transférées au démarrage et les modèles OpenAI sont configurables séparément. Les tests et la publication GHCR ont réussi dans le [workflow 224](https://github.com/throlan/Lapinou-Dish/actions/runs/38871978052). Voir le [journal du 16 octobre](SESSION-2026-10-16.md).
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 16 octobre](SESSION-2026-10-16.md).
 
@@ -34,7 +34,7 @@ Les photos sont stockées dans un dossier configurable (`RECIPE_IMAGE_DIR`) avec
 
 ## Vérification
 
-**181 tests réussis**, puis tests `main` et publication GHCR validés dans le [workflow 214](https://github.com/throlan/Lapinou-Dish/actions/runs/38793785916) pour la version 0.2.61. Les vérifications Chrome sur données fictives documentées ci-dessous correspondent à la version 0.2.56 et valident la liste paginée sur ordinateur et mobile.
+La suite complète locale et CI est réussie pour la version 0.2.65. Les contrôles de stockage couvrent l'écriture, la lecture, le remplacement, la suppression, la migration d'images existantes et le repli PostgreSQL. Tests et publication GHCR sont validés dans le [workflow 224](https://github.com/throlan/Lapinou-Dish/actions/runs/38871978052). Les vérifications Chrome sur données fictives documentées ci-dessous correspondent à la version 0.2.56 et valident la liste paginée sur ordinateur et mobile. Le workflow 214 de la version 0.2.61 est conservé comme repère historique.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 
