@@ -1,4 +1,4 @@
-# Page Courses & stocks — 0.2.72
+# Page Courses & stocks — 0.2.78
 
 La page suit le même intervalle de dates pour la liste de courses et les préparations à faire. En haut, les routines sont à gauche et les recettes des repas non marqués « Préparé » sont à droite. Cette liste ne garde que les recettes avec une production à suivre ; les recettes directes sans production ne sont pas des tâches de fabrication de lots. Pour une recette produite à l'avance, la quantité à faire retranche les lots encore disponibles, après réservation des repas antérieurs et consommation des repas déjà préparés. Une recette entièrement couverte reste visible avec le statut « Couvert par le stock » pour suivre tous les repas de la période.
 
@@ -9,3 +9,7 @@ Les préparations à faire sont réparties en panneaux repliés Pâtisserie, Pai
 Sous les courses se trouvent la gestion des magasins, puis l'enregistrement d'une production. Le choix principal propose les préparations à produire pour les menus de la période. « Préparation supplémentaire » donne accès aux autres recettes compatibles avec une production en stock. Les recettes directes sans production suivie restent accessibles dans le calendrier. Le stock des préparations déjà produites et le formulaire détaillé du stock des produits restent accessibles dans des panneaux repliables.
 
 Chaque produit des courses présente ses recettes sources, une par ligne cliquable ; une partie technique ouvre sa recette mère. Les préparations regroupent les services d’une même recette et proposent « Voir la recette » et « Cuisiner ». Un badge « Données incomplètes » signale les calculs nutritionnels incomplets.
+
+## Quantité de la fiche Cuisiner
+
+Pour une préparation servie ensemble en grammes, la quantité proposée est la somme des quantités de chaque personne sur les repas de la période (sur sa semaine pour le batch cooking), moins le stock disponible après les réservations antérieures. Deux repas identiques de 2 670 g demandent 5 340 g au total, pas deux recettes entières par défaut. La fiche présente le prévu, le stock couvrant et le reste à fabriquer. Les ingrédients suivent ce poids et l’ajout au stock enregistre la même quantité de préparation servie. Le poids reste une estimation depuis les ingrédients et coefficients existants ; aucune pesée après cuisson n’est imposée. La quantité peut être modifiée, y compris pour fabriquer davantage volontairement. Si tout est couvert, elle reste à zéro jusqu’à une saisie explicite. Les fabrications en pièces et les services séparés gardent leur fonctionnement.
