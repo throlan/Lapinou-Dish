@@ -1,9 +1,10 @@
-# Cahier de reprise — 17 octobre 2026, fin de session
+# Cahier de reprise — 17 octobre 2026, suivi du stockage des photos
 
 ## Version et publication vérifiées
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish ; branche de référence : `origin/main`.
-- Application **0.2.76**, PR #104 et #105 fusionnées, commit `a65ca7acaeb651805dce49775223da6a5c29607d`.
+- Version publiée de référence au début de ce suivi : **0.2.76**, PR #104 et #105 fusionnées, commit `201147ecaba41fbe71ee991c3d386d2b1a997c1f`.
+- Le chantier local `fix/unraid-recipe-image-folder` prépare la version **0.2.77** : champ `RECIPE_IMAGE_DIR=/images` visible dans le template, guides clarifiés et test de régression. Les 220 tests locaux réussissent ; vérifier l’état GitHub et la branche avant publication/fusion.
 - La PR #104 ajoute l’impression hebdomadaire en paysage. La PR #105 met à jour la version et les clés de cache des scripts et styles.
 - **219 tests locaux réussis**. Les workflows [#263](https://github.com/throlan/Lapinou-Dish/actions/runs/39020828849) et [#265](https://github.com/throlan/Lapinou-Dish/actions/runs/39021072918) ont terminé les tests et la publication GHCR avec succès.
 - Références : [état](STATUS.md), [prochaines tâches](TODO.md), [produit](PRODUCT.md), [améliorations](AMELIORATIONS.md), [journal du 17 octobre](SESSION-2026-10-17.md).
@@ -33,6 +34,7 @@
 - PR #103 / 0.2.75 : minima protéiques configurables par personne dans Administration.
 - PR #104 : calendrier hebdomadaire imprimable en A4 paysage ; seuls les menus et quantités par personne sont imprimés.
 - PR #105 / 0.2.76 : version et clés de cache alignées. Tests locaux (219) et publication GHCR réussis.
+- Branche locale `fix/unraid-recipe-image-folder` : le template monte `/mnt/user/appdata/lapinoudish/images` vers `/images` et rend visible `RECIPE_IMAGE_DIR=/images`, précédemment caché dans les options avancées. Sans cette variable, l’application garde son stockage PostgreSQL. Version préparée : 0.2.77 ; suite complète : 220 tests réussis. L’utilisateur confirmera lui-même l’effet après sa mise à jour ; aucun accès Unraid.
 - La page Importer dédiée, les vignettes de recettes avec photos, les filtres latéraux et les photos persistantes sont déjà en place.
 
 ## Règles métier à préserver
@@ -65,7 +67,7 @@ Après une modification autorisée : branche, tests adaptés, commit/push, PR, c
 ```text
 Reprends le développement de Lapinou Dish. Retrouve le dépôt local par son remote https://github.com/throlan/Lapinou-Dish, vérifie son état et préserve toute modification locale, branche et stash avant de récupérer origin/main sans écrasement. Lis AGENTS.md s'il existe, puis docs/REPRISE.md, docs/STATUS.md, docs/PRODUCT.md, docs/AMELIORATIONS.md, docs/TODO.md et le dernier journal dans docs/ (actuellement docs/SESSION-2026-10-17.md).
 
-La version actuelle est 0.2.76, PR #105, commit a65ca7acaeb651805dce49775223da6a5c29607d ; la dernière modification fonctionnelle est l’impression hebdomadaire (PR #104). Les 219 tests locaux et la publication GHCR ont réussi. Vérifie l'état GitHub actuel et package.json. Ne réimplémente pas les fonctions déjà livrées recensées dans REPRISE.md.
+La dernière version publiée de référence est 0.2.76, PR #105. Une branche locale prépare le template Unraid plus explicite et la version 0.2.77 ; vérifie si elle a été poussée, si une PR existe et si les contrôles/GHCR ont réussi avant toute autre action. Les 220 tests locaux ont réussi. Vérifie l’état GitHub actuel et package.json. Ne réimplémente pas les fonctions déjà livrées recensées dans REPRISE.md.
 
 Prochaine piste proposée dans TODO.md : filtre des aliments inutilisés, puis étude d’une fusion guidée des doublons avec préservation de toutes les références et de leurs réglages. Fais-moi d'abord un état bref de la version, de la publication et des tâches réellement restantes. Attends ma demande avant toute nouvelle modification fonctionnelle.
 
