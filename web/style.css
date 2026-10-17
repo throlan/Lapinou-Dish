@@ -189,6 +189,12 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
 .calendar-day-heading small { display:block; color:#94a9cb; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; }
 .calendar-day-heading strong { color:#edf4ff; font-size:15px; }
 .calendar-slot { display:grid; gap:4px; }
+.calendar-slot[data-slot] { padding:6px; border:1px solid var(--slot-border); border-radius:10px; background:var(--slot-background); }
+.calendar-slot[data-slot="breakfast"] { --slot-border:#39ff14; --slot-background:#18331d; }
+.calendar-slot[data-slot="snack"],.calendar-slot[data-slot="evening_snack"] { --slot-border:#ff9f43; --slot-background:#382719; }
+.calendar-slot[data-slot="lunch"],.calendar-slot[data-slot="dinner"] { --slot-border:#27d3df; --slot-background:#17323b; }
+.calendar-slot[data-slot] .calendar-slot-heading { color:var(--slot-border); }
+.calendar-slot[data-slot] .planned-meal-card { border-color:color-mix(in srgb,var(--slot-border) 58%,#30415f); background:color-mix(in srgb,var(--slot-background) 72%,#202d48); }
 .calendar-slot-heading { display:flex; justify-content:space-between; align-items:center; gap:3px; color:#9fb1ce; font-size:9px; font-weight:800; text-transform:uppercase; }
 .calendar-slot-heading button { padding:0 5px; border:0; background:transparent; color:#61dce8; font-size:16px; line-height:1.2; }
 .planned-meal-card { padding:6px; border:1px solid #30415f; border-radius:9px; background:linear-gradient(140deg,#202d48,#1a2740); }

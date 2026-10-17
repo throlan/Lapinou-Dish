@@ -40,6 +40,24 @@ test('protein adjustment cannot bypass the main serving ceiling; piece recipes k
   assert.equal(planner.mainServingLimit({ ...child, servingPart: 'starch' }, parent), Infinity);
 });
 
+test('automatic salad servings are capped to one portion per person', () => {
+  const salad = { id:'greens',recipeType:'salad',yield:{amount:50,unitId:'portion'},nutrition:{complete:true,perYieldUnit:{energyKcal:5,proteinG:0.1}} };
+  const people = [{id:'a',displayName:'A'},{id:'b',displayName:'B'}];
+  const items = { 0:{recipeId:salad.id,role:'accompaniment'} };
+  const root = { replaceChildren(){} };
+  const context = { ...planner,state:{recipes:[salad],people,calendarMeals:[]},
+    $:selector=>selector==='#meal-form'?{elements:{mealDate:{value:'2026-10-19'},slot:{value:'lunch'}}}:root,
+    allPlanningRecipes:()=>[salad],isIndividualRole:()=>false,latestProfile:()=>({dailyEnergyKcal:3000}),
+    plannedCaloriesForPerson:()=>0,document:{createElement:()=>({append(){}})} };
+  runInNewContext(source.slice(start,end)+'\nglobalThis.calculate=applyAutomaticPortions;',context);
+  context.calculate(items,people.map(person=>person.id));
+  assert.equal(items[0].amounts.a,'1');
+  assert.equal(items[0].amounts.b,'1');
+  assert.equal(planner.saladServingLimit(salad),1);
+  assert.equal(planner.saladServingLimit({...salad,yield:{amount:250,unitId:'g'}}),Infinity);
+  assert.equal(planner.saladServingLimit({...salad,parentRecipeId:'parent'}),Infinity);
+});
+
 test('sauce calories fit within the meal budget without increasing a fixed sauce quantity to chase protein',()=>{
   const salad={id:'salad',recipeType:'salad',yield:{amount:4,unitId:'portion'},nutrition:{perYieldUnit:{energyKcal:400,proteinG:30}}};
   const sauce={id:'sauce',recipeType:'sauce',yield:{amount:200,unitId:'g'},nutrition:{perYieldUnit:{energyKcal:5,proteinG:0.01}}};

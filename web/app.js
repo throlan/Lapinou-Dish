@@ -1,9 +1,5 @@
-import { calculatePersonProtein, capAccompanimentQuantity, MIN_PROTEIN_G_PER_MEAL, rebalanceNaturalPortions, suggestQuantity } from './portion-planner.js';
-import { mainServingLimit } from './portion-planner.js';
-import { calculatePersonEnergy, SLOT_RATIOS } from './portion-planner.js';
+import { breakfastServingLimit, calculateDailyEnergy, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, capAccompanimentQuantity, mainServingLimit, MIN_PROTEIN_G_PER_MEAL, rebalanceNaturalPortions, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';
 import { MEAL_ORDER, MEAL_LABELS, validMealRatios } from './meal-config.js';
-import { calculateDailyEnergy } from './portion-planner.js';
-import { breakfastServingLimit } from './portion-planner.js';
 import { suggestPlatePortions } from './portion-planner.js';
 import { PLATE_PARTS, validPlateRatios } from './meal-config.js';
 import { preparationWeeks } from './preparation-weeks.js';
@@ -1997,6 +1993,7 @@ function renderCalendarDay(date, meals, today) {
   day.append(heading);
   for (const slot of MEAL_ORDER) {
     const section = document.createElement('section'); section.className = 'calendar-slot';
+    section.dataset.slot = slot;
     const slotHeading = document.createElement('div'); slotHeading.className = 'calendar-slot-heading';
     const label = document.createElement('span'); label.textContent = slotLabels[slot];
     const add = document.createElement('button'); add.type = 'button'; add.className = 'calendar-add'; add.textContent = '+ Ajouter';
@@ -2146,13 +2143,15 @@ function renderCalendarSummary(meals, people, weekStart) {
       }
       if (hasPlan) { totalKcal += daily; daysPlanned++; }
     }
-    total.textContent = daysPlanned ? `${format(totalKcal)} kcal prévues sur ${daysPlanned} jour${daysPlanned > 1 ? 's' : ''}${incomplete ? ' · données incomplètes' : ''}` : 'Aucun repas planifié';
+    total.textContent = daysPlanned ? `${format(totalKcal)} kcal prévues sur 7 jours · ${daysPlanned}/7 jours planifiés${incomplete ? ' · données incomplètes' : ''}` : 'Aucun repas planifié';
     row.append(name, total);
-    const profile = latestProfile(person, dateOnly(new Date()));
-    if (profile?.dailyEnergyKcal) {
-      const target = document.createElement('small'); target.textContent = `Repère quotidien saisi : ${profile.dailyEnergyKcal} kcal · ${activityLabels[profile.activityLevel] ?? 'activité non renseignée'}`; row.append(target);
+    const weeklyTarget = calculateWeeklyEnergyTarget(person, weekStart, latestProfile, addDays);
+    if (weeklyTarget.kcal != null) {
+      const target = document.createElement('small'); target.textContent = `Repère hebdomadaire : ${format(weeklyTarget.kcal)} kcal`; row.append(target);
+    } else if (weeklyTarget.daysWithTarget) {
+      const target = document.createElement('small'); target.textContent = `Repère hebdomadaire partiel : ${format(weeklyTarget.partialKcal)} kcal (${weeklyTarget.daysWithTarget}/7 jours renseignés)`; row.append(target);
     } else {
-      const target = document.createElement('small'); target.className = 'muted'; target.textContent = 'Besoin quotidien non renseigné'; row.append(target);
+      const target = document.createElement('small'); target.className = 'muted'; target.textContent = 'Repère hebdomadaire non renseigné'; row.append(target);
     }
     const reserve=state.calendarReserveOverview?.accounts?.find(account=>account.personId===person.id);
     if(reserve){const balance=document.createElement('b');balance.textContent=`Épargne 30 j : ${format(reserve.balanceKcal)} kcal`;if(reserve.balanceKcal<0)balance.classList.add('reserve-negative');row.append(balance);}
@@ -2288,7 +2287,8 @@ function applyAutomaticPortions(items, attendeeIds) {
         : role === 'accompaniment' && recipeUnit === 'g' && !recipe?.parentRecipeId
         ? Math.min(200, Number(recipe?.yield?.amount) * 1.5)
         : Infinity;
-      const maxQuantity=Math.min(servingMax,slot==='breakfast' && role==='main'?breakfastServingLimit(recipe,state.recipes.find(parent=>parent.id===recipe?.parentRecipeId)):Infinity);
+      const parentRecipe=state.recipes.find(parent=>parent.id===recipe?.parentRecipeId);
+      const maxQuantity=Math.min(servingMax,saladServingLimit(recipe),slot==='breakfast' && role==='main'?breakfastServingLimit(recipe,parentRecipe):Infinity);
       const quantity = proposedQuantity == null ? null : Math.min(
         proposedQuantity,
         maxQuantity,
