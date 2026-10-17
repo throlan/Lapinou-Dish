@@ -567,6 +567,7 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .preparation-parts li+li { margin-top:3px; }
 .cook-dialog { width:min(820px,calc(100vw - 28px)); }
 .cook-dialog form { max-height:calc(90vh - 48px); }
+.cook-dialog [hidden] { display:none !important; }
 .cook-dialog h3 { margin:20px 0 10px; color:#c8f8fb; }
 .cook-unit { align-self:end; margin-bottom:10px; }
 .cook-ingredients { display:grid; gap:10px; }

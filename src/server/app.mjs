@@ -302,7 +302,7 @@ export async function handleRequest(request, response, pool, appPassword = null,
       try {
         const lot = await addStockLot(pool, validation.data);
         if (lot?.error?.startsWith('ingredient-') || lot?.error?.startsWith('production-request-')) return send(response, 409, lot);
-        if (lot?.error === 'recipe-not-for-production') return send(response, 400, { error: lot.error });
+        if (lot?.error === 'recipe-not-for-production' || lot?.error === 'invalid-production-parts') return send(response, 400, { error: lot.error });
         if (lot?.error) return send(response, 404, { error: lot.error });
         return send(response, 201, { lot });
       } catch { return send(response, 500, { error: 'production-stock-save-failed' }); }

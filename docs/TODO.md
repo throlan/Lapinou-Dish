@@ -1,6 +1,6 @@
 # Prochaines tâches — 17 octobre 2026
 
-Référence du code : **0.2.78**, correction du calcul des quantités à cuisiner. Version précédente **0.2.77**, PR #107 fusionnée et publiée ; le réglage du dossier des photos n’est plus à livrer. Vérifier la publication du dernier commit de main à chaque reprise. Les **225 tests locaux** passent. La prochaine modification doit être choisie avec l’utilisateur ; l’ordre ci-dessous est une proposition, pas une autorisation de commencer.
+Référence du code : **0.2.79**, fabrication limitée aux besoins des menus pour tous les services, avec parties indépendantes. Dernière version antérieure vérifiée : **0.2.78**, PR #108 fusionnée et publiée (la PR #107, photos, est livrée aussi). Vérifier le workflow de la tête de main à chaque reprise. **230 tests locaux réussis**. Aucun nouveau chantier ne doit démarrer avant la demande de l’utilisateur.
 
 ## Pistes à choisir et préciser
 
@@ -16,7 +16,7 @@ Détails et variantes dans [AMELIORATIONS.md](AMELIORATIONS.md). Les variantes i
 
 - Page Importer distincte, brouillons à vérifier ; vignettes de recettes, photos et filtres latéraux.
 - Photos personnelles et génération IA, stockage configurable, diagnostic et champ de dossier visible dans le template (PR #107).
-- Fiche Cuisiner en grammes pour une préparation servie ensemble : quantités réellement prévues cumulées, stock déduit, ingrédients ajustés et production enregistrée dans la même unité.
+- Fiche Cuisiner : quantités nécessaires des menus pour tous les services, ingrédients ajustés séparément et production atomique des parties. Pas de recette complète proposée en repli ni d’arrondi aux unités entières de fabrication. Le calcul des pièces entières reste dans le choix des portions des menus, pas dans la fiche cuisine.
 - Filtres données manquantes / nutrition / recettes planifiées ce mois et après ; badges des préparations et retour interne.
 - Duplication d'aliment ; liens de recettes depuis les courses et depuis chaque aliment.
 - Calories dans les choix de recettes du calendrier.
