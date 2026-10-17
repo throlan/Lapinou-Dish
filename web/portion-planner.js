@@ -84,11 +84,15 @@ export function calculateDailyEnergy(meals, personId, date) {
   return {kcal:incomplete && !knownAmounts ? null : kcal,incomplete,hasPlan};
 }
 
-const DAILY_PROTEIN_TARGETS = Object.freeze({ bibinette: 90, lapinou: 125, bibou: 85, titus: 50 });
+const DEFAULT_DAILY_PROTEIN_TARGETS = Object.freeze({ bibinette: 90, lapinou: 125, bibou: 85, titus: 50 });
 
-export function dailyProteinTarget(person) {
+export function dailyProteinTarget(person, savedTargets = {}) {
+  if (person?.id && Object.hasOwn(savedTargets, person.id)) {
+    const saved = savedTargets[person.id];
+    return saved == null ? null : Number(saved);
+  }
   const name = String(person?.displayName ?? '').trim().toLocaleLowerCase('fr');
-  return DAILY_PROTEIN_TARGETS[name] ?? null;
+  return DEFAULT_DAILY_PROTEIN_TARGETS[name] ?? null;
 }
 
 export function calculateDailyProtein(meals, personId, date) {

@@ -8,7 +8,7 @@ import { filterRecipeDirectory, recipeCardForSource, recipeMissingData, recipeMo
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, editingFoodFromShopping: false, editingOrderLinkId: null, importingDraftId: null, generateImportedImage: false, people: [], recipes: [], plannedRecipeIds: [], plannedRecipeLookupError: null, preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
+const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, editingFoodFromShopping: false, editingOrderLinkId: null, importingDraftId: null, generateImportedImage: false, people: [], recipes: [], plannedRecipeIds: [], plannedRecipeLookupError: null, preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, proteinTargets: {}, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
 let recipeImageConfig={enabled:false}, imageRecipeId=null;
 const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbohydrateG', 'g gluc.'], ['fatG', 'g lip.']];
 const selectedStoreFoods=new Map();
@@ -1808,7 +1808,7 @@ async function refreshMealSettings() {
     const settings=await api(`/api/meal-settings?householdId=${encodeURIComponent(state.household.id)}`);
     state.mealRatios=settings.ratios;
     for(const slot of MEAL_ORDER)form.elements[slot].value=Number((settings.ratios[slot]*100).toFixed(4));
-    await refreshPeople();updateMealRatiosPreview();
+    await refreshPeople();await refreshProteinSettings();updateMealRatiosPreview();
     await refreshPlateSettings();
     showMessage($('#meal-ratios-message'),'');
   }catch(error){showMessage($('#meal-ratios-message'),`Répartition indisponible : ${error.body?.error ?? error.message}`);}
@@ -1826,6 +1826,44 @@ $('#meal-ratios-form').addEventListener('submit',async event=>{
     showMessage(message,'Répartition enregistrée. Les quantités déjà saisies sont conservées ; utilise « Recalculer les portions » dans les repas à ajuster.',true);
   }catch(error){showMessage(message,`Enregistrement impossible : ${error.body?.error ?? error.message}`);}
   finally{updateMealRatiosPreview();}
+});
+
+function proteinTargetsFromForm() {
+  return Object.fromEntries($$('#protein-targets-fields input').map((input)=>[input.dataset.personId,input.value===''?null:Number(input.value)]));
+}
+async function refreshProteinSettings() {
+  const root=$('#protein-targets-fields');root.replaceChildren();
+  const button=$('#protein-targets-form button[type="submit"]');button.disabled=true;
+  if(!state.household)return;
+  try {
+    const settings=await api(`/api/protein-settings?householdId=${encodeURIComponent(state.household.id)}`);
+    state.proteinTargets=settings.targets??{};
+    if(!state.people.length){root.append(emptyMessage('Ajoute les personnes du foyer pour régler leurs minima.'));return;}
+    for(const person of state.people) {
+      const label=document.createElement('label');label.textContent=`${person.displayName} · minimum quotidien (g)`;
+      const input=document.createElement('input');input.type='number';input.min='0';input.max='500';input.step='1';input.dataset.personId=person.id;
+      const target=dailyProteinTarget(person,state.proteinTargets);input.value=target==null?'':String(target);input.placeholder='Aucun minimum défini';input.setAttribute('aria-label',`Minimum quotidien de protéines pour ${person.displayName} en grammes`);
+      label.append(input);root.append(label);
+    }
+    button.disabled=false;
+  }catch(error){root.append(emptyMessage(`Réglages des protéines indisponibles : ${error.body?.error??error.message}`));}
+}
+$('#protein-targets-form').addEventListener('input',()=>{
+  const inputs=$$('#protein-targets-fields input'),button=$('#protein-targets-form button[type="submit"]');
+  button.disabled=!inputs.length||inputs.some(input=>input.value!==''&&(!Number.isFinite(Number(input.value))||Number(input.value)<0||Number(input.value)>500));
+});
+$('#protein-targets-form').addEventListener('submit',async event=>{
+  event.preventDefault();const form=event.currentTarget,message=$('#protein-targets-message'),targets=proteinTargetsFromForm();
+  if(!form.reportValidity()||Object.values(targets).some(value=>value!=null&&(!Number.isFinite(value)||value<0||value>500))){showMessage(message,'Les minima doivent être compris entre 0 et 500 g par jour.');return;}
+  if(!state.household)return;
+  const button=$('button[type="submit"]',form);button.disabled=true;
+  try {
+    const settings=await api('/api/protein-settings',{method:'PUT',body:JSON.stringify({householdId:state.household.id,targets})});
+    state.proteinTargets=settings.targets;
+    await refreshCalendar();
+    showMessage(message,'Minima quotidiens de protéines enregistrés.',true);
+  }catch(error){showMessage(message,`Enregistrement impossible : ${error.body?.error??error.message}`);}
+  finally{button.disabled=false;}
 });
 
 function plateRatiosFromForm() {
@@ -1904,7 +1942,7 @@ $('#person-form').addEventListener('submit', async (event) => {
   const data = Object.fromEntries(new FormData(form));
   try {
     await api('/api/people', { method: 'POST', body: JSON.stringify({ householdId: state.household.id, ...data }) });
-    form.reset(); showMessage($('#people-message'), 'Profil ajouté.', true); await refreshPeople();
+    form.reset(); showMessage($('#people-message'), 'Profil ajouté.', true); await refreshPeople();await refreshProteinSettings();
   } catch (error) { showMessage($('#people-message'), error.body?.error === 'person-already-exists' ? 'Ce nom de profil existe déjà dans le foyer.' : 'Impossible de créer le profil.'); }
 });
 
@@ -1962,16 +2000,18 @@ async function refreshCalendar() {
   grid.replaceChildren(emptyMessage('Chargement de la semaine…'));
   try {
     const end = addDays(state.calendarWeekStart, 6);
-    const [plan, peopleResult, recipesResult, mealSettings, reserve, plateSettings] = await Promise.all([
+    const [plan, peopleResult, recipesResult, mealSettings, reserve, plateSettings, proteinSettings] = await Promise.all([
       api(`/api/planning?householdId=${encodeURIComponent(state.household.id)}&weekStart=${state.calendarWeekStart}`),
       api(`/api/people?householdId=${encodeURIComponent(state.household.id)}`),
       api(`/api/recipes?householdId=${encodeURIComponent(state.household.id)}`),
       api(`/api/meal-settings?householdId=${encodeURIComponent(state.household.id)}`),
       api(`/api/energy-reserve?householdId=${encodeURIComponent(state.household.id)}&asOf=${end}`),
       api(`/api/plate-settings?householdId=${encodeURIComponent(state.household.id)}`),
+      api(`/api/protein-settings?householdId=${encodeURIComponent(state.household.id)}`),
     ]);
     state.mealRatios=mealSettings.ratios;
     state.plateRatios=plateSettings.ratios;
+    state.proteinTargets=proteinSettings.targets??{};
     state.people = peopleResult.people;
     state.recipes = recipesResult.recipes;
     state.calendarReserveOverview=reserve;
@@ -2024,7 +2064,7 @@ function renderDailyEnergySummary(date,meals) {
     if(savings){const budget=document.createElement('small');budget.textContent=`Budget repas ajusté : ${format(Math.max(0,Number(target)-savings.dailyKcal))} kcal (épargne ${format(savings.dailyKcal)} kcal)`;line.append(budget);}
     if(daily.incomplete){const note=document.createElement('small');note.textContent='Données incomplètes';line.append(note);}
     footer.append(line);
-    const proteins=calculateDailyProtein(meals,person.id,date),proteinTarget=dailyProteinTarget(person);
+    const proteins=calculateDailyProtein(meals,person.id,date),proteinTarget=dailyProteinTarget(person,state.proteinTargets);
     const proteinLine=document.createElement('div');proteinLine.className='daily-protein-person';
     const proteinValue=document.createElement('strong');proteinValue.className='daily-protein-value';
     proteinValue.textContent=proteinTarget==null

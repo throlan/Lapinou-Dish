@@ -60,6 +60,8 @@ test('daily protein totals require complete protein data and use the household m
     {amounts:[{personId:'t',quantity:1}],recipe:{nutrition:{perYieldUnit:{proteinG:null}}}},
   ]}];
   assert.deepEqual(people.map(planner.dailyProteinTarget),[90,125,85,50]);
+  assert.equal(planner.dailyProteinTarget(people[0],{b:105}),105);
+  assert.equal(planner.dailyProteinTarget(people[0],{b:null}),null);
   assert.deepEqual(planner.calculateDailyProtein(meals,'b','2026-10-19'),{grams:100,incomplete:false,hasPlan:true});
   assert.deepEqual(planner.calculateDailyProtein(meals,'t','2026-10-19'),{grams:25,incomplete:true,hasPlan:true});
   assert.deepEqual(planner.calculateDailyProtein(meals,'b','2026-10-20'),{grams:0,incomplete:false,hasPlan:false});
