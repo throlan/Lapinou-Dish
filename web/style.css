@@ -418,6 +418,40 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
 .daily-protein-value.protein-sufficient { color:#c6ed75; }
 .daily-protein-value.protein-low { color:#ffd071; }
 .daily-protein-value.protein-unknown,.daily-protein-person small { color:#a1b2cc; font-size:10px; }
+
+.print-meal-items { display:none; }
+@page { size: A4 landscape; margin: 7mm; }
+@media print {
+  html, body { width:100%; min-width:0; margin:0; padding:0; background:#fff !important; color:#111 !important; }
+  body { font:9pt/1.25 Arial,sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .topbar, main > .intro, main > .view:not(#calendar-view), #calendar-view > .section-heading p,
+  #calendar-view > .section-heading button, .calendar-print-button, .calendar-week-nav button,
+  .calendar-toolbar > .muted, #calendar-summary, .calendar-add, .planned-meal-card > button,
+  .planned-meal-card > small, .daily-energy-summary { display:none !important; }
+  main { width:100%; max-width:none; margin:0; padding:0; }
+  #calendar-view, #calendar-view:not(.hidden) { display:block !important; width:100%; margin:0; padding:0; border:0; box-shadow:none; background:#fff; }
+  #calendar-view > .section-heading { margin:0 0 4mm; padding:0; border:0; }
+  #calendar-view > .section-heading h2 { margin:0; color:#111; font-size:16pt; }
+  .calendar-toolbar { margin:0 0 3mm; color:#111; }
+  .calendar-week-nav { width:100%; justify-content:center; }
+  .calendar-week-nav strong { color:#111; font-size:11pt; text-align:center; }
+  .calendar-layout { display:block; }
+  .calendar-grid { grid-template-columns:repeat(7,minmax(0,1fr)); gap:2mm; width:100%; }
+  .calendar-day { gap:1.5mm; padding:2mm 1.5mm; border:1px solid #777; border-radius:2mm; background:#fff; break-inside:avoid; }
+  .calendar-day.today { box-shadow:none; }
+  .calendar-day-heading { padding:0 0 1mm; border-color:#999; }
+  .calendar-day-heading span { color:#111; font-size:9pt; font-weight:700; text-transform:capitalize; }
+  .calendar-day-heading strong { color:#111; font-size:9pt; }
+  .calendar-slot[data-slot] { gap:1mm; padding:1mm; border:1px solid #999 !important; border-radius:1mm; background:#fff !important; }
+  .calendar-slot[data-slot] .calendar-slot-heading { color:#111 !important; font-size:7pt; }
+  .planned-meal-card { padding:1.2mm; border:0 !important; border-radius:0; background:transparent !important; }
+  .planned-meal-card .print-meal-items { display:block; color:#111; font-size:7pt; overflow-wrap:anywhere; }
+  .print-meal-item { margin-top:1mm; break-inside:avoid; }
+  .print-meal-item strong { display:block; font-size:7.5pt; }
+  .print-meal-item ul { margin:0.5mm 0 0; padding-left:3mm; list-style:none; }
+  .print-meal-item li { margin:0.3mm 0; }
+  .print-meal-items p { margin:0; font-weight:700; }
+}
 .meal-person-summary { display:grid; gap:9px; margin:12px 0; }
 .meal-person-row { display:grid; grid-template-columns:minmax(90px,.7fr) minmax(0,1.1fr) minmax(0,1fr); gap:10px; align-items:center; font-size:14px; }
 #meal-protein-summary .protein-tag { border:0; border-radius:0; padding:0; }
