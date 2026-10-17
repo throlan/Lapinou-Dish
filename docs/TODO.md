@@ -1,6 +1,6 @@
 # Prochaines tâches — 17 octobre 2026
 
-Référence du code : **0.2.79**, fabrication limitée aux besoins des menus pour tous les services, avec parties indépendantes. Dernière version antérieure vérifiée : **0.2.78**, PR #108 fusionnée et publiée (la PR #107, photos, est livrée aussi). Vérifier le workflow de la tête de main à chaque reprise. **230 tests locaux réussis**. Aucun nouveau chantier ne doit démarrer avant la demande de l’utilisateur.
+Référence du code : **0.2.80**, fiche cuisine selon les menus ou en quantité libre. Dernière version antérieure vérifiée : **0.2.79**, PR #109 fusionnée et publiée. Vérifier le workflow de la tête de main à chaque reprise. **234 tests locaux réussis**. Aucun nouveau chantier ne doit démarrer avant la demande de l’utilisateur.
 
 ## Pistes à choisir et préciser
 
@@ -16,7 +16,8 @@ Détails et variantes dans [AMELIORATIONS.md](AMELIORATIONS.md). Les variantes i
 
 - Page Importer distincte, brouillons à vérifier ; vignettes de recettes, photos et filtres latéraux.
 - Photos personnelles et génération IA, stockage configurable, diagnostic et champ de dossier visible dans le template (PR #107).
-- Fiche Cuisiner : quantités nécessaires des menus pour tous les services, ingrédients ajustés séparément et production atomique des parties. Pas de recette complète proposée en repli ni d’arrondi aux unités entières de fabrication. Le calcul des pièces entières reste dans le choix des portions des menus, pas dans la fiche cuisine.
+- Cuisine hors menus : quantité libre en portions/pièces ou unités d’origine, sans ajustement aux objectifs des profils ; équivalence en poids estimé et conservation des valeurs lors du changement de mode.
+- Fiche Cuisiner selon les menus : quantités nécessaires des menus pour tous les services, ingrédients ajustés séparément et production atomique des parties. Pas de recette complète proposée en repli ni d’arrondi aux unités entières de fabrication. Le calcul des pièces entières reste dans le choix des portions des menus, pas dans la fiche cuisine.
 - Filtres données manquantes / nutrition / recettes planifiées ce mois et après ; badges des préparations et retour interne.
 - Duplication d'aliment ; liens de recettes depuis les courses et depuis chaque aliment.
 - Calories dans les choix de recettes du calendrier.

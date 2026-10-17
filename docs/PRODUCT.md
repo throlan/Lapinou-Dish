@@ -53,6 +53,7 @@ Ce produit aide à organiser les repas. Il ne diagnostique pas, ne prescrit pas 
 - Modes dédiés: usine à petits déjeuners, usine à pâtes fraîches, batch de repas.
 - L'utilisateur choisit les recettes/variantes et le rendement visé (ex. 24 muffins ou 1,5 kg de pâte); l'application agrège les besoins d'ingrédients et tient compte du stock confirmé.
 - Une session garde cible, quantités réellement produites, date, stockage, emplacement, étiquettes, et consignes de refroidissement/congélation/réchauffage saisies ou validées par l'utilisateur.
+- Un mode explicite Hors menus — quantité libre permet de cuisiner le nombre de portions de la recette d’origine, notamment pour des invités, sans ajustement aux objectifs personnels. Il conserve les proportions de la recette et ne modifie pas les menus.
 - La fabrication proposée depuis les menus couvre uniquement leurs quantités nécessaires, quel que soit le service : préparation entière ou viande/légumes/féculents séparés. Les ingrédients de chaque partie suivent son propre besoin ; aucun surplus n’est créé pour arrondir à une recette de base.
 - Une production ajoute des lots de stock. Planifier un repas ne consomme pas le stock; seul un acte explicite d'utilisation le décrémente.
 - Le stock à utiliser/décongeler prochainement et les écarts de rendement sont visibles.

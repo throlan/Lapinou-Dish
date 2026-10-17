@@ -1,4 +1,4 @@
-# Page Courses & stocks — 0.2.79
+# Page Courses & stocks — 0.2.80
 
 La page suit le même intervalle de dates pour la liste de courses et les préparations à faire. En haut, les routines sont à gauche et les recettes des repas non marqués « Préparé » sont à droite. Cette liste ne garde que les recettes avec une production à suivre ; les recettes directes sans production ne sont pas des tâches de fabrication de lots. Pour une recette produite à l'avance, la quantité à faire retranche les lots encore disponibles, après réservation des repas antérieurs et consommation des repas déjà préparés. Une recette entièrement couverte reste visible avec le statut « Couvert par le stock » pour suivre tous les repas de la période.
 
@@ -20,4 +20,10 @@ Chaque partie reçoit sa propre quantité à fabriquer depuis les menus de la p�
 
 La validation des parties forme une seule transaction. Si un produit suivi manque, aucune partie ni déduction n’est enregistrée. Les ingrédients présents dans plusieurs parties sont additionnés avant contrôle du stock. L’annulation porte sur cette production complète et restaure une seule fois les déductions. Les demandes répétées sont reconnues, les quantités modifiées avec le même identifiant sont refusées. Le regroupement de production n’est pas lui-même du stock physique : seuls les lots des parties constituent les grammes produits.
 
-Depuis une fiche recette, Cuisiner recharge les besoins de la période de courses sélectionnée. Sans besoin, les valeurs restent à zéro ; une erreur de chargement n’est pas remplacée par une recette complète. La saisie manuelle reste un choix explicite. La précision du stock est le millième d’unité ; les grammes restent estimés, aucune pesée après cuisson n’est imposée.
+Depuis une fiche recette, Cuisiner recharge les besoins de la période de courses sélectionnée. En mode Selon les menus, les besoins absents restent à zéro. Depuis la 0.2.80, une recette sans besoin propose explicitement le mode Hors menus — quantité libre ; une erreur de chargement désactive le mode menus et signale que seule la préparation libre reste disponible. La saisie manuelle reste un choix explicite. La précision du stock est le millième d’unité ; les grammes restent estimés, aucune pesée après cuisson n’est imposée.
+
+## Hors menus — quantité libre — 0.2.80
+
+La fiche cuisine propose un mode libre pour recevoir des invités ou préparer une recette sans suivre les objectifs des profils. Le champ reprend le rendement d’origine : nombre de portions ou pièces, ou quantité en g/ml si c’est l’unité de la recette. Une base de 4 portions portée à 6 multiplie chaque ingrédient par 1,5. Pour une préparation estimée à 3 327 g pour 4 portions, le repère devient 4 990,5 g pour 6 portions. Aucune portion de référence n’est inventée pour une recette définie uniquement en grammes.
+
+Avec deux/trois services, ce mode libre conserve les proportions d’origine de toutes les parties ; le mode Selon les menus garde au contraire leurs besoins indépendants. Changer de mode conserve les valeurs saisies de chacun. Le mode libre n’altère pas les menus et n’ajoute pas automatiquement de repas ni de besoin d’achat au calendrier. Si la production est suivie, l’ajout au stock reste une validation explicite et conserve les conversions, les déductions et l’annulation existantes. Sans production suivie, la fiche reste utilisable pour lire les ingrédients ajustés.

@@ -50,3 +50,8 @@ export function scaledIngredients(recipe, quantity, servingQuantities) {
     return {...line,scaledQuantity:Number(line.quantity)*partFactor};
   });
 }
+
+export function scaledSourceIngredients(recipe, quantity) {
+  const factor=Number(quantity)/Number(recipe.yield.amount);
+  return (recipe.lines??[]).map(line=>({...line,scaledQuantity:Number(line.quantity)*factor}));
+}
