@@ -1,6 +1,6 @@
 # Cahier des améliorations proposées
 
-Mis à jour le 16 octobre 2026. Ce document rassemble des pistes demandées ou suggérées. Chaque chantier devra être précisé avant sa mise en œuvre. Les fonctionnalités livrées restent décrites dans [STATUS.md](STATUS.md).
+Mis à jour le 17 octobre 2026 pour la version 0.2.76. Ce document rassemble des pistes demandées ou suggérées. Chaque chantier devra être précisé avant sa mise en œuvre. Les fonctionnalités livrées restent décrites dans [STATUS.md](STATUS.md) et le dernier journal est [SESSION-2026-10-17.md](SESSION-2026-10-17.md).
 
 ## Expérience des recettes
 
@@ -22,7 +22,11 @@ L'ajout, le remplacement, la suppression et la génération à la demande sont l
 
 ## Usage mobile et webapp
 
-La page Courses & stocks a reçu une première amélioration mobile en 0.2.68 : résumés Home Assistant plus courts, besoin visible sans déplier les produits et accès rapide aux mesures. Il reste à parcourir les autres pages sur petit écran, notamment calendrier, éditeurs de repas, recettes et mode cuisine. Évaluer une PWA installable (manifest, icônes et comportement de mise à jour) après ces améliorations. Le mode hors ligne et la synchronisation différée sont des sujets distincts à étudier ensuite, car ils ajoutent des conflits de données et des contraintes de sécurité.
+Le calendrier dispose d’une impression hebdomadaire A4 paysage, avec menus et quantités par personne uniquement (PR #104). La page Courses & stocks a reçu une première amélioration mobile en 0.2.68 : résumés Home Assistant plus courts, besoin visible sans déplier les produits et accès rapide aux mesures. Il reste à parcourir les autres pages sur petit écran, notamment calendrier, éditeurs de repas, recettes et mode cuisine. Évaluer une PWA installable (manifest, icônes et comportement de mise à jour) après ces améliorations. Le mode hors ligne et la synchronisation différée sont des sujets distincts à étudier ensuite, car ils ajoutent des conflits de données et des contraintes de sécurité.
+
+## Calendrier et repères nutritionnels
+
+**Livré** : plafond de suggestion automatique à une portion pour les salades, couleurs de créneaux, comparaison kcal hebdomadaire, protéines quotidiennes par personne, minima configurables dans Administration et impression paysage avec quantités par personne (PR #101 à #105). Ne pas remettre ces fonctions dans les tâches restantes.
 
 ## Comptes utilisateurs et foyer
 
@@ -45,4 +49,4 @@ Une première expérimentation pourrait se limiter à un catalogue public en lec
 
 ## Prochaines décisions
 
-La liste synthétique à jour est dans [TODO.md](TODO.md). Propositions à confirmer : nettoyage du catalogue à partir des utilisations déjà visibles, aide à la correction des données manquantes, puis confort mobile, comptes et communauté. Aucun ordre de développement n’est imposé ; attendre la prochaine demande de l’utilisateur.
+La liste synthétique à jour est dans [TODO.md](TODO.md). Première piste proposée : filtre des aliments inutilisés, puis étude d’une fusion guidée des doublons avec aperçu des références et préservation des stocks, conversions et magasins. Ensuite : aide à la correction des données manquantes, confort mobile, comptes et communauté. Cet ordre reste une proposition ; attendre la demande de l’utilisateur avant de commencer.

@@ -44,6 +44,7 @@ Ce produit aide à organiser les repas. Il ne diagnostique pas, ne prescrit pas 
 - Ajouter/modifier un repas se fait dans un panneau latéral ou une fenêtre compacte, en gardant la semaine visible.
 - Chaque repas indique qui sera présent; le foyer entier n'est jamais supposé automatiquement.
 - Le plan affiche par personne les portions et apports nutritionnels prévus, avec indicateurs de complétude et provenance.
+- Les repères protéiques journaliers sont réglables par personne dans Administration et affichés par jour ; les repères kcal du résumé par personne sont comparés sur la semaine.
 - Les totaux représentent des prévisions. L’utilisateur ne souhaite pas de saisie après repas ni de journal du consommé ; « Préparé » gère les stocks, pas un relevé nutritionnel réel.
 - Les propositions de portions sont optionnelles, explicables, modifiables et limitées aux données connues. Elles ne s'appliquent jamais sans validation.
 
@@ -68,6 +69,7 @@ Ce produit aide à organiser les repas. Il ne diagnostique pas, ne prescrit pas 
 - Ordinateur en premier, responsive ensuite.
 - La page d'accueil répond rapidement à: quoi aujourd'hui, quoi décongeler, quels objectifs restent, prochaine session de production, courses à faire.
 - Le calendrier est la vue principale: semaine entière visible à une largeur desktop courante, navigation par semaine, résumés nutritionnels simples et accès direct aux détails.
+- Une impression hebdomadaire A4 paysage présente les menus et quantités par personne sur les sept jours, sans les prévisions et commandes de l’interface.
 - Les recettes ont une fiche synthétique et un éditeur structuré. Chaque aliment n'est affiché qu'une fois comme nom canonique; la quantité et l'unité sont dans la même ligne.
 - Recherche avant listes longues; filtres utiles et filtres persistants.
 - Pas de scroll dans scroll dans les vues de planification. L'information secondaire se replie; les totaux et actions principales restent visibles.

@@ -1,10 +1,10 @@
-# État du projet — 16 octobre 2026
+# État du projet — 17 octobre 2026
 
 ## Version de référence
 
-Application **0.2.72**, fusionnée par la **PR #99**, commit `191fca91b6e3bd35a9c4ed20d79bea0c0946a1c8`. Catégories Salade et Sauce, services et calculs identiques aux plats pour les salades, sauces à quantité fixe modifiable par personne. Validation locale : **213 tests réussis** et parcours Chrome/PostgreSQL fictif vérifié. Le [workflow de livraison](https://github.com/throlan/Lapinou-Dish/actions/runs/38965953820) a réussi : tests et publication GHCR confirmés le 16 octobre. Voir le [journal](SESSION-2026-10-16.md).
+Application **0.2.76**, publiée sur `main` par les PR [#104](https://github.com/throlan/Lapinou-Dish/pull/104) et [#105](https://github.com/throlan/Lapinou-Dish/pull/105), commit `a65ca7acaeb651805dce49775223da6a5c29607d`. La PR #104 ajoute le calendrier hebdomadaire imprimable en paysage ; #105 aligne la version et les URL cache des fichiers. La suite locale compte **219 tests réussis**. Les workflows [#263](https://github.com/throlan/Lapinou-Dish/actions/runs/39020828849) et [#265](https://github.com/throlan/Lapinou-Dish/actions/runs/39021072918) ont confirmé les tests et la publication GHCR. Voir le [journal du 17 octobre](SESSION-2026-10-17.md).
 
-Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 16 octobre](SESSION-2026-10-16.md).
+Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 17 octobre](SESSION-2026-10-17.md).
 
 Les tâches réellement restantes et les fonctions déjà livrées sont séparées dans [TODO.md](TODO.md). Les pistes détaillées restent dans [AMELIORATIONS.md](AMELIORATIONS.md) ; aucune nouvelle modification fonctionnelle ne doit démarrer sans demande de l’utilisateur.
 
@@ -19,11 +19,14 @@ Les tâches réellement restantes et les fonctions déjà livrées sont séparé
 - Création/édition de recettes, calcul par batch et rendement, types et moments distincts, filtres et recherche. Grille de vignettes paginée (12 recettes), photos, filtres latéraux, détails repliés et réglages de production/moments enregistrables directement sur chaque ligne sans modifier les ingrédients.
 - Page Importer distincte ; import de texte/archives en brouillons, OpenAI optionnel et tentative de récupération de description Instagram avec repli texte.
 - Calendrier à cinq créneaux, participants explicites, repas multi-recettes, boissons/desserts individuels et duplication complète sur plusieurs dates. Au petit-déjeuner et aux deux collations, les desserts adaptés peuvent aussi être ajoutés comme recette commune et bénéficier du calcul de portions ; au déjeuner et au dîner, le dessert individuel s’ajoute avec « + Dessert ».
+- Calendrier imprimable en A4 paysage sur sept colonnes ; l’impression affiche seulement les menus et les quantités pour chaque personne.
 - Préparation entière en grammes estimés, deux ou trois parties indépendantes, coefficients de cuisson, conversions des repas/lots existants et conservation des ingrédients crus.
 - Ingrédients en blocs lisibles ; liens en bas ; coefficient individuel affiché pour les féculents sélectionnés.
 - Administration : profils compacts et datés, relevés de poids et historiques ; répartition des kcal à 100 %, par défaut 15/40/10/25/10 %.
+- Minima quotidiens de protéines configurables par personne dans Administration et affichés sous les prévisions kcal de chaque jour ; le récapitulatif par personne utilise le repère hebdomadaire daté.
 - Lignes kcal/protéines par personne dans l'éditeur ; calendrier allégé et bilan kcal prévu/objectif en bas de chaque journée.
 - Propositions plafonnées et recalcul explicite ; petit-déjeuner limité automatiquement à deux pièces, une portion ou poids correspondant selon le rendement.
+- Les propositions automatiques plafonnent les salades à une portion par personne ; couleurs de créneaux dédiées et repère kcal hebdomadaire dans le calendrier.
 - Rééquilibrage de la journée pour les adultes : aperçu, correction du petit-déjeuner, réduction éventuelle du déjeuner/dîner, conservation du repère protéique de ces repas et refus des aperçus obsolètes.
 - Stocks de produits et de préparations : inventaire initial, achats reçus, productions et repas marqués « Préparé », historique, annulations transactionnelles et protection contre les doubles déductions ; courses déduisant les stocks disponibles.
 - Planning des routines de courses modifiable et persistant, avec confirmation visible après enregistrement.
@@ -36,7 +39,7 @@ Les photos sont stockées dans un dossier configurable (`RECIPE_IMAGE_DIR`) avec
 
 ## Vérification
 
-La suite complète locale a réussi pour la version **0.2.72 : 213 tests**. Les vérifications Chrome locales couvrent notamment les types Salade/Sauce, les services, les quantités de sauce (défaut, saisie manuelle et zéro), le recalcul puis la sauvegarde/réouverture. Les validations des versions antérieures restent archivées dans les journaux. Le workflow de livraison lié ci-dessus a confirmé les tests CI et la publication de cette version.
+La suite complète locale a réussi pour la version **0.2.76 : 219 tests**. Les contrôles GitHub de la PR #104 et le workflow de publication de la PR #105 ont réussi, y compris la publication de l’image GHCR. Les validations antérieures restent archivées dans les journaux. Aucune validation ni action sur l’installation de l’utilisateur n’est réalisée par l’agent.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 
