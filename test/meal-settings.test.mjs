@@ -5,6 +5,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { MEAL_ORDER,DEFAULT_MEAL_RATIOS,validMealRatios } from '../web/meal-config.js';
 import { suggestQuantity } from '../web/portion-planner.js';
 import { handleRequest } from '../src/server/app.mjs';
+import { validateProteinTargets } from '../src/server/protein-settings.mjs';
 import { createRecipe,validateRecipeInput } from '../src/server/recipes.mjs';
 import { savePlannedMeal,listPlannedMeals,duplicatePlannedMeal,validatePlannedMeal } from '../src/server/planning.mjs';
 import { rawShoppingRequirements } from '../src/server/shopping-requirements.mjs';
@@ -32,6 +33,11 @@ async function request(pool,method,url,body,password){
 test('meal distribution administration requires the existing authenticated session',async()=>{
   const pool={query(){throw new Error('must not access database');}};
   for(const method of ['GET','PUT'])assert.equal((await request(pool,method,'/api/meal-settings?householdId='+h,{householdId:h,ratios:custom},'synthetic-password')).status,401);
+  for(const method of ['GET','PUT'])assert.equal((await request(pool,method,'/api/protein-settings?householdId='+h,{householdId:h,targets:{[p]:90}},'synthetic-password')).status,401);
+});
+test('protein minimum settings validate household person IDs and bounded gram targets',()=>{
+  assert.deepEqual(validateProteinTargets({[p]:90,[food]:null}),{data:{[p]:90,[food]:null}});
+  for(const targets of [null,[],{invalid:90},{[p]:'90'},{[p]:-1},{[p]:501},{[p]:Infinity}])assert.equal(validateProteinTargets(targets).error,'invalid-protein-targets');
 });
 test('saved household ratios, evening meals, copies and shopping persist against PostgreSQL',async()=>{
   const db=new PGlite();
@@ -48,6 +54,13 @@ test('saved household ratios, evening meals, copies and shopping persist against
     assert.deepEqual((await request(pool,'GET','/api/meal-settings?householdId='+other)).body.ratios,DEFAULT_MEAL_RATIOS);
     assert.equal((await request(pool,'GET','/api/meal-settings?householdId=eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee')).status,404);
     await pool.query('INSERT INTO people(id,household_id,display_name) VALUES($1,$2,\'Test\')',[p,h]);
+    const proteinPath='/api/protein-settings?householdId='+h;
+    assert.deepEqual((await request(pool,'GET',proteinPath)).body.targets,{});
+    assert.equal((await request(pool,'PUT',proteinPath,{householdId:h,targets:{[p]:501}})).status,400);
+    assert.equal((await request(pool,'PUT',proteinPath,{householdId:h,targets:{[other]:90}})).status,400);
+    assert.equal((await request(pool,'PUT',proteinPath,{householdId:h,targets:{[p]:110}})).status,200);
+    assert.deepEqual((await request(pool,'GET',proteinPath)).body.targets,{[p]:110});
+    assert.deepEqual((await request(pool,'GET','/api/protein-settings?householdId='+other)).body.targets,{});
     await pool.query('INSERT INTO foods(id,canonical_name,source) VALUES($1,\'Snack test\',\'manual\')',[food]);
     const recipe=await createRecipe(pool,validateRecipeInput({householdId:h,name:'Snack',mealMoments:['snack'],yield:{amount:100,unitId:'g'},lines:[{foodId:food,quantity:100,unitId:'g'}]}).data);
     const input={householdId:h,mealDate:'2026-10-19',slot:'evening_snack',notes:'soir',attendeeIds:[p],items:[{recipeId:recipe.id,role:'main',amounts:[{personId:p,quantity:80}]}]};

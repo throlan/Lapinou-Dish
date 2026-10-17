@@ -17,6 +17,7 @@ test('home page loads the application module as a versioned same-origin asset', 
   assert.equal(response.status, 200);
   assert.match(response.headers['Content-Type'], /^text\/html/);
   assert.match(response.body, /<script type="module" src="\/app\.js\?v=[0-9.]+"><\/script>/);
+  assert.match(response.body, /id="protein-targets-form"/);
   const scriptResponse = {
     status: 200,
     headers: {},

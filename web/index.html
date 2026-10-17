@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=0.2.74">
+    <link rel="stylesheet" href="/style.css?v=0.2.75">
   </head>
   <body>
     <header class="topbar">
@@ -30,7 +30,7 @@
 
       <section id="home-view" class="view"><div id="dashboard-content"><p class="empty">Chargement du tableau de bord…</p></div></section>
       <section id="admin-view" class="view hidden">
-        <div class="section-heading"><div><h2>Administration du foyer</h2><p>Ces pourcentages s’appliquent au besoin quotidien de chaque profil.</p></div></div>
+        <div class="section-heading"><div><h2>Administration du foyer</h2><p>Réglages de la répartition des repas et des repères nutritionnels du foyer.</p></div></div>
       <section id="profiles-view" class="admin-profile-section">
         <div class="section-heading"><div><h2>Profils du foyer</h2><p>Mesures et activité saisies par les membres, conservées dans leur historique.</p></div></div>
         <details class="profile-create-panel"><summary>Ajouter une personne</summary><form id="person-form" class="profile-create">
@@ -56,6 +56,13 @@
           <p id="meal-ratios-message" class="form-message" role="status"></p>
         </form>
         <div id="meal-ratios-preview" class="card"></div>
+        <h3>Minima quotidiens de protéines</h3>
+        <form id="protein-targets-form" class="card">
+          <p class="muted">Ces repères sont personnalisables et servent uniquement à colorer les prévisions du calendrier. Laisse un champ vide si aucun minimum n’est défini ; valide les valeurs avec le professionnel de santé concerné.</p>
+          <div id="protein-targets-fields" class="form-grid"></div>
+          <button type="submit" class="primary" disabled>Enregistrer les minima</button>
+          <p id="protein-targets-message" class="form-message" role="status"></p>
+        </form>
         <h3>Composition des assiettes</h3>
         <form id="plate-ratios-form" class="card">
           <p class="muted">Proportions en poids estimé servi, après application des coefficients de cuisson. Chaque mode totalise 100 %. Ces pourcentages ne représentent ni les kcal, ni la surface de l’assiette, ni des grammes de protéines nutritionnelles.</p>
@@ -300,6 +307,6 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.74"></script>
+    <script type="module" src="/app.js?v=0.2.75"></script>
   </body>
 </html>
