@@ -2150,6 +2150,26 @@ function renderMealCard(meal) {
   const partial = meal.isOccasion ? false : meal.items?.some((item) => !item.recipe?.nutrition?.complete) ?? false;
   const total = document.createElement('small'); total.className = 'meal-kcal'; total.textContent = meal.isOccasion ? `${format(kcal)} kcal estimées · déduites de l’épargne` : kcal ? `${partial ? 'Sous-total partiel' : 'Total'} · ${format(kcal)} kcal` : 'Valeurs inconnues ou incomplètes';
   card.append(edit, attendee, total);
+  const printItems = document.createElement('div'); printItems.className = 'print-meal-items';
+  if (meal.isOccasion) {
+    const line = document.createElement('p'); line.textContent = meal.occasionTitle || 'Repas exceptionnel'; printItems.append(line);
+  } else {
+    for (const item of meal.items ?? []) {
+      if (!item.recipe) continue;
+      const row = document.createElement('div'); row.className = 'print-meal-item';
+      const recipeName = document.createElement('strong'); recipeName.textContent = item.recipe.name;
+      const quantities = document.createElement('ul');
+      for (const amount of item.amounts ?? []) {
+        const person = meal.attendees?.find((entry) => entry.id === amount.personId) ?? state.people.find((entry) => entry.id === amount.personId);
+        if (!person) continue;
+        const quantity = document.createElement('li');
+        quantity.textContent = `${person.displayName} : ${formatQty(amount.quantity)} ${item.recipe.yield?.unitId ?? 'portion'}`;
+        quantities.append(quantity);
+      }
+      row.append(recipeName, quantities); printItems.append(row);
+    }
+  }
+  card.append(printItems);
   if(meal.preparedAt){const done=document.createElement('small');done.className='stock-status';done.textContent='Préparé ✓';card.append(done);edit.disabled=true;edit.title='Annule la préparation avant de modifier ce repas.';}
   if(!meal.isOccasion){const prepared=document.createElement('button');prepared.type='button';prepared.className='text-button';prepared.textContent=meal.preparedAt?'Annuler la préparation':'Marquer préparé';
     const status=document.createElement('small');status.setAttribute('role','status');
@@ -2168,6 +2188,8 @@ function renderMealCard(meal) {
   edit.addEventListener('click', () => openMealEditor(meal.mealDate, meal.slot, meal));
   return card;
 }
+
+$('#print-calendar')?.addEventListener('click', () => window.print());
 
 function renderCalendarSummary(meals, people, weekStart) {
   const summary = $('#calendar-summary');
