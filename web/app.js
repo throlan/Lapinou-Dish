@@ -1,4 +1,4 @@
-import { breakfastServingLimit, calculateDailyEnergy, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, capAccompanimentQuantity, mainServingLimit, MIN_PROTEIN_G_PER_MEAL, rebalanceNaturalPortions, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';
+import { breakfastServingLimit, calculateDailyEnergy, calculateDailyProtein, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, dailyProteinTarget, capAccompanimentQuantity, mainServingLimit, MIN_PROTEIN_G_PER_MEAL, rebalanceNaturalPortions, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';
 import { MEAL_ORDER, MEAL_LABELS, validMealRatios } from './meal-config.js';
 import { suggestPlatePortions } from './portion-planner.js';
 import { PLATE_PARTS, validPlateRatios } from './meal-config.js';
@@ -2009,7 +2009,7 @@ function renderCalendarDay(date, meals, today) {
 
 function renderDailyEnergySummary(date,meals) {
   const footer=document.createElement('footer');footer.className='daily-energy-summary';
-  const heading=document.createElement('strong');heading.textContent='Kcal prévues / objectif';footer.append(heading);
+  const heading=document.createElement('strong');heading.textContent='Kcal prévues / objectif · protéines / minimum';footer.append(heading);
   for(const person of state.people) {
     const daily=calculateDailyEnergy(meals,person.id,date),target=latestProfile(person,date)?.dailyEnergyKcal;
     const hasOccasion=meals.some(meal=>meal.mealDate===date&&meal.isOccasion&&meal.attendees.some(attendee=>attendee.id===person.id));
@@ -2024,6 +2024,18 @@ function renderDailyEnergySummary(date,meals) {
     if(savings){const budget=document.createElement('small');budget.textContent=`Budget repas ajusté : ${format(Math.max(0,Number(target)-savings.dailyKcal))} kcal (épargne ${format(savings.dailyKcal)} kcal)`;line.append(budget);}
     if(daily.incomplete){const note=document.createElement('small');note.textContent='Données incomplètes';line.append(note);}
     footer.append(line);
+    const proteins=calculateDailyProtein(meals,person.id,date),proteinTarget=dailyProteinTarget(person);
+    const proteinLine=document.createElement('div');proteinLine.className='daily-protein-person';
+    const proteinValue=document.createElement('strong');proteinValue.className='daily-protein-value';
+    proteinValue.textContent=proteinTarget==null
+      ? `${proteins.incomplete?'≥ ':''}${format(proteins.grams)} g · minimum non défini`
+      : `${proteins.incomplete?'≥ ':''}${format(proteins.grams)} / ${proteinTarget} g protéines`;
+    if(proteinTarget==null)proteinValue.classList.add('protein-unknown');
+    else if(proteins.incomplete)proteinValue.classList.add('protein-unknown');
+    else proteinValue.classList.add(proteins.grams>=proteinTarget?'protein-sufficient':'protein-low');
+    proteinLine.append(proteinValue);
+    if(proteins.incomplete){const note=document.createElement('small');note.textContent='Protéines partielles : certaines données sont inconnues.';proteinLine.append(note);}
+    footer.append(proteinLine);
   }
   if(meals.some(meal=>meal.mealDate===date&&meal.isOccasion)){const note=document.createElement('small');note.className='muted';note.textContent='Les repas exceptionnels sont inclus dans les kcal prévues, sans limite de créneau, et débités de l’épargne.';footer.append(note);}
   const needsBreakfast=meals.some(meal=>meal.mealDate===date && meal.slot==='breakfast' && meal.items.some(item=>item.role==='main' && item.amounts.some(amount=>amount.quantity>breakfastServingLimit(item.recipe,state.recipes.find(parent=>parent.id===item.recipe?.parentRecipeId)))));

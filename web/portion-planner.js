@@ -84,6 +84,33 @@ export function calculateDailyEnergy(meals, personId, date) {
   return {kcal:incomplete && !knownAmounts ? null : kcal,incomplete,hasPlan};
 }
 
+const DAILY_PROTEIN_TARGETS = Object.freeze({ bibinette: 90, lapinou: 125, bibou: 85, titus: 50 });
+
+export function dailyProteinTarget(person) {
+  const name = String(person?.displayName ?? '').trim().toLocaleLowerCase('fr');
+  return DAILY_PROTEIN_TARGETS[name] ?? null;
+}
+
+export function calculateDailyProtein(meals, personId, date) {
+  let grams = 0, incomplete = false, hasPlan = false;
+  for (const meal of meals.filter((entry) => entry.mealDate === date)) {
+    if (meal.isOccasion && meal.attendees?.some((person) => person.id === personId)) {
+      hasPlan = true;
+      incomplete = true;
+      continue;
+    }
+    for (const item of meal.items ?? []) {
+      const amount = item.amounts?.find((entry) => entry.personId === personId);
+      if (!amount || !(Number(amount.quantity) > 0)) continue;
+      hasPlan = true;
+      const protein = item.recipe?.nutrition?.perYieldUnit?.proteinG;
+      if (protein == null || !Number.isFinite(Number(protein))) incomplete = true;
+      else grams += Number(amount.quantity) * Number(protein);
+    }
+  }
+  return { grams: Number(grams.toFixed(2)), incomplete, hasPlan };
+}
+
 export function calculatePersonEnergy(meal, personId) {
   let kcal = 0, hasPortions = false;
   for (const item of meal?.items ?? []) {

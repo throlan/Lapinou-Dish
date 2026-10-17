@@ -52,6 +52,39 @@ test('daily energy includes a quota-exempt occasion estimate per person',()=>{
   assert.deepEqual(planner.calculateDailyEnergy(meals,'other','2026-10-20'),{kcal:null,incomplete:true,hasPlan:true});
 });
 
+test('daily protein totals require complete protein data and use the household minimums',()=>{
+  const people=[{id:'b',displayName:'Bibinette'},{id:'l',displayName:'Lapinou'},{id:'bb',displayName:'Bibou'},{id:'t',displayName:'Titus'}];
+  const amounts=[{personId:'b',quantity:4},{personId:'l',quantity:1},{personId:'bb',quantity:4},{personId:'t',quantity:1}];
+  const meals=[{mealDate:'2026-10-19',items:[
+    {amounts,recipe:{nutrition:{perYieldUnit:{proteinG:25}}}},
+    {amounts:[{personId:'t',quantity:1}],recipe:{nutrition:{perYieldUnit:{proteinG:null}}}},
+  ]}];
+  assert.deepEqual(people.map(planner.dailyProteinTarget),[90,125,85,50]);
+  assert.deepEqual(planner.calculateDailyProtein(meals,'b','2026-10-19'),{grams:100,incomplete:false,hasPlan:true});
+  assert.deepEqual(planner.calculateDailyProtein(meals,'t','2026-10-19'),{grams:25,incomplete:true,hasPlan:true});
+  assert.deepEqual(planner.calculateDailyProtein(meals,'b','2026-10-20'),{grams:0,incomplete:false,hasPlan:false});
+  assert.equal(planner.dailyProteinTarget({displayName:'Camille'}),null);
+});
+
+test('calendar daily summary colors protein values against each person minimum',async()=>{
+  const source=await readFile(new URL('../web/app.js',import.meta.url),'utf8');
+  const start=source.indexOf('function renderDailyEnergySummary('),end=source.indexOf('let dailyRebalancePreview=',start);
+  const element=()=>({children:[],classList:{values:[],add(value){this.values.push(value);}},append(...children){this.children.push(...children);},addEventListener(){}});
+  const people=[{id:'b',displayName:'Bibinette'},{id:'l',displayName:'Lapinou'},{id:'bb',displayName:'Bibou'},{id:'t',displayName:'Titus'}];
+  const context={...planner,document:{createElement:element},state:{people,calendarReserveOverview:null,recipes:[]},
+    latestProfile:()=>null,format:value=>String(value)};
+  runInNewContext(source.slice(start,end)+'\nglobalThis.render=renderDailyEnergySummary;',context);
+  const amounts=people.map((person,index)=>({personId:person.id,quantity:[4,1,4,1][index]}));
+  const meals=[{mealDate:'2026-10-19',slot:'snack',attendees:people,items:[{amounts,recipe:{yield:{unitId:'piece',amount:1},nutrition:{complete:true,perYieldUnit:{energyKcal:10,proteinG:25}}}},{amounts:[{personId:'t',quantity:1}],recipe:{nutrition:{perYieldUnit:{proteinG:null}}}}]}];
+  const footer=context.render('2026-10-19',meals);
+  const proteinLines=footer.children.filter(child=>child.className==='daily-protein-person');
+  assert.equal(proteinLines[0].children[0].classList.values.includes('protein-sufficient'),true);
+  assert.equal(proteinLines[1].children[0].classList.values.includes('protein-low'),true);
+  assert.equal(proteinLines[2].children[0].classList.values.includes('protein-sufficient'),true);
+  assert.equal(proteinLines[3].children[0].classList.values.includes('protein-unknown'),true);
+  assert.equal(proteinLines[3].children[0].textContent,'≥ 25 / 50 g protéines');
+});
+
 test('calendar forecast compares the week total with the sum of dated weekly targets',async()=>{
   const source=await readFile(new URL('../web/app.js',import.meta.url),'utf8');
   const start=source.indexOf('function renderCalendarSummary('),end=source.indexOf('function isIndividualRole(',start);
