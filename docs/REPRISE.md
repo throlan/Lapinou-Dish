@@ -1,12 +1,12 @@
-# Cahier de reprise — 17 octobre 2026, quantités à cuisiner
+# Cahier de reprise — 17 octobre 2026, besoins exacts pour tous les services
 
 ## Version et publication vérifiées
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish ; branche de référence : `origin/main`.
-- Version de référence du code : **0.2.78**, correction de la fiche Cuisiner pour les préparations servies ensemble en grammes. Les ingrédients et le stock utilisent les grammes des menus, sans arrondi aux portions entières de la recette source.
-- Dernière livraison antérieure vérifiée : **0.2.77**, PR #107 fusionnée, commit `cfd6e94e83c798769d32199dd7f2dacc22d9e54a` ; [tests et publication GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/39031174140). Le correctif des photos est donc livré, pas un chantier local à reprendre. Pour la 0.2.78, consulter le workflow du dernier commit de main lors de la reprise.
+- Version de référence du code : **0.2.79**. Règle utilisateur : préparer uniquement les besoins cumulés des menus, quel que soit le service. Les parties séparées ont chacune leur quantité, leur coefficient de fabrication et leurs ingrédients ; aucun multiplicateur commun ni arrondi aux portions de la recette de base.
+- Dernière livraison antérieure vérifiée : **0.2.78**, PR #108 fusionnée au commit `612c3e1462bd4e5a9f6892cd33f98f36c454c57a`, [tests et publication GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/39058696162). La PR #107 (0.2.77, dossier des photos) est également livrée. Pour la 0.2.79, consulter le workflow du dernier commit de main lors de la reprise.
 - La PR #104 ajoute l’impression hebdomadaire en paysage. La PR #105 met à jour la version et les clés de cache des scripts et styles.
-- **225 tests locaux réussis** pour la 0.2.78, dont sauvegarde, annulation et utilisation réelle du stock sur PostgreSQL/PGlite, ainsi que tests d’interaction de la fiche cuisine. Le navigateur intégré n’a pas pu joindre le serveur local ; aucun parcours visuel de cette correction n’est annoncé comme réussi.
+- **230 tests locaux réussis** pour la 0.2.79 : modes entier/deux/trois services, interactions de la fiche, production atomique, ingrédients partagés entre services, zéro, répétition, annulation et absence de surplus. Pas de nouveau parcours visuel de navigateur confirmé ; la limite du navigateur intégré local est documentée dans le journal.
 - Références : [état](STATUS.md), [prochaines tâches](TODO.md), [produit](PRODUCT.md), [améliorations](AMELIORATIONS.md), [journal du 17 octobre](SESSION-2026-10-17.md).
 
 ## Interdiction d'accès à l'installation
@@ -35,7 +35,7 @@
 - PR #104 : calendrier hebdomadaire imprimable en A4 paysage ; seuls les menus et quantités par personne sont imprimés.
 - PR #105 / 0.2.76 : version et clés de cache alignées. Tests locaux (219) et publication GHCR réussis.
 - PR #107 / 0.2.77 : réglage `RECIPE_IMAGE_DIR=/images` visible dans le template ; sans variable, repli PostgreSQL. Contrôles et publication réussis. L’utilisateur vérifie seul son installation.
-- 0.2.78 : pour une préparation servie ensemble en grammes, Cuisiner additionne les besoins des menus via les préparations calculées, déduit le stock réservé et adapte les ingrédients au poids restant. Même poids enregistré en stock. Quantité modifiable et zéro conservé si tout est couvert ; fabrication en pièces et services séparés inchangés.
+- 0.2.78 puis **0.2.79** : Cuisiner utilise les besoins des menus. Depuis la 0.2.79, les services viande-légumes/féculents et viande/légumes/féculents sont calculés indépendamment. Les portions/pièces originales ne sont pas arrondies vers un lot plus grand. Une partie absente ou couverte reste à zéro. Ouverture depuis la recette : rechargement des besoins de la période des courses, aucune proposition de recette complète en repli. Les quantités restent modifiables explicitement.
 - La page Importer dédiée, les vignettes de recettes avec photos, les filtres latéraux et les photos persistantes sont déjà en place.
 
 ## Règles métier à préserver
@@ -68,7 +68,7 @@ Après une modification autorisée : branche, tests adaptés, commit/push, PR, c
 ```text
 Reprends le développement de Lapinou Dish. Retrouve le dépôt local par son remote https://github.com/throlan/Lapinou-Dish, vérifie son état et préserve toute modification locale, branche et stash avant de récupérer origin/main sans écrasement. Lis AGENTS.md s'il existe, puis docs/REPRISE.md, docs/STATUS.md, docs/PRODUCT.md, docs/AMELIORATIONS.md, docs/TODO.md et le dernier journal dans docs/ (actuellement docs/SESSION-2026-10-17.md).
 
-La version de référence du code est 0.2.78 (quantités à cuisiner depuis les besoins en grammes). La PR #107 (0.2.77, stockage des photos) est fusionnée et publiée au commit cfd6e94. Les 225 tests locaux de la 0.2.78 ont réussi. Vérifie la tête de main, package.json et le workflow GitHub/GHCR correspondant pour confirmer la dernière livraison. Ne réimplémente pas les fonctions déjà livrées recensées dans REPRISE.md.
+La version de référence du code est 0.2.79 : fabrication limitée aux besoins des menus pour tous les types de service, avec quantités et ingrédients indépendants pour chaque partie. La version précédente 0.2.78 (PR #108, commit 612c3e1) est fusionnée et publiée ; la 0.2.77 (PR #107, photos) aussi. Les 230 tests locaux passent. Vérifie la tête de main, package.json et les contrôles/publication GitHub/GHCR correspondants. Ne réimplémente pas les fonctions déjà livrées.
 
 Prochaine piste proposée dans TODO.md : filtre des aliments inutilisés, puis étude d’une fusion guidée des doublons avec préservation de toutes les références et de leurs réglages. Fais-moi d'abord un état bref de la version, de la publication et des tâches réellement restantes. Attends ma demande avant toute nouvelle modification fonctionnelle.
 

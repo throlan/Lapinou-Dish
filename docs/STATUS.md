@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-Application **0.2.78** : la fiche Cuisiner des préparations servies ensemble utilise les grammes réellement prévus, stock déjà déduit, pour les ingrédients et l’enregistrement de la production. **225 tests locaux réussis**. Vérifier le workflow de la tête de main pour sa publication. La version précédente **0.2.77**, PR #107, commit `cfd6e94`, est fusionnée et publiée ([workflow](https://github.com/throlan/Lapinou-Dish/actions/runs/39031174140)). Le correctif du dossier des photos n’est plus un chantier non publié. Voir le [journal du 17 octobre](SESSION-2026-10-17.md).
+Application **0.2.79** : fabrication depuis les besoins cumulés des menus pour tous les services. Deux/trois parties : quantités et ingrédients indépendants, production atomique sans surplus automatique. **230 tests locaux réussis** ; consulter le workflow de la tête de main pour la publication. La précédente **0.2.78**, PR #108, commit `612c3e1`, a été fusionnée et publiée ([workflow](https://github.com/throlan/Lapinou-Dish/actions/runs/39058696162)). La PR #107 (0.2.77, photos) est également livrée. Voir le [journal](SESSION-2026-10-17.md).
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 17 octobre](SESSION-2026-10-17.md).
 
@@ -28,7 +28,7 @@ Les tâches réellement restantes et les fonctions déjà livrées sont séparé
 - Propositions plafonnées et recalcul explicite ; petit-déjeuner limité automatiquement à deux pièces, une portion ou poids correspondant selon le rendement.
 - Les propositions automatiques plafonnent les salades à une portion par personne ; couleurs de créneaux dédiées et repère kcal hebdomadaire dans le calendrier.
 - Rééquilibrage de la journée pour les adultes : aperçu, correction du petit-déjeuner, réduction éventuelle du déjeuner/dîner, conservation du repère protéique de ces repas et refus des aperçus obsolètes.
-- Fiche Cuisiner : besoins cumulés en grammes pour les préparations servies ensemble, stock disponible déduit, ingrédients et quantité enregistrée cohérents, saisie manuelle possible.
+- Fiche Cuisiner : besoins cumulés des menus dans les unités servies, stock disponible déduit, pas d’arrondi aux portions entières de la recette source. Deux/trois services : quantité et ingrédients propres à chaque partie. Enregistrement atomique, aucune production implicite d’une partie à zéro, et aucun lot complet proposé si les besoins sont absents.
 - Stocks de produits et de préparations : inventaire initial, achats reçus, productions et repas marqués « Préparé », historique, annulations transactionnelles et protection contre les doubles déductions ; courses déduisant les stocks disponibles.
 - Planning des routines de courses modifiable et persistant, avec confirmation visible après enregistrement.
 - Courses regroupées par magasin et produit dans des panneaux repliables ; magasins modifiables sans perdre leurs associations d’aliments ni leur cible Home Assistant. « Préparations à faire » ne garde que les recettes avec une production à suivre, avec besoins restants après stock de plats.
@@ -40,7 +40,7 @@ Les photos sont stockées dans un dossier configurable (`RECIPE_IMAGE_DIR`) avec
 
 ## Vérification
 
-La suite complète locale a réussi pour la version **0.2.78 : 225 tests**. La régression couvre deux repas totalisant 5 340 g, la déduction du stock disponible, les ingrédients ajustés, la production et son annulation, les doubles clics et les repas préparés sans seconde déduction. Les tests d’interface vérifient l’unité affichée, la saisie manuelle et la quantité transmise à l’API. Le navigateur intégré n’a pas pu joindre le serveur local ; aucun test visuel de cette correction n’est revendiqué. La publication précédente (0.2.77, PR #107) a été vérifiée ; les validations antérieures restent dans les journaux.
+La suite complète locale a réussi pour la version **0.2.79 : 230 tests**. Les régressions couvrent les différents services, les ingrédients à poids cru et les coefficients de cuisson, les ingrédients partagés, le manque de stock avec transaction annulée, les demandes répétées/modifiées, l’annulation, les repas préparés et le solde disponible nul après couverture des menus. Les tests d’interface vérifient les valeurs indépendantes, les zéros et le rechargement des besoins depuis la fiche recette. Pas de nouveau parcours visuel confirmé ; aucun accès à l’installation de l’utilisateur.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 

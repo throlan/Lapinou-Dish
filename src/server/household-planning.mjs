@@ -124,23 +124,37 @@ export async function completeRoutine(pool, householdId, routineId) {
 }
 
 export function validateProductionInput(input) {
+  const split = input?.servingQuantities != null;
   if (!input || typeof input !== 'object' || !isUuid(input.householdId) || !isUuid(input.recipeId)
     || !isDate(input.producedOn)
-    || !Number.isFinite(input.quantity) || input.quantity <= 0 || input.quantity > 100000
+    || (!split && (!Number.isFinite(input.quantity) || input.quantity <= 0 || input.quantity > 100000))
     || !storageTypes.has(input.storage ?? 'freezer')
     || (input.note != null && (typeof input.note !== 'string' || input.note.length > 500))
     || (input.requestId != null && !isUuid(input.requestId))) return { error: 'invalid-production' };
+  if (split && (!Array.isArray(input.servingQuantities) || input.servingQuantities.length < 2 || input.servingQuantities.length > 3
+    || input.servingQuantities.some(part => !part || !isUuid(part.recipeId) || !Number.isFinite(part.quantity)
+      || part.quantity < 0 || part.quantity > 100000 || Math.abs(part.quantity * 1000 - Math.round(part.quantity * 1000)) > 0.000001)
+    || new Set(input.servingQuantities.map(part => part.recipeId)).size !== input.servingQuantities.length
+    || !input.servingQuantities.some(part => part.quantity > 0))) return {error:'invalid-production-parts'};
   return { data: {
     householdId: input.householdId, recipeId: input.recipeId,
     producedOn: input.producedOn, quantity: input.quantity, storage: input.storage ?? 'freezer',
     note: typeof input.note === 'string' ? input.note.trim() : '',
     requestId: input.requestId ?? null,
+    ...(split ? {servingQuantities:input.servingQuantities.map(part=>({recipeId:part.recipeId,quantity:part.quantity}))} : {}),
   } };
 }
 
 export async function addStockLot(pool, input) {
+  if (input.servingQuantities != null) {
+    const validation=validateProductionInput(input);
+    if(validation.error)return validation;
+    input=validation.data;
+  }
   const client = await pool.connect();
   const id = randomUUID();
+  const requestedParts = input.servingQuantities
+    ? Object.fromEntries(input.servingQuantities.map(part=>[part.recipeId,part.quantity])) : null;
   try {
     await client.query('BEGIN');
     await lockHouseholdInventory(client, input.householdId);
@@ -150,9 +164,14 @@ export async function addStockLot(pool, input) {
         const lot = previous.rows[0];
         await client.query('ROLLBACK');
         if (lot.cancelled_at) return { error:'production-request-cancelled' };
-        if (lot.recipe_id !== input.recipeId || Number(lot.quantity) !== input.quantity
+        const savedParts=lot.serving_quantities;
+        const sameParts=requestedParts && savedParts
+          ? Object.keys(requestedParts).length===Object.keys(savedParts).length
+            && Object.entries(requestedParts).every(([key,value])=>Number(savedParts[key])===value)
+          : !requestedParts && !savedParts;
+        if (!sameParts || lot.recipe_id !== input.recipeId || (!requestedParts && Number(lot.quantity) !== input.quantity)
           || String(lot.produced_on).slice(0,10) !== input.producedOn || lot.storage !== input.storage || lot.note !== input.note) return { error:'production-request-conflict' };
-        return { id:lot.id, recipeId:input.recipeId, quantity:input.quantity, replayed:true };
+        return { id:lot.id, recipeId:input.recipeId, quantity:Number(lot.quantity), replayed:true };
       }
     }
     const recipe = await client.query(
@@ -162,26 +181,44 @@ export async function addStockLot(pool, input) {
     if (!recipe.rowCount || recipe.rows[0].production_type === 'none') {
       await client.query('ROLLBACK'); return { error: !recipe.rowCount ? 'recipe-not-found' : 'recipe-not-for-production' };
     }
+    let quantity=input.quantity,parts=null;
+    if (requestedParts) {
+      parts=await client.query('SELECT id,yield_amount FROM recipes WHERE parent_recipe_id=$1 AND household_id=$2 FOR SHARE',[input.recipeId,input.householdId]);
+      if (!recipe.rows[0].separate_starch || parts.rows.length < 2 || parts.rows.length!==Object.keys(requestedParts).length
+        || parts.rows.some(part=>!Object.hasOwn(requestedParts,part.id))) {
+        await client.query('ROLLBACK');return {error:'invalid-production-parts'};
+      }
+      // Only a bookkeeping equivalent for the hidden bundle. Physical stock
+      // and ingredient deductions use each child's requested grams below.
+      const total=Object.values(requestedParts).reduce((sum,value)=>sum+value,0);
+      const base=parts.rows.reduce((sum,part)=>sum+Number(part.yield_amount),0);
+      quantity=Math.min(100000,Math.max(0.001,Math.round(total/base*Number(recipe.rows[0].yield_amount)*1000)/1000));
+    }
+    const targets=requestedParts
+      ? parts.rows.filter(part=>requestedParts[part.id]>0).map(part=>({id:part.id,factor:requestedParts[part.id]/Number(part.yield_amount)}))
+      : [{id:input.recipeId,factor:quantity/Number(recipe.rows[0].yield_amount)}];
     const lines = await client.query(
-      `SELECT rl.food_id AS "foodId", f.canonical_name AS name, rl.quantity, rl.unit_id AS "unitId",
+      `SELECT rl.recipe_id AS "recipeId",rl.food_id AS "foodId", f.canonical_name AS name, rl.quantity, rl.unit_id AS "unitId",
               s.quantity_g AS "quantityG", f.grams_per_millilitre AS "gramsPerMillilitre",
               COALESCE((SELECT jsonb_object_agg(u.unit_id,u.grams_per_unit) FROM food_unit_conversions u WHERE u.food_id=f.id),'{}'::jsonb) AS "gramsPerUnit"
        FROM recipe_lines rl JOIN foods f ON f.id=rl.food_id
        JOIN household_ingredient_stock s ON s.food_id=f.id AND s.household_id=$2
-       WHERE rl.recipe_id=$1 ORDER BY rl.food_id FOR UPDATE OF s`, [input.recipeId,input.householdId]);
-    const deductions = productionDeductions(lines.rows,input.quantity,Number(recipe.rows[0].yield_amount));
+       WHERE rl.recipe_id=ANY($1::uuid[]) ORDER BY rl.food_id,rl.recipe_id FOR UPDATE OF s`, [targets.map(target=>target.id),input.householdId]);
+    const deductions = productionDeductions(lines.rows.map(line=>({...line,
+      quantity:Number(line.quantity)*targets.find(target=>target.id===line.recipeId).factor})),1,1);
     if (deductions.error) { await client.query('ROLLBACK'); return deductions; }
     await client.query(
-      `INSERT INTO stock_lots (id, household_id, recipe_id, produced_on, quantity, storage, note, request_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [id, input.householdId, input.recipeId, input.producedOn, input.quantity, input.storage, input.note,input.requestId],
+      `INSERT INTO stock_lots (id, household_id, recipe_id, produced_on, quantity, storage, note, request_id,serving_quantities)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)`,
+      [id, input.householdId, input.recipeId, input.producedOn, quantity, input.storage, input.note,input.requestId,requestedParts?JSON.stringify(requestedParts):null],
     );
     if (recipe.rows[0].separate_starch) {
-      const parts = await client.query('SELECT id,yield_amount FROM recipes WHERE parent_recipe_id=$1 FOR SHARE', [input.recipeId]);
+      parts ??= await client.query('SELECT id,yield_amount FROM recipes WHERE parent_recipe_id=$1 FOR SHARE', [input.recipeId]);
       if (!parts.rows.length) throw new Error('serving-parts-missing');
       await client.query('UPDATE stock_lots SET is_serving_bundle=true WHERE id=$1', [id]);
       for (const part of parts.rows) {
-        const grams = input.quantity / Number(recipe.rows[0].yield_amount) * Number(part.yield_amount);
+        const grams = requestedParts ? requestedParts[part.id] : quantity / Number(recipe.rows[0].yield_amount) * Number(part.yield_amount);
+        if (grams===0) continue;
         await client.query(
           'INSERT INTO stock_lots(id,household_id,recipe_id,produced_on,quantity,storage,note,parent_lot_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
           [randomUUID(),input.householdId,part.id,input.producedOn,grams,input.storage,input.note,id]);
@@ -192,7 +229,8 @@ export async function addStockLot(pool, input) {
       await client.query("INSERT INTO ingredient_stock_movements(id,household_id,food_id,delta_g,reason,stock_lot_id) VALUES ($1,$2,$3,$4,'production',$5)", [randomUUID(),input.householdId,item.foodId,-item.usedG,id]);
     }
     await client.query('COMMIT');
-    return { id, recipeId: input.recipeId, productionType: recipe.rows[0].production_type, producedOn: input.producedOn, quantity: input.quantity, unitId: recipe.rows[0].yield_unit_id, storage: input.storage, note: input.note, deductions:deductions.items };
+    return { id, recipeId: input.recipeId, productionType: recipe.rows[0].production_type, producedOn: input.producedOn, quantity, unitId: recipe.rows[0].yield_unit_id, storage: input.storage, note: input.note, deductions:deductions.items,
+      ...(requestedParts?{servingQuantities:input.servingQuantities}:{}) };
   } catch (error) {
     await client.query('ROLLBACK');
     if (error.code === '23503') return { error: 'recipe-not-found' };
