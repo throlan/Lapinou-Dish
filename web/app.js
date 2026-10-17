@@ -3,7 +3,7 @@ import { MEAL_ORDER, MEAL_LABELS, validMealRatios } from './meal-config.js';
 import { suggestPlatePortions } from './portion-planner.js';
 import { PLATE_PARTS, validPlateRatios } from './meal-config.js';
 import { preparationWeeks } from './preparation-weeks.js';
-import { groupPreparations, suggestedProductionQuantity, scaledIngredients } from './cooking-sheet.js';
+import { groupPreparations, suggestedProductionQuantity, scaledIngredients, productionRecipe } from './cooking-sheet.js';
 import { filterRecipeDirectory, recipeCardForSource, recipeMissingData, recipeMomentLabel, recipeTypeLabel, recipePlanningLabel } from './recipe-directory.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -431,14 +431,14 @@ function preparationRow(group,productionDate) {
   const dates=document.createElement('small');dates.textContent=`${Math.max(...parts.map(item=>item.mealCount))} repas · ${displayDate(first.firstDate)}${first.lastDate!==first.firstDate?' au '+displayDate(first.lastDate):''}`;
   const amount=document.createElement('span');amount.className='preparation-amount';
   const suggested=suggestedProductionQuantity(group,recipe);
-  amount.textContent=covered?'Couvert par le stock':recipe?`${formatQty(suggested)} ${recipe.yield.unitId} à produire`:'À produire';
+  amount.textContent=covered?'Couvert par le stock':recipe?`${formatQty(suggested)} ${productionRecipe(recipe).yield.unitId} à produire`:'À produire';
   row.append(title);if(nutritionBadge)row.append(nutritionBadge);row.append(dates,amount);
   const details=document.createElement('ul');details.className='preparation-parts';
   for(const part of parts){const line=document.createElement('li');line.textContent=`${part.parentRecipeId?part.name.split(' — ').at(-1):'Recette entière'} : ${part.toMakeQuantity<=0.00001?'couvert':`${formatQty(part.toMakeQuantity)} ${part.unitId} à produire`} · prévu ${formatQty(part.plannedQuantity)} ${part.unitId} · stock couvrant ${formatQty(part.coveredQuantity)} ${part.unitId}`;details.append(line);}
   row.append(details);
   if(recipe){
     const link=document.createElement('button');link.type='button';link.className='secondary';link.textContent='Voir la recette';link.addEventListener('click',()=>showRecipeCard(recipe.id));row.append(link);
-    const cook=document.createElement('button');cook.type='button';cook.className='secondary';cook.textContent='Cuisiner';cook.addEventListener('click',()=>openCookingSheet(recipe.id,suggested||recipe.yield.amount,productionDate));row.append(cook);
+    const cook=document.createElement('button');cook.type='button';cook.className='secondary';cook.textContent='Cuisiner';cook.addEventListener('click',()=>openCookingSheet(recipe.id,suggested,productionDate,group));row.append(cook);
   }
   const calendar=document.createElement('button');calendar.type='button';calendar.className='secondary';calendar.textContent='Voir le repas dans le calendrier';
   calendar.addEventListener('click',()=>{state.calendarWeekStart=mondayOf(first.firstDate);setView('calendar');});row.append(calendar);
@@ -1398,14 +1398,16 @@ function renderCookingIngredients(){
     section.append(list);root.append(section);
   }
 }
-function openCookingSheet(recipeId,quantity,productionDate){
+function openCookingSheet(recipeId,quantity,productionDate,planned){
   const recipe=state.recipes.find(item=>item.id===recipeId);if(!recipe)return;
   cookingRecipeId=recipeId;cookingRequest=null;
-  const form=$('#cook-form');form.reset();form.elements.quantity.value=String(quantity||recipe.yield.amount);
+  const target=productionRecipe(recipe),form=$('#cook-form');form.reset();form.elements.quantity.value=String(quantity??target.yield.amount);
   $('#save-cook').disabled=false;
   form.elements.producedOn.value=productionDate||localDateValue();
   $('#cook-title').textContent=recipe.name;$('#cook-description').textContent=recipe.description??'';
-  $('#cook-unit').textContent=recipe.yield.unitId;$('#cook-base-yield').textContent=`Recette de base : ${formatQty(recipe.yield.amount)} ${recipe.yield.unitId}. Les ingrédients ci-dessous suivent la quantité choisie.`;
+  $('#cook-unit').textContent=target.yield.unitId;$('#cook-base-yield').textContent=`Recette de base : ${formatQty(recipe.yield.amount)} ${recipe.yield.unitId}${target!==recipe?`, soit ${formatQty(target.yield.amount)} ${target.yield.unitId} estimés`:''}. Les ingrédients ci-dessous suivent la quantité choisie.`;
+  const plan=$('#cook-planned');plan.hidden=!planned;
+  plan.textContent=planned?`Besoins des menus, toutes les personnes et dates de cette période réunies : ${planned.parts.map(part=>`${formatQty(part.plannedQuantity)} ${part.unitId} prévus − ${formatQty(part.coveredQuantity)} ${part.unitId} couverts par le stock = ${formatQty(part.toMakeQuantity)} ${part.unitId} à fabriquer`).join(' ; ')}. Quantité modifiable.`:'';
   $('#cook-instructions').textContent=recipe.instructions?.trim()||'Aucune instruction renseignée dans la recette.';
   const source=$('#cook-source');source.replaceChildren();if(recipe.sourceUrl){const link=document.createElement('a');link.href=recipe.sourceUrl;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Source de la recette';source.append(link);}
   const tracked=recipe.productionType&&recipe.productionType!=='none';
@@ -1419,7 +1421,7 @@ for(const id of ['close-cook-dialog','cancel-cook'])$('#'+id)?.addEventListener(
 $('#cook-form')?.addEventListener('submit',async event=>{
   event.preventDefault();const form=event.currentTarget,recipe=state.recipes.find(item=>item.id===cookingRecipeId),button=$('#save-cook');
   if(!recipe||!recipe.productionType||recipe.productionType==='none'||button.disabled||!form.reportValidity())return;
-  const payload={householdId:state.household.id,recipeId:recipe.id,producedOn:form.elements.producedOn.value,quantity:Number(form.elements.quantity.value),storage:form.elements.storage.value,note:form.elements.note.value};
+  const payload={householdId:state.household.id,recipeId:productionRecipe(recipe).id,producedOn:form.elements.producedOn.value,quantity:Number(form.elements.quantity.value),storage:form.elements.storage.value,note:form.elements.note.value};
   const fingerprint=JSON.stringify(payload);if(cookingRequest?.fingerprint!==fingerprint)cookingRequest={fingerprint,requestId:newProductionRequestId()};
   button.disabled=true;let saved=false;
   try{
@@ -1694,7 +1696,7 @@ function recipeCard(recipe) {
   const photo=document.createElement('button');photo.type='button';photo.className='secondary';photo.textContent='Photo';photo.addEventListener('click',()=>openRecipeImageEditor(recipe));
   const cook=document.createElement('button');cook.type='button';cook.className='secondary';cook.textContent='Cuisiner';cook.setAttribute('aria-label',`Cuisiner ${recipe.name}`);cook.addEventListener('click',()=>{
     const planned=groupPreparations(state.preparations).find(group=>group.recipeId===recipe.id);
-    openCookingSheet(recipe.id,planned?suggestedProductionQuantity(planned,recipe)||recipe.yield.amount:recipe.yield.amount);
+    openCookingSheet(recipe.id,planned?suggestedProductionQuantity(planned,recipe):undefined,undefined,planned);
   });
   const actions=document.createElement('div');actions.className='recipe-card-actions';actions.append(photo,cook,duplicate,edit);
   header.append(visual,identity,nutrition,actions);card.append(header);
