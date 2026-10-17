@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=0.2.79">
+    <link rel="stylesheet" href="/style.css?v=0.2.80">
   </head>
   <body>
     <header class="topbar">
@@ -211,9 +211,11 @@
       <form id="cook-form">
         <div class="dialog-heading"><div><p class="eyebrow">FICHE CUISINE</p><h2 id="cook-title"></h2></div><button type="button" class="icon-button" id="close-cook-dialog" aria-label="Fermer">×</button></div>
         <p id="cook-description" class="muted"></p>
-        <div id="cook-total-quantity" class="yield-row"><label>Quantité à fabriquer<input name="quantity" type="number" min="0.001" max="100000" step="any" required></label><p id="cook-unit" class="cook-unit"></p></div>
+        <label>Mode de préparation<select id="cook-mode"><option value="menus">Selon les menus</option><option value="free">Hors menus — quantité libre</option></select></label>
+        <div id="cook-total-quantity" class="yield-row"><label><span id="cook-quantity-label">Quantité à fabriquer</span><input name="quantity" type="number" min="0.001" max="100000" step="any" required></label><p id="cook-unit" class="cook-unit"></p></div>
         <div id="cook-part-quantities" class="yield-row" hidden></div>
         <p id="cook-base-yield" class="hint"></p>
+        <p id="cook-equivalent" class="hint" hidden></p>
         <p id="cook-planned" class="hint" hidden></p>
         <h3>Ingrédients à préparer</h3><div id="cook-ingredients" class="cook-ingredients"></div>
         <h3>Préparation</h3><div id="cook-instructions" class="cook-instructions"></div>
@@ -310,6 +312,6 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.79"></script>
+    <script type="module" src="/app.js?v=0.2.80"></script>
   </body>
 </html>
