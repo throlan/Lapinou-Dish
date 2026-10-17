@@ -22,6 +22,22 @@ export function mainServingLimit(recipe, parent) {
   return Math.floor(average / NATURAL_STEPS.g) * NATURAL_STEPS.g || average;
 }
 
+export function saladServingLimit(recipe) {
+  return !recipe?.parentRecipeId && recipe?.recipeType === 'salad' && ['portion','piece'].includes(recipe?.yield?.unitId) ? 1 : Infinity;
+}
+
+export function calculateWeeklyEnergyTarget(person, weekStart, latestProfile, addDays) {
+  let kcal = 0;
+  let daysWithTarget = 0;
+  for (let day = 0; day < 7; day++) {
+    const target = Number(latestProfile(person, addDays(weekStart, day))?.dailyEnergyKcal);
+    if (!Number.isFinite(target) || target <= 0) continue;
+    kcal += target;
+    daysWithTarget++;
+  }
+  return { kcal: daysWithTarget === 7 ? kcal : null, partialKcal: kcal, daysWithTarget };
+}
+
 export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, recipeKcal, recipeUnit = 'portion', recipeCount = 1, budgetShare = 1, slotRatios = SLOT_RATIOS }) {
   const target = Number(dailyTargetKcal);
   const recipeEnergy = Number(recipeKcal);

@@ -51,3 +51,44 @@ test('daily energy includes a quota-exempt occasion estimate per person',()=>{
   assert.deepEqual(planner.calculateDailyEnergy(meals,'p','2026-10-20'),{kcal:2450,incomplete:false,hasPlan:true});
   assert.deepEqual(planner.calculateDailyEnergy(meals,'other','2026-10-20'),{kcal:null,incomplete:true,hasPlan:true});
 });
+
+test('calendar forecast compares the week total with the sum of dated weekly targets',async()=>{
+  const source=await readFile(new URL('../web/app.js',import.meta.url),'utf8');
+  const start=source.indexOf('function renderCalendarSummary('),end=source.indexOf('function isIndividualRole(',start);
+  const person={id:'p',displayName:'A',profileHistory:[
+    {effectiveFrom:'2026-10-01',dailyEnergyKcal:1000},
+    {effectiveFrom:'2026-10-22',dailyEnergyKcal:1500},
+  ]};
+  const element=()=>({children:[],append(...children){this.children.push(...children);},replaceChildren(...children){this.children=children;}});
+  const context={...planner,document:{createElement:element},state:{calendarReserveOverview:null},
+    latestProfile:(entry,date)=>[...(entry.profileHistory??[])].reverse().find(profile=>profile.effectiveFrom<=date)??null,
+    addDays:(value,days)=>{const date=new Date(`${value}T12:00:00`);date.setDate(date.getDate()+days);return date.toISOString().slice(0,10);},
+    format:value=>String(value)};
+  runInNewContext(source.slice(start,end)+'\nglobalThis.render=renderCalendarSummary;',context);
+  const meals=[
+    {mealDate:'2026-10-19',attendees:[person],items:[{amounts:[{personId:'p',quantity:1}],recipe:{nutrition:{complete:true,perYieldUnit:{energyKcal:400}}}}]},
+    {mealDate:'2026-10-22',attendees:[person],items:[{amounts:[{personId:'p',quantity:1}],recipe:{nutrition:{complete:true,perYieldUnit:{energyKcal:600}}}}]},
+  ];
+  const summary=element();
+  context.$=()=>summary;
+  context.render(meals,[person],'2026-10-19');
+  assert.equal(summary.children[1].children[1].textContent,'1000 kcal prévues sur 7 jours · 2/7 jours planifiés');
+  assert.equal(summary.children[1].children[2].textContent,'Repère hebdomadaire : 9000 kcal');
+  assert.equal(planner.calculateWeeklyEnergyTarget(person,'2026-10-19',context.latestProfile,context.addDays).kcal,9000);
+});
+
+test('calendar days tag each slot for its category color',async()=>{
+  const source=await readFile(new URL('../web/app.js',import.meta.url),'utf8');
+  const styles=await readFile(new URL('../web/style.css',import.meta.url),'utf8');
+  const start=source.indexOf('function renderCalendarDay('),end=source.indexOf('function renderDailyEnergySummary(',start);
+  const element=()=>({children:[],dataset:{},append(...children){this.children.push(...children);},addEventListener(){}});
+  const context={document:{createElement:element},MEAL_ORDER:['breakfast','lunch','snack','dinner','evening_snack'],
+    slotLabels:{breakfast:'Petit-déjeuner',lunch:'Déjeuner',snack:'Collation',dinner:'Dîner',evening_snack:'Collation du soir'},
+    displayDate:value=>value,renderMealCard:()=>element(),renderDailyEnergySummary:()=>element(),
+    openMealEditor(){},state:{}};
+  runInNewContext(source.slice(start,end)+'\nglobalThis.render=renderCalendarDay;',context);
+  const day=context.render('2026-10-19',[],'2026-10-19');
+  const slotSections=day.children.filter(child=>child.className==='calendar-slot');
+  assert.deepEqual(Array.from(slotSections,section=>section.dataset.slot),context.MEAL_ORDER);
+  for(const slot of ['breakfast','snack','evening_snack','lunch','dinner'])assert.match(styles,new RegExp(`\\.calendar-slot\\[data-slot="${slot}"\\]`));
+});
