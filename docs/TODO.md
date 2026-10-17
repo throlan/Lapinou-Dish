@@ -1,6 +1,6 @@
 # Prochaines tâches — 17 octobre 2026
 
-Référence : application **0.2.76**, PR #104 (calendrier imprimable) et PR #105 (version et cache) fusionnées ; tests et publication GHCR réussis. Aucun chantier fonctionnel ni publication de cette version ne reste en attente. La prochaine modification doit être choisie avec l'utilisateur ; l'ordre ci-dessous est une proposition, pas une autorisation de commencer.
+Référence : application **0.2.76**, PR #104 (calendrier imprimable) et PR #105 (version et cache) fusionnées ; tests et publication GHCR réussis. Un correctif de configuration des photos est préparé localement en **0.2.77** ; vérifier les contrôles et la publication GitHub avant de le considérer livré. La prochaine modification doit être choisie avec l'utilisateur ; l'ordre ci-dessous est une proposition, pas une autorisation de commencer.
 
 ## Pistes à choisir et préciser
 

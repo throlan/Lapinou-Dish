@@ -20,11 +20,11 @@ Lire [le cahier de reprise](docs/REPRISE.md), [l'état actuel](docs/STATUS.md) e
 
 ## État
 
-Version applicative de référence : **0.2.76**. Catalogue et recettes, calendrier à cinq créneaux, impression hebdomadaire paysage, duplication, desserts/boissons individuels, parties de service en grammes estimés, stocks et courses, profils compacts, repères nutritionnels administrables et rééquilibrage avec aperçu sont implémentés. Voir [les règles kcal et portions](docs/MEAL-ENERGY.md).
+Version applicative de référence : **0.2.77**. Catalogue et recettes, calendrier à cinq créneaux, impression hebdomadaire paysage, duplication, desserts/boissons individuels, parties de service en grammes estimés, stocks et courses, profils compacts, repères nutritionnels administrables et rééquilibrage avec aperçu sont implémentés. Voir [les règles kcal et portions](docs/MEAL-ENERGY.md).
 
 L'import de texte et d'archives crée des brouillons à vérifier. Avec l'analyse OpenAI optionnelle, un lien Instagram peut permettre de récupérer sa description ; si la lecture est bloquée, coller le texte. Une transcription YouTube doit être fournie. Les ingrédients sont associés au catalogue avant enregistrement et les valeurs nutritionnelles sont recalculées depuis celui-ci.
 
-Le conteneur applique les migrations et le catalogue Ciqual au démarrage. **L'agent ne doit jamais accéder, vérifier, modifier ou déployer sur Unraid ni Nginx ; l'utilisateur effectue lui-même toutes les mises à jour.** La réserve kcal et les occasions sont livrées depuis 0.2.42 ; leur brouillon est une archive. Les prochaines tâches sont dans [TODO.md](docs/TODO.md).
+Le conteneur applique les migrations et le catalogue Ciqual au démarrage. Les images de recettes utilisent `RECIPE_IMAGE_DIR=/images`, monté vers `/mnt/user/appdata/lapinoudish/images` par le template Unraid ; voir [le guide Unraid](docs/UNRAID.md). **L'agent ne doit jamais accéder, vérifier, modifier ou déployer sur Unraid ni Nginx ; l'utilisateur effectue lui-même toutes les mises à jour.** La réserve kcal et les occasions sont livrées depuis 0.2.42 ; leur brouillon est une archive. Les prochaines tâches sont dans [TODO.md](docs/TODO.md).
 
 ## Démarrage de test avec Docker Compose
 

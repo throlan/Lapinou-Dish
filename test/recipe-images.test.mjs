@@ -32,6 +32,12 @@ test('recipe image storage reports the configured directory and whether it is a 
   }finally{await rm(directory,{recursive:true,force:true});}
 });
 
+test('Unraid template exposes the persistent recipe image path and configures its environment variable',async()=>{
+  const template=await readFile(new URL('../unraid/templates/lapinou-dish.xml',import.meta.url),'utf8');
+  assert.match(template,/<Config Name="Recipe images" Target="\/images"[^>]*Type="Path" Display="always"[^>]*>\/mnt\/user\/appdata\/lapinoudish\/images<\/Config>/);
+  assert.match(template,/<Config Name="Recipe image folder" Target="RECIPE_IMAGE_DIR" Default="\/images"[^>]*Type="Variable" Display="always"[^>]*>\/images<\/Config>/);
+});
+
 test('image generation avoids network without a key and validates returned image data',async()=>{
   let called=false;
   assert.deepEqual(await generateRecipeImage('photo',{fetchImpl:async()=>{called=true;}}),{error:'openai-not-configured'});

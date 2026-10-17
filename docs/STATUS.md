@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-Application **0.2.76**, publiée sur `main` par les PR [#104](https://github.com/throlan/Lapinou-Dish/pull/104) et [#105](https://github.com/throlan/Lapinou-Dish/pull/105), commit `a65ca7acaeb651805dce49775223da6a5c29607d`. La PR #104 ajoute le calendrier hebdomadaire imprimable en paysage ; #105 aligne la version et les URL cache des fichiers. La suite locale compte **219 tests réussis**. Les workflows [#263](https://github.com/throlan/Lapinou-Dish/actions/runs/39020828849) et [#265](https://github.com/throlan/Lapinou-Dish/actions/runs/39021072918) ont confirmé les tests et la publication GHCR. Voir le [journal du 17 octobre](SESSION-2026-10-17.md).
+Application **0.2.76**, publiée sur `main` par les PR [#104](https://github.com/throlan/Lapinou-Dish/pull/104) et [#105](https://github.com/throlan/Lapinou-Dish/pull/105), commit `a65ca7acaeb651805dce49775223da6a5c29607d`. La PR #104 ajoute le calendrier hebdomadaire imprimable en paysage ; #105 aligne la version et les URL cache des fichiers. La suite locale compte **219 tests réussis**. Les workflows [#263](https://github.com/throlan/Lapinou-Dish/actions/runs/39020828849) et [#265](https://github.com/throlan/Lapinou-Dish/actions/runs/39021072918) ont confirmé les tests et la publication GHCR. Un chantier local prépare la version **0.2.77** pour rendre visible le réglage `RECIPE_IMAGE_DIR=/images` dans le template Unraid et clarifier le stockage persistant des photos ; les 220 tests réussissent, mais ce chantier n’est pas publié. Voir le [journal du 17 octobre](SESSION-2026-10-17.md).
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 17 octobre](SESSION-2026-10-17.md).
 
@@ -35,7 +35,7 @@ Les tâches réellement restantes et les fonctions déjà livrées sont séparé
 
 ## Photos persistantes et génération d'illustrations — 0.2.65
 
-Les photos sont stockées dans un dossier configurable (`RECIPE_IMAGE_DIR`) avec PostgreSQL comme repli si aucun dossier n'est déclaré. Le chemin choisi pour le conteneur est `/images`, mappé côté hôte vers `/mnt/user/appdata/lapinoudish/images`. Au démarrage, les anciennes images PostgreSQL sont transférées dans le dossier configuré. L'import et la génération utilisent des variables de modèle distinctes (`OPENAI_RECIPE_MODEL` et `OPENAI_IMAGE_MODEL`). Une erreur `403 model_not_found` signale un accès absent au modèle image du projet associé à la clé API. Détails : [journal du 16 octobre](SESSION-2026-10-16.md).
+Les photos sont stockées dans un dossier configurable (`RECIPE_IMAGE_DIR`) avec PostgreSQL comme repli si aucun dossier n'est déclaré. Le chantier 0.2.77 rend visible le champ « Recipe image folder » dans le template pour éviter un montage `/images` sans variable correspondante ; le résultat sur l’installation est à confirmer par l’utilisateur. Le chemin choisi pour le conteneur est `/images`, mappé côté hôte vers `/mnt/user/appdata/lapinoudish/images`. Au démarrage, les anciennes images PostgreSQL sont transférées dans le dossier configuré. L'import et la génération utilisent des variables de modèle distinctes (`OPENAI_RECIPE_MODEL` et `OPENAI_IMAGE_MODEL`). Une erreur `403 model_not_found` signale un accès absent au modèle image du projet associé à la clé API. Détails : [journal du 16 octobre](SESSION-2026-10-16.md).
 
 ## Vérification
 

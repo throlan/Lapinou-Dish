@@ -1,6 +1,6 @@
 # Cahier des améliorations proposées
 
-Mis à jour le 17 octobre 2026 pour la version 0.2.76. Ce document rassemble des pistes demandées ou suggérées. Chaque chantier devra être précisé avant sa mise en œuvre. Les fonctionnalités livrées restent décrites dans [STATUS.md](STATUS.md) et le dernier journal est [SESSION-2026-10-17.md](SESSION-2026-10-17.md).
+Mis à jour le 17 octobre 2026 pour suivre le chantier 0.2.77 relatif au stockage des photos. Ce document rassemble des pistes demandées ou suggérées. Chaque chantier devra être précisé avant sa mise en œuvre. Les fonctionnalités livrées restent décrites dans [STATUS.md](STATUS.md) et le dernier journal est [SESSION-2026-10-17.md](SESSION-2026-10-17.md).
 
 ## Expérience des recettes
 
@@ -14,7 +14,7 @@ Mis à jour le 17 octobre 2026 pour la version 0.2.76. Ce document rassemble des
 
 ### Améliorer l'affichage des photos dans les recettes
 
-L'ajout, le remplacement, la suppression et la génération à la demande sont livrés. Le stockage persistant est configurable par `RECIPE_IMAGE_DIR`, avec repli PostgreSQL ; la configuration retenue dans le conteneur est `/images`. Les photos sont affichées dans les vignettes. Reste à décider si le mode cuisine en a besoin. Ne pas intégrer automatiquement les images des publications externes sans vérification des droits et sans action explicite.
+L'ajout, le remplacement, la suppression et la génération à la demande sont livrés. Le stockage persistant est configurable par `RECIPE_IMAGE_DIR`, avec repli PostgreSQL ; le template Unraid relie `/mnt/user/appdata/lapinoudish/images` à `/images` et rend visible le champ de configuration. Le montage seul ne suffit pas si `RECIPE_IMAGE_DIR` est absent ; la confirmation sur l’installation revient à l’utilisateur. Les photos sont affichées dans les vignettes. Reste à décider si le mode cuisine en a besoin. Ne pas intégrer automatiquement les images des publications externes sans vérification des droits et sans action explicite.
 
 ### Filtrer les recettes incomplètes
 
