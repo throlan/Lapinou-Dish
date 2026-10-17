@@ -1,10 +1,10 @@
-# Prochaines tâches — 16 octobre 2026
+# Prochaines tâches — 17 octobre 2026
 
-Référence : application **0.2.72**, PR #99 fusionnée et publiée. Aucun chantier fonctionnel ni publication de cette version ne reste en attente à la clôture. La prochaine modification doit être choisie avec l'utilisateur ; l'ordre ci-dessous est une proposition, pas une autorisation de commencer.
+Référence : application **0.2.76**, PR #104 (calendrier imprimable) et PR #105 (version et cache) fusionnées ; tests et publication GHCR réussis. Aucun chantier fonctionnel ni publication de cette version ne reste en attente. La prochaine modification doit être choisie avec l'utilisateur ; l'ordre ci-dessous est une proposition, pas une autorisation de commencer.
 
 ## Pistes à choisir et préciser
 
-1. **Nettoyage du catalogue alimentaire** : le compteur et les liens « Dans X recettes » sont livrés. En complément, envisager un filtre « inutilisés » et une fusion sûre des doublons, avec aperçu des références et conservation des recettes, conversions, associations magasins et stocks. Ne pas supprimer automatiquement des aliments.
+1. **Nettoyage du catalogue alimentaire** : le compteur et les liens « Dans X recettes » sont livrés. Première étape proposée : filtre « inutilisés ». Ensuite, envisager une fusion guidée des doublons, avec aperçu des références et conservation des recettes, conversions, associations magasins et stocks. Ne pas supprimer automatiquement des aliments.
 2. **Correction des données nutritionnelles** : les filtres et badges existent. Améliorer l'explication des causes de calcul incomplet et l'accès aux ingrédients/conversions à corriger ; définir les critères avant développement.
 3. **Confort mobile** : auditer calendrier, éditeur de repas, recettes et fiche cuisine sur petit écran. Les courses ont déjà reçu une première passe. Décider ensuite d'une PWA installable ; le hors-ligne est un chantier distinct.
 4. **Comptes individuels et foyer** : concevoir compte/personne, rôles gestionnaire/membre, droits côté serveur, invitations et récupération. L'accès actuel reste une session par mot de passe du foyer.
@@ -19,6 +19,8 @@ Détails et variantes dans [AMELIORATIONS.md](AMELIORATIONS.md). Les variantes i
 - Filtres données manquantes / nutrition / recettes planifiées ce mois et après ; badges des préparations et retour interne.
 - Duplication d'aliment ; liens de recettes depuis les courses et depuis chaque aliment.
 - Calories dans les choix de recettes du calendrier.
+- Plafond à une portion pour les salades suggérées automatiquement ; couleurs des créneaux, repère hebdomadaire kcal et minima protéiques quotidiens configurables par personne dans Administration.
+- Calendrier hebdomadaire imprimable en paysage, menus et quantités par personne uniquement.
 - Catégories Salade et Sauce ; ajout de sauce par personne avec quantité fixe modifiable et zéro autorisé.
 - Regroupement des préparations par recette et semaine, fiche Cuisiner, stocks et achats par magasin.
 - Réserve kcal et occasions, livrées depuis 0.2.42. Aucun journal de consommation après repas à ajouter.

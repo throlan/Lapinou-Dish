@@ -1,13 +1,12 @@
-# Cahier de reprise — 16 octobre 2026, fin de session
+# Cahier de reprise — 17 octobre 2026, fin de session
 
 ## Version et publication vérifiées
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish ; branche de référence : `origin/main`.
-- Application **0.2.72**, livrée par la **PR #99**, commit `191fca91b6e3bd35a9c4ed20d79bea0c0946a1c8`.
-- [Workflow de cette livraison](https://github.com/throlan/Lapinou-Dish/actions/runs/38965953820) : tests et publication GHCR réussis, vérifiés le 16 octobre. Ce n'est plus une publication en attente.
-- Validation fonctionnelle : **213 tests locaux réussis**, parcours Chrome sur PostgreSQL fictif réussi. Les scripts temporaires de ce parcours ne sont pas nécessaires à la reprise et ne sont pas livrés dans le dépôt.
-- Cette mise à jour documentaire ne change pas la version applicative. Vérifier la tête actuelle de GitHub : elle peut être plus récente que le dernier commit fonctionnel ci-dessus.
-- Références : [état](STATUS.md), [prochaines tâches](TODO.md), [produit](PRODUCT.md), [améliorations](AMELIORATIONS.md), [journal du 16 octobre](SESSION-2026-10-16.md).
+- Application **0.2.76**, PR #104 et #105 fusionnées, commit `a65ca7acaeb651805dce49775223da6a5c29607d`.
+- La PR #104 ajoute l’impression hebdomadaire en paysage. La PR #105 met à jour la version et les clés de cache des scripts et styles.
+- **219 tests locaux réussis**. Les workflows [#263](https://github.com/throlan/Lapinou-Dish/actions/runs/39020828849) et [#265](https://github.com/throlan/Lapinou-Dish/actions/runs/39021072918) ont terminé les tests et la publication GHCR avec succès.
+- Références : [état](STATUS.md), [prochaines tâches](TODO.md), [produit](PRODUCT.md), [améliorations](AMELIORATIONS.md), [journal du 17 octobre](SESSION-2026-10-17.md).
 
 ## Interdiction d'accès à l'installation
 
@@ -15,10 +14,10 @@
 
 ## Reprendre sur un autre PC
 
-1. Retrouver le dépôt par son remote GitHub ; le chemin local dépend du PC. Ne pas confondre avec les anciens dossiers Norish. Le checkout de cette session est `C:\Users\laure\Documents\Codex\Lapinou-Dish-main-2026-10-16`.
+1. Retrouver le dépôt par son remote GitHub ; le chemin local dépend du PC. Ne pas confondre avec les anciens dossiers Norish ni supposer que le chemin de la session précédente existe encore.
 2. Lire les éventuels `AGENTS.md`. Examiner l'état Git, la branche, les derniers commits et **tous les stashes**. Préserver les modifications, branches et stashes existants ; aucune réapplication automatique d'un ancien chantier.
 3. Récupérer `origin/main` sans écrasement. Sur un main propre, avancer seulement en fast-forward ; sinon inspecter et isoler le travail avant de changer de base. Aucun reset destructif ni nettoyage forcé.
-4. Vérifier GitHub, `package.json` et les documents liés ci-dessus. Les journaux des 13, 14 et 15 octobre sont historiques ; le dernier journal est celui du 16.
+4. Vérifier GitHub, `package.json` et les documents liés ci-dessus. Les journaux antérieurs au 17 octobre sont historiques ; le dernier journal est `SESSION-2026-10-17.md`.
 5. Faire un état bref et proposer les prochaines étapes ; **attendre la demande de l'utilisateur avant une nouvelle modification fonctionnelle**.
 
 ## Dernières fonctions à ne pas refaire
@@ -29,6 +28,11 @@
 - PR #97 / 0.2.70 : kcal dans les listes de choix des recettes du calendrier, par pièce/portion ou pour 100 g/ml ; données partielles signalées.
 - PR #98 / 0.2.71 : volet fermé « Dans X recettes » sur chaque aliment, liens séparés, zéro explicite et comptage des recettes mères distinctes.
 - PR #99 / 0.2.72 : **Salade** et **Sauce**. Le nom demandé est Sauce, pas Vinaigrette. Salades utilisables comme plat ou accompagnement, avec les mêmes services, calculs, courses et stocks. « + Sauce » : 30 g/ml ou une unité par défaut, quantité modifiable par personne, zéro possible, apports inclus et quantité fixe pendant les ajustements automatiques.
+- PR #101 / 0.2.73 : plafonnement des suggestions de salade à une portion, couleurs des créneaux et repère kcal comparé sur la semaine.
+- PR #102 : apports protéiques quotidiens visibles sous le résumé de chaque jour.
+- PR #103 / 0.2.75 : minima protéiques configurables par personne dans Administration.
+- PR #104 : calendrier hebdomadaire imprimable en A4 paysage ; seuls les menus et quantités par personne sont imprimés.
+- PR #105 / 0.2.76 : version et clés de cache alignées. Tests locaux (219) et publication GHCR réussis.
 - La page Importer dédiée, les vignettes de recettes avec photos, les filtres latéraux et les photos persistantes sont déjà en place.
 
 ## Règles métier à préserver
@@ -59,11 +63,11 @@ Après une modification autorisée : branche, tests adaptés, commit/push, PR, c
 ## Prompt à copier pour demain
 
 ```text
-Reprends le développement de Lapinou Dish. Retrouve le dépôt local par son remote https://github.com/throlan/Lapinou-Dish, vérifie son état et préserve toute modification locale, branche et stash avant de récupérer origin/main sans écrasement. Lis AGENTS.md s'il existe, puis docs/REPRISE.md, docs/STATUS.md, docs/PRODUCT.md, docs/AMELIORATIONS.md, docs/TODO.md et le dernier journal dans docs/ (actuellement docs/SESSION-2026-10-16.md).
+Reprends le développement de Lapinou Dish. Retrouve le dépôt local par son remote https://github.com/throlan/Lapinou-Dish, vérifie son état et préserve toute modification locale, branche et stash avant de récupérer origin/main sans écrasement. Lis AGENTS.md s'il existe, puis docs/REPRISE.md, docs/STATUS.md, docs/PRODUCT.md, docs/AMELIORATIONS.md, docs/TODO.md et le dernier journal dans docs/ (actuellement docs/SESSION-2026-10-17.md).
 
-La dernière version fonctionnelle connue est 0.2.72, PR #99, commit 191fca91b6e3bd35a9c4ed20d79bea0c0946a1c8. Ses tests et sa publication GHCR ont réussi. Une mise à jour documentaire de fin de session suit sur main : récupère aussi celle-ci et vérifie l'état GitHub actuel ainsi que package.json. Ne réimplémente pas les fonctions déjà livrées recensées dans REPRISE.md.
+La version actuelle est 0.2.76, PR #105, commit a65ca7acaeb651805dce49775223da6a5c29607d ; la dernière modification fonctionnelle est l’impression hebdomadaire (PR #104). Les 219 tests locaux et la publication GHCR ont réussi. Vérifie l'état GitHub actuel et package.json. Ne réimplémente pas les fonctions déjà livrées recensées dans REPRISE.md.
 
-Fais-moi d'abord un état bref de la version, de la publication et des tâches réellement restantes. Propose la suite, puis attends ma demande avant une nouvelle modification fonctionnelle.
+Prochaine piste proposée dans TODO.md : filtre des aliments inutilisés, puis étude d’une fusion guidée des doublons avec préservation de toutes les références et de leurs réglages. Fais-moi d'abord un état bref de la version, de la publication et des tâches réellement restantes. Attends ma demande avant toute nouvelle modification fonctionnelle.
 
 Règle absolue : n'accède jamais à Unraid ni à Nginx, même pour vérifier ; je gère le déploiement. Les vérifications locales dans un navigateur sur données fictives sont autorisées. Pour les prochains travaux autorisés : tests locaux, commit/push, PR, fusion après réussite des contrôles et vérification de publication GitHub/GHCR.
 ```
