@@ -28,6 +28,7 @@ Ce produit aide à organiser les repas. Il ne diagnostique pas, ne prescrit pas 
 
 ## Recettes et composition
 
+- Une recette inutilisée peut être supprimée explicitement, avec confirmation. Un menu ou un historique de production lié à la recette ou à une partie empêche la suppression pour préserver les références ; aucune suppression automatique de doublons.
 - Les catégories incluent Plat, Salade, Sauce, Boisson, Accompagnement et Dessert. Les salades peuvent être complètes ou vertes, servies comme plat ou accompagnement ; elles utilisent les mêmes modes de service et calculs que les plats.
 - Une sauce est ajoutable au repas avec une quantité choisie par personne, éventuellement nulle. Ses apports comptent dans les totaux ; sa quantité ne sert pas à combler automatiquement un budget kcal ou protéique.
 - La ligne structurée de recette est: aliment, quantité, unité d'usage, état (cru/sec/cuit si pertinent), composant optionnel et variante optionnelle.

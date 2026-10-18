@@ -2,6 +2,42 @@ import { randomUUID } from 'node:crypto';
 import { calculateRecipeNutrition } from '../domain/foods.ts';
 import { restoreOriginalServingMode, syncServingParts, validateServingParts } from './serving-parts.mjs';
 import { lockHouseholdInventory } from './ingredient-stock.mjs';
+import { removeStoredRecipeImageFiles } from './recipe-images.mjs';
+
+export function validateRecipeDeletion(input) {
+  if(!input || !isUuid(input.householdId))return {error:'invalid-household-id'};
+  if(!Number.isSafeInteger(input.version) || input.version<0)return {error:'invalid-recipe-version'};
+  return {data:{householdId:input.householdId,version:input.version}};
+}
+
+export async function deleteRecipe(pool,id,data,imageOptions) {
+  const client=await pool.connect();
+  let files=[];
+  try{
+    await client.query('BEGIN');
+    await lockHouseholdInventory(client,data.householdId);
+    const found=await client.query('SELECT id,version FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL FOR UPDATE',[id,data.householdId]);
+    if(!found.rowCount){await client.query('ROLLBACK');return null;}
+    if(Number(found.rows[0].version)!==data.version){await client.query('ROLLBACK');return {error:'recipe-version-conflict'};}
+    const children=await client.query('SELECT id FROM recipes WHERE parent_recipe_id=$1 AND household_id=$2 FOR UPDATE',[id,data.householdId]);
+    const ids=[id,...children.rows.map(part=>part.id)];
+    const refs=await client.query(`SELECT
+      (SELECT count(*) FROM planned_meal_items WHERE recipe_id=ANY($1::uuid[])) AS meals,
+      (SELECT count(*) FROM stock_lots WHERE recipe_id=ANY($1::uuid[])) AS productions`,[ids]);
+    const usage={meals:Number(refs.rows[0].meals),productions:Number(refs.rows[0].productions)};
+    if(usage.meals || usage.productions){await client.query('ROLLBACK');return {error:'recipe-in-use',...usage};}
+    const images=await client.query('SELECT file_name FROM recipe_images WHERE recipe_id=ANY($1::uuid[]) FOR UPDATE',[ids]);
+    files=images.rows.map(image=>image.file_name);
+    await client.query('DELETE FROM recipes WHERE parent_recipe_id=$1 AND household_id=$2',[id,data.householdId]);
+    await client.query('DELETE FROM recipes WHERE id=$1 AND household_id=$2',[id,data.householdId]);
+    await client.query('COMMIT');
+  }catch(error){
+    await client.query('ROLLBACK');
+    if(error.code==='23503')return {error:'recipe-in-use'};
+    throw error;
+  }finally{client.release();}
+  return {deleted:true,...await removeStoredRecipeImageFiles(files,imageOptions)};
+}
 
 export function validateRecipeInput(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return { error: 'invalid-body' };

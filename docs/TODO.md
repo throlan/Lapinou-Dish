@@ -1,6 +1,6 @@
-# Prochaines tâches — 17 octobre 2026
+# Prochaines tâches — 18 octobre 2026
 
-Référence du code : **0.2.80**, fiche cuisine selon les menus ou en quantité libre. Dernière version antérieure vérifiée : **0.2.79**, PR #109 fusionnée et publiée. Vérifier le workflow de la tête de main à chaque reprise. **234 tests locaux réussis**. Aucun nouveau chantier ne doit démarrer avant la demande de l’utilisateur.
+Référence du code : **0.2.81**, suppression protégée des recettes inutilisées. Dernière livraison antérieure vérifiée : **0.2.80**, PR #110 fusionnée et publiée. Vérifier le workflow de la tête de main à chaque reprise. **245 tests locaux réussis**. Aucun nouveau chantier ne doit démarrer avant la demande de l’utilisateur.
 
 ## Pistes à choisir et préciser
 
@@ -14,6 +14,7 @@ Détails et variantes dans [AMELIORATIONS.md](AMELIORATIONS.md). Les variantes i
 
 ## Déjà livré — ne pas remettre dans le reste à faire
 
+- Bouton Supprimer sur les vignettes de recettes et dans l’éditeur : suppression d’une recette inutilisée, de ses parties et photos, confirmation et protection des menus/historiques de production.
 - Page Importer distincte, brouillons à vérifier ; vignettes de recettes, photos et filtres latéraux.
 - Photos personnelles et génération IA, stockage configurable, diagnostic et champ de dossier visible dans le template (PR #107).
 - Cuisine hors menus : quantité libre en portions/pièces ou unités d’origine, sans ajustement aux objectifs des profils ; équivalence en poids estimé et conservation des valeurs lors du changement de mode.

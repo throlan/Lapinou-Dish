@@ -1,10 +1,10 @@
-# État du projet — 17 octobre 2026
+# État du projet — 18 octobre 2026
 
 ## Version de référence
 
-Application **0.2.80** : la fiche Cuisiner distingue Selon les menus et Hors menus — quantité libre. Le mode libre utilise les portions/pièces ou unités d’origine, conserve les proportions et affiche le poids estimé ; les menus et objectifs personnels ne sont pas modifiés. **234 tests locaux réussis** ; consulter le workflow de la tête de main pour la publication. La version précédente **0.2.79**, PR #109, commit `d184ab2`, a été fusionnée et publiée ([workflow](https://github.com/throlan/Lapinou-Dish/actions/runs/39059624663)). Voir le [journal](SESSION-2026-10-17.md).
+Application **0.2.81** : suppression protégée des recettes inutilisées depuis les vignettes et leur éditeur. **245 tests locaux réussis** ; consulter le workflow de la tête de main pour la publication. La version précédente **0.2.80**, PR #110, commit `7ba4b08`, a été fusionnée et publiée ([workflow](https://github.com/throlan/Lapinou-Dish/actions/runs/39061385133)). Voir le [journal du 18 octobre](SESSION-2026-10-18.md).
 
-Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 17 octobre](SESSION-2026-10-17.md).
+Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 18 octobre](SESSION-2026-10-18.md).
 
 Les tâches réellement restantes et les fonctions déjà livrées sont séparées dans [TODO.md](TODO.md). Les pistes détaillées restent dans [AMELIORATIONS.md](AMELIORATIONS.md) ; aucune nouvelle modification fonctionnelle ne doit démarrer sans demande de l’utilisateur.
 
@@ -16,6 +16,7 @@ Les tâches réellement restantes et les fonctions déjà livrées sont séparé
 - Catalogue canonique Ciqual et aliments manuels, alias, conversions documentées, données inconnues conservées, édition et recherche de valeurs manquantes.
 - Duplication des aliments et volet « Dans X recettes » avec liens vers les recettes mères distinctes.
 - Filtres de données manquantes et de nutrition incomplète planifiée depuis le début du mois courant ; badges dans les préparations, retour interne et kcal dans les choix de recettes du calendrier.
+- Suppression explicite et confirmée des recettes inutilisées, depuis une vignette ou l’éditeur ; les parties et photos associées sont retirées. Refus si un menu ou un historique de production utilise la recette ou une partie ; contrôle du foyer et de la version courante. Les fichiers photo sont nettoyés après commit, avec avertissement si ce nettoyage échoue.
 - Création/édition de recettes, calcul par batch et rendement, types et moments distincts, filtres et recherche. Grille de vignettes paginée (12 recettes), photos, filtres latéraux, détails repliés et réglages de production/moments enregistrables directement sur chaque ligne sans modifier les ingrédients.
 - Page Importer distincte ; import de texte/archives en brouillons, OpenAI optionnel et tentative de récupération de description Instagram avec repli texte.
 - Calendrier à cinq créneaux, participants explicites, repas multi-recettes, boissons/desserts individuels et duplication complète sur plusieurs dates. Au petit-déjeuner et aux deux collations, les desserts adaptés peuvent aussi être ajoutés comme recette commune et bénéficier du calcul de portions ; au déjeuner et au dîner, le dessert individuel s’ajoute avec « + Dessert ».
@@ -41,7 +42,7 @@ Les photos sont stockées dans un dossier configurable (`RECIPE_IMAGE_DIR`) avec
 
 ## Vérification
 
-La suite complète locale a réussi pour la version **0.2.80 : 234 tests**. Les contrôles d’interaction couvrent les portions libres, les ingrédients proportionnels, l’équivalence estimée, les deux/trois parties et les changements de mode avec conservation des quantités. PostgreSQL/PGlite vérifie qu’une fabrication libre de 6 portions d’une base de 4 produit la bonne quantité en grammes sans modifier les menus, et que l’annulation restitue les ingrédients. Les régressions de production atomique et de besoins exacts restent couvertes. Pas de nouveau parcours visuel navigateur confirmé.
+La suite complète locale a réussi pour la version **0.2.81 : 245 tests**. Les nouvelles régressions couvrent la suppression du bon doublon, ses parties et photos, la protection des menus/historiques, les versions périmées et le foyer, le rollback sans perte de photo, l’authentification et la validation HTTP. Les interactions vérifient le bouton rendu, la confirmation/annulation, les messages de refus et l’éditeur. Aucun nouveau parcours visuel navigateur confirmé.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 

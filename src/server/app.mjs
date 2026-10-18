@@ -11,7 +11,7 @@ import { countProductInventory, listIngredientStock, recordPurchaseReceipt, save
 import { createHmac, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import { createFood, deleteFood, fillMissingNutritionFromExternal, getFood, listFoodRecipeUsage, updateFood, validateFoodInput } from './foods.mjs';
 import { getOpenFoodFactsProduct, searchOpenFoodFacts } from './open-food-facts.mjs';
-import { createRecipe, listRecipes, readRecipe, updateRecipe, updateRecipeSettings, validateRecipeInput, validateRecipeSettings } from './recipes.mjs';
+import { createRecipe, deleteRecipe, listRecipes, readRecipe, updateRecipe, updateRecipeSettings, validateRecipeInput, validateRecipeSettings, validateRecipeDeletion } from './recipes.mjs';
 import { listImportDrafts, saveImportDrafts } from './recipe-imports.mjs';
 import { extractRecipeWithOpenAI } from './openai-recipe-import.mjs';
 import { generateRecipeImage, inspectRecipeImageStorage, readRecipeImage, removeRecipeImage, saveRecipeImage, validateRecipeImageUpload } from './recipe-images.mjs';
@@ -607,6 +607,17 @@ export async function handleRequest(request, response, pool, appPassword = null,
       } catch { return send(response, 500, { error: 'recipe-import-update-failed' }); }
     }
     const recipeId = url.pathname.match(/^\/api\/recipes\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i)?.[1];
+    if(recipeId && request.method==='DELETE'){
+      const body=await readJson(request);
+      if(body.error)return send(response,body.status??400,{error:body.error});
+      const validation=validateRecipeDeletion(body.value);
+      if(validation.error)return send(response,400,{error:validation.error});
+      try{
+        const result=await deleteRecipe(pool,recipeId,validation.data);
+        if(!result)return send(response,404,{error:'recipe-not-found'});
+        return send(response,result.error?409:200,result);
+      }catch{return send(response,500,{error:'recipe-delete-failed'});}
+    }
     if (recipeId && request.method === 'PATCH') {
       const body = await readJson(request);
       if (body.error) return send(response, body.status ?? 400, { error: body.error });

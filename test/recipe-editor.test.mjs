@@ -14,13 +14,22 @@ function editor() {
   const form={elements:Object.fromEntries(fields.map(name=>[name,{value:''}])),
     reset(){this.elements.recipeType.value='dish';this.elements.productionType.value='none';boxes.forEach(box=>box.checked=false);},
     querySelectorAll(){return boxes;},classList:{remove(){}},scrollIntoView(){}};
-  const elements={'#recipe-form':form,'#recipe-lines':{replaceChildren(){}},'#recipe-message':{},'#recipe-result':{classList:{add(){}}},'#recipe-form-title':{}};
+  const remove={hidden:true,classList:{add(){remove.hidden=true;},remove(){remove.hidden=false;}}};
+  const elements={'#recipe-form':form,'#recipe-lines':{replaceChildren(){}},'#recipe-message':{},'#recipe-result':{classList:{add(){}}},'#recipe-form-title':{},'#delete-current-recipe':remove};
   let recipe;
   const copiedLines=[];
   const context={ $:selector=>elements[selector],state:{},api:async()=>({recipe}),addRecipeLine(line){copiedLines.push(line);},updateServingConfiguration(){},showMessage(target,text){target.textContent=text;} };
   runInNewContext(source.slice(start,end)+'\nglobalThis.openEditor=openRecipeEditor;',context);
-  return {form,boxes,copiedLines,context,async open(value){recipe={name:'Synthetic recipe',yield:{amount:24,unitId:'piece'},nutrition:{lineIssues:[]},lines:[],...value};await context.openEditor('test-id');},async duplicate(value){recipe={name:'Synthetic recipe',yield:{amount:24,unitId:'piece'},nutrition:{lineIssues:[]},lines:[],...value};await context.openEditor('test-id',true);},async create(){await context.openEditor();}};
+  return {form,boxes,copiedLines,context,remove,async open(value){recipe={name:'Synthetic recipe',yield:{amount:24,unitId:'piece'},nutrition:{lineIssues:[]},lines:[],...value};await context.openEditor('test-id');},async duplicate(value){recipe={name:'Synthetic recipe',yield:{amount:24,unitId:'piece'},nutrition:{lineIssues:[]},lines:[],...value};await context.openEditor('test-id',true);},async create(){await context.openEditor();}};
 }
+
+test('recipe editor exposes deletion only for an existing loaded recipe, never for a new copy',async()=>{
+  const ui=editor();await ui.open({id:'test-id',version:9});
+  assert.equal(ui.remove.hidden,false);assert.equal(ui.remove.disabled,false);
+  assert.equal(ui.context.state.editingRecipeForDeletion.version,9);
+  await ui.duplicate({id:'test-id',version:9});assert.equal(ui.remove.hidden,true);assert.equal(ui.context.state.editingRecipeForDeletion,null);
+  await ui.create();assert.equal(ui.remove.hidden,true);assert.equal(ui.context.state.editingRecipeForDeletion,null);
+});
 
 test('recipe editor restores saved preparation type, meal tags and production mode on each opening',async()=>{
   const ui=editor();
