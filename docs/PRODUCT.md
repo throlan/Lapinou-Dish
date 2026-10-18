@@ -132,3 +132,9 @@ Les conversions doivent être documentées dans les deux fiches aliments. Sans c
 Exclure des courses masque un aliment uniquement pour les dates exactes de la liste ou durablement (par exemple eau du robinet, sel). Cela ne supprime pas l’ingrédient des recettes, sa nutrition ni son utilisation du stock à la préparation. Les exclusions d’une source sont appliquées avant regroupement ; exclure la cible masque tout le produit commun. Les exports/copier/téléchargement/Home Assistant utilisent la même liste filtrée. Le panneau Regroupements et exclusions reste présent lorsque la liste est vide ; il permet de modifier/retirer un regroupement et de réafficher une exclusion permanente ou de la période courante.
 
 Migration additive : db/migrations/20261018_shopping_products.sql (tables household_purchase_products et household_shopping_exclusions). Aucun aliment regroupé ou exclu par défaut.
+
+## Saisie dans l’unité d’achat — 0.2.88
+
+Lorsque la liste propose 26 œufs avec une règle 1 œuf = 50 g, le champ Quantité réellement achetée est en œufs et vaut 26 par défaut. Le comptage de stock utilise aussi les œufs ; 400 g sont affichés comme 8 œufs (400 g). Les confirmations indiquent nombre d’unités et poids correspondant. La conversion selon la règle explicite se fait une seule fois lors de l’envoi à l’API ; le stock reste enregistré en grammes.
+
+Même principe pour les pots/unités personnalisées appliquées. Un format de paquet configuré reste prioritaire : saisie en nombre de paquets, comptage fractionnaire permis pour un paquet entamé. Sans règle ou paquet appliqué, la saisie garde l’unité native ; aucune équivalence en grammes n’est inventée. Pas de migration ni modification des besoins/recettes, des regroupements ou des données de stock existantes.

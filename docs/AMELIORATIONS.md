@@ -62,3 +62,7 @@ Calcul initial 0.2.83 conservé, conversion en unités pratiques et arrondi au p
 ## Livré — produits d’achat et exclusions, 0.2.87
 
 Acheter sous un produit commun avec équivalence explicite, stock partagé et addition avant arrondi ; sources nutritionnelles distinctes et liens de recettes conservés. Exclusions permanentes ou pour la période, réactivables. Les blancs ne sont pas regroupés automatiquement. La fusion d’aliments du catalogue demeure un chantier distinct.
+
+## Livré — saisie des achats en unités, 0.2.88
+
+Quantités achetées et stock compté suivent les règles d’achat explicites (œufs, pots…) ou le format de paquet prioritaire. Le nombre saisi est converti une seule fois vers l’unité interne ; équivalence et stock en unités affichés.

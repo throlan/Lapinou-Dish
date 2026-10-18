@@ -3,7 +3,7 @@ import {recipeRequirements,preparationInputs,recordRecipeUses} from './recipe-in
 import { randomUUID } from 'node:crypto';
 import { listFoodStores } from './food-stores.mjs';
 import { rawShoppingRequirements } from './shopping-requirements.mjs';
-import { purchaseDescription,suggestedPurchaseUnit } from './shopping-presentation.mjs';
+import { purchaseDescription,suggestedPurchaseUnit,purchaseEntry } from './shopping-presentation.mjs';
 import { applyPackageUnits,applyPurchaseUnits,listPurchaseUnits } from './purchase-units.mjs';
 import { ingredientProjection, lockHouseholdInventory, productionDeductions, readIngredientStock } from './ingredient-stock.mjs';
 
@@ -368,7 +368,7 @@ export async function listShoppingRequirements(pool, householdId, startDate, end
     const packageQuantity = purchasePack ? Number(purchasePack.packageQuantity) : null;
     const quantity = packageQuantity ? Math.ceil(rawQuantity/packageQuantity)*packageQuantity : shoppingPurchaseQuantity(rawQuantity,row.unitId);
     const presented={...row,neededQuantity:rawQuantity,quantity,packageQuantity,packageCount:packageQuantity ? Math.ceil(rawQuantity/packageQuantity) : null};
-    return {...presented,purchase:purchaseDescription(presented),
+    return {...presented,purchase:purchaseDescription(presented),entry:purchaseEntry(presented),
       purchaseRule:row.purchaseRule??null,purchaseRuleApplied:row.purchaseRuleApplied??false,
       purchaseRuleSuggestion:row.purchaseRule?null:suggestedPurchaseUnit(row),
       quantityRounded:quantity!==rawQuantity,baseGroupId:setting?.groupId ?? row.groupId ?? 'bulk',

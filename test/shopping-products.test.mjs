@@ -45,7 +45,7 @@ test('explicit purchase products aggregate before rounding, share stock and leav
     assert.equal((await pref(mapping)).saved,true);
     await savePurchaseUnit(pool,{householdId,foodId:raw,singularLabel:'œuf',pluralLabel:'œufs',coveredQuantity:50,coveredUnitId:'g',estimateNote:''});
     const items=await list(),egg=items.find(r=>r.foodId===raw);
-    assert.equal(items.some(r=>r.foodId===hard),false);assert.ok(Math.abs(egg.neededQuantity-806.67)<1e-8);assert.equal(egg.purchase.text,'17 œufs');
+    assert.equal(items.some(r=>r.foodId===hard),false);assert.ok(Math.abs(egg.neededQuantity-806.67)<1e-8);assert.equal(egg.purchase.text,'17 œufs');assert.equal(egg.entry.quantity,17);assert.equal(egg.entry.multiplier,50);assert.equal(egg.entry.label,'œufs');assert.equal(egg.entry.gramsPerEntry,50);
     assert.equal(egg.recipes.length,2);assert.equal(items.find(r=>r.foodId===white).quantity,2,'whites are not implicitly mapped');
     assert.equal((await readRecipe(pool,dishes[1].id)).nutrition.batch.energyKcal,930);
     assert.equal((await readRecipe(pool,dishes[1].id)).lines[0].foodId,hard);
