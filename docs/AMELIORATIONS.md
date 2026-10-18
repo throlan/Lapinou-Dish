@@ -49,7 +49,7 @@ Une première expérimentation pourrait se limiter à un catalogue public en lec
 
 ## Prochaines décisions
 
-La liste synthétique à jour est dans [TODO.md](TODO.md). Ordre de discussion : aide à la correction des données manquantes, éventuelle PWA, comptes et communauté. À la demande de l’utilisateur, le nettoyage du catalogue (filtre des aliments inutilisés puis fusion guidée des doublons) passe en dernière priorité : le cahier de recettes doit d’abord être consolidé. Préserver ensuite les références, stocks, conversions et magasins ; aucune suppression automatique. Le design responsive est livré en 0.2.89. Cet ordre reste une proposition ; attendre la demande de l’utilisateur avant de commencer.
+La liste synthétique à jour est dans [TODO.md](TODO.md). Ordre décidé par l’utilisateur : 1. webapp installable (chantier demandé maintenant), 2. comptes individuels et foyers, 3. aide à la correction des données nutritionnelles, 4. communauté publique, 5. nettoyage du catalogue. À la demande de l’utilisateur, le nettoyage du catalogue (filtre des aliments inutilisés puis fusion guidée des doublons) passe en dernière priorité : le cahier de recettes doit d’abord être consolidé. Préserver ensuite les références, stocks, conversions et magasins ; aucune suppression automatique. Le design responsive est livré en 0.2.89. Cet ordre reste une proposition ; attendre la demande de l’utilisateur avant de commencer.
 
 ## Recettes utilisées comme composants — réalisé en 0.2.82
 
