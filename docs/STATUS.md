@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-Application **0.2.84** : unités mixtes pour les services séparés dont les composants sont sans ambiguïté (œufs/pièces, pain/tranches, soupe/grammes). Les quantités canoniques, courses et fabrications restent en grammes estimés ; suggestions explicites et rééquilibrage utilisent des unités entières. **263 tests locaux réussis**. La version **0.2.83**, PR #113, commit 5e093b3, est fusionnée et publiée ([workflow](https://github.com/throlan/Lapinou-Dish/actions/runs/39106068661)). Voir le [journal du 18 octobre](SESSION-2026-10-18.md).
+Application **0.2.85** : arrondi coordonné des comptes et des services en grammes, répartition réelle/repère/écart visibles par personne. L’utilisateur privilégie les unités entières avec écarts explicites. 271 tests locaux réussis. La **0.2.84**, PR #114, commit 1871257, est fusionnée et publiée ([workflow](https://github.com/throlan/Lapinou-Dish/actions/runs/39107791560)). Voir le [journal du 18 octobre](SESSION-2026-10-18.md).
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 18 octobre](SESSION-2026-10-18.md).
 
@@ -11,6 +11,8 @@ Les tâches réellement restantes et les fonctions déjà livrées sont séparé
 **Règle impérative : aucune intervention de l'agent sur Unraid ni sur Nginx, y compris en lecture ou pour une vérification. L'utilisateur gère lui-même son installation et ses mises à jour.**
 
 ## Implémenté
+
+- Répartition des assiettes mixtes : arrondi des comptes coordonné avec les services en grammes sous les budgets/plafonds ; combinaison proche sélectionnée pour approcher les proportions. Pour chaque personne, affichage visible du poids, pourcentage réel, cible et écart en points. Les pourcentages 70/20 % ne sont plus affichés sur les rôles des parties liées. Plafonds de portions conservés.
 
 - Services séparés à unités mixtes : une partie à une seule ligne en pièces ou tranches reprend son unité dans l’éditeur, les choix, l’accueil et l’impression. Conversion de saisie vers les grammes sans double conversion et sans modifier les quantités anciennes lors d’une simple réouverture. Suggestions explicites arrondies aux unités entières, apports vérifiés après arrondi ; rééquilibrage respectant ces pas. Les parties mélangées ou ambiguës conservent les grammes.
 
@@ -48,7 +50,7 @@ Les photos sont stockées dans un dossier configurable (`RECIPE_IMAGE_DIR`) avec
 
 ## Vérification
 
-La suite complète locale 0.2.84 a réussi : **263 tests**. PostgreSQL/PGlite : lecture directe et via la recette source des trois parties, œufs/pièces, pain maison/tranches, soupe/grammes, repas enregistrés en grammes, courses et fabrications à l’unité correspondante, absence d’inférence dans un plat mélangé. Interface : réouverture exacte d’une fraction existante, saisie d’un compte et conversion une seule fois, accueil/impression et apports ; chargement HTTP du nouveau module JavaScript. Suggestions et rééquilibrage vérifiés avec unités entières et repères nutritionnels réels. Aucun nouveau parcours visuel navigateur confirmé.
+Validation 0.2.85 : 271 tests locaux réussis. Régressions sur le cas œufs/tranches de poids différents, coordination de la soupe, repères personnalisés, budgets et plafonds de chaque profil, boissons fixes, quantités insuffisantes ou parties répétées, pourcentages calculés sur les grammes et écarts en points. Test des fonctions réelles du recalcul et du rendu visible, et du chargement HTTP du module. Les régressions PostgreSQL/PGlite antérieures sont conservées. Aucun nouveau parcours visuel navigateur confirmé.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 

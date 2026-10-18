@@ -27,7 +27,7 @@ Les deux modes séparés sont modifiables ; chaque mode doit totaliser 100 % et 
 
 Le moteur calcule la densité énergétique de cette composition, puis ajuste son poids global dans le budget du repas et sous les plafonds de chaque partie. L'ajustement protéique conserve les proportions et peut signaler que le repère ne peut pas être atteint. Les grammes peuvent être décimaux pour respecter les pourcentages ; le poids total proposé varie par pas de 10 g. Boissons, desserts et recettes sans parties liées restent indépendants. Si une partie est absente ou répétée, la composition n'est pas appliquée et le calcul le signale.
 
-Les quantités existantes et les copies ne changent pas : utiliser explicitement « Recalculer les portions ». Le rééquilibrage quotidien réduit ensemble les parties liées en conservant leur répartition déjà saisie, même si elle a été modifiée manuellement. Les protections des profils et du repère protéique restent appliquées.
+Les quantités existantes et les copies ne changent pas : utiliser explicitement « Recalculer les portions ». Pour les parties toutes en grammes, le rééquilibrage quotidien réduit ensemble les parties liées en conservant leur répartition déjà saisie, même si elle a été modifiée manuellement. Les parties affichées à la pièce/tranche conservent leurs pas entiers ; les proportions peuvent donc varier et restent visibles dans l’éditeur. Les protections des profils et du repère protéique restent appliquées.
 
 ## Conservation des données existantes
 
@@ -50,3 +50,9 @@ Tests PostgreSQL/PGlite : calcul brut→grammes estimés, recette entière sans 
 ## Catégories Salade et Sauce — 0.2.72
 
 Une salade conserve les mêmes rendements, modes de service (entier, deux ou trois parties), coefficients, courses et stocks qu’un plat. Changer Plat en Salade ne supprime pas les services existants. La sauce est une recette ajoutée avec une quantité par personne, fixe pendant les ajustements automatiques et incluse dans la nutrition.
+
+## Proportions avec des comptes entiers — 0.2.85
+
+Priorité validée par l’utilisateur : conserver œufs/pièces et tranches entiers, avec l’écart aux pourcentages clairement affiché. L’arrondi se fait sur l’assiette entière : recherche de combinaisons proches compatibles avec le budget/plafonds, puis ajustement des services en grammes depuis le poids des parties comptées. Les parts toutes en grammes gardent leur calcul proportionnel exact.
+
+Sous chaque personne, l’éditeur montre les grammes et pourcentages réels, le repère choisi et l’écart en points. Une répartition approchée n’est pas annoncée exacte ; une partie absente/répétée ou sans quantité empêche de calculer la répartition. Le plafond à une portion moyenne reste appliqué et peut expliquer des comptes identiques entre profils.

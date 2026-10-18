@@ -58,3 +58,7 @@ La liste synthétique à jour est dans [TODO.md](TODO.md). Première piste propo
 ## Services séparés en pièces/tranches/grammes — réalisé en 0.2.84
 
 Reprise automatique des unités d’une partie séparée à une seule ligne en pièce ou tranche : œufs à la pièce, soupe en grammes, pain à la tranche. Éditeur, choix, accueil et impression cohérents ; données canoniques en grammes conservées, suggestions et rééquilibrage tenant compte des unités entières. Les plats mélangés ne reçoivent pas d’unité supposée.
+
+## Répartition réelle des assiettes — réalisé en 0.2.85
+
+Choix utilisateur confirmé : garder les unités entières avec l’écart aux pourcentages affiché. Arrondi coordonné des comptes et des grammes au recalcul, rapport visible par personne (poids, pourcentage réel, repère, écart en points), mise à jour après saisie manuelle et suppression du 70/20 % ambigu sur les parties liées.
