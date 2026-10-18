@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-Application **0.2.87** : produits d’achat communs, conversion explicite, addition avant arrondi et stock commun pour achats/préparations/annulations ; exclusions permanentes ou propres à la période, réactivables. Les recettes et leur nutrition restent distinctes. Le calcul de portions de la 0.2.86 est conservé ; les calculs 0.2.84/85 restent abandonnés. **283 tests locaux réussis**. Dernière publication vérifiée : 0.2.86, PR #116, commit 7538768, [contrôles et GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/39111587071). Voir le [journal du 18 octobre](SESSION-2026-10-18.md).
+Application **0.2.88** : achats et stock compté saisis dans l’unité d’achat affichée lorsqu’elle est configurée (ex. 26 œufs, 1 œuf = 50 g), stock affiché aussi dans cette unité, conversion unique vers les API de stock existantes. Les regroupements/exclusions de la 0.2.87 et le calcul 0.2.86 sont conservés. **287 tests locaux réussis**. Dernière publication vérifiée : 0.2.87, PR #117, commit b77925a, [contrôles et GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/39119111359).
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 18 octobre](SESSION-2026-10-18.md).
 
@@ -46,7 +46,7 @@ Les photos sont stockées dans un dossier configurable (`RECIPE_IMAGE_DIR`) avec
 
 ## Vérification
 
-Validation 0.2.87 : **283 tests locaux réussis**. Régressions sur les produits communs, conversions explicites, addition avant arrondi, déduction unique du stock, achat/repas/production et annulation, nutrition inchangée, exclusions permanentes/période et réactivation, isolation du foyer, cycles et stocks/historiques incompatibles. Les fonctions UI réelles sont testées avec DOM synthétique ; pas de nouveau parcours visuel navigateur confirmé. Migration additive 20261018_shopping_products.sql.
+Validation 0.2.88 : **287 tests locaux réussis**. Cas 26 œufs/1300 g, stock 8 œufs/400 g, saisies réelles de 30 œufs et comptage de 12, conversion unique des requêtes, paquets prioritaires et comptage de demi-paquet, absence de conversion inventée, plus régressions des regroupements et du stock PostgreSQL/PGlite. Aucun nouveau parcours visuel navigateur confirmé. Aucune migration supplémentaire.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 

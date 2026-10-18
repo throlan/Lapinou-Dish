@@ -553,7 +553,9 @@ async function refreshShoppingList() {
           const qty=document.createElement('span');qty.className='shopping-quantity';qty.textContent=item.purchase.text;
           const detail=document.createElement('small');detail.textContent=item.purchase.detail;
           const existing=state.ingredients.find(entry=>entry.foodId===item.foodId);
-          const stock=document.createElement('span');stock.className='shopping-stock-quantity';stock.textContent=`Stock : ${formatQty(existing?.quantityG??0)} g`;
+          const entry=item.entry??{kind:'native',label:item.unitId,quantity:item.quantity,multiplier:1,unitId:item.unitId,step:'any',gramsPerEntry:null,detail:''};
+          const stockCount=entry.gramsPerEntry>0?(existing?.quantityG??0)/entry.gramsPerEntry:null;
+          const stock=document.createElement('span');stock.className='shopping-stock-quantity';stock.textContent=stockCount!=null&&entry.label!=='g'?`Stock : ${formatQty(stockCount)} ${entry.label} (${formatQty(existing?.quantityG??0)} g)`:`Stock : ${formatQty(existing?.quantityG??0)} g`;
           const itemHeader=document.createElement('div');itemHeader.className='shopping-item-head';
           const itemToggle=document.createElement('button');itemToggle.type='button';itemToggle.className='shopping-item-toggle';
           detail.className='shopping-item-inline-need';itemToggle.append(title,detail);itemToggle.setAttribute('aria-label',`Détails et besoin pour ${item.name}`);
@@ -585,38 +587,38 @@ async function refreshShoppingList() {
           const countStock=document.createElement('details');countStock.className='shopping-count-stock';
           const countSummary=document.createElement('summary');countSummary.textContent='Saisir le stock déjà présent';countStock.append(countSummary);
           const countForm=document.createElement('form');countForm.className='shopping-receipt-form';
-          const countLabel=document.createElement('label');countLabel.textContent=`Quantité totale présente (${item.unitId})`;
+          const countLabel=document.createElement('label');countLabel.textContent=`Quantité totale présente (${entry.label})`;
           const countQuantity=document.createElement('input');countQuantity.type='number';countQuantity.min='0';countQuantity.step='any';countQuantity.required=true;countQuantity.placeholder='Ex. 3';countLabel.append(countQuantity);
           const countButton=document.createElement('button');countButton.type='submit';countButton.className='secondary';countButton.textContent='Enregistrer le stock compté';
           const countHint=document.createElement('small');
-          countHint.textContent=`Cette quantité remplace le stock actuel${existing?` (${formatQty(existing.quantityG)} g)`:''}. Conversion en grammes requise.`;
+          countHint.textContent=`Cette quantité remplace le stock actuel${existing?` (${stockCount!=null?formatQty(stockCount)+' '+entry.label:formatQty(existing.quantityG)+' g'})`:''}. ${entry.detail||'Conversion en grammes selon la fiche aliment.'}`;
           countForm.append(countLabel,countButton);countStock.append(countForm,countHint);
           countForm.addEventListener('submit',async event=>{
-            event.preventDefault();if(!countForm.reportValidity()||!state.household)return;countButton.disabled=true;
+            event.preventDefault();if(!countForm.reportValidity()||!state.household)return;countButton.disabled=true;const countedQuantity=Number(countQuantity.value);
             try{const result=await api('/api/household-planning/ingredients/count',{method:'PUT',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,
-              quantity:Number(countQuantity.value),unitId:item.unitId,version:existing?.version??0})});
+              quantity:countedQuantity*entry.multiplier,unitId:entry.unitId,version:existing?.version??0})});
               const y=window.scrollY;await refreshShopping();window.scrollTo(0,y);await refreshDashboard();
-              showMessage($('#shopping-export-message'),`${item.name} : stock compté à ${formatQty(result.quantityG)} g.`,true);
+              showMessage($('#shopping-export-message'),`${item.name} : stock compté à ${formatQty(countedQuantity)} ${entry.label} (${formatQty(result.quantityG)} g).`,true);
             }catch(error){const code=error.body?.error??error.message;
               showMessage($('#shopping-export-message'),code==='ingredient-conversion-missing'
                 ?`Conversion en grammes manquante pour ${item.name}. Complète la fiche de l’aliment.`:code==='ingredient-stock-changed'
                   ?'Le stock a changé depuis l’ouverture de cette liste. Actualise-la avant de ressaisir la quantité.':shoppingPreferenceError(error));countButton.disabled=false;}
           });inventoryActions.append(countStock);
           const receipt=document.createElement('form');receipt.className='shopping-receipt-form';
-          const receiptLabel=document.createElement('label');receiptLabel.textContent=`Quantité réellement achetée (${item.unitId})`;
-          const receiptQuantity=document.createElement('input');receiptQuantity.type='number';receiptQuantity.min='0.00001';receiptQuantity.step='any';receiptQuantity.required=true;
-          receiptQuantity.value=String(item.purchaseRuleApplied&&!item.packageQuantity
-            ?Math.ceil((item.neededQuantity-1e-9)/item.purchaseRule.coveredQuantity)*item.purchaseRule.coveredQuantity:item.quantity);
+          const receiptLabel=document.createElement('label');receiptLabel.textContent=`Quantité réellement achetée (${entry.label})`;
+          const receiptQuantity=document.createElement('input');receiptQuantity.type='number';receiptQuantity.min=entry.step==='1'?'1':'0.00001';receiptQuantity.step=entry.step;receiptQuantity.required=true;
+          receiptQuantity.value=String(entry.quantity);
           receiptLabel.append(receiptQuantity);
           const receiptButton=document.createElement('button');receiptButton.type='submit';receiptButton.className='primary';receiptButton.textContent='Valider l’achat et ajouter au stock';
-          receipt.append(receiptLabel,receiptButton);let receiptRequestId=null;
+          const receiptHint=document.createElement('small');receiptHint.textContent=entry.detail;
+          receipt.append(receiptLabel,receiptButton,receiptHint);let receiptRequestId=null;
           receipt.addEventListener('submit',async event=>{
             event.preventDefault();if(!receipt.reportValidity()||!state.household)return;
-            const quantity=Number(receiptQuantity.value);receiptRequestId??=newProductionRequestId();receiptButton.disabled=true;
+            const enteredQuantity=Number(receiptQuantity.value),quantity=enteredQuantity*entry.multiplier;receiptRequestId??=newProductionRequestId();receiptButton.disabled=true;
             try{
-              const result=await api('/api/household-planning/purchases',{method:'POST',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,quantity,unitId:item.unitId,requestId:receiptRequestId})});
+              const result=await api('/api/household-planning/purchases',{method:'POST',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,quantity,unitId:entry.unitId,requestId:receiptRequestId})});
               receiptRequestId=null;const y=window.scrollY;await refreshShopping();window.scrollTo(0,y);await refreshDashboard();
-              showMessage($('#shopping-export-message'),`${item.name} : +${formatQty(result.quantityG)} g ajoutés au stock.`,true);
+              showMessage($('#shopping-export-message'),`${item.name} : +${formatQty(enteredQuantity)} ${entry.label} ajoutés au stock (${formatQty(result.quantityG)} g).`,true);
             }catch(error){const code=error.body?.error??error.message;
               showMessage($('#shopping-export-message'),code==='ingredient-conversion-missing'
                 ?`Conversion en grammes manquante pour ${item.name}. Complète la fiche de l’aliment avant de valider cet achat.`:shoppingPreferenceError(error));

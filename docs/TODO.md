@@ -1,6 +1,6 @@
 # Prochaines tâches — 18 octobre 2026
 
-Référence du code : **0.2.87**, produits communs d’achat et exclusions des courses. Le calcul 0.2.86 (base 0.2.83) reste conservé ; les calculs 0.2.84/85 sont abandonnés. Vérifier les contrôles et la publication de main. Aucun nouveau chantier sans demande de l’utilisateur.
+Référence du code : **0.2.88**, saisie en unités d’achat et stock compté cohérents, après les produits communs et exclusions 0.2.87. Le calcul 0.2.86 (base 0.2.83) reste conservé ; les calculs 0.2.84/85 sont abandonnés. Vérifier les contrôles et la publication de main. Aucun nouveau chantier sans demande de l’utilisateur.
 
 ## Pistes à choisir et préciser
 

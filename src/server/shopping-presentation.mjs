@@ -1,3 +1,4 @@
+import {toGrams} from '../domain/foods.ts';
 const frenchNumber = value => new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2}).format(value);
 const normalizedName = name => String(name ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 
@@ -37,6 +38,22 @@ export function suggestedPurchaseUnit(item) {
   if(/^basilic(?:,|$)/.test(name) && item.unitId==='piece')return {singularLabel:'bouquet de basilic',pluralLabel:'bouquets de basilic',coveredQuantity:1,coveredUnitId:'piece',estimateNote:''};
   if(/^gingembre(?:,|$)/.test(name) && item.unitId==='g')return {singularLabel:'racine de gingembre',pluralLabel:'racines de gingembre',coveredQuantity:65,coveredUnitId:'g',estimateNote:'Une racine pèse environ 50–80 g'};
   return null;
+}
+
+// Entry follows an explicit purchase rule/pack, while the stock APIs continue
+// receiving the underlying documented food unit. No parsing of display labels.
+export function purchaseEntry(item) {
+  let multiplier=1,label=item.unitId==='piece'?'pièces':item.unitId,quantity=Number(item.quantity),kind='native',detail='';
+  if(item.packageQuantity>0){
+    multiplier=Number(item.packageQuantity);label='paquets';quantity=Number(item.packageCount);kind='package';
+    detail=`1 paquet = ${frenchNumber(multiplier)} ${item.unitId}`;
+  }else if(item.purchaseRuleApplied&&item.purchaseRule?.coveredQuantity>0&&item.purchaseRule.coveredUnitId===item.unitId){
+    multiplier=Number(item.purchaseRule.coveredQuantity);label=item.purchaseRule.pluralLabel;
+    quantity=Math.ceil((Number(item.neededQuantity)-1e-9)/multiplier);kind='purchase';
+    detail=`1 ${item.purchaseRule.singularLabel} = ${frenchNumber(multiplier)} ${item.unitId}`;
+  }
+  return {kind,label,quantity,multiplier,unitId:item.unitId,step:kind!=='native'||item.unitId==='piece'?'1':'any',
+    gramsPerEntry:toGrams(multiplier,item.unitId,{gramsPerUnit:item.gramsPerUnit??{},gramsPerMillilitre:item.gramsPerMillilitre??null}),detail};
 }
 
 export function shoppingExportLine(item) {
