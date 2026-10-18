@@ -82,6 +82,17 @@ export async function removeRecipeImage(pool, recipeId, householdId, { imageDire
   return owned.rowCount ? false : null;
 }
 
+// Called only after the owning recipe deletion has committed. Failure to
+// unlink an image must not turn a successful database deletion into an error.
+export async function removeStoredRecipeImageFiles(fileNames, { imageDirectory = configuredImageDirectory() } = {}) {
+  let imageCleanupPending=false;
+  for(const fileName of new Set(fileNames.filter(Boolean))){
+    if(!imageDirectory){imageCleanupPending=true;continue;}
+    try{await unlinkStoredFile(imageDirectory,fileName);}catch{imageCleanupPending=true;}
+  }
+  return {imageCleanupPending};
+}
+
 export async function migrateLegacyRecipeImages(pool, { imageDirectory = configuredImageDirectory() } = {}) {
   if (!imageDirectory) return 0;
   const { rows } = await pool.query(`SELECT recipe_id, media_type, image_bytes FROM recipe_images

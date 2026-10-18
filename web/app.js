@@ -1242,6 +1242,9 @@ $('#recipe-form').elements.recipeType.addEventListener('change', () => {
 });
 $('#new-recipe').addEventListener('click', () => openRecipeEditor());
 $('#cancel-recipe').addEventListener('click', () => { $('#recipe-form').classList.add('hidden'); $('#recipe-result').classList.add('hidden'); });
+$('#delete-current-recipe')?.addEventListener('click',event=>{
+  if(state.editingRecipeForDeletion)requestRecipeDeletion(state.editingRecipeForDeletion,event.currentTarget,$('#recipe-delete-message'));
+});
 $('#ignore-import-draft').addEventListener('click', async (event) => {
   const draftId = state.importingDraftId;
   if (!draftId || !state.household) return;
@@ -1300,6 +1303,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
     }
     renderRecipe(recipe); showMessage(message, 'Recette enregistrée. Les valeurs affichées sont calculées depuis le catalogue.', true);
     state.editingRecipeId = null;
+    state.editingRecipeForDeletion=null;$('#delete-current-recipe')?.classList.add('hidden');
     $('#recipe-form-title').textContent = 'Nouvelle recette';
     $('#recipe-form').classList.add('hidden');
     if(generateImage&&recipeImageConfig.enabled){
@@ -1331,6 +1335,9 @@ async function openRecipeEditor(id = null, duplicate = false) {
   $('#recipe-message').textContent = '';
   $('#recipe-result').classList.add('hidden');
   state.editingRecipeId = duplicate ? null : id;
+  state.editingRecipeForDeletion=null;
+  const remove=$('#delete-current-recipe');if(remove){remove.classList.add('hidden');remove.disabled=true;}
+  const deleteMessage=$('#recipe-delete-message');if(deleteMessage)deleteMessage.textContent='';
   state.importingDraftId = null;
   $('#ignore-import-draft')?.classList.add('hidden');
   state.generateImportedImage=false;
@@ -1338,6 +1345,7 @@ async function openRecipeEditor(id = null, duplicate = false) {
   if (id) {
     try {
       const { recipe } = await api(`/api/recipes/${id}`);
+      if(!duplicate){state.editingRecipeForDeletion=recipe;if(remove){remove.classList.remove('hidden');remove.disabled=false;}}
       form.elements.name.value = duplicate ? `${recipe.name.slice(0,190)} (variante)` : recipe.name;
       form.elements.description.value = recipe.description ?? '';
       form.elements.recipeType.value = recipe.recipeType ?? 'dish';
@@ -1551,6 +1559,8 @@ async function openImportDraft(draft) {
   await setView('recipes');
   const form = $('#recipe-form'); form.reset(); $('#recipe-lines').replaceChildren();
   state.editingRecipeId = null; state.importingDraftId = draft.id;
+  state.editingRecipeForDeletion=null;$('#delete-current-recipe')?.classList.add('hidden');
+  if($('#recipe-delete-message'))$('#recipe-delete-message').textContent='';
   $('#ignore-import-draft').classList.remove('hidden');
   $('#recipe-form-title').textContent = 'Vérifier la recette importée';
   form.elements.name.value = draft.name || '';
@@ -1719,6 +1729,28 @@ $('#recipe-archive-file').addEventListener('change', async (event) => {
   finally { event.target.value = ''; }
 });
 
+async function requestRecipeDeletion(recipe,button,message){
+  if(button.disabled||!state.household)return;
+  if(!confirm(`Supprimer définitivement « ${recipe.name} » et ses éventuelles parties de service ? Une recette utilisée dans un menu ou un historique de production sera conservée.`))return;
+  button.disabled=true;showMessage(message,'Suppression…');
+  try{
+    const result=await api(`/api/recipes/${recipe.id}`,{method:'DELETE',body:JSON.stringify({householdId:state.household.id,version:recipe.version})});
+    state.recipes=state.recipes.filter(item=>item.id!==recipe.id);
+    if(state.editingRecipeId===recipe.id){state.editingRecipeId=null;state.editingRecipeForDeletion=null;$('#recipe-form').classList.add('hidden');$('#recipe-result').classList.add('hidden');}
+    renderFilteredRecipes();
+    showMessage($('#recipe-list-message'),`« ${recipe.name} » a été supprimée.${result.imageCleanupPending?' Un fichier photo n’a pas pu être nettoyé.':''}`,!result.imageCleanupPending);
+    await refreshRecipes();
+  }catch(error){
+    const body=error.body??{};
+    const reason=body.error==='recipe-in-use'
+      ?`Cette recette est encore utilisée.${body.meals?' Retire-la ou remplace-la dans les menus concernés.':''}${body.productions?' Son historique de production est conservé.':''}`
+      :body.error==='recipe-version-conflict'?'Cette recette a changé depuis son affichage. Actualise la liste avant de la supprimer.'
+      :body.error==='recipe-not-found'?'Cette recette n’est plus disponible. Actualise la liste.'
+      :'La suppression n’a pas abouti. Réessaie après avoir vérifié la connexion.';
+    showMessage(message,`Suppression impossible : ${reason}`);button.disabled=false;
+  }
+}
+
 function recipeCard(recipe) {
   const card = document.createElement('article'); card.className = 'recipe-card';card.dataset.recipeId=recipe.id;
   const header=document.createElement('div');header.className='recipe-row-header';
@@ -1747,8 +1779,12 @@ function recipeCard(recipe) {
     }
     finally{cook.disabled=false;}
   });
-  const actions=document.createElement('div');actions.className='recipe-card-actions';actions.append(photo,cook,duplicate,edit);
+  const removalMessage=document.createElement('p');removalMessage.className='form-message';removalMessage.setAttribute('role','status');
+  const remove=document.createElement('button');remove.type='button';remove.className='secondary danger-button';remove.textContent='Supprimer';remove.setAttribute('aria-label',`Supprimer ${recipe.name}`);
+  remove.addEventListener('click',()=>requestRecipeDeletion(recipe,remove,removalMessage));
+  const actions=document.createElement('div');actions.className='recipe-card-actions';actions.append(photo,cook,duplicate,edit,remove);
   header.append(visual,identity,nutrition,actions);card.append(header);
+  card.append(removalMessage);
   const missing=recipeMissingData(recipe);
   if(missing.length){const badges=document.createElement('p');badges.className='recipe-missing-badges';for(const item of missing){const badge=document.createElement('span');badge.textContent=item.label;badges.append(badge);}card.append(badges);}
   const settings=document.createElement('div');settings.className='recipe-row-settings';

@@ -1,13 +1,13 @@
-# Cahier de reprise — 17 octobre 2026, cuisine selon les menus ou en quantité libre
+# Cahier de reprise — 18 octobre 2026, suppression des recettes
 
 ## Version et publication vérifiées
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish ; branche de référence : `origin/main`.
-- Version de référence du code : **0.2.80**. Fiche Cuisiner à deux modes explicites : Selon les menus (besoins exacts, parties indépendantes) et Hors menus — quantité libre (rendement d’origine en portions/pièces/g/ml, proportions de la recette, sans ajustement aux objectifs des profils).
-- Dernière livraison antérieure vérifiée : **0.2.79**, PR #109 fusionnée au commit `d184ab27b229cab1566c6b4a0e377d467e18f963`, [tests et publication GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/39059624663). Les PR #107 et #108 sont également livrées. Pour la 0.2.80, consulter le workflow du dernier commit de main lors de la reprise.
+- Version de référence du code : **0.2.81**. Bouton Supprimer sur les vignettes et dans l’éditeur d’une recette existante, avec confirmation nommée, suppression de la recette inutilisée et de ses parties, et protections côté serveur des menus/historiques de production.
+- Dernière livraison antérieure vérifiée : **0.2.80**, PR #110 fusionnée au commit `7ba4b08da3d957e9041903942e0e1cb3f5b28283`, [tests et publication GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/39061385133). Les PR #107 à #109 sont également livrées. Pour la 0.2.81, consulter le workflow du dernier commit de main lors de la reprise.
 - La PR #104 ajoute l’impression hebdomadaire en paysage. La PR #105 met à jour la version et les clés de cache des scripts et styles.
-- **234 tests locaux réussis** : menus exacts conservés, quantité libre dans les unités d’origine, ingrédients proportionnels, poids estimé, changement de mode sans perte des valeurs, production/annulation et menus inchangés. Pas de nouveau parcours visuel navigateur confirmé ; la limite du navigateur intégré local est documentée dans le journal.
-- Références : [état](STATUS.md), [prochaines tâches](TODO.md), [produit](PRODUCT.md), [améliorations](AMELIORATIONS.md), [journal du 17 octobre](SESSION-2026-10-17.md).
+- **245 tests locaux réussis**, dont PostgreSQL/PGlite pour les doublons, parties de service, menus historiques, productions annulées, isolation des foyers, versions périmées, photos et annulation transactionnelle ; tests de confirmation, rendu de l’action et visibilité dans l’éditeur. Pas de nouveau parcours visuel navigateur confirmé.
+- Références : [état](STATUS.md), [prochaines tâches](TODO.md), [produit](PRODUCT.md), [améliorations](AMELIORATIONS.md), [journal du 18 octobre](SESSION-2026-10-18.md).
 
 ## Interdiction d'accès à l'installation
 
@@ -18,7 +18,7 @@
 1. Retrouver le dépôt par son remote GitHub ; le chemin local dépend du PC. Ne pas confondre avec les anciens dossiers Norish ni supposer que le chemin de la session précédente existe encore.
 2. Lire les éventuels `AGENTS.md`. Examiner l'état Git, la branche, les derniers commits et **tous les stashes**. Préserver les modifications, branches et stashes existants ; aucune réapplication automatique d'un ancien chantier.
 3. Récupérer `origin/main` sans écrasement. Sur un main propre, avancer seulement en fast-forward ; sinon inspecter et isoler le travail avant de changer de base. Aucun reset destructif ni nettoyage forcé.
-4. Vérifier GitHub, `package.json` et les documents liés ci-dessus. Les journaux antérieurs au 17 octobre sont historiques ; le dernier journal est `SESSION-2026-10-17.md`.
+4. Vérifier GitHub, `package.json` et les documents liés ci-dessus. Les journaux antérieurs au 18 octobre sont historiques ; le dernier journal est `SESSION-2026-10-18.md`.
 5. Faire un état bref et proposer les prochaines étapes ; **attendre la demande de l'utilisateur avant une nouvelle modification fonctionnelle**.
 
 ## Dernières fonctions à ne pas refaire
@@ -37,6 +37,7 @@
 - PR #107 / 0.2.77 : réglage `RECIPE_IMAGE_DIR=/images` visible dans le template ; sans variable, repli PostgreSQL. Contrôles et publication réussis. L’utilisateur vérifie seul son installation.
 - 0.2.78 puis **0.2.79** : Cuisiner utilise les besoins des menus. Depuis la 0.2.79, les services viande-légumes/féculents et viande/légumes/féculents sont calculés indépendamment. Les portions/pièces originales ne sont pas arrondies vers un lot plus grand. Une partie absente ou couverte reste à zéro. Ouverture depuis la recette : rechargement des besoins de la période des courses, aucune proposition de recette complète en repli. Les quantités restent modifiables explicitement.
 - **0.2.80** : Hors menus — quantité libre dans la fiche cuisine. Pour une base de 4 portions, 6 portions multiplient tous les ingrédients par 1,5 ; le poids estimé reste un repère. Pour les services séparés, ce mode libre conserve les proportions de la recette source, tandis que Selon les menus garde les quantités indépendantes. Les valeurs sont conservées lors des changements de mode. Une recette hors planning ouvre le mode libre explicitement ; si les besoins des menus sont indisponibles, seule la préparation libre est accessible.
+- **0.2.81** : suppression des recettes inutilisées depuis les vignettes et l’éditeur ; indisponible pour une nouvelle recette/copie non enregistrée. Les menus et historiques de production (y compris annulés) protègent la recette et ses parties. Photos en base supprimées avec la recette ; fichiers nettoyés seulement après commit, échec de nettoyage signalé sans prétendre que la suppression en base a échoué.
 - La page Importer dédiée, les vignettes de recettes avec photos, les filtres latéraux et les photos persistantes sont déjà en place.
 
 ## Règles métier à préserver
@@ -67,9 +68,9 @@ Après une modification autorisée : branche, tests adaptés, commit/push, PR, c
 ## Prompt à copier pour demain
 
 ```text
-Reprends le développement de Lapinou Dish. Retrouve le dépôt local par son remote https://github.com/throlan/Lapinou-Dish, vérifie son état et préserve toute modification locale, branche et stash avant de récupérer origin/main sans écrasement. Lis AGENTS.md s'il existe, puis docs/REPRISE.md, docs/STATUS.md, docs/PRODUCT.md, docs/AMELIORATIONS.md, docs/TODO.md et le dernier journal dans docs/ (actuellement docs/SESSION-2026-10-17.md).
+Reprends le développement de Lapinou Dish. Retrouve le dépôt local par son remote https://github.com/throlan/Lapinou-Dish, vérifie son état et préserve toute modification locale, branche et stash avant de récupérer origin/main sans écrasement. Lis AGENTS.md s'il existe, puis docs/REPRISE.md, docs/STATUS.md, docs/PRODUCT.md, docs/AMELIORATIONS.md, docs/TODO.md et le dernier journal dans docs/ (actuellement docs/SESSION-2026-10-18.md).
 
-La version de référence du code est 0.2.80 : choix entre Selon les menus (besoins exacts par partie) et Hors menus — quantité libre (portions de la recette d’origine, sans objectifs personnels). La version précédente 0.2.79 (PR #109, commit d184ab2) est fusionnée et publiée ; les 234 tests locaux passent. Vérifie la tête de main, package.json et les contrôles/publication GitHub/GHCR correspondants. Ne réimplémente pas les fonctions déjà livrées.
+La version de référence du code est 0.2.81 : suppression protégée des recettes inutilisées depuis les vignettes et l’éditeur. La version précédente 0.2.80 (PR #110, commit 7ba4b08) est fusionnée et publiée ; les 245 tests locaux passent. Vérifie la tête de main, package.json et les contrôles/publication GitHub/GHCR correspondants. Ne réimplémente pas les fonctions déjà livrées.
 
 Prochaine piste proposée dans TODO.md : filtre des aliments inutilisés, puis étude d’une fusion guidée des doublons avec préservation de toutes les références et de leurs réglages. Fais-moi d'abord un état bref de la version, de la publication et des tâches réellement restantes. Attends ma demande avant toute nouvelle modification fonctionnelle.
 
