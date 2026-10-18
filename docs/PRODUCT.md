@@ -8,6 +8,10 @@ Aider un foyer à décider quoi manger, en quelle quantité pour chaque personne
 
 Ce produit aide à organiser les repas. Il ne diagnostique pas, ne prescrit pas et ne transforme pas une estimation en conseil médical.
 
+## Présentation et formats
+
+Depuis la 0.2.89, la charte validée est **Magazine culinaire · Encre framboise**, en mode clair : fond rose très pâle, surfaces papier, encre sombre, accents framboise et titres à empattements. Navigation latérale sur PC, haute sur tablette, basse sur mobile avec accès Plus aux autres pages. Photos existantes valorisées et formulaires adaptés, sans changer les fonctions, les quantités ni les calculs. L’impression hebdomadaire conserve sa mise en page A4. Une PWA installable et le hors-ligne restent des évolutions distinctes.
+
 ## Personnes et objectifs
 
 - Une personne du foyer est un profil alimentaire; elle n'a pas besoin d'un compte pour être planifiée. Les comptes servent à se connecter, les profils servent à planifier et suivre les personnes.

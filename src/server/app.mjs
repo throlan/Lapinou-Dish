@@ -38,6 +38,7 @@ const staticFiles = new Map([
   ['/cooking-sheet.js', ['cooking-sheet.js', 'text/javascript; charset=utf-8']],
   ['/recipe-directory.js', ['recipe-directory.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
+  ['/editorial.css', ['editorial.css', 'text/css; charset=utf-8']],
 ]);
 
 export function createApp(pool, { appPassword, recipeAI = {} } = {}) {

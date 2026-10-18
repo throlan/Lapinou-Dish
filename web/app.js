@@ -31,7 +31,7 @@ async function api(path, options = {}) {
 
 function showMessage(target, text, success = false) {
   target.textContent = text;
-  target.style.color = success ? '#63d7b0' : '';
+  target.style.color = success ? 'var(--positive, #63d7b0)' : '';
 }
 
 const appViewHistory=[];
@@ -127,6 +127,11 @@ async function refreshDashboard() {
       if(!slotMeals.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='Rien de planifié';section.append(empty);}
       for(const meal of slotMeals){
         const mealCard=document.createElement('article');mealCard.className='dashboard-meal';
+        const photoRecipe=meal.items.map(item=>item.recipe).find(recipe=>recipe?.imageAvailable);
+        if(photoRecipe){const photo=document.createElement('img');photo.className='dashboard-meal-photo';photo.alt='';photo.loading='lazy';
+          photo.src=`/api/recipes/${photoRecipe.id}/image?householdId=${encodeURIComponent(state.household.id)}&v=${photoRecipe.version??0}`;
+          photo.addEventListener('error',()=>{photo.hidden=true;});mealCard.append(photo);}
+
         const mealHead=document.createElement('div');mealHead.className='dashboard-meal-heading';
         const note=document.createElement('span');note.textContent=meal.notes||'Repas familial';
         const edit=document.createElement('button');edit.type='button';edit.className='text-button';edit.textContent='Modifier';
@@ -1075,7 +1080,10 @@ function externalNutritionCandidate(candidate, targetFoodId) {
   card.append(title, reference, sourceLink, values, apply); return card;
 }
 
-$$('.nav-button').forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)));
+$$('.nav-button').forEach((button) => button.addEventListener('click', () => {
+  setView(button.dataset.view);
+  const menu=button.closest('.mobile-nav details');if(menu)menu.open=false;
+}));
 
 $('#food-form').addEventListener('submit', async (event) => {
   event.preventDefault();

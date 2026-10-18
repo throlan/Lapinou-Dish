@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-Application **0.2.88** : achats et stock compté saisis dans l’unité d’achat affichée lorsqu’elle est configurée (ex. 26 œufs, 1 œuf = 50 g), stock affiché aussi dans cette unité, conversion unique vers les API de stock existantes. Les regroupements/exclusions de la 0.2.87 et le calcul 0.2.86 sont conservés. **287 tests locaux réussis**. Dernière publication vérifiée : 0.2.87, PR #117, commit b77925a, [contrôles et GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/39119111359).
+Application **0.2.89** : charte claire Magazine culinaire · Encre framboise, navigation et formulaires responsive PC/tablette/mobile, photos valorisées. Fonctionnalités et calculs inchangés. La 0.2.88 conserve les achats et stock compté saisis dans l’unité d’achat affichée lorsqu’elle est configurée (ex. 26 œufs, 1 œuf = 50 g), stock affiché aussi dans cette unité, conversion unique vers les API de stock existantes. Les regroupements/exclusions de la 0.2.87 et le calcul 0.2.86 sont conservés. **288 tests locaux réussis**. Sept pages et fiches principales vérifiées dans Chrome local sur données fictives à 1440, 1280, 900, 390 et 320 px (émulation, pas appareils physiques). Dernière publication vérifiée avant ce chantier : 0.2.88, PR #118, commit a82d02a, [contrôles et GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/39122254770). Vérifier le workflow de main pour la livraison 0.2.89.
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 18 octobre](SESSION-2026-10-18.md).
 
@@ -11,6 +11,8 @@ Les tâches réellement restantes et les fonctions déjà livrées sont séparé
 **Règle impérative : aucune intervention de l'agent sur Unraid ni sur Nginx, y compris en lecture ou pour une vérification. L'utilisateur gère lui-même son installation et ses mises à jour.**
 
 ## Implémenté
+
+- Design clair Magazine culinaire · Encre framboise : navigation latérale PC (≥1200 px), haute tablette (768–1199 px), basse mobile (<768 px) avec menu Plus. Sept destinations conservées, cartes photos, titres éditoriaux et contrôles tactiles. Adaptation des formulaires, calendrier, courses et fiches cuisine ; impression A4 d’origine préservée. Aucun changement des données, calculs, API métier ou stocks. PWA/hors ligne non inclus.
 
 - Import IA/texte : rendement en tranches conservé jusque dans la recette enregistrée ; fiche pain de mie Francine/T110 avec huit ingrédients fixes disponible dans docs/recettes/.
 

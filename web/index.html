@@ -4,7 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=0.2.88">
+    <link rel="stylesheet" href="/style.css?v=0.2.89">
+    <link rel="stylesheet" href="/editorial.css?v=0.2.89">
   </head>
   <body>
     <header class="topbar">
@@ -21,6 +22,17 @@
       </nav>
       <span class="connection" id="connection">Connexion…</span>
     </header>
+    <nav class="mobile-nav" aria-label="Navigation mobile">
+      <button type="button" class="nav-button active" data-view="home">Accueil</button>
+      <button type="button" class="nav-button" data-view="recipes">Recettes</button>
+      <button type="button" class="nav-button" data-view="calendar">Calendrier</button>
+      <button type="button" class="nav-button" data-view="shopping">Courses</button>
+      <details><summary>Plus</summary><div>
+        <button type="button" class="nav-button" data-view="foods">Aliments</button>
+        <button type="button" class="nav-button" data-view="import">Importer</button>
+        <button type="button" class="nav-button" data-view="admin">Administration</button>
+      </div></details>
+    </nav>
 
     <main>
       <section class="intro">
@@ -319,6 +331,6 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.88"></script>
+    <script type="module" src="/app.js?v=0.2.89"></script>
   </body>
 </html>
