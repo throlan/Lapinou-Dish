@@ -10,7 +10,7 @@ Ce produit aide à organiser les repas. Il ne diagnostique pas, ne prescrit pas 
 
 ## Présentation et formats
 
-Depuis la 0.2.89, la charte validée est **Magazine culinaire · Encre framboise**, en mode clair : fond rose très pâle, surfaces papier, encre sombre, accents framboise et titres à empattements. Navigation latérale sur PC, haute sur tablette, basse sur mobile avec accès Plus aux autres pages. Photos existantes valorisées et formulaires adaptés, sans changer les fonctions, les quantités ni les calculs. L’impression hebdomadaire conserve sa mise en page A4. Une PWA installable et le hors-ligne restent des évolutions distinctes.
+Depuis la 0.2.89, la charte validée est **Magazine culinaire · Encre framboise**, en mode clair : fond rose très pâle, surfaces papier, encre sombre, accents framboise et titres à empattements. Navigation latérale sur PC, haute sur tablette, basse sur mobile avec accès Plus aux autres pages. Photos existantes valorisées et formulaires adaptés, sans changer les fonctions, les quantités ni les calculs. L’impression hebdomadaire conserve sa mise en page A4. Depuis la 0.2.90, la webapp est installable depuis le navigateur : identité lapin/cocotte, fenêtre autonome et guide iOS/Android/PC. Le site et l’app partagent le même serveur et la même authentification. Une connexion est nécessaire ; aucune nouvelle couche de cache hors ligne. Les mises à jour se chargent à la réouverture ou à l’actualisation, après enregistrement des saisies. Le hors-ligne et la synchronisation restent des évolutions distinctes.
 
 ## Personnes et objectifs
 

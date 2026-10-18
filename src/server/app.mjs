@@ -39,6 +39,13 @@ const staticFiles = new Map([
   ['/recipe-directory.js', ['recipe-directory.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
   ['/editorial.css', ['editorial.css', 'text/css; charset=utf-8']],
+  ['/manifest.webmanifest', ['manifest.webmanifest', 'application/manifest+json; charset=utf-8']],
+  ['/install-app.js', ['install-app.js', 'text/javascript; charset=utf-8']],
+  ['/icons/app-192.png', ['icons/app-192.png', 'image/png']],
+  ['/icons/app-512.png', ['icons/app-512.png', 'image/png']],
+  ['/icons/app-maskable-512.png', ['icons/app-maskable-512.png', 'image/png']],
+  ['/icons/apple-touch-icon.png', ['icons/apple-touch-icon.png', 'image/png']],
+  ['/icons/favicon-32.png', ['icons/favicon-32.png', 'image/png']],
 ]);
 
 export function createApp(pool, { appPassword, recipeAI = {} } = {}) {

@@ -20,7 +20,7 @@ Lire [le cahier de reprise](docs/REPRISE.md), [l'état actuel](docs/STATUS.md) e
 
 ## État
 
-Version applicative de référence : **0.2.89**. Catalogue et recettes, calendrier à cinq créneaux, impression hebdomadaire paysage, duplication, desserts/boissons individuels, parties de service en grammes estimés, stocks et courses, profils compacts, repères nutritionnels administrables et rééquilibrage avec aperçu sont implémentés. Voir [les règles kcal et portions](docs/MEAL-ENERGY.md).
+Version applicative de référence : **0.2.90**. Catalogue et recettes, calendrier à cinq créneaux, impression hebdomadaire paysage, duplication, desserts/boissons individuels, parties de service en grammes estimés, stocks et courses, profils compacts, repères nutritionnels administrables et rééquilibrage avec aperçu sont implémentés. Voir [les règles kcal et portions](docs/MEAL-ENERGY.md).
 
 L'import de texte et d'archives crée des brouillons à vérifier. Avec l'analyse OpenAI optionnelle, un lien Instagram peut permettre de récupérer sa description ; si la lecture est bloquée, coller le texte. Une transcription YouTube doit être fournie. Les ingrédients sont associés au catalogue avant enregistrement et les valeurs nutritionnelles sont recalculées depuis celui-ci.
 
@@ -73,3 +73,8 @@ npm test
 ```
 
 La version 0.2.41 passe **138 tests**, dont des intégrations PostgreSQL/PGlite avec les migrations et requêtes réelles. Les parcours ont aussi été vérifiés dans Chrome sur données synthétiques. Aucun contrôle de l'installation Unraid de l'utilisateur n'a été réalisé par l'agent.
+
+
+### Installer la webapp
+
+Depuis la 0.2.90 : ouvre Lapinou Dish avec son adresse HTTPS habituelle, puis **Installer l’app** (sur mobile : **Plus → Installer l’app**). L’invitation native est proposée lorsque le navigateur la fournit ; sinon le guide explique iPhone/iPad, Android et PC. Une connexion au serveur reste nécessaire. Termine tes saisies puis rouvre ou actualise pour charger une mise à jour. Aucun service worker ni cache hors ligne n’est ajouté. Icônes et prompts : [web/icons/README.md](web/icons/README.md).
