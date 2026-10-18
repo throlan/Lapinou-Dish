@@ -1,4 +1,5 @@
 import { breakfastServingLimit, calculateDailyEnergy, calculateDailyProtein, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, dailyProteinTarget, capAccompanimentQuantity, mainServingLimit, MIN_PROTEIN_G_PER_MEAL, rebalanceNaturalPortions, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';
+import {servingUnit,servingUnitLabel,displayServingQuantity,setServingInput,servingInputValue} from './serving-quantities.js';
 import { MEAL_ORDER, MEAL_LABELS, validMealRatios } from './meal-config.js';
 import { suggestPlatePortions } from './portion-planner.js';
 import { PLATE_PARTS, validPlateRatios } from './meal-config.js';
@@ -80,7 +81,7 @@ function mealNutritionForPerson(meal,personId) {
     if(energy==null||prot==null||!item.recipe?.nutrition?.complete) missing=true;
     if(energy!=null)kcal+=energy*amount.quantity;
     if(prot!=null)protein+=prot*amount.quantity;
-    items.push({name:item.recipe?.name??'Recette',quantity:amount.quantity,unit:item.recipe?.yield?.unitId??'portion'});
+    items.push({name:item.recipe?.name??'Recette',quantity:displayServingQuantity(item.recipe,amount.quantity),unit:servingUnitLabel(servingUnit(item.recipe))});
   }
   return {kcal,protein,missing,items};
 }
@@ -2250,7 +2251,7 @@ async function openDailyRebalance(date) {
       const section=document.createElement('section');section.className='rebalance-person';
       const heading=document.createElement('strong');heading.textContent=`${person.name} : ${format(person.beforeKcal)} → ${format(person.afterKcal)} / ${person.targetKcal==null?'—':format(person.targetKcal)} kcal`;section.append(heading);
       for(const change of preview.changes.filter(change=>change.personId===person.personId).sort((a,b)=>MEAL_ORDER.indexOf(a.slot)-MEAL_ORDER.indexOf(b.slot))) {
-        const line=document.createElement('p');line.textContent=`${slotLabels[change.slot]} · ${change.recipeName} : ${formatQty(change.before)} → ${formatQty(change.after)} ${change.unitId}`;section.append(line);
+        const line=document.createElement('p');line.textContent=`${slotLabels[change.slot]} · ${change.recipeName} : ${formatQty(change.before/(change.displayScale??1))} → ${formatQty(change.after/(change.displayScale??1))} ${servingUnitLabel(change.displayUnitId??change.unitId)}`;section.append(line);
       }
       if(person.reason){const note=document.createElement('p');note.className='muted';note.textContent=rebalanceReasons[person.reason] ?? person.reason;section.append(note);}
       root.append(section);
@@ -2303,7 +2304,7 @@ function renderMealCard(meal) {
         const person = meal.attendees?.find((entry) => entry.id === amount.personId) ?? state.people.find((entry) => entry.id === amount.personId);
         if (!person) continue;
         const quantity = document.createElement('li');
-        quantity.textContent = `${person.displayName} : ${formatQty(amount.quantity)} ${item.recipe.yield?.unitId ?? 'portion'}`;
+        quantity.textContent = `${person.displayName} : ${formatQty(displayServingQuantity(item.recipe,amount.quantity))} ${servingUnitLabel(servingUnit(item.recipe))}`;
         quantities.append(quantity);
       }
       row.append(recipeName, quantities); printItems.append(row);
@@ -2408,7 +2409,7 @@ function currentFormAmounts() {
     const recipeId = $('select[name="recipeId"]', row)?.value || Object.values(assignments)[0]?.recipeId || '';
     const amounts = {};
     if (Object.keys(assignments).length) Object.entries(assignments).forEach(([personId, assignment]) => { amounts[personId] = assignment.quantity; });
-    else $$('input[data-person-id]', row).forEach((input) => { amounts[input.dataset.personId] = input.value; });
+    else $$('input[data-person-id]', row).forEach((input) => { amounts[input.dataset.personId] = servingInputValue(input); });
     output[index] = { recipeId, role, amounts };
   });
   return output;
@@ -2469,7 +2470,8 @@ function applyAutomaticPortions(items, attendeeIds) {
       const recipe = allPlanningRecipes().find((entry) => entry.id === recipeId);
       const kcal = recipe?.nutrition?.perYieldUnit?.energyKcal;
       const recipeUnit = recipe?.yield.unitId ?? 'portion';
-      const step = recipeUnit === 'piece' ? 1 : recipeUnit === 'g' ? 10 : 0.5;
+      const countStep=recipe?.servingDisplay?.gramsPerUnit??null;
+      const step = countStep ?? (['piece','slice'].includes(recipeUnit) ? 1 : recipeUnit === 'g' ? 10 : 0.5);
       if (isIndividualRole(role) || role === 'sauce') {
         if(role === 'sauce'){
           item.amounts ??= {};
@@ -2521,7 +2523,7 @@ function applyAutomaticPortions(items, attendeeIds) {
       const parent=state.recipes.find(parent=>parent.id===recipe?.parentRecipeId);
       proposals.push({ item, personId, role, quantity, reason: suggestion.reason, step, recipeKcal: Number(kcal), proteinG: recipe?.nutrition?.perYieldUnit?.proteinG == null ? null : Number(recipe.nutrition.perYieldUnit.proteinG), maxQuantity, slotBudgetKcal: suggestion.slotBudgetKcal, assignment,
         parentRecipeId:recipe?.parentRecipeId,servingPart:recipe?.servingPart,recipeUnit,
-        plateParts:parent?.servingParts?.map(part=>part.servingPart),budgetFraction:activeWeight?roleWeights[role]/activeWeight/(roleCounts[role]||1):1 });
+        countStep,plateParts:parent?.servingParts?.map(part=>part.servingPart),budgetFraction:activeWeight?roleWeights[role]/activeWeight/(roleCounts[role]||1):1 });
     }
     const budget = proposals.find((proposal) => Number.isFinite(proposal.slotBudgetKcal))?.slotBudgetKcal;
     if (Number.isFinite(budget) && proposals.length && proposals.every((proposal) => Number.isFinite(proposal.recipeKcal) && proposal.recipeKcal > 0)) {
@@ -2681,12 +2683,13 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     } else {
       for (const personId of attendees) {
         const person = state.people.find((entry) => entry.id === personId);
-        const label = document.createElement('label'); label.textContent = `${person?.displayName ?? 'Personne'} · ${allPlanningRecipes().find((recipe) => recipe.id === item.recipeId)?.yield.unitId ?? 'portion'}`;
+        const label = document.createElement('label'); label.textContent = `${person?.displayName ?? 'Personne'} · ${servingUnitLabel(servingUnit(allPlanningRecipes().find((recipe) => recipe.id === item.recipeId)))}`;
         const recipe = allPlanningRecipes().find((entry) => entry.id === item.recipeId);
         const unit = recipe?.yield.unitId ?? 'portion';
         const step = unit === 'piece' ? '1' : unit === 'g' ? '10' : '0.5';
         const input = document.createElement('input'); input.type = 'number'; input.min = role.value === 'sauce' ? '0' : unit === 'g' ? '0.01' : step; input.step = ['g','ml'].includes(unit) ? 'any' : step; input.required = true; input.dataset.personId = personId;
         input.value = item.amounts?.[personId] ?? (role.value === 'sauce' && recipe ? String(sauceDefaultQuantity(recipe)) : ''); input.placeholder = role.value === 'sauce' ? '0 si aucune' : 'Ex. 1'; input.setAttribute('aria-label', `Quantité pour ${person?.displayName ?? 'personne'}`);
+        setServingInput(input,recipe,item.amounts?.[personId]??'');
         input.addEventListener('input',updateMealProteinSummary);
         label.append(input); quantities.append(label);
       }
@@ -2710,7 +2713,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     }
     row.append(top, quantities);
     if (allPlanningRecipes().find(recipe=>recipe.id===item.recipeId)?.parentRecipeId) {
-      const estimate=document.createElement('small'); estimate.className='muted'; estimate.textContent='Grammes estimés à partir des ingrédients et du coefficient de cuisson.'; row.append(estimate);
+      const estimate=document.createElement('small'); estimate.className='muted'; estimate.textContent=allPlanningRecipes().find(recipe=>recipe.id===item.recipeId)?.servingDisplay ? 'Unités reprises de l’ingrédient de cette partie. Les quantités existantes sont conservées ; « Recalculer les portions » propose des unités entières.' : 'Grammes estimés à partir des ingrédients et du coefficient de cuisson.'; row.append(estimate);
     }
     return row;
   });

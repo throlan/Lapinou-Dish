@@ -215,7 +215,8 @@ export async function readRecipe(client, id, path=[]) {
   if(path.includes(id))throw new Error('recipe-ingredient-cycle');
   const recipeResult = await client.query(
     `SELECT id, household_id,output_units, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type, meal_moments,separate_starch,serving_weights,cooking_factors,parent_recipe_id,serving_part,version,
-            EXISTS (SELECT 1 FROM recipe_images WHERE recipe_id=recipes.id) AS image_available
+            EXISTS (SELECT 1 FROM recipe_images WHERE recipe_id=recipes.id) AS image_available,
+            (SELECT count(*) FROM recipes siblings WHERE siblings.parent_recipe_id=recipes.parent_recipe_id) AS sibling_count
        FROM recipes WHERE id = $1`, [id],
   );
   const row = recipeResult.rows[0];
@@ -278,7 +279,11 @@ export async function readRecipe(client, id, path=[]) {
     const children = await client.query('SELECT id FROM recipes WHERE parent_recipe_id=$1 ORDER BY serving_part', [id]);
     for (const child of children.rows) servingParts.push(await readRecipe(client,child.id,[...path,id]));
   }
+  const counted=Number(row.sibling_count)>1 && row.yield_unit_id==='g' && lines.length===1 && ['piece','slice'].includes(lines[0].unitId) ? lines[0] : null;
+  const servingDisplay=counted?{unitId:counted.unitId,amount:counted.quantity,gramsPerUnit:Number(row.yield_amount)/counted.quantity,
+    ingredientName:counted.foodName??foodById.get(counted.foodId)?.name??null}:null;
   return {
+    servingDisplay,
     separateStarch:row.separate_starch ?? false,servingWeights:row.serving_weights ?? {},cookingFactors:row.cooking_factors ?? {main:1,starch:3},parentRecipeId:row.parent_recipe_id ?? null,servingPart:row.serving_part ?? null,servingParts,imageAvailable:Boolean(row.image_available),
     id: row.id, version: Number(row.version ?? 0), name: row.name, description: row.description, instructions: row.instructions ?? '', sourceUrl: row.source_url ?? null,
     recipeType: row.recipe_type ?? 'dish', productionType: row.production_type ?? 'none', mealMoments: row.meal_moments ?? [],

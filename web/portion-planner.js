@@ -11,7 +11,7 @@ export function breakfastServingLimit(recipe,parent) {
   return Infinity;
 }
 
-const NATURAL_STEPS = Object.freeze({ piece: 1, portion: 0.5, g: 10 });
+const NATURAL_STEPS = Object.freeze({ piece: 1, slice:1, portion: 0.5, g: 10 });
 
 // A calorie envelope is a ceiling, not a reason to enlarge a batch serving.
 export function mainServingLimit(recipe, parent) {
@@ -227,5 +227,15 @@ export function suggestPlatePortions(proposals, budget, plateRatios=DEFAULT_PLAT
     for(const member of plate.members)expanded.set(member,{...member,quantity:plate.quantity?Number((plate.quantity*plate.shares[member.servingPart]).toFixed(4)):null});
   }
   const ungrouped=new Map(result.proposals.filter(row=>!row.members).map(({sourceRow,...row})=>[sourceRow,row]));
-  return {...result,warnings,proportionsApplied:plates.length>0,proposals:proposals.map(row=>expanded.get(row)??ungrouped.get(row)??row)};
+  const output={...result,warnings,proportionsApplied:plates.length>0,proposals:proposals.map(row=>expanded.get(row)??ungrouped.get(row)??row)};
+  if(output.proposals.some(row=>row.countStep>0)){
+    output.proposals=output.proposals.map(row=>row.countStep>0 && row.quantity!=null
+      ?{...row,quantity:Math.floor(row.quantity/row.countStep+1e-8)*row.countStep||null}:row);
+    output.estimatedKcal=output.proposals.reduce((sum,row)=>sum+(row.quantity??0)*row.recipeKcal,0);
+    output.estimatedProteinG=output.proteinKnown?output.proposals.reduce((sum,row)=>sum+(row.quantity??0)*row.proteinG,0):null;
+    output.withinBudget=output.estimatedKcal<=budget+1e-8;
+    output.proteinTargetMet=output.proteinKnown && output.estimatedProteinG>=MIN_PROTEIN_G_PER_MEAL-1e-8;
+    output.warnings.push('Œufs, pièces et tranches : quantités proposées en unités entières, sans dépasser le budget. Les proportions en poids restent un repère ; tu peux ajuster les quantités.');
+  }
+  return output;
 }
