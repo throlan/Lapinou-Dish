@@ -1,6 +1,6 @@
 import { breakfastServingLimit, calculateDailyEnergy, calculateDailyProtein, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, dailyProteinTarget, capAccompanimentQuantity, mainServingLimit, MIN_PROTEIN_G_PER_MEAL, rebalanceNaturalPortions, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';
-import {plateComposition} from './plate-composition.js';
 import {servingUnit,servingUnitLabel,displayServingQuantity,setServingInput,servingInputValue} from './serving-quantities.js';
+import {roundServingCalories,compensateManualServing} from './serving-compensation.js';
 import { MEAL_ORDER, MEAL_LABELS, validMealRatios } from './meal-config.js';
 import { suggestPlatePortions } from './portion-planner.js';
 import { PLATE_PARTS, validPlateRatios } from './meal-config.js';
@@ -2252,7 +2252,7 @@ async function openDailyRebalance(date) {
       const section=document.createElement('section');section.className='rebalance-person';
       const heading=document.createElement('strong');heading.textContent=`${person.name} : ${format(person.beforeKcal)} → ${format(person.afterKcal)} / ${person.targetKcal==null?'—':format(person.targetKcal)} kcal`;section.append(heading);
       for(const change of preview.changes.filter(change=>change.personId===person.personId).sort((a,b)=>MEAL_ORDER.indexOf(a.slot)-MEAL_ORDER.indexOf(b.slot))) {
-        const line=document.createElement('p');line.textContent=`${slotLabels[change.slot]} · ${change.recipeName} : ${formatQty(change.before/(change.displayScale??1))} → ${formatQty(change.after/(change.displayScale??1))} ${servingUnitLabel(change.displayUnitId??change.unitId)}`;section.append(line);
+        const line=document.createElement('p');line.textContent=`${slotLabels[change.slot]} · ${change.recipeName} : ${formatQty(change.before)} → ${formatQty(change.after)} ${change.unitId}`;section.append(line);
       }
       if(person.reason){const note=document.createElement('p');note.className='muted';note.textContent=rebalanceReasons[person.reason] ?? person.reason;section.append(note);}
       root.append(section);
@@ -2471,8 +2471,7 @@ function applyAutomaticPortions(items, attendeeIds) {
       const recipe = allPlanningRecipes().find((entry) => entry.id === recipeId);
       const kcal = recipe?.nutrition?.perYieldUnit?.energyKcal;
       const recipeUnit = recipe?.yield.unitId ?? 'portion';
-      const countStep=recipe?.servingDisplay?.gramsPerUnit??null;
-      const step = countStep ?? (['piece','slice'].includes(recipeUnit) ? 1 : recipeUnit === 'g' ? 10 : 0.5);
+      const step = recipeUnit === 'piece' ? 1 : recipeUnit === 'g' ? 10 : 0.5;
       if (isIndividualRole(role) || role === 'sauce') {
         if(role === 'sauce'){
           item.amounts ??= {};
@@ -2524,13 +2523,19 @@ function applyAutomaticPortions(items, attendeeIds) {
       const parent=state.recipes.find(parent=>parent.id===recipe?.parentRecipeId);
       proposals.push({ item, personId, role, quantity, reason: suggestion.reason, step, recipeKcal: Number(kcal), proteinG: recipe?.nutrition?.perYieldUnit?.proteinG == null ? null : Number(recipe.nutrition.perYieldUnit.proteinG), maxQuantity, slotBudgetKcal: suggestion.slotBudgetKcal, assignment,
         parentRecipeId:recipe?.parentRecipeId,servingPart:recipe?.servingPart,recipeUnit,
-        countStep,plateParts:parent?.servingParts?.map(part=>part.servingPart),budgetFraction:activeWeight?roleWeights[role]/activeWeight/(roleCounts[role]||1):1 });
+        countStep:recipe?.servingDisplay?.gramsPerUnit,plateParts:parent?.servingParts?.map(part=>part.servingPart),budgetFraction:activeWeight?roleWeights[role]/activeWeight/(roleCounts[role]||1):1 });
     }
     const budget = proposals.find((proposal) => Number.isFinite(proposal.slotBudgetKcal))?.slotBudgetKcal;
     if (Number.isFinite(budget) && proposals.length && proposals.every((proposal) => Number.isFinite(proposal.recipeKcal) && proposal.recipeKcal > 0)) {
-      const result = suggestPlatePortions(proposals, budget, state.plateRatios);
+      const initial = suggestPlatePortions(proposals, budget, state.plateRatios);
+      const rounded = roundServingCalories(initial.proposals);
+      const result = {...initial,proposals:rounded.proposals,warnings:[...initial.warnings,...rounded.warnings]};
+      result.estimatedKcal=result.proposals.reduce((sum,row)=>sum+(row.quantity??0)*row.recipeKcal,0);
+      result.estimatedProteinG=result.proteinKnown?result.proposals.reduce((sum,row)=>sum+(row.quantity??0)*row.proteinG,0):null;
+      result.proteinTargetMet=result.proteinKnown && result.estimatedProteinG>=MIN_PROTEIN_G_PER_MEAL-1e-8;
+      result.withinBudget=result.estimatedKcal<=budget+1e-4;
       result.warnings.forEach(message=>messages.add(message));
-      if(result.proportionsApplied)messages.add(result.approximateProportions?'Répartition approchée depuis Administration avec unités entières. Consulte les pourcentages réels et les écarts affichés sous chaque personne.':'Proportions en poids estimé appliquées depuis Administration. Le poids total respecte le budget kcal et les plafonds des parties ; le repère protéique ne modifie pas ces proportions.');
+      if(result.proportionsApplied)messages.add(proposals.some(row=>row.countStep>0)?'Calcul initial selon les proportions d’Administration. Arrondi des unités au plus proche lorsque la compensation calorique sur la partie en grammes est possible, sans imposer à nouveau les pourcentages.':'Proportions en poids estimé appliquées depuis Administration. Le poids total respecte le budget kcal et les plafonds des parties ; le repère protéique ne modifie pas ces proportions.');
       result.proposals.forEach((proposal) => {
         if (isIndividualRole(proposal.role)) proposal.assignment.quantity = String(proposal.quantity);
         else proposal.item.amounts[personId] = proposal.quantity == null ? '' : String(proposal.quantity);
@@ -2573,31 +2578,12 @@ function mealProteinSummary(items, attendeeIds) {
     energyTag.className=`protein-tag ${!energy.known || objective==null?'protein-unknown':energy.kcal<=objective?'protein-sufficient':'protein-low'}`;
     energyTag.textContent=`Kcal : ${energy.known?format(energy.kcal):'—'} / ${objective==null?'—':format(objective)}`;
     energyTag.title=objective==null?'Objectif quotidien à renseigner dans le profil':`Objectif du repas : ${ratio*100} % du besoin quotidien. Les propositions automatiques autorisent une marge de 100 kcal, dans le budget quotidien restant.`;
-    row.append(name,energyTag,tag);appendPlateComposition(row,meal,personId);root.append(row);
+    row.append(name,energyTag,tag);root.append(row);
   }
   return root;
 }
 function updateMealProteinSummary() {
   $('#meal-protein-summary')?.replaceWith(mealProteinSummary(currentFormAmounts(),$$('#meal-attendees input:checked').map(input=>input.value)));
-}
-
-function appendPlateComposition(root,meal,personId) {
-  const labels={main:'Protéines',starch:'Féculents',vegetables:'Légumes'};
-  for(const report of plateComposition(meal.items,personId,state.recipes,state.plateRatios)){
-    const block=document.createElement('div');block.className='meal-plate-composition';
-    const title=document.createElement('strong');title.textContent='Assiette · '+report.name;block.append(title);
-    if(!report.complete){const message=document.createElement('p');message.textContent='Répartition non calculable : complète les quantités et vérifie les parties manquantes ou répétées.';block.append(message);}
-    else{
-      const note=document.createElement('p');note.textContent=report.exact?'Répartition en poids estimé conforme au repère.':'Répartition réelle en poids estimé · les unités entières peuvent créer un écart au repère.';block.append(note);
-      for(const part of report.parts){
-        const line=document.createElement('p');line.className='plate-composition-part';
-        const delta=Math.abs(part.deltaPoints)<0.005?'0':(part.deltaPoints>0?'+':'')+formatQty(part.deltaPoints);
-        line.textContent=(part.key==='main'&&!report.parts.some(p=>p.key==='vegetables')?'Viande et légumes':labels[part.key])+' : '+formatQty(part.percent)+' % ('+formatQty(part.grams)+' g) · repère '+formatQty(part.targetPercent)+' % · écart '+delta+' point(s)';
-        block.append(line);
-      }
-    }
-    root.append(block);
-  }
 }
 
 function allPlanningRecipes() { return state.recipes.flatMap(recipe => [recipe,...(recipe.servingParts ?? [])]); }
@@ -2642,15 +2628,12 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
   const rows = Object.entries(source);
   const suggestionNotice = autoSuggest ? root.firstChild : null;
   const editorRows = rows.map(([index, item], rowIndex) => {
-    const row = document.createElement('div'); row.className = 'planned-item-editor';
+    const row = document.createElement('div'); row.className = 'planned-item-editor'; row.dataset.itemKey=String(rowIndex);
     const select = document.createElement('select'); select.name = 'recipeId'; select.setAttribute('aria-label', 'Recette');
     select.add(new Option('Choisir une recette', ''));
     const role = document.createElement('select'); role.name = 'role'; role.setAttribute('aria-label', 'Catégorie de la recette');
     plannedItemRoleOptions(item.role).forEach(([value, label]) => role.add(new Option(label, value)));
     role.value = item.role ?? 'main';
-    if(allPlanningRecipes().find(recipe=>recipe.id===item.recipeId)?.parentRecipeId){
-      for(const option of role.options)if(option.value==='main'||option.value==='accompaniment')option.textContent=option.value==='main'?'Recette principale · assiette':'Accompagnement · assiette';
-    }
     const slot = $('#meal-form').elements.slot.value;
     recipesForPlanning(slot, role.value, [item.recipeId]).forEach((recipe) => select.add(new Option(recipePlanningLabel(recipe), recipe.id)));
     select.value = item.recipeId ?? '';
@@ -2713,7 +2696,24 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
         const input = document.createElement('input'); input.type = 'number'; input.min = role.value === 'sauce' ? '0' : unit === 'g' ? '0.01' : step; input.step = ['g','ml'].includes(unit) ? 'any' : step; input.required = true; input.dataset.personId = personId;
         input.value = item.amounts?.[personId] ?? (role.value === 'sauce' && recipe ? String(sauceDefaultQuantity(recipe)) : ''); input.placeholder = role.value === 'sauce' ? '0 si aucune' : 'Ex. 1'; input.setAttribute('aria-label', `Quantité pour ${person?.displayName ?? 'personne'}`);
         setServingInput(input,recipe,item.amounts?.[personId]??'');
-        input.addEventListener('input',updateMealProteinSummary);
+        let previousQuantity=servingInputValue(input);
+        input.addEventListener('input',()=>{
+          const next=servingInputValue(input);
+          let accepted=!recipe?.servingDisplay;
+          if(recipe?.servingDisplay && next!=='' && previousQuantity!=='' && Number.isFinite(Number(next)) && Number(next)>=0){
+            const data=currentFormAmounts();
+            const result=compensateManualServing(data,allPlanningRecipes(),recipe.id,personId,Number(previousQuantity));
+            if(result.ok){
+              accepted=true;
+              const targetRow=$$('.planned-item-editor',root).find(entry=>entry.dataset.itemKey===result.itemKey);
+              const target=$$('input[data-person-id]',targetRow).find(entry=>entry.dataset.personId===personId);
+              if(target)target.value=String(result.quantity);
+              $('#meal-message').textContent='Partie en grammes ajustée pour conserver les calories du repas avant ta modification.';
+            }else if(result.reason)$('#meal-message').textContent=result.reason;
+          }
+          if(accepted && next!=='' && Number.isFinite(Number(next)))previousQuantity=next;
+          updateMealProteinSummary();
+        });
         label.append(input); quantities.append(label);
       }
       select.addEventListener('change', () => {
@@ -2736,7 +2736,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     }
     row.append(top, quantities);
     if (allPlanningRecipes().find(recipe=>recipe.id===item.recipeId)?.parentRecipeId) {
-      const estimate=document.createElement('small'); estimate.className='muted'; estimate.textContent=allPlanningRecipes().find(recipe=>recipe.id===item.recipeId)?.servingDisplay ? 'Unités reprises de l’ingrédient de cette partie. Les quantités existantes sont conservées ; « Recalculer les portions » propose des unités entières.' : 'Grammes estimés à partir des ingrédients et du coefficient de cuisson.'; row.append(estimate);
+      const estimate=document.createElement('small'); estimate.className='muted'; const counted=allPlanningRecipes().find(recipe=>recipe.id===item.recipeId)?.servingDisplay; estimate.textContent=counted ? '1 '+servingUnitLabel(counted.unitId)+' = '+formatQty(counted.gramsPerUnit)+' g selon la recette et ses équivalences. Le recalcul arrondit au plus proche et compense les calories sur la partie en grammes.' : 'Grammes estimés à partir des ingrédients et du coefficient de cuisson.'; row.append(estimate);
     }
     return row;
   });
@@ -2898,7 +2898,7 @@ async function saveMeal(event) {
   const items = isOccasion ? [] : rows.flatMap((row) => {
     const role = $('select[name="role"]', row).value;
     if (!isIndividualRole(role)) {
-      const amounts=$$('input[data-person-id]', row).map(input=>({personId:input.dataset.personId,quantity:Number(input.value)}));
+      const amounts=$$('input[data-person-id]', row).map(input=>({personId:input.dataset.personId,quantity:Number(servingInputValue(input))}));
       const included=role==='sauce'?amounts.filter(amount=>amount.quantity>0):amounts;
       return included.length?[{recipeId:$('select[name="recipeId"]',row).value,role,amounts:included}]:[];
     }

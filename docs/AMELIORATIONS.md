@@ -55,10 +55,6 @@ La liste synthétique à jour est dans [TODO.md](TODO.md). Première piste propo
 
 « + Préparation maison » permet d’utiliser pain/bagel, sauce, pâtes et accompagnements dans les plats. Unités à la pièce, à la tranche, en portion, g ou ml selon les équivalences explicites ; apports dérivés et besoins des menus étendus aux composants après couverture par le stock. Les composants suivis sont produits avant les plats ; les ingrédients ne sont pas déduits deux fois. Les références, annulations et services indépendants sont protégés. Ce chantier ne doit pas être proposé à nouveau.
 
-## Services séparés en pièces/tranches/grammes — réalisé en 0.2.84
+## Correction 0.2.86 — retour au calcul validé
 
-Reprise automatique des unités d’une partie séparée à une seule ligne en pièce ou tranche : œufs à la pièce, soupe en grammes, pain à la tranche. Éditeur, choix, accueil et impression cohérents ; données canoniques en grammes conservées, suggestions et rééquilibrage tenant compte des unités entières. Les plats mélangés ne reçoivent pas d’unité supposée.
-
-## Répartition réelle des assiettes — réalisé en 0.2.85
-
-Choix utilisateur confirmé : garder les unités entières avec l’écart aux pourcentages affiché. Arrondi coordonné des comptes et des grammes au recalcul, rapport visible par personne (poids, pourcentage réel, repère, écart en points), mise à jour après saisie manuelle et suppression du 70/20 % ambigu sur les parties liées.
+Calcul initial 0.2.83 conservé, conversion en unités pratiques et arrondi au plus proche, compensation du delta kcal sur la soupe et même comportement lors des saisies manuelles. Les approches 0.2.84/85 sont abandonnées. Les équivalences renseignées restent la référence, sans masse de tranche inventée.

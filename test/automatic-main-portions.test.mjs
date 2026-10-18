@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';
 import * as planner from '../web/portion-planner.js';
+import {roundServingCalories} from '../web/serving-compensation.js';
 
 const source = await readFile(new URL('../web/app.js', import.meta.url), 'utf8');
 const start = source.indexOf('function applyAutomaticPortions(');
@@ -15,7 +16,7 @@ test('automatic meat and vegetable servings stay within one batch portion for al
   const people = [1600, 3200, 2200, 2600].map((energy, i) => ({ id: String(i), displayName: String(i), energy }));
   const items = { 0: { recipeId: main.id, role: 'main' }, 1: { recipeId: rice.id, role: 'accompaniment' } };
   const root = { replaceChildren() {} };
-  const context = { ...planner, state: { recipes: [parent], people, calendarMeals: [] },
+  const context = { ...planner,roundServingCalories, state: { recipes: [parent], people, calendarMeals: [] },
     $: selector => selector === '#meal-form' ? { elements: { mealDate: { value: '2026-10-19' }, slot: { value: 'lunch' } } } : root,
     allPlanningRecipes: () => [parent, main, rice], isIndividualRole: () => false,
     latestProfile: person => ({ dailyEnergyKcal: person.energy }), plannedCaloriesForPerson: () => 0,
@@ -45,7 +46,7 @@ test('automatic salad servings are capped to one portion per person', () => {
   const people = [{id:'a',displayName:'A'},{id:'b',displayName:'B'}];
   const items = { 0:{recipeId:salad.id,role:'accompaniment'} };
   const root = { replaceChildren(){} };
-  const context = { ...planner,state:{recipes:[salad],people,calendarMeals:[]},
+  const context = { ...planner,roundServingCalories,state:{recipes:[salad],people,calendarMeals:[]},
     $:selector=>selector==='#meal-form'?{elements:{mealDate:{value:'2026-10-19'},slot:{value:'lunch'}}}:root,
     allPlanningRecipes:()=>[salad],isIndividualRole:()=>false,latestProfile:()=>({dailyEnergyKcal:3000}),
     plannedCaloriesForPerson:()=>0,document:{createElement:()=>({append(){}})} };
@@ -64,7 +65,7 @@ test('sauce calories fit within the meal budget without increasing a fixed sauce
   const people=[{id:'a',displayName:'A'},{id:'b',displayName:'B'},{id:'c',displayName:'C'}];
   const items={0:{recipeId:'salad',role:'main'},1:{recipeId:'sauce',role:'sauce',amounts:{a:'40',b:'0'}}};
   const root={replaceChildren(){}};
-  const context={...planner,state:{recipes:[salad,sauce],people,calendarMeals:[]},
+  const context={...planner,roundServingCalories,state:{recipes:[salad,sauce],people,calendarMeals:[]},
     $:selector=>selector==='#meal-form'?{elements:{mealDate:{value:'2026-10-19'},slot:{value:'lunch'}}}:root,
     allPlanningRecipes:()=>[salad,sauce],isIndividualRole:()=>false,latestProfile:()=>({dailyEnergyKcal:1500}),
     plannedCaloriesForPerson:()=>0,document:{createElement:()=>({append(){}})}};

@@ -29,12 +29,12 @@ const staticFiles = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/portion-planner.js', ['portion-planner.js', 'text/javascript; charset=utf-8']],
+  ['/serving-quantities.js', ['serving-quantities.js', 'text/javascript; charset=utf-8']],
+  ['/serving-compensation.js', ['serving-compensation.js', 'text/javascript; charset=utf-8']],
   ['/meal-config.js', ['meal-config.js', 'text/javascript; charset=utf-8']],
   ['/preparation-weeks.js', ['preparation-weeks.js', 'text/javascript; charset=utf-8']],
   ['/cooking-sheet.js', ['cooking-sheet.js', 'text/javascript; charset=utf-8']],
   ['/recipe-directory.js', ['recipe-directory.js', 'text/javascript; charset=utf-8']],
-  ['/serving-quantities.js', ['serving-quantities.js', 'text/javascript; charset=utf-8']],
-  ['/plate-composition.js', ['plate-composition.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
 ]);
 
