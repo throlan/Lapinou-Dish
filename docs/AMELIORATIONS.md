@@ -54,3 +54,7 @@ La liste synthétique à jour est dans [TODO.md](TODO.md). Première piste propo
 ## Recettes utilisées comme composants — réalisé en 0.2.82
 
 « + Préparation maison » permet d’utiliser pain/bagel, sauce, pâtes et accompagnements dans les plats. Unités à la pièce, à la tranche, en portion, g ou ml selon les équivalences explicites ; apports dérivés et besoins des menus étendus aux composants après couverture par le stock. Les composants suivis sont produits avant les plats ; les ingrédients ne sont pas déduits deux fois. Les références, annulations et services indépendants sont protégés. Ce chantier ne doit pas être proposé à nouveau.
+
+## Services séparés en pièces/tranches/grammes — réalisé en 0.2.84
+
+Reprise automatique des unités d’une partie séparée à une seule ligne en pièce ou tranche : œufs à la pièce, soupe en grammes, pain à la tranche. Éditeur, choix, accueil et impression cohérents ; données canoniques en grammes conservées, suggestions et rééquilibrage tenant compte des unités entières. Les plats mélangés ne reçoivent pas d’unité supposée.
