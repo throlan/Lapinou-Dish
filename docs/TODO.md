@@ -8,7 +8,7 @@ Référence du code : **0.2.89**, charte claire Magazine culinaire · Encre fram
 2. **Webapp** : la refonte responsive PC/tablette/mobile est livrée en 0.2.89 et vérifiée localement. Recueillir le retour sur appareils physiques, puis décider d’une PWA installable (manifest, icônes, mises à jour). Le hors-ligne et la synchronisation restent des chantiers distincts.
 3. **Comptes individuels et foyer** : concevoir compte/personne, rôles gestionnaire/membre, droits côté serveur, invitations et récupération. L'accès actuel reste une session par mot de passe du foyer.
 4. **Communauté publique** : cadrer bibliothèque volontaire, droits et attribution des images/recettes, modération et isolation des données privées avant toute ouverture.
-5. **Nettoyage du catalogue alimentaire**  — dernière priorité, après consolidation du cahier de recettes** : le compteur et les liens « Dans X recettes » sont livrés. Première étape proposée : filtre « inutilisés ». Ensuite, envisager une fusion guidée des doublons, avec aperçu des références et conservation des recettes, conversions, associations magasins et stocks. Ne pas supprimer automatiquement des aliments.
+5. **Nettoyage du catalogue alimentaire — dernière priorité, après consolidation du cahier de recettes** : le compteur et les liens « Dans X recettes » sont livrés. Première étape proposée : filtre « inutilisés ». Ensuite, envisager une fusion guidée des doublons, avec aperçu des références et conservation des recettes, conversions, associations magasins et stocks. Ne pas supprimer automatiquement des aliments.
 
 Détails et variantes dans [AMELIORATIONS.md](AMELIORATIONS.md). Les variantes indépendantes de recettes et l'affichage de photos en mode cuisine restent des pistes à confirmer, sans priorité décidée.
 
