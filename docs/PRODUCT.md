@@ -101,3 +101,12 @@ Chaque jalon aura des scénarios d'acceptation exécutables et une validation na
 - Le rééquilibrage des adultes passe par un aperçu : petit-déjeuner puis déjeuner/dîner si nécessaire. Les adolescents ne subissent pas cette réduction automatique ; une donnée inconnue ne devient pas un objectif implicite.
 - Repère historique du 13 octobre, désormais livré en 0.2.42 : réserve glissante et occasions avec estimation globale par adulte. Le [brouillon](drafts/ENERGY-RESERVE.md) reste archivé et ne doit pas être réappliqué.
 - L'utilisateur gère seul Unraid. Aucun accès, contrôle ou déploiement par l'agent n'est autorisé.
+
+## Préparations comme ingrédients — 0.2.82
+
+- Une ligne de recette référence soit un aliment canonique, soit une recette du même foyer, jamais une copie des apports de cette recette. Les compositions circulaires sont refusées.
+- Le rendement de base reste la référence. Il peut être en tranches ; d’autres équivalences explicites sont facultatives : par exemple une fournée de 6 bagels et un pain de 20 tranches. Les grammes sont estimés depuis les ingrédients/coefficient de cuisson ou définis explicitement pour le lot complet. Pas de poids de tranche inventé, ni de volume supposé égal au poids.
+- Le composant déjà préparé ne reçoit pas une seconde fois le coefficient de cuisson du féculent. Les services du plat restent indépendants.
+- Pour les menus, les besoins directs et imbriqués partagent le même stock ; les menus antérieurs réservent en premier. Les matières premières correspondant aux manques alimentent les courses, et les composants suivis apparaissent dans les préparations à faire.
+- Un composant suivi en stock doit être fabriqué avant le plat qui l’utilise. Son assemblage déduit la préparation terminée ; ses matières premières ont déjà été déduites à sa fabrication. Les sauces non suivies se préparent avec le plat et leurs ingrédients sont déduits à cette étape. Annuler restitue les mouvements d’origine, pas un calcul depuis une recette modifiée.
+- Une recette référencée ne peut pas être supprimée. La modification d’un composant actualise les apports et poids de service de ses parents et leurs versions ; les menus déjà préparés restent protégés, y compris à travers plusieurs recettes. Les changements d’unité/format incompatibles avec un historique d’utilisation nécessitent une nouvelle variante.

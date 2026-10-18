@@ -1,12 +1,11 @@
-# Cahier de reprise — 18 octobre 2026, suppression des recettes
+# Cahier de reprise — 18 octobre 2026, préparations utilisées dans les recettes
 
 ## Version et publication vérifiées
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish ; branche de référence : `origin/main`.
-- Version de référence du code : **0.2.81**. Bouton Supprimer sur les vignettes et dans l’éditeur d’une recette existante, avec confirmation nommée, suppression de la recette inutilisée et de ses parties, et protections côté serveur des menus/historiques de production.
-- Dernière livraison antérieure vérifiée : **0.2.80**, PR #110 fusionnée au commit `7ba4b08da3d957e9041903942e0e1cb3f5b28283`, [tests et publication GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/39061385133). Les PR #107 à #109 sont également livrées. Pour la 0.2.81, consulter le workflow du dernier commit de main lors de la reprise.
-- La PR #104 ajoute l’impression hebdomadaire en paysage. La PR #105 met à jour la version et les clés de cache des scripts et styles.
-- **245 tests locaux réussis**, dont PostgreSQL/PGlite pour les doublons, parties de service, menus historiques, productions annulées, isolation des foyers, versions périmées, photos et annulation transactionnelle ; tests de confirmation, rendu de l’action et visibilité dans l’éditeur. Pas de nouveau parcours visuel navigateur confirmé.
+- Version de référence du code : **0.2.82**. Une recette peut inclure d’autres préparations maison, avec référence vivante, unités explicites (pièce, tranche, g, portion, ml), apports dérivés, courses et fabrications imbriquées tenant compte du stock.
+- Dernière livraison antérieure vérifiée : **0.2.81**, PR #111 fusionnée au commit 2deefc50544db5b7ead1ffccefdb42aff28538cb, [tests et publication GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/39103583824). Pour la 0.2.82, consulter le workflow du dernier commit de main lors de la reprise.
+- Validation locale : **254 tests réussis** ; tests PostgreSQL/PGlite des migrations, bagels à la pièce, pain à la tranche, stock en grammes, services indépendants, annulations et rollback. Interface testée via les fonctions réelles avec DOM synthétique ; aucun nouveau parcours visuel navigateur confirmé.
 - Références : [état](STATUS.md), [prochaines tâches](TODO.md), [produit](PRODUCT.md), [améliorations](AMELIORATIONS.md), [journal du 18 octobre](SESSION-2026-10-18.md).
 
 ## Interdiction d'accès à l'installation
@@ -38,6 +37,7 @@
 - 0.2.78 puis **0.2.79** : Cuisiner utilise les besoins des menus. Depuis la 0.2.79, les services viande-légumes/féculents et viande/légumes/féculents sont calculés indépendamment. Les portions/pièces originales ne sont pas arrondies vers un lot plus grand. Une partie absente ou couverte reste à zéro. Ouverture depuis la recette : rechargement des besoins de la période des courses, aucune proposition de recette complète en repli. Les quantités restent modifiables explicitement.
 - **0.2.80** : Hors menus — quantité libre dans la fiche cuisine. Pour une base de 4 portions, 6 portions multiplient tous les ingrédients par 1,5 ; le poids estimé reste un repère. Pour les services séparés, ce mode libre conserve les proportions de la recette source, tandis que Selon les menus garde les quantités indépendantes. Les valeurs sont conservées lors des changements de mode. Une recette hors planning ouvre le mode libre explicitement ; si les besoins des menus sont indisponibles, seule la préparation libre est accessible.
 - **0.2.81** : suppression des recettes inutilisées depuis les vignettes et l’éditeur ; indisponible pour une nouvelle recette/copie non enregistrée. Les menus et historiques de production (y compris annulés) protègent la recette et ses parties. Photos en base supprimées avec la recette ; fichiers nettoyés seulement après commit, échec de nettoyage signalé sans prétendre que la suppression en base a échoué.
+- **0.2.82** : « + Préparation maison » dans les ingrédients. Rendement natif « tranches » et équivalences par recette de base (ex. 1 pain = 20 tranches). Ne pas inventer un poids de tranche. Les besoins imbriqués sont additionnés avec les menus directs ; seul le manque après stock remonte aux courses et aux fabrications. Une préparation suivie en stock est fabriquée avant l’assemblage du plat ; les sauces non suivies sont faites avec le plat depuis leurs ingrédients. Mouvements de préparations réversibles, sans seconde déduction des matières premières. Cycles et références hors foyer refusés ; les références protègent aussi la suppression. Migration 20261018_recipe_ingredients.sql.
 - La page Importer dédiée, les vignettes de recettes avec photos, les filtres latéraux et les photos persistantes sont déjà en place.
 
 ## Règles métier à préserver
@@ -70,7 +70,7 @@ Après une modification autorisée : branche, tests adaptés, commit/push, PR, c
 ```text
 Reprends le développement de Lapinou Dish. Retrouve le dépôt local par son remote https://github.com/throlan/Lapinou-Dish, vérifie son état et préserve toute modification locale, branche et stash avant de récupérer origin/main sans écrasement. Lis AGENTS.md s'il existe, puis docs/REPRISE.md, docs/STATUS.md, docs/PRODUCT.md, docs/AMELIORATIONS.md, docs/TODO.md et le dernier journal dans docs/ (actuellement docs/SESSION-2026-10-18.md).
 
-La version de référence du code est 0.2.81 : suppression protégée des recettes inutilisées depuis les vignettes et l’éditeur. La version précédente 0.2.80 (PR #110, commit 7ba4b08) est fusionnée et publiée ; les 245 tests locaux passent. Vérifie la tête de main, package.json et les contrôles/publication GitHub/GHCR correspondants. Ne réimplémente pas les fonctions déjà livrées.
+La version de référence du code est 0.2.82 : préparations maison comme ingrédients de recettes, y compris bagels à la pièce et pain à la tranche, calcul nutritionnel et besoins/stock imbriqués. La livraison précédente 0.2.81 (PR #111, commit 2deefc5) est fusionnée et publiée. Vérifie la tête de main, package.json et les contrôles/publication GitHub/GHCR correspondants. Ne réimplémente pas les fonctions déjà livrées.
 
 Prochaine piste proposée dans TODO.md : filtre des aliments inutilisés, puis étude d’une fusion guidée des doublons avec préservation de toutes les références et de leurs réglages. Fais-moi d'abord un état bref de la version, de la publication et des tâches réellement restantes. Attends ma demande avant toute nouvelle modification fonctionnelle.
 

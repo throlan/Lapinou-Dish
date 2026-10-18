@@ -1,3 +1,4 @@
+import {recipeRequirements,preparationInputs,recordRecipeUses} from './recipe-ingredients.mjs';
 import { randomUUID } from 'node:crypto';
 import { listFoodStores } from './food-stores.mjs';
 import { rawShoppingRequirements } from './shopping-requirements.mjs';
@@ -197,15 +198,9 @@ export async function addStockLot(pool, input) {
     const targets=requestedParts
       ? parts.rows.filter(part=>requestedParts[part.id]>0).map(part=>({id:part.id,factor:requestedParts[part.id]/Number(part.yield_amount)}))
       : [{id:input.recipeId,factor:quantity/Number(recipe.rows[0].yield_amount)}];
-    const lines = await client.query(
-      `SELECT rl.recipe_id AS "recipeId",rl.food_id AS "foodId", f.canonical_name AS name, rl.quantity, rl.unit_id AS "unitId",
-              s.quantity_g AS "quantityG", f.grams_per_millilitre AS "gramsPerMillilitre",
-              COALESCE((SELECT jsonb_object_agg(u.unit_id,u.grams_per_unit) FROM food_unit_conversions u WHERE u.food_id=f.id),'{}'::jsonb) AS "gramsPerUnit"
-       FROM recipe_lines rl JOIN foods f ON f.id=rl.food_id
-       JOIN household_ingredient_stock s ON s.food_id=f.id AND s.household_id=$2
-       WHERE rl.recipe_id=ANY($1::uuid[]) ORDER BY rl.food_id,rl.recipe_id FOR UPDATE OF s`, [targets.map(target=>target.id),input.householdId]);
-    const deductions = productionDeductions(lines.rows.map(line=>({...line,
-      quantity:Number(line.quantity)*targets.find(target=>target.id===line.recipeId).factor})),1,1);
+    const inputs=await preparationInputs(client,input.householdId,targets);
+    if(inputs.error){await client.query('ROLLBACK');return inputs;}
+    const deductions=productionDeductions(inputs.lines,1,1);
     if (deductions.error) { await client.query('ROLLBACK'); return deductions; }
     await client.query(
       `INSERT INTO stock_lots (id, household_id, recipe_id, produced_on, quantity, storage, note, request_id,serving_quantities)
@@ -224,6 +219,7 @@ export async function addStockLot(pool, input) {
           [randomUUID(),input.householdId,part.id,input.producedOn,grams,input.storage,input.note,id]);
       }
     }
+    await recordRecipeUses(client,input.householdId,inputs.uses,{lotId:id});
     for (const item of deductions.items) {
       await client.query('UPDATE household_ingredient_stock SET quantity_g=quantity_g-$3,version=version+1,updated_at=now() WHERE household_id=$1 AND food_id=$2', [input.householdId,item.foodId,item.usedG]);
       await client.query("INSERT INTO ingredient_stock_movements(id,household_id,food_id,delta_g,reason,stock_lot_id) VALUES ($1,$2,$3,$4,'production',$5)", [randomUUID(),input.householdId,item.foodId,-item.usedG,id]);
@@ -259,7 +255,8 @@ export async function cancelStockLot(pool, householdId, lotId) {
       const prepared=await client.query(`SELECT COALESCE(sum(a.quantity),0) AS quantity
         FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id JOIN planned_amounts a ON a.planned_item_id=i.id
         WHERE m.household_id=$1 AND m.prepared_at IS NOT NULL AND i.recipe_id=$2`,[householdId,recipe.recipe_id]);
-      if(Number(remaining.rows[0].quantity)+0.00001<Number(prepared.rows[0].quantity)){
+      const used=await client.query('SELECT COALESCE(sum(quantity),0) AS quantity FROM recipe_stock_uses WHERE household_id=$1 AND recipe_id=$2 AND cancelled_at IS NULL AND stock_lot_id IS DISTINCT FROM $3',[householdId,recipe.recipe_id,lotId]);
+      if(Number(remaining.rows[0].quantity)+0.00001<Number(prepared.rows[0].quantity)+Number(used.rows[0].quantity)){
         await client.query('ROLLBACK');return {error:'production-already-used'};
       }
     }
@@ -274,6 +271,7 @@ export async function cancelStockLot(pool, householdId, lotId) {
         "INSERT INTO ingredient_stock_movements(id,household_id,food_id,delta_g,reason,stock_lot_id) VALUES ($1,$2,$3,$4,'production-cancelled',$5)",
         [randomUUID(),householdId,movement.foodId,movement.quantityG,lotId]);
     }
+    await client.query('UPDATE recipe_stock_uses SET cancelled_at=now() WHERE stock_lot_id=$1 AND cancelled_at IS NULL',[lotId]);
     await client.query('UPDATE stock_lots SET cancelled_at=now() WHERE id=$1 OR parent_lot_id=$1', [lotId]);
     await client.query('COMMIT');
     return { cancelled:true,restored:movements.rows.map(row=>({...row,quantityG:Number(row.quantityG)})) };
@@ -314,61 +312,20 @@ export async function listStock(pool, householdId) {
   const lots = await pool.query(
     `SELECT id, recipe_id AS "recipeId", produced_on::text AS "producedOn", quantity, storage, note,parent_lot_id AS "parentLotId"
      FROM stock_lots WHERE household_id=$1 AND cancelled_at IS NULL AND NOT is_serving_bundle ORDER BY produced_on DESC, created_at DESC`, [householdId]);
-  return result.rows.map((row) => ({
+  const needs=await recipeRequirements(pool,householdId,'0001-01-01','9999-12-31');
+  const rows=new Map(result.rows.map(row=>[row.recipeId,row]));
+  for(const [id,quantity] of needs.reservations)if(!rows.has(id)){const r=needs.graph.get(id);rows.set(id,{recipeId:id,name:r.name,unitId:r.yield.unitId,productionType:r.productionType,producedQuantity:0,latestProduction:null,storage:[]});}
+  return [...rows.values()].map((row) => ({
     ...row,
     lots: lots.rows.filter(lot=>lot.recipeId===row.recipeId).map(lot=>({...lot,quantity:Number(lot.quantity)})),
     producedQuantity: Number(row.producedQuantity),
-    plannedQuantity: Number(row.plannedQuantity),
-    availableQuantity: Number(row.availableQuantity),
+    plannedQuantity: Number(row.producedQuantity)-(needs.initialStock.get(row.recipeId)??0)+(needs.reservations.get(row.recipeId)??0),
+    availableQuantity: (needs.initialStock.get(row.recipeId)??0)-(needs.reservations.get(row.recipeId)??0),
   }));
 }
 
 export async function listPreparationsToMake(pool, householdId, startDate, endDate) {
-  const result = await pool.query(
-    `WITH planned AS (
-       SELECT i.recipe_id,
-              COALESCE(sum(a.quantity) FILTER (WHERE m.meal_date BETWEEN $2::date AND $3::date),0) AS wanted,
-              COALESCE(sum(a.quantity) FILTER (WHERE m.meal_date < $2::date),0) AS earlier,
-              min(m.meal_date) FILTER (WHERE m.meal_date BETWEEN $2::date AND $3::date) AS first_date,
-              max(m.meal_date) FILTER (WHERE m.meal_date BETWEEN $2::date AND $3::date) AS last_date,
-              count(DISTINCT m.id) FILTER (WHERE m.meal_date BETWEEN $2::date AND $3::date) AS meal_count
-       FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
-       JOIN planned_amounts a ON a.planned_item_id=i.id
-       JOIN recipes planned_recipe ON planned_recipe.id=i.recipe_id AND planned_recipe.household_id=m.household_id AND planned_recipe.production_type<>'none'
-       WHERE m.household_id=$1 AND m.prepared_at IS NULL AND m.meal_date <= $3::date
-       GROUP BY i.recipe_id
-     ), prepared_batches AS (
-       SELECT i.recipe_id,sum(a.quantity) AS quantity
-       FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
-       JOIN planned_amounts a ON a.planned_item_id=i.id JOIN recipes r ON r.id=i.recipe_id
-       WHERE m.household_id=$1 AND m.prepared_at IS NOT NULL AND r.production_type<>'none'
-       GROUP BY i.recipe_id
-     ), produced AS (
-       SELECT s.recipe_id,GREATEST(sum(s.quantity)-COALESCE(b.quantity,0),0) AS quantity
-       FROM stock_lots s LEFT JOIN prepared_batches b ON b.recipe_id=s.recipe_id
-       WHERE s.household_id=$1 AND s.cancelled_at IS NULL AND NOT s.is_serving_bundle
-       GROUP BY s.recipe_id,b.quantity
-     )
-     SELECT r.id AS "recipeId",r.parent_recipe_id AS "parentRecipeId",r.name,
-            r.production_type AS "productionType",r.yield_amount AS "yieldAmount",r.yield_unit_id AS "unitId",
-            p.wanted AS "plannedQuantity",p.earlier AS "earlierQuantity",
-            COALESCE(s.quantity,0) AS "stockQuantity",p.first_date::text AS "firstDate",
-            p.last_date::text AS "lastDate",p.meal_count AS "mealCount"
-     FROM planned p JOIN recipes r ON r.id=p.recipe_id AND r.household_id=$1
-     LEFT JOIN produced s ON s.recipe_id=r.id
-     WHERE p.wanted>0 ORDER BY p.first_date,r.name`,
-    [householdId,startDate,endDate],
-  );
-  return result.rows.map(row => {
-    const plannedQuantity=Number(row.plannedQuantity);
-    const stockQuantity=Number(row.stockQuantity);
-    const reservedEarlier=Number(row.earlierQuantity);
-    const coveredQuantity=row.productionType==='none' ? 0 : Math.min(plannedQuantity,Math.max(stockQuantity-reservedEarlier,0));
-    return {recipeId:row.recipeId,parentRecipeId:row.parentRecipeId,name:row.name,
-      productionType:row.productionType,unitId:row.unitId,yieldAmount:Number(row.yieldAmount),
-      plannedQuantity,stockQuantity,coveredQuantity,toMakeQuantity:Math.max(plannedQuantity-coveredQuantity,0),
-      firstDate:row.firstDate,lastDate:row.lastDate,mealCount:Number(row.mealCount)};
-  });
+  return (await recipeRequirements(pool,householdId,startDate,endDate)).preparations;
 }
 
 export async function listShoppingRequirements(pool, householdId, startDate, endDate) {

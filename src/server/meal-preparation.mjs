@@ -1,5 +1,6 @@
+import {preparationInputs,recordRecipeUses,availableRecipeStock} from './recipe-ingredients.mjs';
+import {productionDeductions} from './ingredient-stock.mjs';
 import { randomUUID } from 'node:crypto';
-import { toGrams } from '../domain/foods.ts';
 import { lockHouseholdInventory } from './ingredient-stock.mjs';
 
 export async function setMealPrepared(pool,householdId,mealId,prepared) {
@@ -20,6 +21,7 @@ export async function setMealPrepared(pool,householdId,mealId,prepared) {
         await client.query(`INSERT INTO ingredient_stock_movements(id,household_id,food_id,delta_g,reason,meal_id)
           VALUES($1,$2,$3,$4,'meal-preparation-cancelled',$5)`,[randomUUID(),householdId,item.foodId,item.quantityG,mealId]);
       }
+      await client.query('UPDATE recipe_stock_uses SET cancelled_at=now() WHERE meal_id=$1 AND cancelled_at IS NULL',[mealId]);
       await client.query('UPDATE planned_meals SET prepared_at=NULL,updated_at=now() WHERE id=$1',[mealId]);
       await client.query('COMMIT');return {prepared:false,restored:movements.rows.map(item=>({foodId:item.foodId,quantityG:Number(item.quantityG)}))};
     }
@@ -28,37 +30,18 @@ export async function setMealPrepared(pool,householdId,mealId,prepared) {
       FROM planned_meal_items i JOIN planned_amounts a ON a.planned_item_id=i.id
       JOIN recipes r ON r.id=i.recipe_id WHERE i.meal_id=$1
       GROUP BY i.recipe_id,r.production_type,r.yield_amount`,[mealId]);
-    const deductions=new Map();
-    for(const item of items.rows){
-      const quantity=Number(item.quantity);
-      if(item.productionType!=='none'){
-        const stock=await client.query(`SELECT COALESCE((SELECT sum(quantity) FROM stock_lots WHERE household_id=$1 AND recipe_id=$2
-          AND cancelled_at IS NULL AND NOT is_serving_bundle),0)
-          - COALESCE((SELECT sum(a.quantity) FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
-            JOIN planned_amounts a ON a.planned_item_id=i.id WHERE m.household_id=$1 AND m.prepared_at IS NOT NULL
-            AND i.recipe_id=$2),0) AS available`,[householdId,item.recipeId]);
-        if(Number(stock.rows[0].available)+0.00001<quantity){await client.query('ROLLBACK');return {error:'prepared-batch-insufficient',recipeId:item.recipeId};}
-        continue;
-      }
-      const lines=await client.query(`SELECT rl.food_id AS "foodId",f.canonical_name AS name,rl.quantity,rl.unit_id AS "unitId",
-        s.quantity_g AS "quantityG",f.grams_per_millilitre AS "gramsPerMillilitre",
-        COALESCE((SELECT jsonb_object_agg(u.unit_id,u.grams_per_unit) FROM food_unit_conversions u WHERE u.food_id=f.id),'{}'::jsonb) AS "gramsPerUnit"
-        FROM recipe_lines rl JOIN foods f ON f.id=rl.food_id
-        JOIN household_ingredient_stock s ON s.household_id=$2 AND s.food_id=f.id
-        WHERE rl.recipe_id=$1 ORDER BY rl.food_id FOR UPDATE OF s`,[item.recipeId,householdId]);
-      for(const line of lines.rows){
-        const grams=toGrams(Number(line.quantity)*quantity/Number(item.yieldAmount),line.unitId,{
-          gramsPerMillilitre:line.gramsPerMillilitre==null?null:Number(line.gramsPerMillilitre),
-          gramsPerUnit:Object.fromEntries(Object.entries(line.gramsPerUnit).map(([unit,value])=>[unit,Number(value)]))});
-        if(grams==null){await client.query('ROLLBACK');return {error:'ingredient-conversion-missing',name:line.name};}
-        const old=deductions.get(line.foodId);
-        deductions.set(line.foodId,{foodId:line.foodId,name:line.name,quantityG:Number(line.quantityG),usedG:(old?.usedG??0)+grams});
+    const inputs=await preparationInputs(client,householdId,items.rows.filter(item=>item.productionType==='none').map(item=>({id:item.recipeId,factor:Number(item.quantity)/Number(item.yieldAmount)})));
+    if(inputs.error){await client.query('ROLLBACK');return inputs;}
+    const stock=await availableRecipeStock(client,householdId);
+    for(const item of items.rows.filter(item=>item.productionType!=='none')){
+      if((stock.get(item.recipeId)??0)-(inputs.uses.get(item.recipeId)??0)+0.00000001<Number(item.quantity)){
+        await client.query('ROLLBACK');return {error:'prepared-batch-insufficient',recipeId:item.recipeId};
       }
     }
-    const used=[...deductions.values()].map(item=>({...item,usedG:Math.round(item.usedG*100000)/100000}));
-    const insufficient=used.find(item=>item.usedG>item.quantityG+0.00001);
-    if(insufficient){await client.query('ROLLBACK');return {error:'ingredient-stock-insufficient',name:insufficient.name,
-      requiredG:insufficient.usedG,availableG:insufficient.quantityG};}
+    const deductions=productionDeductions(inputs.lines,1,1);
+    if(deductions.error){await client.query('ROLLBACK');return deductions;}
+    const used=deductions.items;
+    await recordRecipeUses(client,householdId,inputs.uses,{mealId});
     for(const item of used){
       await client.query('UPDATE household_ingredient_stock SET quantity_g=quantity_g-$3,version=version+1,updated_at=now() WHERE household_id=$1 AND food_id=$2',[householdId,item.foodId,item.usedG]);
       await client.query(`INSERT INTO ingredient_stock_movements(id,household_id,food_id,delta_g,reason,meal_id)

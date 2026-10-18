@@ -47,7 +47,7 @@ test('recipe update replaces its lines atomically and recalculates nutrition', a
     if (sql.includes('m.prepared_at IS NOT NULL')) return { rowCount: 0, rows: [] };
     if (sql.startsWith('UPDATE recipes')) updateValues = values;
     if (sql.startsWith('UPDATE recipes')) return { rowCount: 1, rows: [{ id: recipeId }] };
-    if (sql.startsWith('SELECT id, name, description')) return { rows: [{ id: recipeId, name: 'Muffins revus', description: '', yield_amount: '2', yield_unit_id: 'piece', recipe_type: 'beverage', meal_moments: ['breakfast', 'snack'] }] };
+    if (sql.startsWith('SELECT id, household_id,output_units, name, description')) return { rows: [{ id: recipeId, name: 'Muffins revus', description: '', yield_amount: '2', yield_unit_id: 'piece', recipe_type: 'beverage', meal_moments: ['breakfast', 'snack'] }] };
     if (sql.startsWith('SELECT id, food_id')) return { rows: [{ id: '40404040-4040-4040-8040-404040404040', food_id: foodId, quantity: '200', unit_id: 'g', sort_order: 0 }] };
     if (sql.startsWith('SELECT f.id')) return { rows: [{ id: foodId, name: 'Skyr nature', source: 'manual', nutrient_values: { energy_kcal: '60', protein_g: '10', carbohydrate_g: '4', fat_g: '0', fibre_g: null }, grams_per_unit: {}, grams_per_millilitre: null }] };
     return { rowCount: 1, rows: [] };

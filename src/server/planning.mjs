@@ -63,11 +63,15 @@ export async function listPlannedMeals(pool, householdId, weekStart) {
 
 export async function listPlannedRecipeIds(pool, householdId, fromDate) {
   const result = await pool.query(
-    `SELECT DISTINCT COALESCE(r.parent_recipe_id,r.id) AS recipe_id
-     FROM planned_meals m
-     JOIN planned_meal_items i ON i.meal_id=m.id
-     JOIN recipes r ON r.id=i.recipe_id AND r.household_id=m.household_id
-     WHERE m.household_id=$1 AND m.meal_date >= $2::date
+    `WITH RECURSIVE used(recipe_id) AS (
+       SELECT i.recipe_id FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
+       WHERE m.household_id=$1 AND m.meal_date >= $2::date
+       UNION
+       SELECT l.ingredient_recipe_id FROM used u JOIN recipe_lines l ON l.recipe_id=u.recipe_id
+       WHERE l.ingredient_recipe_id IS NOT NULL
+     )
+     SELECT DISTINCT COALESCE(r.parent_recipe_id,r.id) AS recipe_id
+     FROM used u JOIN recipes r ON r.id=u.recipe_id AND r.household_id=$1
      ORDER BY recipe_id`,
     [householdId, fromDate],
   );

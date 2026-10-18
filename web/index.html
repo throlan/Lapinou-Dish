@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lapinou Dish</title>
-    <link rel="stylesheet" href="/style.css?v=0.2.81">
+    <link rel="stylesheet" href="/style.css?v=0.2.82">
   </head>
   <body>
     <header class="topbar">
@@ -127,7 +127,12 @@
           <label>Source (facultatif)<input name="sourceUrl" type="url" placeholder="Lien vers la recette d'origine"></label>
           <label>Instructions<textarea name="instructions" rows="4" maxlength="20000" placeholder="Étapes de préparation"></textarea></label>
           <label>Production à suivre (facultatif)<select name="productionType"><option value="none">Aucune</option><option value="batch_cooking">Batch cooking</option><option value="pasta">Pâtes</option><option value="pastry">Pâtisserie</option><option value="bread">Pain</option></select></label>
-          <div class="yield-row"><label>Rendement<input name="yieldAmount" required type="number" min="0.01" step="any" value="4"></label><label>Unité<select name="yieldUnit"><option value="portion">portions</option><option value="piece">pièces</option><option value="g">grammes</option><option value="ml">millilitres</option></select></label></div>
+          <div class="yield-row"><label>Rendement<input name="yieldAmount" required type="number" min="0.01" step="any" value="4"></label><label>Unité<select name="yieldUnit"><option value="portion">portions</option><option value="piece">pièces</option><option value="slice">tranches</option><option value="g">grammes</option><option value="ml">millilitres</option></select></label></div>
+          <details class="recipe-output-units"><summary>Utiliser cette recette à la pièce, à la tranche…</summary>
+            <p class="hint">Équivalences pour toute la recette de base. Exemple : 1 pain = 20 tranches. Le rendement ci-dessus reste la référence ; laisse vides les unités inutiles. Le poids est estimé depuis les ingrédients, sauf si tu renseignes un poids ici.</p>
+            <div class="yield-row"><label>Pièces<input name="output_piece" type="number" min="0.001" max="100000" step="any"></label><label>Tranches<input name="output_slice" type="number" min="0.001" max="100000" step="any"></label><label>Portions<input name="output_portion" type="number" min="0.001" max="100000" step="any"></label><label>Poids total (g)<input name="output_g" type="number" min="0.001" max="100000" step="any"></label><label>Volume total (ml)<input name="output_ml" type="number" min="0.001" max="100000" step="any"></label></div>
+          </details>
+
           <fieldset id="serving-configuration">
             <legend>Portions dans le calendrier</legend>
             <label>Service<select name="servingMode"><option value="original">Proportions du rendement de la recette (pièces / portions)</option><option value="whole">Préparation servie ensemble — grammes estimés</option><option value="separate">Viande et légumes ensemble, féculents à part — grammes estimés</option><option value="three">Viande, légumes et féculents séparés — grammes estimés</option></select></label>
@@ -138,7 +143,7 @@
             </div>
             <p class="hint">Aucune pesée après cuisson. Les grammes sont estimés à partir des ingrédients et des coefficients. ×1 pour le plat conserve le poids des ingrédients ; les pertes d’eau ne sont pas déduites. Pour les lasagnes et les plats mélangés, choisis « Préparation servie ensemble » et règle le coefficient des pâtes sur leur ligne d’ingrédient.</p>
           </fieldset>
-          <div class="line-heading"><h3>Ingrédients</h3><button type="button" class="secondary" id="add-line">+ Ajouter un ingrédient</button></div>
+          <div class="line-heading"><h3>Ingrédients</h3><div class="form-actions"><button type="button" class="secondary" id="add-line">+ Aliment</button><button type="button" class="secondary" id="add-recipe-line">+ Préparation maison</button></div></div>
           <div id="recipe-lines"></div>
           <div class="form-actions"><button class="primary" type="submit">Enregistrer et calculer</button></div>
           <p class="form-message" id="recipe-message" role="status"></p>
@@ -314,6 +319,6 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/app.js?v=0.2.81"></script>
+    <script type="module" src="/app.js?v=0.2.82"></script>
   </body>
 </html>
