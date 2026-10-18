@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-Application **0.2.82** : préparations maison utilisées comme ingrédients de recettes, avec pièces, tranches et équivalences déclarées, nutrition dérivée et calcul partagé des besoins/stock/courses. **254 tests locaux réussis** ; consulter le workflow de la tête de main pour la publication. La version précédente **0.2.81**, PR #111, commit 2deefc5, est fusionnée et publiée ([workflow](https://github.com/throlan/Lapinou-Dish/actions/runs/39103583824)). Voir le [journal du 18 octobre](SESSION-2026-10-18.md).
+Application **0.2.83** : import IA et texte des rendements en tranches, fiche pain de mie Francine/T110 prête à copier. **256 tests locaux réussis**. La version **0.2.82**, PR #112, commit 6fd6a35, est fusionnée et publiée ([workflow](https://github.com/throlan/Lapinou-Dish/actions/runs/39105216269)). Les préparations maison composant d’autres recettes sont déjà livrées. Voir le [journal du 18 octobre](SESSION-2026-10-18.md).
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 18 octobre](SESSION-2026-10-18.md).
 
@@ -11,6 +11,8 @@ Les tâches réellement restantes et les fonctions déjà livrées sont séparé
 **Règle impérative : aucune intervention de l'agent sur Unraid ni sur Nginx, y compris en lecture ou pour une vérification. L'utilisateur gère lui-même son installation et ses mises à jour.**
 
 ## Implémenté
+
+- Import IA/texte : rendement en tranches conservé jusque dans la recette enregistrée ; fiche pain de mie Francine/T110 avec huit ingrédients fixes disponible dans docs/recettes/.
 
 - Composants de recettes : pain, sauce, pâtes et accompagnements réutilisables via « + Préparation maison » ; unités natives et équivalences par recette complète, dont tranche. Apports calculés récursivement ; fabrication selon les besoins réels et mutualisation du stock avec les menus directs. Les composants suivis sont à fabriquer avant le plat ; leur utilisation ne déduit pas leurs ingrédients une seconde fois. Annulation réversible et protections des cycles, foyers, unités historiques et recettes référencées.
 
@@ -44,7 +46,7 @@ Les photos sont stockées dans un dossier configurable (`RECIPE_IMAGE_DIR`) avec
 
 ## Vérification
 
-La suite complète locale 0.2.82 a réussi : **254 tests**. Régressions PostgreSQL/PGlite : bagels par pièce, tranches explicites, sauces imbriquées, trois services indépendants, stocks grammes/pièces partagés avec les menus directs, insuffisance et rollback, rejeu et annulations, références et cycles, actualisation des parents. Les fonctions réelles de l’interface sont vérifiées via DOM synthétique (choix, unités, quantité, lien, réouverture, duplication). Aucun nouveau parcours visuel navigateur confirmé.
+La suite complète locale 0.2.83 a réussi : **256 tests**. Les nouveaux tests vérifient le schéma envoyé à l’IA, une réponse structurée simulée, la persistance du brouillon puis la création réelle de la recette à 20 tranches sous PostgreSQL/PGlite ; aucun appel réel facturé à l’IA. Les tests de la 0.2.82 couvrent aussi : Régressions PostgreSQL/PGlite : bagels par pièce, tranches explicites, sauces imbriquées, trois services indépendants, stocks grammes/pièces partagés avec les menus directs, insuffisance et rollback, rejeu et annulations, références et cycles, actualisation des parents. Les fonctions réelles de l’interface sont vérifiées via DOM synthétique (choix, unités, quantité, lien, réouverture, duplication). Aucun nouveau parcours visuel navigateur confirmé.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 

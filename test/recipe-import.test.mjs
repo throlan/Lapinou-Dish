@@ -1,6 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseRecipeArchive, parseRecipeText } from '../src/domain/recipe-import.mjs';
+import {readFile} from 'node:fs/promises';
+
+test('the supplied bread recipe imports as twenty slices with eight fixed ingredients',async()=>{
+  const text=await readFile(new URL('../docs/recettes/pain-de-mie-graines-francine-t110.txt',import.meta.url),'utf8');
+  const parsed=parseRecipeText(text).data;
+  assert.equal(parsed.yieldAmount,20);assert.equal(parsed.yieldUnitId,'slice');
+  assert.deepEqual(parsed.ingredients.map(line=>line.quantity),[350,150,250,100,20,10,8,7]);
+  assert.ok(parsed.ingredients.every(line=>line.unit==='g'));
+  assert.match(parsed.instructions,/découper le pain en 20 tranches/);
+});
 
 test('pasted social caption becomes an editable draft without trusting claimed macros', () => {
   const parsed = parseRecipeText(`[**b_jumpingggg**](https://www.instagram.com/jb_jumpingggg/)\nVérifié\n9 MUFFINS PROTÉINÉS FRAMBOISE : environ 80 kcal par muffin\nGourmands et moelleux.\nPour 9 muffins :\n100 g de compote de pommes\n2 œufs\n60 g de Whey vanille [@vitastrong_france](https://www.instagram.com/vitastrong_france/)\n50 g de beurre de cacahuète\n100 g de framboises surgelées\nTu mélanges et tu cuis 15 minutes.\nPour 1 muffin : environ 80 kcal, 8 g protéines\nEnregistre la recette.`);

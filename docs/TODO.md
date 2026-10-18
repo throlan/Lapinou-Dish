@@ -1,6 +1,6 @@
 # Prochaines tâches — 18 octobre 2026
 
-Référence du code : **0.2.82**, préparations maison composant d’autres recettes, avec pièces/tranches, apports et besoins/stock imbriqués. Dernière livraison antérieure vérifiée : **0.2.81**, PR #111 fusionnée et publiée. **254 tests locaux réussis**. Vérifier les contrôles et la publication du dernier commit de main. Aucun nouveau chantier ne doit démarrer avant la demande de l’utilisateur.
+Référence du code : **0.2.83**, import des rendements en tranches. Dernière livraison antérieure vérifiée : **0.2.82**, PR #112 fusionnée et publiée. Les préparations imbriquées sont déjà livrées. **256 tests locaux réussis**. Vérifier les contrôles et la publication du dernier commit de main. Aucun nouveau chantier ne doit démarrer avant la demande de l’utilisateur.
 
 ## Pistes à choisir et préciser
 
@@ -13,6 +13,8 @@ Référence du code : **0.2.82**, préparations maison composant d’autres rece
 Détails et variantes dans [AMELIORATIONS.md](AMELIORATIONS.md). Les variantes indépendantes de recettes et l'affichage de photos en mode cuisine restent des pistes à confirmer, sans priorité décidée.
 
 ## Déjà livré — ne pas remettre dans le reste à faire
+
+- Import IA et texte d’un rendement en tranches, conservé du brouillon à la recette. Fiche pain de mie aux graines Francine/T110 prête à copier.
 
 - Recettes comme composants : bagels à la pièce, pain à la tranche avec équivalence explicite, sauces/pâtes/accompagnements, nutrition dynamique, besoins des menus et matières premières calculés après stock des composants ; assemblage et annulations sans double déduction.
 
