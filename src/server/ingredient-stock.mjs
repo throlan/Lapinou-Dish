@@ -1,3 +1,4 @@
+import {purchaseProductRequirements} from './shopping-products.mjs';
 import { randomUUID } from 'node:crypto';
 import { toGrams } from '../domain/foods.ts';
 import { rawShoppingRequirements } from './shopping-requirements.mjs';
@@ -48,6 +49,7 @@ export async function countProductInventory(pool,input) {
   const client=await pool.connect();
   try{
     await client.query('BEGIN');await lockHouseholdInventory(client,input.householdId);
+    if((await client.query('SELECT purchase_food_id FROM household_purchase_products WHERE household_id=$1 AND food_id=$2',[input.householdId,input.foodId])).rowCount){await client.query('ROLLBACK');return {error:'use-purchase-product-stock'};}
     const existing=await client.query('SELECT quantity_g,version FROM household_ingredient_stock WHERE household_id=$1 AND food_id=$2 FOR UPDATE',[input.householdId,input.foodId]);
     if(Number(existing.rows[0]?.version??0)!==input.version){await client.query('ROLLBACK');return {error:'ingredient-stock-changed'};}
     const food=await foodMassDetails(client,input.foodId);
@@ -71,6 +73,7 @@ export async function recordPurchaseReceipt(pool,input) {
   try {
     await client.query('BEGIN');
     await lockHouseholdInventory(client,input.householdId);
+    if((await client.query('SELECT purchase_food_id FROM household_purchase_products WHERE household_id=$1 AND food_id=$2',[input.householdId,input.foodId])).rowCount){await client.query('ROLLBACK');return {error:'use-purchase-product-stock'};}
     const previous=await client.query(`SELECT food_id AS "foodId",source_quantity AS quantity,source_unit_id AS "unitId",delta_g AS "quantityG"
       FROM ingredient_stock_movements WHERE household_id=$1 AND request_id=$2`,[input.householdId,input.requestId]);
     if(previous.rowCount){
@@ -101,6 +104,7 @@ export async function saveIngredientStock(pool, input) {
   try {
     await client.query('BEGIN');
     await lockHouseholdInventory(client, input.householdId);
+    if((await client.query('SELECT purchase_food_id FROM household_purchase_products WHERE household_id=$1 AND food_id=$2',[input.householdId,input.foodId])).rowCount){await client.query('ROLLBACK');return {error:'use-purchase-product-stock'};}
     const existing = await client.query('SELECT quantity_g, version FROM household_ingredient_stock WHERE household_id=$1 AND food_id=$2 FOR UPDATE', [input.householdId,input.foodId]);
     const old = existing.rows[0];
     if ((old?.version ?? 0) !== input.version) {
@@ -158,7 +162,7 @@ export async function listIngredientStock(pool, householdId) {
   const requirements = new Map();
   for (const days of new Set(stocks.map(row => row.leadDays))) {
     const end = new Date(today+'T12:00:00Z'); end.setUTCDate(end.getUTCDate()+days);
-    requirements.set(days, await rawShoppingRequirements(pool,householdId,today,end.toISOString().slice(0,10)));
+    requirements.set(days, await purchaseProductRequirements(pool,householdId,await rawShoppingRequirements(pool,householdId,today,end.toISOString().slice(0,10))));
   }
   return stocks.map(stock => ({...ingredientProjection(stock,requirements.get(stock.leadDays)),
     movements:history.rows.filter(row=>row.foodId===stock.foodId).map(row=>({...row,deltaG:Number(row.deltaG),

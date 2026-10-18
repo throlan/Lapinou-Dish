@@ -2,7 +2,7 @@
 
 ## Version de référence
 
-Application **0.2.86**, construite sur le calcul de **0.2.83**, dernière référence fonctionnelle validée. Les calculs des 0.2.84/85 ont été rejetés par l’utilisateur et retirés. Affichage/saisie en unités pratiques, arrondi au plus proche après le calcul initial, puis compensation calorique sur la soupe, aussi lors des modifications manuelles. **272 tests locaux réussis**. Vérifier la publication GitHub/GHCR de la tête de main. Voir le [journal du 18 octobre](SESSION-2026-10-18.md).
+Application **0.2.87** : produits d’achat communs, conversion explicite, addition avant arrondi et stock commun pour achats/préparations/annulations ; exclusions permanentes ou propres à la période, réactivables. Les recettes et leur nutrition restent distinctes. Le calcul de portions de la 0.2.86 est conservé ; les calculs 0.2.84/85 restent abandonnés. **283 tests locaux réussis**. Dernière publication vérifiée : 0.2.86, PR #116, commit 7538768, [contrôles et GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/39111587071). Voir le [journal du 18 octobre](SESSION-2026-10-18.md).
 
 Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 18 octobre](SESSION-2026-10-18.md).
 
@@ -46,7 +46,7 @@ Les photos sont stockées dans un dossier configurable (`RECIPE_IMAGE_DIR`) avec
 
 ## Vérification
 
-Validation 0.2.86 : **272 tests locaux réussis**. Régressions sur les grammes initiaux, proportions d’Administration, conversion 50 g/œuf et 35 g/tranche déclarés, compensation calorique et non pondérale, changements successifs dans le véritable gestionnaire de saisie, profils indépendants, sauvegarde en grammes, courses/préparations et cas impossibles. Les régressions antérieures restent exécutées. Aucun nouveau parcours visuel navigateur confirmé.
+Validation 0.2.87 : **283 tests locaux réussis**. Régressions sur les produits communs, conversions explicites, addition avant arrondi, déduction unique du stock, achat/repas/production et annulation, nutrition inchangée, exclusions permanentes/période et réactivation, isolation du foyer, cycles et stocks/historiques incompatibles. Les fonctions UI réelles sont testées avec DOM synthétique ; pas de nouveau parcours visuel navigateur confirmé. Migration additive 20261018_shopping_products.sql.
 
 Les tests PostgreSQL/PGlite exécutent les migrations SQL et les requêtes réelles. Les parcours d'interface ont été vérifiés dans Chrome sur une base locale et des données synthétiques. Cela ne constitue pas une validation de l'installation de l'utilisateur.
 

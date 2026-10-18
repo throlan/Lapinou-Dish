@@ -20,7 +20,7 @@ Lire [le cahier de reprise](docs/REPRISE.md), [l'état actuel](docs/STATUS.md) e
 
 ## État
 
-Version applicative de référence : **0.2.86**. Catalogue et recettes, calendrier à cinq créneaux, impression hebdomadaire paysage, duplication, desserts/boissons individuels, parties de service en grammes estimés, stocks et courses, profils compacts, repères nutritionnels administrables et rééquilibrage avec aperçu sont implémentés. Voir [les règles kcal et portions](docs/MEAL-ENERGY.md).
+Version applicative de référence : **0.2.87**. Catalogue et recettes, calendrier à cinq créneaux, impression hebdomadaire paysage, duplication, desserts/boissons individuels, parties de service en grammes estimés, stocks et courses, profils compacts, repères nutritionnels administrables et rééquilibrage avec aperçu sont implémentés. Voir [les règles kcal et portions](docs/MEAL-ENERGY.md).
 
 L'import de texte et d'archives crée des brouillons à vérifier. Avec l'analyse OpenAI optionnelle, un lien Instagram peut permettre de récupérer sa description ; si la lecture est bloquée, coller le texte. Une transcription YouTube doit être fournie. Les ingrédients sont associés au catalogue avant enregistrement et les valeurs nutritionnelles sont recalculées depuis celui-ci.
 

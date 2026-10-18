@@ -1,6 +1,6 @@
 # Prochaines tâches — 18 octobre 2026
 
-Référence du code : **0.2.86**, calcul initial restauré depuis la **0.2.83**, puis unités arrondies au plus proche et compensation calorique. Les calculs 0.2.84/85 sont abandonnés et ne doivent pas être réintroduits. Vérifier les contrôles et la publication de main. Aucun nouveau chantier sans demande de l’utilisateur.
+Référence du code : **0.2.87**, produits communs d’achat et exclusions des courses. Le calcul 0.2.86 (base 0.2.83) reste conservé ; les calculs 0.2.84/85 sont abandonnés. Vérifier les contrôles et la publication de main. Aucun nouveau chantier sans demande de l’utilisateur.
 
 ## Pistes à choisir et préciser
 
@@ -13,6 +13,8 @@ Référence du code : **0.2.86**, calcul initial restauré depuis la **0.2.83**,
 Détails et variantes dans [AMELIORATIONS.md](AMELIORATIONS.md). Les variantes indépendantes de recettes et l'affichage de photos en mode cuisine restent des pistes à confirmer, sans priorité décidée.
 
 ## Déjà livré — ne pas remettre dans le reste à faire
+
+- Produits d’achat communs avec équivalence explicite, stock partagé, recettes et nutrition distinctes ; exclusions réversibles permanentes ou pour les dates de la liste. Aucun choix automatique pour les blancs d’œufs. Ceci ne fusionne pas les aliments du catalogue.
 
 - Import IA et texte d’un rendement en tranches, conservé du brouillon à la recette. Fiche pain de mie aux graines Francine/T110 prête à copier.
 

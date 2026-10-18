@@ -623,3 +623,9 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .recipe-image-dialog{width:min(620px,calc(100vw - 28px));max-height:90vh;overflow:auto}.recipe-image-dialog .dialog-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.recipe-image-dialog .dialog-heading h2{margin:0}.recipe-image-preview{display:block;width:100%;max-height:45vh;object-fit:contain;border-radius:12px;background:#101b30}.recipe-image-placeholder{padding:42px 10px;text-align:center;border:1px dashed var(--line,#344766);border-radius:12px;color:var(--muted,#9bb0d1)}.recipe-image-actions{display:flex;flex-wrap:wrap;gap:8px}
 @media(max-width:850px){.recipe-directory{grid-template-columns:1fr}.recipe-filters{position:static}.recipe-card-settings .recipe-row-settings{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.recipe-grid{grid-template-columns:1fr}.recipe-card-settings .recipe-row-settings{grid-template-columns:1fr}.recipe-card-settings .recipe-row-moments{grid-column:1}}
+
+.shopping-preferences-panel { margin: 12px 0 20px; padding: 14px; border: 1px solid #344660; border-radius: 14px; }
+.shopping-product-settings { margin: 12px 0; }
+.shopping-product-form { display: grid; gap: 10px; max-width: 650px; margin: 12px 0; }
+.shopping-product-form label { display: grid; gap: 5px; }
+.shopping-preference-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
