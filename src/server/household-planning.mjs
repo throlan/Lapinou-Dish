@@ -1,3 +1,4 @@
+import {purchaseProductRequirements,listShoppingPreferences,excludedShoppingFood,foodPurchaseMass} from './shopping-products.mjs';
 import {recipeRequirements,preparationInputs,recordRecipeUses} from './recipe-ingredients.mjs';
 import { randomUUID } from 'node:crypto';
 import { listFoodStores } from './food-stores.mjs';
@@ -329,7 +330,7 @@ export async function listPreparationsToMake(pool, householdId, startDate, endDa
 }
 
 export async function listShoppingRequirements(pool, householdId, startDate, endDate) {
-  const [requirements, stocks, settings, packages, stores, purchaseUnits] = await Promise.all([
+  const [rawRequirements, stocks, settings, packages, stores, purchaseUnits] = await Promise.all([
     rawShoppingRequirements(pool,householdId,startDate,endDate),
     readIngredientStock(pool,householdId),
     pool.query(`SELECT g.food_id AS "foodId", g.unit_id AS "unitId", g.group_id AS "groupId", COALESCE(c.checked,false) AS checked
@@ -341,6 +342,8 @@ export async function listShoppingRequirements(pool, householdId, startDate, end
     listFoodStores(pool,householdId),
     listPurchaseUnits(pool,householdId),
   ]);
+  const preferences=await listShoppingPreferences(pool,householdId);
+  const requirements=await purchaseProductRequirements(pool,householdId,rawRequirements.filter(row=>!excludedShoppingFood(preferences,row.foodId,startDate,endDate)),preferences);
   const tracked = new Set(stocks.map(row => row.foodId));
   const items = requirements.filter(row => !tracked.has(row.foodId));
   for (const stock of stocks) {
@@ -351,10 +354,13 @@ export async function listShoppingRequirements(pool, householdId, startDate, end
     } else if (projection.orderG > 0) {
       const recipes=[...new Map(requirements.filter(row=>row.foodId===stock.foodId).flatMap(row=>row.recipes??[]).map(recipe=>[recipe.id,recipe])).values()].sort((a,b)=>a.name.localeCompare(b.name));
       items.push({foodId:stock.foodId,name:stock.name,unitId:'g',quantity:projection.orderG,groupId:'whey_flour',recipes,
+        purchaseSources:requirements.filter(row=>row.foodId===stock.foodId).flatMap(row=>row.purchaseSources??[]),
         warning:`Stock : ${stock.quantityG} g · besoin : ${projection.neededG} g · minimum : ${stock.minimumG} g`});
     }
   }
-  return applyPurchaseUnits(applyPackageUnits(items,packages.rows),purchaseUnits).map(row => {
+  const masses=await foodPurchaseMass(pool,[...new Set(items.map(row=>row.foodId))]);
+  const eligible=items.filter(row=>!excludedShoppingFood(preferences,row.foodId,startDate,endDate)).map(row=>({...row,...masses.get(row.foodId)}));
+  return applyPurchaseUnits(applyPackageUnits(eligible,packages.rows),purchaseUnits).map(row => {
     const store=stores.find(item=>item.foodId===row.foodId);
     const setting = settings.rows.find(item => item.foodId===row.foodId && item.unitId===row.unitId);
     const purchasePack = packages.rows.find(item => item.foodId===row.foodId && item.unitId===row.unitId);

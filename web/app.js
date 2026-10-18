@@ -1,6 +1,7 @@
 import { breakfastServingLimit, calculateDailyEnergy, calculateDailyProtein, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, dailyProteinTarget, capAccompanimentQuantity, mainServingLimit, MIN_PROTEIN_G_PER_MEAL, rebalanceNaturalPortions, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';
 import {servingUnit,servingUnitLabel,displayServingQuantity,setServingInput,servingInputValue} from './serving-quantities.js';
 import {roundServingCalories,compensateManualServing} from './serving-compensation.js';
+import {shoppingPreferenceControls,shoppingPreferencesPanel,shoppingPreferenceError} from './shopping-preferences.js';
 import { MEAL_ORDER, MEAL_LABELS, validMealRatios } from './meal-config.js';
 import { suggestPlatePortions } from './portion-planner.js';
 import { PLATE_PARTS, validPlateRatios } from './meal-config.js';
@@ -500,8 +501,15 @@ async function refreshShoppingList() {
   const openDetails=new Set([...root.querySelectorAll('.shopping-item-options[open]')].map(detail=>detail.closest('.shopping-item')?.dataset.key));
   root.replaceChildren(emptyMessage('Calcul de la liste…'));
   try {
-    const {items}=await api(`/api/shopping-list?householdId=${encodeURIComponent(state.household.id)}&startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`);
-    if(!items.length){root.replaceChildren(emptyMessage('Aucun achat nécessaire sur cette période.'));return;}
+    const [{items},preferences]=await Promise.all([
+      api(`/api/shopping-list?householdId=${encodeURIComponent(state.household.id)}&startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`),
+      api('/api/shopping-preferences?householdId='+encodeURIComponent(state.household.id))]);
+    const preferenceActions={startDate:start,endDate:end,
+      searchFoods:async query=>(await api('/api/foods?q='+encodeURIComponent(query)+'&limit=30')).foods,
+      save:async preference=>{await api('/api/shopping-preferences',{method:'PUT',body:JSON.stringify({householdId:state.household.id,...preference})});
+        const y=window.scrollY;await refreshShopping();window.scrollTo(0,y);await refreshDashboard();}};
+    const preferencesPanel=shoppingPreferencesPanel(preferences,preferenceActions);
+    if(!items.length){root.replaceChildren(preferencesPanel,emptyMessage('Aucun achat nécessaire sur cette période.'));return;}
     const buckets=new Map();
     for(const item of items){const id=item.store?.id??'none';if(!buckets.has(id))buckets.set(id,{store:item.store,items:[]});buckets.get(id).items.push(item);}
     const filter=$('#shopping-store-filter'),previous=filter.value;
@@ -509,7 +517,7 @@ async function refreshShoppingList() {
     filter.replaceChildren(new Option('Tous les magasins','all'),...sorted.map(([id,bucket])=>new Option(bucket.store?.label??'Sans magasin',id)));
     filter.value=[...buckets.keys(),'all'].includes(previous)?previous:'all';
     const render=()=>{
-      root.replaceChildren(...sorted.filter(([id])=>filter.value==='all'||filter.value===id).map(([id,bucket])=>{
+      root.replaceChildren(preferencesPanel,...sorted.filter(([id])=>filter.value==='all'||filter.value===id).map(([id,bucket])=>{
         const section=document.createElement('section');section.className='shopping-store-card';
         const header=document.createElement('div');header.className='shopping-store-header';
         const heading=document.createElement('button');heading.type='button';heading.className='shopping-store-toggle';
@@ -569,6 +577,10 @@ async function refreshShoppingList() {
             }
             recipeDetails.append(recipeSummary,recipeLinks);main.append(recipeDetails);
           }
+          if(item.purchaseSources?.some(source=>source.foodId!==item.foodId)){
+            const sources=document.createElement('details');sources.append(Object.assign(document.createElement('summary'),{textContent:'Aliments regroupés'}));
+            for(const source of item.purchaseSources){const line=document.createElement('p');line.textContent=source.name+' : '+formatQty(source.quantity)+' '+source.unitId;sources.append(line);}main.append(sources);
+          }
           const inventoryActions=document.createElement('div');inventoryActions.className='shopping-inventory-actions';
           const countStock=document.createElement('details');countStock.className='shopping-count-stock';
           const countSummary=document.createElement('summary');countSummary.textContent='Saisir le stock déjà présent';countStock.append(countSummary);
@@ -588,7 +600,7 @@ async function refreshShoppingList() {
             }catch(error){const code=error.body?.error??error.message;
               showMessage($('#shopping-export-message'),code==='ingredient-conversion-missing'
                 ?`Conversion en grammes manquante pour ${item.name}. Complète la fiche de l’aliment.`:code==='ingredient-stock-changed'
-                  ?'Le stock a changé depuis l’ouverture de cette liste. Actualise-la avant de ressaisir la quantité.':`Stock non enregistré : ${code}`);countButton.disabled=false;}
+                  ?'Le stock a changé depuis l’ouverture de cette liste. Actualise-la avant de ressaisir la quantité.':shoppingPreferenceError(error));countButton.disabled=false;}
           });inventoryActions.append(countStock);
           const receipt=document.createElement('form');receipt.className='shopping-receipt-form';
           const receiptLabel=document.createElement('label');receiptLabel.textContent=`Quantité réellement achetée (${item.unitId})`;
@@ -607,7 +619,7 @@ async function refreshShoppingList() {
               showMessage($('#shopping-export-message'),`${item.name} : +${formatQty(result.quantityG)} g ajoutés au stock.`,true);
             }catch(error){const code=error.body?.error??error.message;
               showMessage($('#shopping-export-message'),code==='ingredient-conversion-missing'
-                ?`Conversion en grammes manquante pour ${item.name}. Complète la fiche de l’aliment avant de valider cet achat.`:`Achat non enregistré : ${code}`);
+                ?`Conversion en grammes manquante pour ${item.name}. Complète la fiche de l’aliment avant de valider cet achat.`:shoppingPreferenceError(error));
               receiptButton.disabled=false;
             }
           });inventoryActions.append(receipt);main.append(inventoryActions);
@@ -652,7 +664,7 @@ async function refreshShoppingList() {
             try{await api('/api/household-purchase-units',{method:'PUT',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,singularLabel:singular.value,pluralLabel:plural.value,coveredQuantity:Number(covered.value),coveredUnitId:coveredUnit.value,estimateNote:note.value})});const y=window.scrollY;await refreshShoppingList();window.scrollTo(0,y);showMessage($('#shopping-export-message'),`Unité d’achat enregistrée pour ${item.name}.`,true);}
             catch(error){showMessage($('#shopping-export-message'),'Réglage non enregistré : '+(error.body?.error??error.message));saveRule.disabled=false;}
           });
-          options.append(packLabel,purchaseForm,groupLabel,storeLabel);
+          options.append(shoppingPreferenceControls(item,preferences,preferenceActions),packLabel,purchaseForm,groupLabel,storeLabel);
           const save=async()=>{
             try{await api('/api/shopping-list/state',{method:'POST',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,unitId:item.unitId,startDate:start,endDate:end,groupId:group.value,checked:checkbox.checked,packageQuantity:pack.value===''?null:Number(pack.value)})});row.classList.toggle('checked',checkbox.checked);return true;}
             catch(error){showMessage($('#shopping-export-message'),'Liste non enregistrée : '+(error.body?.error??error.message));return false;}
@@ -803,7 +815,7 @@ $('#ingredient-stock-form').addEventListener('submit',async event=>{
     const updated=state.ingredients.find(item=>item.foodId===payload.foodId);
     form.dataset.version=String(updated?.version??payload.version+1);
     showMessage($('#ingredient-message'),'Stock enregistré. La liste de courses a été recalculée.',true);await refreshDashboard();
-  }catch(error){showMessage($('#ingredient-message'),error.body?.error==='ingredient-stock-changed'?'Le stock a changé depuis son ouverture. Réouvre son inventaire pour conserver les déductions récentes.':'Stock non enregistré : '+(error.body?.error??error.message));}
+  }catch(error){showMessage($('#ingredient-message'),error.body?.error==='ingredient-stock-changed'?'Le stock a changé depuis son ouverture. Réouvre son inventaire pour conserver les déductions récentes.':shoppingPreferenceError(error));}
   finally{button.disabled=false;}
 });
 

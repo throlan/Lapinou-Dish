@@ -58,3 +58,7 @@ La liste synthétique à jour est dans [TODO.md](TODO.md). Première piste propo
 ## Correction 0.2.86 — retour au calcul validé
 
 Calcul initial 0.2.83 conservé, conversion en unités pratiques et arrondi au plus proche, compensation du delta kcal sur la soupe et même comportement lors des saisies manuelles. Les approches 0.2.84/85 sont abandonnées. Les équivalences renseignées restent la référence, sans masse de tranche inventée.
+
+## Livré — produits d’achat et exclusions, 0.2.87
+
+Acheter sous un produit commun avec équivalence explicite, stock partagé et addition avant arrondi ; sources nutritionnelles distinctes et liens de recettes conservés. Exclusions permanentes ou pour la période, réactivables. Les blancs ne sont pas regroupés automatiquement. La fusion d’aliments du catalogue demeure un chantier distinct.

@@ -1,3 +1,4 @@
+import {listShoppingPreferences,saveShoppingPreference,validateShoppingPreference} from './shopping-products.mjs';
 import { createServer } from 'node:http';
 import { setMealPrepared } from './meal-preparation.mjs';
 import { listFoodStores, saveFoodStores, validateFoodStores } from './food-stores.mjs';
@@ -31,6 +32,7 @@ const staticFiles = new Map([
   ['/portion-planner.js', ['portion-planner.js', 'text/javascript; charset=utf-8']],
   ['/serving-quantities.js', ['serving-quantities.js', 'text/javascript; charset=utf-8']],
   ['/serving-compensation.js', ['serving-compensation.js', 'text/javascript; charset=utf-8']],
+  ['/shopping-preferences.js', ['shopping-preferences.js', 'text/javascript; charset=utf-8']],
   ['/meal-config.js', ['meal-config.js', 'text/javascript; charset=utf-8']],
   ['/preparation-weeks.js', ['preparation-weeks.js', 'text/javascript; charset=utf-8']],
   ['/cooking-sheet.js', ['cooking-sheet.js', 'text/javascript; charset=utf-8']],
@@ -317,6 +319,17 @@ export async function handleRequest(request, response, pool, appPassword = null,
         const result = await cancelStockLot(pool,householdId,cancelledLotId);
         return send(response,result.error?(result.error==='production-already-used'?409:404):200,result);
       } catch { return send(response,500,{error:'production-lot-cancel-failed'}); }
+    }
+    if(url.pathname==='/api/shopping-preferences'&&request.method==='GET'){
+      const householdId=url.searchParams.get('householdId');if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});
+      try{return send(response,200,await listShoppingPreferences(pool,householdId));}
+      catch{return send(response,500,{error:'shopping-preferences-read-failed'});}
+    }
+    if(url.pathname==='/api/shopping-preferences'&&request.method==='PUT'){
+      const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
+      const validated=validateShoppingPreference(body.value);if(validated.error)return send(response,400,{error:validated.error});
+      try{const result=await saveShoppingPreference(pool,validated.data);return send(response,result.error?400:200,result);}
+      catch{return send(response,500,{error:'shopping-preferences-save-failed'});}
     }
     if (url.pathname === '/api/shopping-list' && request.method === 'GET') {
       const householdId = url.searchParams.get('householdId');

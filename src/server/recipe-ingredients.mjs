@@ -1,3 +1,4 @@
+import {purchaseProductRequirements} from './shopping-products.mjs';
 import {randomUUID} from 'node:crypto';
 import {toGrams} from '../domain/foods.ts';
 
@@ -156,9 +157,11 @@ export async function preparationInputs(client,householdId,targets) {
     if(quantity>(stock.get(recipeId)??0)+0.00000001)return {error:'prepared-component-insufficient',recipeId,name:graph.get(recipeId).name,
       requiredQuantity:quantity,availableQuantity:Math.max(0,stock.get(recipeId)??0),unitId:graph.get(recipeId).yield.unitId};
   }
+  const purchaseFoods=await purchaseProductRequirements(client,householdId,foods);
+  if(purchaseFoods.some(row=>row.mappingError))return {error:'ingredient-conversion-missing',name:purchaseFoods.find(row=>row.mappingError).name};
   const tracked=await client.query('SELECT food_id,quantity_g FROM household_ingredient_stock WHERE household_id=$1 ORDER BY food_id FOR UPDATE',[householdId]);
   const byFood=new Map(tracked.rows.map(r=>[r.food_id,Number(r.quantity_g)]));
-  return {uses,lines:foods.filter(l=>byFood.has(l.foodId)).map(l=>({...l,quantityG:byFood.get(l.foodId)}))};
+  return {uses,lines:purchaseFoods.filter(l=>byFood.has(l.foodId)).map(l=>({...l,quantityG:byFood.get(l.foodId)}))};
 }
 
 export async function recordRecipeUses(client,householdId,uses,{lotId=null,mealId=null}) {
