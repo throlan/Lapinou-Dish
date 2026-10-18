@@ -32,7 +32,9 @@ Le calendrier dispose d’une impression hebdomadaire A4 paysage, avec menus et 
 
 **Livré** : plafond de suggestion automatique à une portion pour les salades, couleurs de créneaux, comparaison kcal hebdomadaire, protéines quotidiennes par personne, minima configurables dans Administration et impression paysage avec quantités par personne (PR #101 à #105). Ne pas remettre ces fonctions dans les tâches restantes.
 
-## Comptes utilisateurs et foyer
+## Comptes utilisateurs et foyer — reportés
+
+**Décision du 18 octobre 2026 : reporter ce chantier.** L’utilisateur envisage une application communautaire distribuable et éventuellement hébergée. Le modèle de compte/profil/appartenance au foyer et les droits doivent être conçus ensemble avant développement. La proposition binaire gestionnaire/membre n’est pas validée ; les éléments ci-dessous restent des pistes de cadrage. Aucun code de comptes individuels n’a été ajouté. Ne pas relancer sans nouvelle demande.
 
 Aujourd’hui, l’accès est centré sur le foyer et ses profils de personnes. L’évolution doit distinguer explicitement le compte de connexion de la personne dont les menus et données sont suivis :
 
@@ -53,7 +55,7 @@ Une première expérimentation pourrait se limiter à un catalogue public en lec
 
 ## Prochaines décisions
 
-La liste synthétique à jour est dans [TODO.md](TODO.md). Ordre décidé par l’utilisateur : 1. webapp installable (livrée en 0.2.90), 2. comptes individuels et foyers, 3. aide à la correction des données nutritionnelles, 4. communauté publique, 5. nettoyage du catalogue. À la demande de l’utilisateur, le nettoyage du catalogue (filtre des aliments inutilisés puis fusion guidée des doublons) passe en dernière priorité : le cahier de recettes doit d’abord être consolidé. Préserver ensuite les références, stocks, conversions et magasins ; aucune suppression automatique. Le design responsive est livré en 0.2.89. Cet ordre reste une proposition ; attendre la demande de l’utilisateur avant de commencer.
+La liste synthétique à jour est dans [TODO.md](TODO.md). Ordre décidé par l’utilisateur : 1. webapp installable (livrée en 0.2.90), 2. comptes individuels et foyers (reportés, modèle à cadrer avant développement), 3. aide à la correction des données nutritionnelles, 4. communauté publique, 5. nettoyage du catalogue. À la demande de l’utilisateur, le nettoyage du catalogue (filtre des aliments inutilisés puis fusion guidée des doublons) passe en dernière priorité : le cahier de recettes doit d’abord être consolidé. Préserver ensuite les références, stocks, conversions et magasins ; aucune suppression automatique. Le design responsive est livré en 0.2.89. Cet ordre reste une proposition ; attendre la demande de l’utilisateur avant de commencer.
 
 ## Recettes utilisées comme composants — réalisé en 0.2.82
 
