@@ -18,7 +18,7 @@ export function parseRecipeText(text, sourceUrl = null) {
   for (const line of lines.slice(Math.max(0, titleIndex + 1))) {
     if (/^(pour\s+\d+|ingrédients?\s*:?)$/i.test(line)) { section = 'ingredients'; continue; }
     if (/^(préparation|instructions?|étapes?)\s*: ?$/i.test(line)) { section = 'instructions'; continue; }
-    if (/^(pour\s+\d+\s+(?:muffin|portion|personne|pièce))/i.test(line)) { section = 'ingredients'; continue; }
+    if (/^(pour\s+\d+\s+(?:muffin|portion|personne|pièce|tranche))/i.test(line)) { section = 'ingredients'; continue; }
     if (/^\d+\s*(?:kcal|calories)|environ\s+\d+\s*(?:kcal|calories)/i.test(line)) { section = 'done'; continue; }
     if (/^retouve|^retrouve|^enregistre|^suis\s+la|^crédit/i.test(line)) continue;
     if (section === 'done') continue;
@@ -29,7 +29,7 @@ export function parseRecipeText(text, sourceUrl = null) {
     if (section === 'instructions') instructionLines.push(line);
   }
   const description = lines.slice(titleIndex + 1).find((line) => !looksLikeIngredient(line) && !/^(?:pour\s+\d+.*|ingrédients?\s*:?)$/i.test(line)) ?? '';
-  return { data: { name: name.slice(0, 200), description: description.slice(0, 2000), yieldAmount: Number.isFinite(yieldAmount) && yieldAmount > 0 ? yieldAmount : 1, yieldUnitId: /muffin|œuf|oeuf|pièce/i.test(servingsMatch?.[2] ?? '') ? 'piece' : 'portion', ingredients: ingredientLines.slice(0, 300), instructions: instructionLines.join('\n').slice(0, 20_000), sourceUrl, sourceKind: sourceUrl ? platformFor(sourceUrl) : 'clipboard', rawText: text } };
+  return { data: { name: name.slice(0, 200), description: description.slice(0, 2000), yieldAmount: Number.isFinite(yieldAmount) && yieldAmount > 0 ? yieldAmount : 1, yieldUnitId: /tranche/i.test(servingsMatch?.[2] ?? '') ? 'slice' : /muffin|œuf|oeuf|pièce/i.test(servingsMatch?.[2] ?? '') ? 'piece' : 'portion', ingredients: ingredientLines.slice(0, 300), instructions: instructionLines.join('\n').slice(0, 20_000), sourceUrl, sourceKind: sourceUrl ? platformFor(sourceUrl) : 'clipboard', rawText: text } };
 }
 
 function looksLikeIngredient(line) {

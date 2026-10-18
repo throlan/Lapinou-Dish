@@ -7,6 +7,9 @@ import { extractRecipeWithOpenAI, validateExtraction } from '../src/server/opena
 import { captionFromHtml, instagramPostUrl, retrieveInstagramCaption } from '../src/server/instagram-caption.mjs';
 import { handleRequest } from '../src/server/app.mjs';
 import { saveImportDrafts, listImportDrafts } from '../src/server/recipe-imports.mjs';
+import {parseRecipeText} from '../src/domain/recipe-import.mjs';
+import {createRecipe,validateRecipeInput} from '../src/server/recipes.mjs';
+import {randomUUID} from 'node:crypto';
 
 const text = '3 CRÈMES\n9 œufs\n300 g de skyr nature\n3 scoops de whey vanille (environ 90 g)\nVanille : extrait de vanille\nRépartir en 3 portions. Réfrigérer 4 heures.';
 const extracted = () => ({
@@ -21,6 +24,43 @@ const extracted = () => ({
 const aiResponse = (data = extracted(), overrides = {}) => Response.json({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(data) }] }], ...overrides });
 const options = { apiKey: 'synthetic-test-key', fetchImpl: async () => aiResponse() };
 const post = 'https://www.instagram.com/p/DeZh7NyuSru/';
+
+test('AI accepts explicit slice yields and preserves the bread recipe through draft storage and recipe creation',async()=>{
+  const source=await readFile(new URL('../docs/recettes/pain-de-mie-graines-francine-t110.txt',import.meta.url),'utf8');
+  const parsed=parseRecipeText(source).data;
+  const expected={name:parsed.name,description:'Pain de mie aux graines.',yieldAmount:20,yieldUnitId:'slice',
+    ingredients:parsed.ingredients.map(line=>({rawText:line.rawText,foodName:line.foodName,quantity:line.quantity,unitId:'g'})),
+    instructions:parsed.instructions,warnings:[],variants:[]};
+  const extraction=await extractRecipeWithOpenAI(source,null,{...options,fetchImpl:async(_url,init)=>{
+    const request=JSON.parse(init.body);
+    assert.ok(request.text.format.schema.properties.yieldUnitId.enum.includes('slice'));
+    assert.match(request.instructions,/20 tranches/);
+    return aiResponse(expected);
+  }});
+  assert.equal(extraction.error,undefined);assert.equal(extraction.data.yieldAmount,20);assert.equal(extraction.data.yieldUnitId,'slice');
+  assert.equal(validateExtraction({...expected,yieldUnitId:'loaf'},source),false);
+  const db=new PGlite();
+  try{
+    const dir=new URL('../db/migrations/',import.meta.url);
+    for(const file of (await readdir(dir)).filter(f=>f.endsWith('.sql')).sort())await db.exec(await readFile(new URL(file,dir),'utf8'));
+    const pool={async query(sql,args=[]){const r=await db.query(sql,args);return {...r,rowCount:r.rows.length||r.affectedRows||0};},async connect(){return {...this,release(){}};}};
+    const householdId=randomUUID();await pool.query("INSERT INTO households(id,name) VALUES($1,'Synthetic bread import')",[householdId]);
+    await saveImportDrafts(pool,householdId,[extraction.data]);
+    const [draft]=await listImportDrafts(pool,householdId);
+    assert.equal(draft.yieldAmount,20);assert.equal(draft.yieldUnitId,'slice');assert.equal(draft.ingredients.length,8);
+    assert.equal(draft.original,source);assert.ok(draft.ingredients.every(line=>line.unitId==='g'));
+    const lines=[];
+    for(const line of draft.ingredients){
+      const foodId=randomUUID();await pool.query("INSERT INTO foods(id,canonical_name,source) VALUES($1,$2,'manual')",[foodId,line.foodName]);
+      lines.push({foodId,quantity:line.quantity,unitId:line.unitId});
+    }
+    const checked=validateRecipeInput({householdId,name:draft.name,yield:{amount:draft.yieldAmount,unitId:draft.yieldUnitId},productionType:'bread',lines});
+    assert.equal(checked.error,undefined);
+    const recipe=await createRecipe(pool,checked.data);
+    assert.equal(recipe.error,undefined);assert.equal(recipe.yield.amount,20);assert.equal(recipe.yield.unitId,'slice');
+    assert.equal(recipe.lines.length,8);assert.equal(recipe.nutrition.complete,false,'missing label nutrients must stay unknown');
+  }finally{await db.close();}
+});
 
 test('AI extraction uses structured output, preserves base/variants and never sends household data', async () => {
   const result = await extractRecipeWithOpenAI(text, post, { ...options, fetchImpl: async (url, init) => {
