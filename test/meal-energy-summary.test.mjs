@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';
 import * as planner from '../web/portion-planner.js';
-import { plateComposition } from '../web/plate-composition.js';
 
 test('energy total includes all dishes, drinks and desserts and flags missing nutrition',()=>{
   const meal={items:[{recipe:{nutrition:{perYieldUnit:{energyKcal:1.5}}},amounts:[{personId:'p',quantity:200}]},{recipe:{nutrition:{perYieldUnit:{energyKcal:120}}},amounts:[{personId:'p',quantity:1}]}]};
@@ -16,12 +15,11 @@ test('energy total includes all dishes, drinks and desserts and flags missing nu
 test('editor shows current kcal versus the profile meal objective, including individual choices',async()=>{
   const source=await readFile(new URL('../web/app.js',import.meta.url),'utf8');
   const start=source.indexOf('function mealProteinSummary('),end=source.indexOf('function updateMealProteinSummary(',start);
-  const compositionStart=source.indexOf('function appendPlateComposition('),compositionEnd=source.indexOf('function allPlanningRecipes(',compositionStart);
   const recipes=[{id:'dish',nutrition:{perYieldUnit:{energyKcal:1.5,proteinG:0.1}}},{id:'dessert',nutrition:{perYieldUnit:{energyKcal:120,proteinG:3}}}];
   const element=()=>({children:[],append(...children){this.children.push(...children);},setAttribute(){}});
-  const context={...planner,plateComposition,document:{createElement:element},state:{recipes,people:[{id:'p',displayName:'Bibinette'}]},allPlanningRecipes:()=>recipes,isIndividualRole:role=>role==='dessert',
+  const context={...planner,document:{createElement:element},state:{people:[{id:'p',displayName:'Bibinette'}]},allPlanningRecipes:()=>recipes,isIndividualRole:role=>role==='dessert',
     $:()=>({elements:{mealDate:{value:'2026-10-19'},slot:{value:'lunch'}}}),latestProfile:()=>({dailyEnergyKcal:2000}),format:n=>String(n)};
-  runInNewContext(source.slice(compositionStart,compositionEnd)+source.slice(start,end)+'\nglobalThis.summary=mealProteinSummary;',context);
+  runInNewContext(source.slice(start,end)+'\nglobalThis.summary=mealProteinSummary;',context);
   const items={0:{recipeId:'dish',amounts:{p:'200'}},1:{role:'dessert',assignments:{p:{recipeId:'dessert',quantity:'1'}}}};
   assert.equal(context.summary(items,['p']).children[0].children[1].textContent,'Kcal : 420 / 800');
   assert.equal(context.summary(items,['p']).children[0].children[2].textContent,'Prot : 23 / 40 g');

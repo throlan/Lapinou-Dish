@@ -1,4 +1,3 @@
-import {coordinateCountedPlate} from './plate-composition.js';
 import { DEFAULT_MEAL_RATIOS, DEFAULT_PLATE_RATIOS, validPlateRatios } from './meal-config.js';
 export const SLOT_RATIOS = DEFAULT_MEAL_RATIOS;
 
@@ -12,7 +11,7 @@ export function breakfastServingLimit(recipe,parent) {
   return Infinity;
 }
 
-const NATURAL_STEPS = Object.freeze({ piece: 1, slice:1, portion: 0.5, g: 10 });
+const NATURAL_STEPS = Object.freeze({ piece: 1, portion: 0.5, g: 10 });
 
 // A calorie envelope is a ceiling, not a reason to enlarge a batch serving.
 export function mainServingLimit(recipe, parent) {
@@ -223,29 +222,10 @@ export function suggestPlatePortions(proposals, budget, plateRatios=DEFAULT_PLAT
   }
   const result=rebalanceNaturalPortions([...proposals.filter(row=>!grouped.has(row)).map(row=>({...row,sourceRow:row})),...plates],budget);
   const expanded=new Map();
-  const plateEnergy=plate=>plate.finalQuantities?plate.members.reduce((sum,row,i)=>sum+(plate.finalQuantities[i]??0)*row.recipeKcal,0):(plate.quantity??0)*plate.recipeKcal;
   for(const plate of result.proposals.filter(row=>row.members)) {
-    const counted=plate.members.some(row=>row.countStep>0);
-    if(counted){
-      const remaining=budget-result.proposals.filter(row=>row!==plate).reduce((sum,row)=>sum+(row.members?plateEnergy(row):(row.quantity??0)*row.recipeKcal),0);
-      const coordinated=coordinateCountedPlate(plate.members,plate.shares,plate.quantity,remaining);
-      plate.finalQuantities=coordinated?.quantities??plate.members.map(()=>null);
-      if(!coordinated)warnings.push('Aucune assiette complète avec des unités entières ne tient dans le budget et les plafonds. Ajuste les quantités manuellement.');
-    }else if(!plate.quantity)warnings.push('Aucune assiette ne tient dans le budget et les plafonds : renseigne les quantités manuellement.');
-    plate.members.forEach((member,index)=>expanded.set(member,{...member,
-      quantity:counted?plate.finalQuantities[index]:plate.quantity?Number((plate.quantity*plate.shares[member.servingPart]).toFixed(4)):null,
-      ...(counted?{countsCoordinated:true}:{})}));
+    if(!plate.quantity)warnings.push('Aucune assiette ne tient dans le budget et les plafonds : renseigne les quantités manuellement.');
+    for(const member of plate.members)expanded.set(member,{...member,quantity:plate.quantity?Number((plate.quantity*plate.shares[member.servingPart]).toFixed(4)):null});
   }
   const ungrouped=new Map(result.proposals.filter(row=>!row.members).map(({sourceRow,...row})=>[sourceRow,row]));
-  const output={...result,warnings,proportionsApplied:plates.length>0,approximateProportions:plates.some(plate=>plate.members.some(row=>row.countStep>0)),proposals:proposals.map(row=>expanded.get(row)??ungrouped.get(row)??row)};
-  if(output.proposals.some(row=>row.countStep>0)){
-    output.proposals=output.proposals.map(row=>row.countStep>0 && !row.countsCoordinated && row.quantity!=null
-      ?{...row,quantity:Math.floor(row.quantity/row.countStep+1e-8)*row.countStep||null}:row);
-    output.estimatedKcal=output.proposals.reduce((sum,row)=>sum+(row.quantity??0)*row.recipeKcal,0);
-    output.estimatedProteinG=output.proteinKnown?output.proposals.reduce((sum,row)=>sum+(row.quantity??0)*row.proteinG,0):null;
-    output.withinBudget=output.estimatedKcal<=budget+1e-8;
-    output.proteinTargetMet=output.proteinKnown && output.estimatedProteinG>=MIN_PROTEIN_G_PER_MEAL-1e-8;
-    output.warnings.push('Unités entières : arrondi coordonné avec les services en grammes pour se rapprocher de la répartition choisie. Les pourcentages et écarts réels sont affichés pour chaque personne.');
-  }
-  return output;
+  return {...result,warnings,proportionsApplied:plates.length>0,proposals:proposals.map(row=>expanded.get(row)??ungrouped.get(row)??row)};
 }

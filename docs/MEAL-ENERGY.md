@@ -44,7 +44,7 @@ Les boissons, desserts et collations ne sont pas réduits. Les profils mineurs, 
 
 **Appliquer ces quantités** sauvegarde les propositions dans une transaction. Un changement de planning, recette, nutrition ou profil depuis l'aperçu impose un nouveau calcul. Réappliquer un ancien aperçu ne réduit pas une deuxième fois les portions.
 
-Le rééquilibrage change les prévisions et les réservations liées aux repas, pas les stocks physiques ni les mouvements d'ingrédients déjà enregistrés. Les parties liées toutes en grammes sont réduites ensemble pour conserver leurs proportions saisies ; les parties à la pièce/tranche gardent leurs pas entiers et peuvent donc s’écarter du repère. La composition des nouvelles propositions se règle séparément dans Administration : voir [les proportions en grammes](SERVING-GRAMS.md). Aucun journal de consommation réelle n'est souhaité.
+Le rééquilibrage change les prévisions et les réservations liées aux repas, pas les stocks physiques ni les mouvements d'ingrédients déjà enregistrés. Les parties liées d'une assiette sont réduites ensemble pour conserver leurs proportions saisies. La composition des nouvelles propositions se règle séparément dans Administration : voir [les proportions en grammes](SERVING-GRAMS.md). Aucun journal de consommation réelle n'est souhaité.
 
 ## Repères techniques
 
@@ -58,6 +58,12 @@ Le rééquilibrage change les prévisions et les réservations liées aux repas,
 
 Une salade suit les mêmes règles qu’un plat. Une sauce ajoutée par « + Sauce » compte dans les kcal et protéines du repas, avec quantité initiale 30 g/ml ou une unité selon le rendement, modifiable par personne et pouvant être nulle. Sa quantité est fixe pendant les suggestions et le rééquilibrage : elle ne sert pas à compléter un pourcentage ou un objectif protéique. Les quantités ajustables du plat tiennent compte de ses apports.
 
-## Lecture des proportions après arrondi — 0.2.85
+## Unités pratiques et compensation calorique — 0.2.86
 
-Les proportions d’Administration concernent les poids estimés servis, pas les kcal ni les nombres d’unités. Pour les assiettes à œufs/pièces et tranches, l’utilisateur privilégie les unités entières : le recalcul coordonne les comptes avec les services en grammes et affiche pour chaque personne poids, pourcentage réel, repère et écart en points. Les boissons et sauces fixes restent incluses dans le budget kcal, sans être intégrées aux pourcentages des parties de l’assiette.
+La 0.2.83 est la dernière référence fonctionnelle validée. Les calculs des 0.2.84 et 0.2.85 sont abandonnés. Le moteur initial et les proportions d’Administration ne sont pas modifiés : le calcul en grammes se fait d’abord pour chaque personne. Ensuite seulement, les parties à unité connue sont arrondies à l’entier positif le plus proche selon leur équivalence. Exemple : 84 g d’œuf à 50 g/pièce → 2 œufs ; 86 g de pain à 35 g/tranche → 2 tranches. Ces masses sont des équivalences déclarées, pas des constantes appliquées à tous les aliments.
+
+La partie en grammes (légumes/soupe en priorité ; sinon l’unique partie libre) compense l’écart **calorique** : nouvelle quantité = ancienne quantité − somme des écarts kcal des unités / kcal par gramme de soupe. Le total calorique de la proposition initiale est conservé ; les proportions finales peuvent donc varier légèrement. Aucun maintien forcé du poids total ni des pourcentages après arrondi. Les protéines sont recalculées depuis les quantités obtenues.
+
+Une saisie manuelle d’œufs/tranches applique la même formule depuis les quantités juste avant la modification, uniquement pour la personne et la préparation concernées. Une ouverture sans modification conserve exactement les anciens grammes, même fractionnaires. Les menus enregistrés en 0.2.84/85 ne permettent pas de retrouver automatiquement leur proposition d’origine : utiliser Recalculer les portions après mise à jour.
+
+Les grammes restent la quantité canonique pour nutrition, menus, courses, fabrication et stock. Ni poids d’œuf/tranche ni données nutritionnelles ne sont inventés. Si les parties sont incomplètes/répétées, les kcal inconnues, ou la compensation nécessiterait une quantité nulle ou négative, une explication est affichée ; pas de compensation arbitraire ni de valeur négative. Le recalcul automatique conserve alors la proposition initiale. Le rééquilibrage quotidien retrouve celui de 0.2.83 ; cette modification concerne le bouton Recalculer et la saisie manuelle de l’éditeur.

@@ -9,8 +9,7 @@ import {savePlannedMeal,listPlannedMeals} from '../src/server/planning.mjs';
 import {rawShoppingRequirements} from '../src/server/shopping-requirements.mjs';
 import {listPreparationsToMake} from '../src/server/household-planning.mjs';
 import {recipePlanningLabel} from '../web/recipe-directory.js';
-import {suggestPlatePortions} from '../web/portion-planner.js';
-import {rebalanceDailyEnergy} from '../src/server/daily-rebalance.mjs';
+
 import * as units from '../web/serving-quantities.js';
 import {handleRequest} from '../src/server/app.mjs';
 
@@ -35,27 +34,27 @@ test('split eggs, soup and homemade bread expose pieces/grams/slices while menus
   }
   await pool.query("INSERT INTO food_unit_conversions(food_id,unit_id,grams_per_unit,source_note) VALUES($1,'piece',50,'Synthetic fixture')",[eggs]);
   const create=async input=>{const checked=validateRecipeInput({householdId,name:'Synthetic recipe',yield:{amount:4,unitId:'portion'},...input});assert.equal(checked.error,undefined);const r=await createRecipe(pool,checked.data);assert.equal(r.error,undefined);return r;};
-  const bread=await create({yield:{amount:20,unitId:'slice'},productionType:'bread',lines:[{foodId:flour,quantity:1000,unitId:'g'}]});
+  const bread=await create({yield:{amount:20,unitId:'slice'},outputUnits:{g:700},productionType:'bread',lines:[{foodId:flour,quantity:700,unitId:'g'}]});
   const input={separateStarch:true,servingMode:'three',productionType:'batch_cooking',lines:[
     {foodId:eggs,quantity:8,unitId:'piece',servingPart:'main'},
     {foodId:veg,quantity:1300,unitId:'g',servingPart:'vegetables'},
     {recipeId:bread.id,quantity:8,unitId:'slice',servingPart:'starch'}]};
   const recipe=await create(input),main=recipe.servingParts.find(r=>r.servingPart==='main'),soup=recipe.servingParts.find(r=>r.servingPart==='vegetables'),toast=recipe.servingParts.find(r=>r.servingPart==='starch');
   assert.equal(main.yield.unitId,'g');assert.equal(main.servingDisplay.unitId,'piece');assert.equal(main.servingDisplay.gramsPerUnit,50);
-  assert.equal(toast.servingDisplay.unitId,'slice');assert.equal(toast.servingDisplay.gramsPerUnit,50);
+  assert.equal(toast.servingDisplay.unitId,'slice');assert.equal(toast.servingDisplay.gramsPerUnit,35);
   assert.equal(soup.servingDisplay,null);
   assert.equal((await readRecipe(pool,main.id)).servingDisplay.unitId,'piece','direct reads and parent reads agree');
-  assert.match(recipePlanningLabel(main),/50 kcal\/pièce.*8 pièces/);assert.match(recipePlanningLabel(toast),/50 kcal\/tranche.*8 tranches/);
+  assert.match(recipePlanningLabel(main),/50 kcal\/pièce.*8 pièces/);assert.match(recipePlanningLabel(toast),/35 kcal\/tranche.*8 tranches/);
   const quantity=units.canonicalServingQuantity(main,2),breadQuantity=units.canonicalServingQuantity(toast,2);
   const meal=await savePlannedMeal(pool,null,{householdId,mealDate:'2026-10-20',slot:'dinner',notes:'',attendeeIds:[personId],items:[
     {recipeId:main.id,role:'main',amounts:[{personId,quantity}]},
     {recipeId:soup.id,role:'accompaniment',amounts:[{personId,quantity:350}]},
     {recipeId:toast.id,role:'accompaniment',amounts:[{personId,quantity:breadQuantity}]}]});
-  assert.equal(meal.items[0].amounts[0].quantity,100);assert.equal(meal.items[2].amounts[0].quantity,100);
+  assert.equal(meal.items[0].amounts[0].quantity,100);assert.equal(meal.items[2].amounts[0].quantity,70);
   const [saved]=await listPlannedMeals(pool,householdId,'2026-10-19');
   assert.equal(units.displayServingQuantity(saved.items[0].recipe,saved.items[0].amounts[0].quantity),2);
   const shopping=await rawShoppingRequirements(pool,householdId,'2026-10-19','2026-10-25');
-  assert.equal(shopping.find(r=>r.foodId===eggs).quantity,2);assert.equal(shopping.find(r=>r.foodId===flour).quantity,100);assert.equal(shopping.find(r=>r.foodId===veg).quantity,350);
+  assert.equal(shopping.find(r=>r.foodId===eggs).quantity,2);assert.equal(shopping.find(r=>r.foodId===flour).quantity,70);assert.equal(shopping.find(r=>r.foodId===veg).quantity,350);
   assert.equal((await listPreparationsToMake(pool,householdId,'2026-10-19','2026-10-25')).find(r=>r.recipeId===bread.id).toMakeQuantity,2);
   const mixed=await create({...input,lines:[...input.lines,{foodId:veg,quantity:50,unitId:'g',servingPart:'main'}]});
   assert.equal(mixed.servingParts.find(r=>r.servingPart==='main').servingDisplay,null,'a mixed preparation is not guessed to be an egg');
@@ -72,28 +71,6 @@ test('editing a displayed count preserves an untouched fractional menu exactly a
   const plain={dataset:{},value:'462.85712'};units.setServingInput(plain,{yield:{unitId:'g'}},plain.value);assert.equal(units.servingInputValue(plain),'462.85712');
   assert.equal(units.servingUnit({yield:{unitId:'g'},servingDisplay:{unitId:'slice',gramsPerUnit:1}}),'slice');
   assert.equal(units.servingScale({yield:{unitId:'g'},servingDisplay:{unitId:'piece',gramsPerUnit:0}}),1);
-});
-
-test('explicit automatic proposals use whole eggs and slices, keep soup grams and report their actual nutrition',()=>{
-  const proposals=['main','vegetables','starch'].map((part,i)=>({parentRecipeId:'parent',plateParts:['main','vegetables','starch'],servingPart:part,recipeUnit:'g',
-    role:i?'accompaniment':'main',quantity:100,step:10,recipeKcal:[1.5,0.3,2][i],proteinG:[0.12,0.01,0.08][i],budgetFraction:i?0.15:0.7,
-    ...(part==='vegetables'?{}:{countStep:50})}));
-  const result=suggestPlatePortions(proposals,700);
-  assert.equal(result.proposals[0].quantity%50,0);assert.equal(result.proposals[2].quantity%50,0);
-  assert.ok(result.proposals[1].quantity>0);assert.equal(result.withinBudget,true);
-  assert.equal(result.estimatedKcal,result.proposals.reduce((sum,r)=>sum+(r.quantity??0)*r.recipeKcal,0));
-  assert.equal(result.estimatedProteinG,result.proposals.reduce((sum,r)=>sum+(r.quantity??0)*r.proteinG,0));
-  assert.equal(proposals[0].quantity,100);
-});
-
-test('daily rebalancing reduces counted services in whole units without creating fractional eggs or bread',()=>{
-  const common={mealId:'meal',personId:'adult',slot:'dinner',unitId:'g',complete:true,parentRecipeId:'parent',plateParts:['main','vegetables','starch'],proteinG:0.1};
-  const rows=[{...common,itemId:'eggs',role:'main',servingPart:'main',quantity:200,energyKcal:2,countStep:50,displayUnitId:'piece'},
-    {...common,itemId:'bread',role:'accompaniment',servingPart:'starch',quantity:200,energyKcal:2,countStep:50,displayUnitId:'slice'},
-    {...common,itemId:'soup',role:'accompaniment',servingPart:'vegetables',quantity:400,energyKcal:0.2}];
-  const result=rebalanceDailyEnergy(rows,[{id:'adult',targetKcal:720}]);
-  for(const change of result.changes.filter(c=>c.itemId!=='soup')){assert.equal(change.after%50,0);assert.equal(change.displayScale,50);}
-  assert.ok(result.changes.some(c=>c.itemId!=='soup'));assert.ok(result.results[0].afterKcal<=720);
 });
 
 test('dashboard/print presentation uses counts while nutrition still uses canonical grams',async()=>{

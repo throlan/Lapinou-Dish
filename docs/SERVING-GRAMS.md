@@ -27,7 +27,7 @@ Les deux modes séparés sont modifiables ; chaque mode doit totaliser 100 % et 
 
 Le moteur calcule la densité énergétique de cette composition, puis ajuste son poids global dans le budget du repas et sous les plafonds de chaque partie. L'ajustement protéique conserve les proportions et peut signaler que le repère ne peut pas être atteint. Les grammes peuvent être décimaux pour respecter les pourcentages ; le poids total proposé varie par pas de 10 g. Boissons, desserts et recettes sans parties liées restent indépendants. Si une partie est absente ou répétée, la composition n'est pas appliquée et le calcul le signale.
 
-Les quantités existantes et les copies ne changent pas : utiliser explicitement « Recalculer les portions ». Pour les parties toutes en grammes, le rééquilibrage quotidien réduit ensemble les parties liées en conservant leur répartition déjà saisie, même si elle a été modifiée manuellement. Les parties affichées à la pièce/tranche conservent leurs pas entiers ; les proportions peuvent donc varier et restent visibles dans l’éditeur. Les protections des profils et du repère protéique restent appliquées.
+Les quantités existantes et les copies ne changent pas : utiliser explicitement « Recalculer les portions ». Le rééquilibrage quotidien réduit ensemble les parties liées en conservant leur répartition déjà saisie, même si elle a été modifiée manuellement. Les protections des profils et du repère protéique restent appliquées.
 
 ## Conservation des données existantes
 
@@ -51,8 +51,12 @@ Tests PostgreSQL/PGlite : calcul brut→grammes estimés, recette entière sans 
 
 Une salade conserve les mêmes rendements, modes de service (entier, deux ou trois parties), coefficients, courses et stocks qu’un plat. Changer Plat en Salade ne supprime pas les services existants. La sauce est une recette ajoutée avec une quantité par personne, fixe pendant les ajustements automatiques et incluse dans la nutrition.
 
-## Proportions avec des comptes entiers — 0.2.85
+## Unités pratiques et compensation calorique — 0.2.86
 
-Priorité validée par l’utilisateur : conserver œufs/pièces et tranches entiers, avec l’écart aux pourcentages clairement affiché. L’arrondi se fait sur l’assiette entière : recherche de combinaisons proches compatibles avec le budget/plafonds, puis ajustement des services en grammes depuis le poids des parties comptées. Les parts toutes en grammes gardent leur calcul proportionnel exact.
+La 0.2.83 est la dernière référence fonctionnelle validée. Les calculs des 0.2.84 et 0.2.85 sont abandonnés. Le moteur initial et les proportions d’Administration ne sont pas modifiés : le calcul en grammes se fait d’abord pour chaque personne. Ensuite seulement, les parties à unité connue sont arrondies à l’entier positif le plus proche selon leur équivalence. Exemple : 84 g d’œuf à 50 g/pièce → 2 œufs ; 86 g de pain à 35 g/tranche → 2 tranches. Ces masses sont des équivalences déclarées, pas des constantes appliquées à tous les aliments.
 
-Sous chaque personne, l’éditeur montre les grammes et pourcentages réels, le repère choisi et l’écart en points. Une répartition approchée n’est pas annoncée exacte ; une partie absente/répétée ou sans quantité empêche de calculer la répartition. Le plafond à une portion moyenne reste appliqué et peut expliquer des comptes identiques entre profils.
+La partie en grammes (légumes/soupe en priorité ; sinon l’unique partie libre) compense l’écart **calorique** : nouvelle quantité = ancienne quantité − somme des écarts kcal des unités / kcal par gramme de soupe. Le total calorique de la proposition initiale est conservé ; les proportions finales peuvent donc varier légèrement. Aucun maintien forcé du poids total ni des pourcentages après arrondi. Les protéines sont recalculées depuis les quantités obtenues.
+
+Une saisie manuelle d’œufs/tranches applique la même formule depuis les quantités juste avant la modification, uniquement pour la personne et la préparation concernées. Une ouverture sans modification conserve exactement les anciens grammes, même fractionnaires. Les menus enregistrés en 0.2.84/85 ne permettent pas de retrouver automatiquement leur proposition d’origine : utiliser Recalculer les portions après mise à jour.
+
+Les grammes restent la quantité canonique pour nutrition, menus, courses, fabrication et stock. Ni poids d’œuf/tranche ni données nutritionnelles ne sont inventés. Si les parties sont incomplètes/répétées, les kcal inconnues, ou la compensation nécessiterait une quantité nulle ou négative, une explication est affichée ; pas de compensation arbitraire ni de valeur négative. Le recalcul automatique conserve alors la proposition initiale. Le rééquilibrage quotidien retrouve celui de 0.2.83 ; cette modification concerne le bouton Recalculer et la saisie manuelle de l’éditeur.
