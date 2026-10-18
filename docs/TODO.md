@@ -1,10 +1,10 @@
 # Prochaines tâches — 18 octobre 2026
 
-Référence du code : **0.2.89**, charte claire Magazine culinaire · Encre framboise responsive PC/tablette/mobile, sans changement métier. La 0.2.88 conserve la saisie en unités d’achat et stock compté cohérents, après les produits communs et exclusions 0.2.87. Le calcul 0.2.86 (base 0.2.83) reste conservé ; les calculs 0.2.84/85 sont abandonnés. Vérifier les contrôles et la publication de main. Aucun nouveau chantier sans demande de l’utilisateur.
+Référence du code : **0.2.90**, webapp installable et icônes livrées après la charte claire Magazine culinaire · Encre framboise responsive PC/tablette/mobile, sans changement métier. La 0.2.88 conserve la saisie en unités d’achat et stock compté cohérents, après les produits communs et exclusions 0.2.87. Le calcul 0.2.86 (base 0.2.83) reste conservé ; les calculs 0.2.84/85 sont abandonnés. Vérifier les contrôles et la publication de main. Aucun nouveau chantier sans demande de l’utilisateur.
 
 ## Pistes à choisir et préciser
 
-1. **Webapp — chantier demandé maintenant** : la refonte responsive PC/tablette/mobile est livrée en 0.2.89 et vérifiée localement. Recueillir le retour sur appareils physiques, puis décider d’une PWA installable (manifest, icônes, mises à jour). Le hors-ligne et la synchronisation restent des chantiers distincts.
+1. **Webapp — livrée en 0.2.90** : installation, icônes et guide iOS/Android/PC en place, critères vérifiés dans Chrome local. Recueillir le retour sur appareils physiques. Le hors-ligne et la synchronisation restent des chantiers distincts, sans demande de lancement.
 2. **Comptes individuels et foyer** : concevoir compte/personne, rôles gestionnaire/membre, droits côté serveur, invitations et récupération. L'accès actuel reste une session par mot de passe du foyer.
 3. **Correction des données nutritionnelles** : les filtres et badges existent. Améliorer l'explication des causes de calcul incomplet et l'accès aux ingrédients/conversions à corriger ; définir les critères avant développement.
 4. **Communauté publique** : cadrer bibliothèque volontaire, droits et attribution des images/recettes, modération et isolation des données privées avant toute ouverture.
@@ -13,6 +13,8 @@ Référence du code : **0.2.89**, charte claire Magazine culinaire · Encre fram
 Détails et variantes dans [AMELIORATIONS.md](AMELIORATIONS.md). Les variantes indépendantes de recettes et l'affichage de photos en mode cuisine restent des pistes à confirmer, sans priorité décidée.
 
 ## Déjà livré — ne pas remettre dans le reste à faire
+
+- Webapp installable : manifeste, icônes lapin/cocotte, guide et invitation native quand disponible, ouverture standalone. Aucune couche de cache hors ligne ; mises à jour à la réouverture/actualisation.
 
 - Charte Magazine culinaire · Encre framboise claire et responsive, navigation adaptée aux trois formats, cartes photos et formulaires conservant tous les réglages. Impression A4 d’origine préservée.
 
