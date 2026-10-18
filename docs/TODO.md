@@ -1,6 +1,6 @@
 # Prochaines tâches — 18 octobre 2026
 
-Référence du code : **0.2.81**, suppression protégée des recettes inutilisées. Dernière livraison antérieure vérifiée : **0.2.80**, PR #110 fusionnée et publiée. Vérifier le workflow de la tête de main à chaque reprise. **245 tests locaux réussis**. Aucun nouveau chantier ne doit démarrer avant la demande de l’utilisateur.
+Référence du code : **0.2.82**, préparations maison composant d’autres recettes, avec pièces/tranches, apports et besoins/stock imbriqués. Dernière livraison antérieure vérifiée : **0.2.81**, PR #111 fusionnée et publiée. **254 tests locaux réussis**. Vérifier les contrôles et la publication du dernier commit de main. Aucun nouveau chantier ne doit démarrer avant la demande de l’utilisateur.
 
 ## Pistes à choisir et préciser
 
@@ -13,6 +13,8 @@ Référence du code : **0.2.81**, suppression protégée des recettes inutilisé
 Détails et variantes dans [AMELIORATIONS.md](AMELIORATIONS.md). Les variantes indépendantes de recettes et l'affichage de photos en mode cuisine restent des pistes à confirmer, sans priorité décidée.
 
 ## Déjà livré — ne pas remettre dans le reste à faire
+
+- Recettes comme composants : bagels à la pièce, pain à la tranche avec équivalence explicite, sauces/pâtes/accompagnements, nutrition dynamique, besoins des menus et matières premières calculés après stock des composants ; assemblage et annulations sans double déduction.
 
 - Bouton Supprimer sur les vignettes de recettes et dans l’éditeur : suppression d’une recette inutilisée, de ses parties et photos, confirmation et protection des menus/historiques de production.
 - Page Importer distincte, brouillons à vérifier ; vignettes de recettes, photos et filtres latéraux.

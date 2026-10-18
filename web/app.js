@@ -696,6 +696,7 @@ $('#production-form').addEventListener('submit',async event=>{
   } catch(error){
     const body=error.body??{};
     const messages={
+      'prepared-component-insufficient':'Prépare d’abord '+body.name+' : '+formatQty(body.requiredQuantity)+' '+body.unitId+' nécessaires, '+formatQty(body.availableQuantity)+' disponibles.',
       'ingredient-stock-insufficient':`Stock insuffisant pour ${body.name} : ${formatQty(body.requiredG)} g nécessaires, ${formatQty(body.availableG)} g disponibles. Vérifie ton inventaire.`,
       'ingredient-conversion-missing':`Conversion en grammes manquante pour ${body.name}. Complète la fiche de l’aliment.`,
       'production-request-conflict':'Cette tentative a déjà été enregistrée avec d’autres valeurs. Actualise les stocks avant de réessayer.',
@@ -1107,6 +1108,7 @@ async function loadHouseholds() {
 }
 
 function addRecipeLine(initial = null) {
+  if(initial?.recipeId)return addRecipeIngredientLine(initial);
   const row = document.createElement('div'); row.className = 'recipe-line';
   const foodBox = document.createElement('div'); foodBox.className = 'food-choice';
   const search = document.createElement('input'); search.type = 'search'; search.placeholder = 'Rechercher un aliment'; search.autocomplete = 'off';
@@ -1206,6 +1208,49 @@ function addRecipeLine(initial = null) {
   if (initial?.foodName && !initial?.foodId) search.dispatchEvent(new Event('input'));
 }
 
+function componentUnitOptions(recipe) {
+  const units=new Set([recipe.yield.unitId,...Object.keys(recipe.outputUnits??{}),'g']);
+  if(units.has('g'))units.add('kg');
+  if(units.has('ml'))units.add('l');
+  return [...units].map(id=>[id,({piece:'pièce',slice:'tranche',portion:'portion'})[id]??id]);
+}
+function addRecipeIngredientLine(initial=null) {
+  const row=document.createElement('div');row.className='recipe-line recipe-ingredient-line';
+  const box=document.createElement('div');box.className='food-choice';
+  const caption=document.createElement('span');caption.textContent='Préparation maison';
+  const select=document.createElement('select');select.setAttribute('aria-label','Recette liée');select.required=true;
+  select.add(new Option('Choisir une préparation…',''));
+  for(const recipe of state.recipes.filter(r=>r.id!==state.editingRecipeId).sort((a,b)=>a.name.localeCompare(b.name,'fr')))select.add(new Option(recipe.name,recipe.id));
+  select.value=initial?.recipeId??'';
+  const quantity=document.createElement('input');quantity.type='number';quantity.min='0.001';quantity.max='100000';quantity.step='any';quantity.required=true;quantity.value=String(initial?.quantity??1);quantity.setAttribute('aria-label','Quantité');
+  const unit=document.createElement('select');unit.setAttribute('aria-label','Unité');unit.required=true;
+  const hint=document.createElement('p');hint.className='hint';
+  const link=document.createElement('button');link.type='button';link.className='text-button';link.textContent='Voir la préparation';
+  link.addEventListener('click',()=>{if(select.value)showRecipeCard(select.value);});
+  const refresh=()=>{const recipe=state.recipes.find(r=>r.id===select.value);unit.replaceChildren();link.hidden=!recipe;
+    if(!recipe){hint.textContent='Ajoute d’abord ta recette de pain, sauce ou accompagnement dans les recettes.';return;}
+    for(const [id,label] of componentUnitOptions(recipe))unit.add(new Option(label,id));
+    unit.value=initial?.recipeId===recipe.id?initial.unitId:recipe.yield.unitId;
+    hint.textContent='Base : '+formatQty(recipe.yield.amount)+' '+recipe.yield.unitId+'. '+Object.entries(recipe.outputUnits??{}).map(([key,value])=>formatQty(value)+' '+key).join(' · ')+'. Les préparations suivies en stock doivent être fabriquées avant le plat.';
+  };
+  select.addEventListener('change',refresh);refresh();
+  const serving=document.createElement('select');serving.name='servingPart';serving.className='serving-part-choice';
+  for(const [id,label] of [['main','Viande, légumes, sauce'],['starch','Féculents'],['vegetables','Légumes']])serving.add(new Option(label,id));
+  serving.value=initial?.servingPart??'main';
+  const factor=document.createElement('select');factor.name='cookingFactor';factor.className='component-cooking-factor';factor.add(new Option('Déjà préparé — ×1','1'));
+  const controls=document.createElement('div');controls.className='recipe-line-controls';
+  const field=(text,input)=>{const label=document.createElement('label');label.className=input===quantity?'ingredient-quantity-field':input===unit?'ingredient-unit-field':'ingredient-serving-field';label.append(document.createTextNode(text),input);return label;};
+  const remove=document.createElement('button');remove.type='button';remove.className='remove-line';remove.textContent='×';remove.setAttribute('aria-label','Supprimer cette préparation');remove.addEventListener('click',()=>row.remove());
+  controls.append(field('Quantité',quantity),field('Unité',unit),field('Partie servie',serving),remove);
+  box.append(caption,select);row.append(box,controls,hint,link,factor);factor.hidden=true;$('#recipe-lines').append(row);updateServingConfiguration();
+}
+function recipeLineInput(row) {
+  const component=$('select[aria-label="Recette liée"]',row);
+  return {...(component?{recipeId:component.value}:{foodId:$('select[aria-label="Aliment lié"]',row).value}),
+    quantity:Number($('input[aria-label="Quantité"]',row).value),unitId:$('select[aria-label="Unité"]',row).value};
+}
+$('#add-recipe-line').addEventListener('click',()=>addRecipeIngredientLine());
+
 $('#add-line').addEventListener('click', addRecipeLine);
 function updateServingConfiguration() {
   const form = $('#recipe-form'); const mode = form.elements.servingMode.value;
@@ -1270,14 +1315,9 @@ $('#recipe-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const message = $('#recipe-message'); message.textContent = '';
   if (!state.household) { showMessage(message, 'Crée d’abord un foyer en haut de la page.'); return; }
-  const lines = $$('.recipe-line').map((row) => ({ foodId: $('select[aria-label="Aliment lié"]', row).value, quantity: Number($('input[aria-label="Quantité"]', row).value), unitId: $('select[aria-label="Unité"]', row).value }));
-  const unmatched = $$('.recipe-line').filter((row) => !$('select[aria-label="Aliment lié"]', row).value)
-    .map((row) => $('input[type="search"]', row).value.trim()).filter(Boolean);
-  if (lines.some((line) => !line.foodId)) {
-    showMessage(message, unmatched.length
-      ? `Aliments à créer ou associer : ${unmatched.join(', ')}.`
-      : 'Associe chaque ligne à un aliment du catalogue.');
-    return;
+  const lines = $$('.recipe-line').map(recipeLineInput);
+  if(lines.some(line=>!line.foodId&&!line.recipeId)){
+    showMessage(message,'Associe chaque ligne à un aliment ou à une préparation maison.');return;
   }
   const form = event.currentTarget;
   const servingMode = form.elements.servingMode.value;
@@ -1294,7 +1334,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
   try {
     const path = state.editingRecipeId ? `/api/recipes/${state.editingRecipeId}` : '/api/recipes';
     const method = state.editingRecipeId ? 'PUT' : 'POST';
-    const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, productionType: form.elements.productionType.value, recipeType: form.elements.recipeType.value, mealMoments: [...form.querySelectorAll('input[name="mealMoments"]:checked')].map((input) => input.value), instructions: form.elements.instructions.value, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, ...servingOptions, lines }) });
+    const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, productionType: form.elements.productionType.value, recipeType: form.elements.recipeType.value, mealMoments: [...form.querySelectorAll('input[name="mealMoments"]:checked')].map((input) => input.value), instructions: form.elements.instructions.value, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, outputUnits:Object.fromEntries(['piece','slice','portion','g','ml'].flatMap(unit=>{const value=form.elements['output_'+unit]?.value;return value?[ [unit,Number(value)] ]:[];})), ...servingOptions, lines }) });
     const generateImage=state.generateImportedImage;state.generateImportedImage=false;
     if (state.importingDraftId) {
       await api(`/api/recipe-imports/${state.importingDraftId}/converted`, { method: 'POST', body: JSON.stringify({ householdId: state.household.id }) });
@@ -1314,6 +1354,12 @@ $('#recipe-form').addEventListener('submit', async (event) => {
     await refreshRecipes();
   } catch (error) {
     const servingErrors={
+      'recipe-output-in-use':'Cette préparation a déjà été utilisée dans une autre production. Garde son unité et ses parties de service pour préserver l’historique ; duplique-la pour créer un autre format.',
+      'recipe-ingredient-cycle':'Une préparation ne peut pas contenir elle-même, même via une autre recette.',
+      'recipe-ingredient-not-found':'Une préparation liée est indisponible dans ce foyer. Choisis une recette existante.',
+      'recipe-ingredient-unit-missing':'Cette unité n’est pas définie pour la préparation choisie. Renseigne son équivalence dans la recette source (par exemple 20 tranches pour un pain).',
+      'invalid-output-units':'Vérifie les équivalences : valeurs positives, et même quantité que le rendement pour son unité.',
+
       'starch-ingredients-required':'Affecte au moins un ingrédient à la partie « Féculents » avant d’enregistrer le service séparé.',
       'vegetable-ingredients-required':'Affecte au moins un ingrédient à la partie « Légumes » avant d’enregistrer les trois parties.',
       'serving-weight-conversion-required':'Pour estimer les grammes, complète la conversion en grammes des ingrédients exprimés en ml, cuillères ou pièces dans leurs fiches aliments.',
@@ -1355,6 +1401,7 @@ async function openRecipeEditor(id = null, duplicate = false) {
       form.elements.instructions.value = recipe.instructions ?? '';
       form.elements.yieldAmount.value = recipe.yield.amount;
       form.elements.yieldUnit.value = recipe.yield.unitId;
+      for(const unit of ['piece','slice','portion','g','ml'])if(form.elements['output_'+unit])form.elements['output_'+unit].value=recipe.outputUnits?.[unit]??'';
       if (form.elements.servingMode) {
         form.elements.servingMode.value = recipe.separateStarch ? (recipe.servingParts?.some(part=>part.servingPart==='vegetables') ? 'three' : recipe.servingParts?.some(part=>part.servingPart==='starch') ? 'separate' : 'whole') : 'original';
         form.elements.mainCookingFactor.value = recipe.cookingFactors?.main ?? 1;
@@ -1411,7 +1458,9 @@ function renderCookingIngredients(){
     const list=document.createElement('ul');
     for(const line of lines.filter(item=>(item.servingPart??'main')===part)){
       const entry=document.createElement('li'),label=document.createElement('label'),check=document.createElement('input');check.type='checkbox';
-      label.append(check,document.createTextNode(` ${formatQty(line.scaledQuantity)} ${line.unitId} · ${line.foodName??'Aliment à vérifier'}`));entry.append(label);list.append(entry);
+      label.append(check,document.createTextNode(` ${formatQty(line.scaledQuantity)} ${line.unitId} · ${line.foodName??'Aliment à vérifier'}`));entry.append(label);
+      if(line.recipeId){const link=document.createElement('button');link.type='button';link.className='text-button';link.textContent='Voir la préparation';link.addEventListener('click',()=>{$('#cook-dialog').close();showRecipeCard(line.recipeId);});entry.append(link);}
+      list.append(entry);
     }
     section.append(list);root.append(section);
   }
@@ -1476,7 +1525,10 @@ $('#cook-form')?.addEventListener('submit',async event=>{
     await api('/api/household-planning/production',{method:'POST',body:JSON.stringify({...payload,requestId:cookingRequest.requestId})});
     cookingRequest=null;saved=true;showMessage($('#cook-message'),'Production ajoutée au stock. Ferme la fiche pour revenir à la liste.',true);
     await Promise.allSettled([refreshShopping(),refreshDashboard()]);
-  }catch(error){showMessage($('#cook-message'),'Production non enregistrée : '+(error.body?.error??error.message));}
+  }catch(error){const body=error.body??{};
+    showMessage($('#cook-message'),body.error==='prepared-component-insufficient'
+      ?'Prépare d’abord '+body.name+' : '+formatQty(body.requiredQuantity)+' '+body.unitId+' nécessaires, '+formatQty(body.availableQuantity)+' disponibles.'
+      :'Production non enregistrée : '+(body.error??error.message));}
   finally{button.disabled=saved;}
 });
 try{
@@ -1743,7 +1795,7 @@ async function requestRecipeDeletion(recipe,button,message){
   }catch(error){
     const body=error.body??{};
     const reason=body.error==='recipe-in-use'
-      ?`Cette recette est encore utilisée.${body.meals?' Retire-la ou remplace-la dans les menus concernés.':''}${body.productions?' Son historique de production est conservé.':''}`
+      ?`Cette recette est encore utilisée.${body.meals?' Retire-la ou remplace-la dans les menus concernés.':''}${body.productions?' Son historique de production est conservé.':''}${body.recipes?.length?' Elle est un ingrédient de : '+body.recipes.map(r=>r.name).join(', ')+'.':''}`
       :body.error==='recipe-version-conflict'?'Cette recette a changé depuis son affichage. Actualise la liste avant de la supprimer.'
       :body.error==='recipe-not-found'?'Cette recette n’est plus disponible. Actualise la liste.'
       :'La suppression n’a pas abouti. Réessaie après avoir vérifié la connexion.';
@@ -1859,8 +1911,9 @@ function nutritionIssues(recipe) {
   for (const issue of recipe.nutrition.lineIssues ?? []) {
     const line = recipe.lines[issue.lineIndex];
     const item = document.createElement('li');
-    const name = line?.foodName || `Ingrédient ${issue.lineIndex + 1}`;
-    if (issue.reason === 'unit-conversion-missing') item.textContent = `${name} (${format(line.quantity)} ${line.unitId}) : conversion en grammes inconnue pour cet aliment.`;
+    const name = line?.recipeName || line?.foodName || `Ingrédient ${issue.lineIndex + 1}`;
+    if(issue.reason==='component-data-missing')item.textContent=name+' : données incomplètes dans la préparation liée.';
+    else if (issue.reason === 'unit-conversion-missing') item.textContent = `${name} (${format(line.quantity)} ${line.unitId}) : conversion en grammes inconnue pour cet aliment.`;
     else if (issue.reason === 'food-not-linked') item.textContent = `${name} : aucun aliment du catalogue associé.`;
     else item.textContent = `${name} : valeur${issue.missingNutrients.length > 1 ? 's' : ''} manquante${issue.missingNutrients.length > 1 ? 's' : ''} pour ${issue.missingNutrients.map((key) => nutrientNames[key] ?? key).join(', ')}.`;
     list.append(item);
@@ -2266,7 +2319,8 @@ function renderMealCard(meal) {
         await Promise.all([refreshCalendar(),refreshShopping(),refreshDashboard()]);}
       catch(error){const body=error.body??{};const explanations={
         'prepared-batch-insufficient':'Cette recette de batch n’a pas assez de portions produites. Enregistre d’abord sa production dans Courses & stocks.',
-        'ingredient-stock-insufficient':`Stock insuffisant pour ${body.name} : ${formatQty(body.requiredG)} g nécessaires, ${formatQty(body.availableG)} g disponibles.`,
+        'prepared-component-insufficient':'Prépare d’abord '+body.name+' : '+formatQty(body.requiredQuantity)+' '+body.unitId+' nécessaires, '+formatQty(body.availableQuantity)+' disponibles.',
+      'ingredient-stock-insufficient':`Stock insuffisant pour ${body.name} : ${formatQty(body.requiredG)} g nécessaires, ${formatQty(body.availableG)} g disponibles.`,
         'ingredient-conversion-missing':`Conversion en grammes manquante pour ${body.name}. Complète la fiche de cet aliment.`};
         status.textContent=explanations[body.error]??`Préparation non enregistrée : ${body.error??error.message}`;prepared.disabled=false;}
     });card.append(prepared,status);

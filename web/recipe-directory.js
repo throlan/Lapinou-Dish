@@ -45,13 +45,13 @@ export function recipePlanningLabel(recipe) {
   const rawEnergy = recipe.nutrition?.perYieldUnit?.energyKcal;
   const multiplier = ['g', 'ml'].includes(unit) ? 100 : 1;
   const energy = rawEnergy == null ? null : Number(rawEnergy) * multiplier;
-  const energyUnit = { piece: 'pièce', portion: 'portion', g: '100 g', ml: '100 ml' }[unit] ?? unit;
+  const energyUnit = { piece: 'pièce', slice:'tranche', portion: 'portion', g: '100 g', ml: '100 ml' }[unit] ?? unit;
   const calories = energy != null && Number.isFinite(energy) && energy >= 0
     ? `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(energy)} kcal/${energyUnit}${recipe.nutrition?.complete ? '' : ' (calcul incomplet)'}`
     : 'kcal à compléter';
   const yieldLabel = recipe.servingParts?.length
     ? 'portions en grammes estimés'
-    : `${recipe.yield.amount} ${{ piece: Number(recipe.yield.amount) === 1 ? 'pièce' : 'pièces', portion: Number(recipe.yield.amount) === 1 ? 'portion' : 'portions', g: 'g', ml: 'ml' }[unit] ?? unit}`;
+    : `${recipe.yield.amount} ${{ slice: Number(recipe.yield.amount) === 1 ? 'tranche' : 'tranches', piece: Number(recipe.yield.amount) === 1 ? 'pièce' : 'pièces', portion: Number(recipe.yield.amount) === 1 ? 'portion' : 'portions', g: 'g', ml: 'ml' }[unit] ?? unit}`;
   return `${recipe.name} · ${calories} · ${yieldLabel}`;
 }
 export function recipeMomentLabel(moment) { return MOMENT_LABELS[moment] ?? moment; }

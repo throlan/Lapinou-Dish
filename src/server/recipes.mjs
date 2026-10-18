@@ -1,3 +1,4 @@
+import {componentErrors,loadRecipeGraph,validateRecipeGraph,recipeFraction} from './recipe-ingredients.mjs';
 import { randomUUID } from 'node:crypto';
 import { calculateRecipeNutrition } from '../domain/foods.ts';
 import { restoreOriginalServingMode, syncServingParts, validateServingParts } from './serving-parts.mjs';
@@ -26,6 +27,8 @@ export async function deleteRecipe(pool,id,data,imageOptions) {
       (SELECT count(*) FROM stock_lots WHERE recipe_id=ANY($1::uuid[])) AS productions`,[ids]);
     const usage={meals:Number(refs.rows[0].meals),productions:Number(refs.rows[0].productions)};
     if(usage.meals || usage.productions){await client.query('ROLLBACK');return {error:'recipe-in-use',...usage};}
+    const ingredientUses=await client.query('SELECT DISTINCT source.id,source.name FROM recipe_lines l JOIN recipes r ON r.id=l.recipe_id JOIN recipes source ON source.id=COALESCE(r.parent_recipe_id,r.id) WHERE l.ingredient_recipe_id=ANY($1::uuid[]) AND NOT (l.recipe_id=ANY($1::uuid[]))',[ids]);
+    if(ingredientUses.rowCount){await client.query('ROLLBACK');return {error:'recipe-in-use',recipes:ingredientUses.rows};}
     const images=await client.query('SELECT file_name FROM recipe_images WHERE recipe_id=ANY($1::uuid[]) FOR UPDATE',[ids]);
     files=images.rows.map(image=>image.file_name);
     await client.query('DELETE FROM recipes WHERE parent_recipe_id=$1 AND household_id=$2',[id,data.householdId]);
@@ -59,15 +62,17 @@ export function validateRecipeInput(input) {
   if (!Array.isArray(input.lines) || input.lines.length === 0 || input.lines.length > 300) return { error: 'invalid-lines' };
   const serving = validateServingParts(input, recipeType);
   if (serving.error) return serving;
+  const outputUnits=input.outputUnits ?? {};
+  if(!outputUnits || typeof outputUnits!=='object' || Array.isArray(outputUnits) || Object.entries(outputUnits).some(([unit,value])=>!['piece','slice','portion','g','ml'].includes(unit) || !Number.isFinite(value) || value<=0 || value>100000 || (unit===unitId && value!==amount)))return {error:'invalid-output-units'};
   const lines = [];
   for (const line of input.lines) {
-    if (!line || !isUuid(line.foodId)) return { error: 'invalid-food-id' };
+    if (!line || Boolean(line.foodId) === Boolean(line.recipeId) || !(line.foodId ? isUuid(line.foodId) : isUuid(line.recipeId))) return { error: 'invalid-food-id' };
     if (typeof line.quantity !== 'number' || !Number.isFinite(line.quantity) || line.quantity <= 0 || line.quantity > 100000) return { error: 'invalid-quantity' };
     if (typeof line.unitId !== 'string' || !/^[a-z][a-z0-9_-]{0,30}$/.test(line.unitId)) return { error: 'invalid-unit' };
     if (line.cookingFactor != null && (typeof line.cookingFactor !== 'number' || !Number.isFinite(line.cookingFactor) || line.cookingFactor <= 0 || line.cookingFactor > 10)) return {error:'invalid-cooking-factor'};
-    lines.push({ foodId: line.foodId, quantity: line.quantity, unitId: line.unitId, componentId: null, variantId: null, servingPart: serving.data.separateStarch ? line.servingPart ?? 'main' : 'main', cookingFactor: line.cookingFactor ?? null });
+    lines.push({ foodId: line.foodId || null, recipeId:line.recipeId || null, quantity: line.quantity, unitId: line.unitId, componentId: null, variantId: null, servingPart: serving.data.separateStarch ? line.servingPart ?? 'main' : 'main', cookingFactor: line.cookingFactor ?? null });
   }
-  return { data: { ...serving.data, name: input.name.trim(), description: typeof input.description === 'string' ? input.description.slice(0, 5000) : '', instructions: typeof input.instructions === 'string' ? input.instructions.slice(0, 20000) : '', sourceUrl: typeof input.sourceUrl === 'string' && /^https:\/\//i.test(input.sourceUrl) ? input.sourceUrl.slice(0, 2000) : null, recipeType, productionType, mealMoments: [...moments], householdId: input.householdId, yield: { amount, unitId }, lines } };
+  return { data: { ...serving.data, name: input.name.trim(), description: typeof input.description === 'string' ? input.description.slice(0, 5000) : '', instructions: typeof input.instructions === 'string' ? input.instructions.slice(0, 20000) : '', sourceUrl: typeof input.sourceUrl === 'string' && /^https:\/\//i.test(input.sourceUrl) ? input.sourceUrl.slice(0, 2000) : null, recipeType, productionType, mealMoments: [...moments], householdId: input.householdId, outputUnits, yield: { amount, unitId }, lines } };
 }
 
 export function validateRecipeSettings(input) {
@@ -88,9 +93,11 @@ export async function updateRecipeSettings(pool, id, data) {
     if (!current.rowCount) { await client.query('ROLLBACK'); return null; }
     if (Number(current.rows[0].version) !== data.version) { await client.query('ROLLBACK'); return { error: 'recipe-version-conflict' }; }
     if (current.rows[0].production_type !== data.productionType) {
-      const prepared = await client.query(`SELECT 1 FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
+      const prepared = await client.query(`WITH RECURSIVE parents(id) AS (
+        SELECT $2::uuid UNION SELECT r.id FROM parents p JOIN recipe_lines l ON l.ingredient_recipe_id=p.id JOIN recipes r ON r.id=l.recipe_id WHERE r.household_id=$1
+      ) SELECT 1 FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
         JOIN recipes used ON used.id=i.recipe_id WHERE m.household_id=$1 AND m.prepared_at IS NOT NULL
-        AND (used.id=$2 OR used.parent_recipe_id=$2) LIMIT 1`, [data.householdId, id]);
+        AND (used.id IN(SELECT id FROM parents) OR used.parent_recipe_id IN(SELECT id FROM parents)) LIMIT 1`,[data.householdId,id]);
       if (prepared.rowCount) { await client.query('ROLLBACK'); return { error: 'recipe-used-in-prepared-meal' }; }
     }
     await client.query(`UPDATE recipes SET production_type=$2, meal_moments=$3, version=version+1, updated_at=now()
@@ -111,24 +118,26 @@ export async function createRecipe(pool, data) {
     await client.query('BEGIN');
     await lockHouseholdInventory(client,data.householdId);
     await client.query(
-      `INSERT INTO recipes (id, household_id, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type, meal_moments,separate_starch,cooking_factors)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,$12,$13::jsonb)`,
-      [id, data.householdId, data.name, data.description, data.yield.amount, data.yield.unitId, data.instructions, data.sourceUrl, data.recipeType, data.productionType, data.mealMoments,data.separateStarch ?? false,JSON.stringify(data.cookingFactors ?? {main:1,starch:3})],
+      `INSERT INTO recipes (id, household_id, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type, meal_moments,separate_starch,cooking_factors,output_units)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,$12,$13::jsonb,$14::jsonb)`,
+      [id, data.householdId, data.name, data.description, data.yield.amount, data.yield.unitId, data.instructions, data.sourceUrl, data.recipeType, data.productionType, data.mealMoments,data.separateStarch ?? false,JSON.stringify(data.cookingFactors ?? {main:1,starch:3}),JSON.stringify(data.outputUnits??{})],
     );
     for (const [index, line] of data.lines.entries()) {
       await client.query(
-        `INSERT INTO recipe_lines (id, recipe_id, food_id, quantity, unit_id, sort_order,serving_part,cooking_factor)
-         VALUES ($1, $2, $3, $4, $5, $6,$7,$8)`,
-        [randomUUID(), id, line.foodId, line.quantity, line.unitId, index,line.servingPart ?? 'main',line.cookingFactor ?? null],
+        `INSERT INTO recipe_lines (id, recipe_id, food_id, quantity, unit_id, sort_order,serving_part,cooking_factor,ingredient_recipe_id)
+         VALUES ($1, $2, $3, $4, $5, $6,$7,$8,$9)`,
+        [randomUUID(), id, line.foodId, line.quantity, line.unitId, index,line.servingPart ?? 'main',line.cookingFactor ?? null,line.recipeId??null],
       );
     }
+    validateRecipeGraph(await loadRecipeGraph(client,data.householdId));
     await syncServingParts(client,id,data);
+    await syncRecipeParents(client,id,data.householdId);
     const recipe = await readRecipe(client, id);
     await client.query('COMMIT');
     return recipe;
   } catch (error) {
     await client.query('ROLLBACK');
-    if (['serving-weight-conversion-required','invalid-serving-weight','serving-part-removal-not-supported'].includes(error.message)) return {error:error.message};
+    if ([...componentErrors,'serving-weight-conversion-required','invalid-serving-weight','serving-part-removal-not-supported'].includes(error.message)) return {error:error.message};
     if (error.code === '23503') return { error: 'unknown-household-food-or-unit' };
     throw error;
   } finally {
@@ -149,16 +158,30 @@ export async function updateRecipe(pool, id, data) {
   try {
     await client.query('BEGIN');
     await lockHouseholdInventory(client,data.householdId);
-    const prepared=await client.query(`SELECT 1 FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
+    if(data.lines.some(line=>line.recipeId===id))throw new Error('recipe-ingredient-cycle');
+    const prepared=await client.query(`WITH RECURSIVE parents(id) AS (
+      SELECT $2::uuid UNION SELECT r.id FROM parents p JOIN recipe_lines l ON l.ingredient_recipe_id=p.id JOIN recipes r ON r.id=l.recipe_id WHERE r.household_id=$1
+    ) SELECT 1 FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
       JOIN recipes used ON used.id=i.recipe_id WHERE m.household_id=$1 AND m.prepared_at IS NOT NULL
-      AND (used.id=$2 OR used.parent_recipe_id=$2) LIMIT 1`,[data.householdId,id]);
+      AND (used.id IN(SELECT id FROM parents) OR used.parent_recipe_id IN(SELECT id FROM parents)) LIMIT 1`,[data.householdId,id]);
     if(prepared.rowCount){await client.query('ROLLBACK');return {error:'recipe-used-in-prepared-meal'};}
+    const previous=await client.query('SELECT yield_unit_id,separate_starch,serving_weights FROM recipes WHERE id=$1 AND household_id=$2',[id,data.householdId]);
+    const old=previous.rows[0];
+    const keys=data.separateStarch?[...new Set(data.lines.map(line=>line.servingPart??'main'))].sort().join(','):'';
+    const oldKeys=old?.separate_starch?Object.keys(old.serving_weights??{}).sort().join(','):'';
+    if(old && (old.yield_unit_id!==data.yield.unitId || oldKeys!==keys)){
+      const history=await client.query(`SELECT 1 FROM recipe_stock_uses u JOIN recipes r ON r.id=u.recipe_id
+        WHERE u.household_id=$1 AND (r.id=$2 OR r.parent_recipe_id=$2)
+        UNION ALL SELECT 1 FROM stock_lots s JOIN recipes r ON r.id=s.recipe_id
+        WHERE s.household_id=$1 AND (r.id=$2 OR r.parent_recipe_id=$2) AND $3::boolean LIMIT 1`,[data.householdId,id,old.yield_unit_id!==data.yield.unitId]);
+      if(history.rowCount){await client.query('ROLLBACK');return {error:'recipe-output-in-use'};}
+    }
     if (!data.separateStarch) await restoreOriginalServingMode(client,id);
     const updated = await client.query(
       `UPDATE recipes SET name = $3, description = $4, yield_amount = $5,
-              yield_unit_id = $6, instructions = $7, source_url = $8, recipe_type = $9, production_type = $10, meal_moments = $11,separate_starch=$12,serving_weights=CASE WHEN $12 THEN serving_weights ELSE '{}'::jsonb END,cooking_factors=$13::jsonb, version = version + 1, updated_at = now()
+              yield_unit_id = $6, instructions = $7, source_url = $8, recipe_type = $9, production_type = $10, meal_moments = $11,separate_starch=$12,serving_weights=CASE WHEN $12 THEN serving_weights ELSE '{}'::jsonb END,cooking_factors=$13::jsonb,output_units=$14::jsonb, version = version + 1, updated_at = now()
         WHERE id = $1 AND household_id = $2 AND parent_recipe_id IS NULL RETURNING id`,
-      [id, data.householdId, data.name, data.description, data.yield.amount, data.yield.unitId, data.instructions, data.sourceUrl, data.recipeType, data.productionType, data.mealMoments,data.separateStarch ?? false,JSON.stringify(data.cookingFactors ?? {main:1,starch:3})],
+      [id, data.householdId, data.name, data.description, data.yield.amount, data.yield.unitId, data.instructions, data.sourceUrl, data.recipeType, data.productionType, data.mealMoments,data.separateStarch ?? false,JSON.stringify(data.cookingFactors ?? {main:1,starch:3}),JSON.stringify(data.outputUnits??{})],
     );
     if (!updated.rowCount) {
       await client.query('ROLLBACK');
@@ -167,18 +190,20 @@ export async function updateRecipe(pool, id, data) {
     await client.query('DELETE FROM recipe_lines WHERE recipe_id = $1', [id]);
     for (const [index, line] of data.lines.entries()) {
       await client.query(
-        `INSERT INTO recipe_lines (id, recipe_id, food_id, quantity, unit_id, sort_order,serving_part,cooking_factor)
-         VALUES ($1, $2, $3, $4, $5, $6,$7,$8)`,
-        [randomUUID(), id, line.foodId, line.quantity, line.unitId, index,line.servingPart ?? 'main',line.cookingFactor ?? null],
+        `INSERT INTO recipe_lines (id, recipe_id, food_id, quantity, unit_id, sort_order,serving_part,cooking_factor,ingredient_recipe_id)
+         VALUES ($1, $2, $3, $4, $5, $6,$7,$8,$9)`,
+        [randomUUID(), id, line.foodId, line.quantity, line.unitId, index,line.servingPart ?? 'main',line.cookingFactor ?? null,line.recipeId??null],
       );
     }
+    validateRecipeGraph(await loadRecipeGraph(client,data.householdId));
     await syncServingParts(client,id,data);
+    await syncRecipeParents(client,id,data.householdId);
     const recipe = await readRecipe(client, id);
     await client.query('COMMIT');
     return recipe;
   } catch (error) {
     await client.query('ROLLBACK');
-    if (['serving-weight-conversion-required','invalid-serving-weight','serving-part-removal-not-supported'].includes(error.message)) return {error:error.message};
+    if ([...componentErrors,'serving-weight-conversion-required','invalid-serving-weight','serving-part-removal-not-supported'].includes(error.message)) return {error:error.message};
     if (error.code === '23503') return { error: 'unknown-household-food-or-unit' };
     throw error;
   } finally {
@@ -186,20 +211,21 @@ export async function updateRecipe(pool, id, data) {
   }
 }
 
-export async function readRecipe(client, id) {
+export async function readRecipe(client, id, path=[]) {
+  if(path.includes(id))throw new Error('recipe-ingredient-cycle');
   const recipeResult = await client.query(
-    `SELECT id, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type, meal_moments,separate_starch,serving_weights,cooking_factors,parent_recipe_id,serving_part,version,
+    `SELECT id, household_id,output_units, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type, meal_moments,separate_starch,serving_weights,cooking_factors,parent_recipe_id,serving_part,version,
             EXISTS (SELECT 1 FROM recipe_images WHERE recipe_id=recipes.id) AS image_available
        FROM recipes WHERE id = $1`, [id],
   );
   const row = recipeResult.rows[0];
   if (!row) return null;
   const linesResult = await client.query(
-    `SELECT id, food_id, quantity, unit_id, sort_order,serving_part,cooking_factor FROM recipe_lines
+    `SELECT id, food_id, ingredient_recipe_id, quantity, unit_id, sort_order,serving_part,cooking_factor FROM recipe_lines
       WHERE recipe_id = $1 ORDER BY sort_order`, [id],
   );
   const lines = linesResult.rows.map((line) => ({
-    id: line.id, foodId: line.food_id, quantity: Number(line.quantity), unitId: line.unit_id,
+    id: line.id, foodId: line.food_id, recipeId:line.ingredient_recipe_id??null, quantity: Number(line.quantity), unitId: line.unit_id,
     componentId: null, variantId: null, servingPart: line.serving_part ?? 'main', cookingFactor: line.cooking_factor == null ? null : Number(line.cooking_factor),
   }));
   const foodIds = [...new Set(lines.map((line) => line.foodId))];
@@ -230,24 +256,50 @@ export async function readRecipe(client, id) {
       gramsPerMillilitre: food.grams_per_millilitre == null ? null : Number(food.grams_per_millilitre),
     };
   });
-  const nutrition = calculateRecipeNutrition(lines, foods, Number(row.yield_amount));
+  const nutritionLines=lines.map(line=>({...line}));
+  const graph=lines.some(line=>line.recipeId)?await loadRecipeGraph(client,row.household_id):null;
+  for(const [index,line] of lines.entries())if(line.recipeId){
+    const component=await readRecipe(client,line.recipeId,[...path,id]);
+    const fraction=recipeFraction(graph,line.recipeId,line.quantity,line.unitId);
+    line.foodName=component.name;line.recipeName=component.name;
+    foods.push({id:line.recipeId,name:component.name,nutrientsPer100g:component.nutrition.batch,gramsPerUnit:{}});
+    nutritionLines[index]={...line,foodId:line.recipeId,quantity:fraction*100,unitId:'g'};
+    if(!component.nutrition.complete)line.componentIncomplete=true;
+  }
+  const nutrition = calculateRecipeNutrition(nutritionLines, foods, Number(row.yield_amount));
+  for(const [index,line] of lines.entries())if(line.componentIncomplete){
+    nutrition.complete=false;
+    if(!nutrition.lineIssues.some(issue=>issue.lineIndex===index))nutrition.lineIssues.push({lineIndex:index,reason:'component-data-missing',missingNutrients:[]});
+  }
   if (row.parent_recipe_id) nutrition.perYieldUnit = Object.fromEntries(Object.entries(nutrition.batch).map(([key,value]) => [key,value == null ? null : value / Number(row.yield_amount)]));
   const foodById = new Map(foods.map((food) => [food.id, food]));
   const servingParts = [];
   if (row.separate_starch) {
     const children = await client.query('SELECT id FROM recipes WHERE parent_recipe_id=$1 ORDER BY serving_part', [id]);
-    for (const child of children.rows) servingParts.push(await readRecipe(client,child.id));
+    for (const child of children.rows) servingParts.push(await readRecipe(client,child.id,[...path,id]));
   }
   return {
     separateStarch:row.separate_starch ?? false,servingWeights:row.serving_weights ?? {},cookingFactors:row.cooking_factors ?? {main:1,starch:3},parentRecipeId:row.parent_recipe_id ?? null,servingPart:row.serving_part ?? null,servingParts,imageAvailable:Boolean(row.image_available),
     id: row.id, version: Number(row.version ?? 0), name: row.name, description: row.description, instructions: row.instructions ?? '', sourceUrl: row.source_url ?? null,
     recipeType: row.recipe_type ?? 'dish', productionType: row.production_type ?? 'none', mealMoments: row.meal_moments ?? [],
+    outputUnits:row.output_units??{},
     yield: { amount: Number(row.yield_amount), unitId: row.yield_unit_id },
-    lines: lines.map((line, index) => ({ ...line, foodName: foodById.get(line.foodId)?.name ?? null, resolved: !nutrition.unresolvedLineIndexes.includes(index) })),
+    lines: lines.map((line, index) => ({ ...line, foodName: line.foodName??foodById.get(line.foodId)?.name ?? null, resolved: !nutrition.unresolvedLineIndexes.includes(index) })),
     nutrition,
   };
 }
 
 function isUuid(value) {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+async function syncRecipeParents(client,id,householdId,path=[]) {
+  if(path.includes(id))throw new Error('recipe-ingredient-cycle');
+  const parents=await client.query('SELECT DISTINCT r.id FROM recipe_lines l JOIN recipes r ON r.id=l.recipe_id WHERE l.ingredient_recipe_id=$1 AND r.household_id=$2 AND r.parent_recipe_id IS NULL',[id,householdId]);
+  for(const parent of parents.rows){
+    const recipe=await readRecipe(client,parent.id);
+    await syncServingParts(client,parent.id,{...recipe,householdId});
+    await client.query('UPDATE recipes SET version=version+1,updated_at=now() WHERE id=$1',[parent.id]);
+    await syncRecipeParents(client,parent.id,householdId,[...path,id]);
+  }
 }

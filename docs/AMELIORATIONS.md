@@ -50,3 +50,7 @@ Une première expérimentation pourrait se limiter à un catalogue public en lec
 ## Prochaines décisions
 
 La liste synthétique à jour est dans [TODO.md](TODO.md). Première piste proposée : filtre des aliments inutilisés, puis étude d’une fusion guidée des doublons avec aperçu des références et préservation des stocks, conversions et magasins. Ensuite : aide à la correction des données manquantes, confort mobile, comptes et communauté. Cet ordre reste une proposition ; attendre la demande de l’utilisateur avant de commencer.
+
+## Recettes utilisées comme composants — réalisé en 0.2.82
+
+« + Préparation maison » permet d’utiliser pain/bagel, sauce, pâtes et accompagnements dans les plats. Unités à la pièce, à la tranche, en portion, g ou ml selon les équivalences explicites ; apports dérivés et besoins des menus étendus aux composants après couverture par le stock. Les composants suivis sont produits avant les plats ; les ingrédients ne sont pas déduits deux fois. Les références, annulations et services indépendants sont protégés. Ce chantier ne doit pas être proposé à nouveau.
