@@ -142,3 +142,8 @@ Migration additive : db/migrations/20261018_shopping_products.sql (tables househ
 Lorsque la liste propose 26 œufs avec une règle 1 œuf = 50 g, le champ Quantité réellement achetée est en œufs et vaut 26 par défaut. Le comptage de stock utilise aussi les œufs ; 400 g sont affichés comme 8 œufs (400 g). Les confirmations indiquent nombre d’unités et poids correspondant. La conversion selon la règle explicite se fait une seule fois lors de l’envoi à l’API ; le stock reste enregistré en grammes.
 
 Même principe pour les pots/unités personnalisées appliquées. Un format de paquet configuré reste prioritaire : saisie en nombre de paquets, comptage fractionnaire permis pour un paquet entamé. Sans règle ou paquet appliqué, la saisie garde l’unité native ; aucune équivalence en grammes n’est inventée. Pas de migration ni modification des besoins/recettes, des regroupements ou des données de stock existantes.
+
+
+## Source Instagram dans la fiche cuisine
+
+Depuis la 0.2.91, la source d’une recette peut être consultée dans une incrustation Instagram à la demande. La publication affiche sa vidéo si elle en contient une et si Instagram autorise la lecture. Le lecteur est arrêté à la fermeture/au masquage, et le lien d’origine reste disponible. Aucun téléchargement ou hébergement de vidéo ; pas de détection certaine vidéo/photo à partir du seul lien, ni modification des quantités ou productions.

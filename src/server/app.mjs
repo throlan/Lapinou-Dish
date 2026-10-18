@@ -36,6 +36,7 @@ const staticFiles = new Map([
   ['/meal-config.js', ['meal-config.js', 'text/javascript; charset=utf-8']],
   ['/preparation-weeks.js', ['preparation-weeks.js', 'text/javascript; charset=utf-8']],
   ['/cooking-sheet.js', ['cooking-sheet.js', 'text/javascript; charset=utf-8']],
+  ['/cooking-instagram.js', ['cooking-instagram.js', 'text/javascript; charset=utf-8']],
   ['/recipe-directory.js', ['recipe-directory.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
   ['/editorial.css', ['editorial.css', 'text/css; charset=utf-8']],

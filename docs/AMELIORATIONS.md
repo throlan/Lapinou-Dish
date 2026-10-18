@@ -1,6 +1,6 @@
 # Cahier des améliorations proposées
 
-Mis à jour le 18 octobre 2026 après la webapp installable 0.2.90 et la refonte visuelle 0.2.89 Magazine culinaire · Encre framboise. Ce document rassemble des pistes demandées ou suggérées. Chaque chantier devra être précisé avant sa mise en œuvre. Les fonctionnalités livrées restent décrites dans [STATUS.md](STATUS.md) et le dernier journal est [SESSION-2026-10-18.md](SESSION-2026-10-18.md).
+Mis à jour le 18 octobre 2026 après le volet Instagram de Cuisiner 0.2.91, la webapp installable 0.2.90 et la refonte visuelle 0.2.89 Magazine culinaire · Encre framboise. Ce document rassemble des pistes demandées ou suggérées. Chaque chantier devra être précisé avant sa mise en œuvre. Les fonctionnalités livrées restent décrites dans [STATUS.md](STATUS.md) et le dernier journal est [SESSION-2026-10-18.md](SESSION-2026-10-18.md).
 
 ## Expérience des recettes
 
@@ -19,6 +19,10 @@ L'ajout, le remplacement, la suppression et la génération à la demande sont l
 ### Filtrer les recettes incomplètes
 
 **Livré** : filtres données manquantes, nutrition, instructions et photo ; filtre nutrition incomplète parmi les recettes planifiées depuis le premier jour du mois courant et à venir, et badge dans les préparations à faire. Les liens et les quantités restent indépendants de ces filtres. Prolongement possible : détailler la cause par ingrédient ou conversion et faciliter sa correction. Une donnée inconnue ne devient jamais zéro.
+
+## Publication Instagram dans Cuisiner
+
+**Livré en 0.2.91**, demande ponctuelle avant la suite des priorités : incrustation de la publication correspondant au lien source Instagram, avec vidéo lorsque la publication en contient une et autorise sa lecture. Chargement au clic, arrêt au masquage/fermeture et lien de repli. Le lien seul ne permet pas de détecter sûrement une vidéo ; pas de scraping ni téléchargement. Les restrictions Instagram peuvent empêcher l’intégration. Ceci ne remplace pas la piste distincte des photos personnelles dans la fiche cuisine.
 
 ## Usage mobile et webapp
 
