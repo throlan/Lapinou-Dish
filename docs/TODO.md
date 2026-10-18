@@ -1,6 +1,6 @@
 # Prochaines tâches — 18 octobre 2026
 
-Référence du code : **0.2.84**, unités mixtes des services séparés dans le calendrier. Dernière livraison antérieure vérifiée : **0.2.83**, PR #113 fusionnée et publiée. **263 tests locaux réussis**. Vérifier les contrôles et la publication du dernier commit de main. Aucun nouveau chantier ne doit démarrer avant la demande de l’utilisateur.
+Référence du code : **0.2.85**, arrondi coordonné et écarts aux proportions visibles. Dernière livraison antérieure vérifiée : **0.2.84**, PR #114 fusionnée et publiée. Priorité validée : unités entières avec écarts explicites. Vérifier les contrôles et la publication de la tête de main. Aucun nouveau chantier ne doit démarrer sans demande de l’utilisateur.
 
 ## Pistes à choisir et préciser
 
@@ -13,6 +13,8 @@ Référence du code : **0.2.84**, unités mixtes des services séparés dans le 
 Détails et variantes dans [AMELIORATIONS.md](AMELIORATIONS.md). Les variantes indépendantes de recettes et l'affichage de photos en mode cuisine restent des pistes à confirmer, sans priorité décidée.
 
 ## Déjà livré — ne pas remettre dans le reste à faire
+
+- Arrondi coordonné œufs/tranches/services en grammes et affichage, par personne, des grammes, pourcentages réels, repères et écarts en points, hors des détails repliés. Les unités entières sont prioritaires selon le choix explicite de l’utilisateur.
 
 - Unités mixtes des services séparés simples : œufs/pièces, soupe/grammes, pain/tranches, conversion de saisie et suggestions en unités entières ; anciens menus conservés sans arrondi implicite.
 

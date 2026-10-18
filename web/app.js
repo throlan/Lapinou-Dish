@@ -1,4 +1,5 @@
 import { breakfastServingLimit, calculateDailyEnergy, calculateDailyProtein, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, dailyProteinTarget, capAccompanimentQuantity, mainServingLimit, MIN_PROTEIN_G_PER_MEAL, rebalanceNaturalPortions, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';
+import {plateComposition} from './plate-composition.js';
 import {servingUnit,servingUnitLabel,displayServingQuantity,setServingInput,servingInputValue} from './serving-quantities.js';
 import { MEAL_ORDER, MEAL_LABELS, validMealRatios } from './meal-config.js';
 import { suggestPlatePortions } from './portion-planner.js';
@@ -2529,7 +2530,7 @@ function applyAutomaticPortions(items, attendeeIds) {
     if (Number.isFinite(budget) && proposals.length && proposals.every((proposal) => Number.isFinite(proposal.recipeKcal) && proposal.recipeKcal > 0)) {
       const result = suggestPlatePortions(proposals, budget, state.plateRatios);
       result.warnings.forEach(message=>messages.add(message));
-      if(result.proportionsApplied)messages.add('Proportions en poids estimé appliquées depuis Administration. Le poids total respecte le budget kcal et les plafonds des parties ; le repère protéique ne modifie pas ces proportions.');
+      if(result.proportionsApplied)messages.add(result.approximateProportions?'Répartition approchée depuis Administration avec unités entières. Consulte les pourcentages réels et les écarts affichés sous chaque personne.':'Proportions en poids estimé appliquées depuis Administration. Le poids total respecte le budget kcal et les plafonds des parties ; le repère protéique ne modifie pas ces proportions.');
       result.proposals.forEach((proposal) => {
         if (isIndividualRole(proposal.role)) proposal.assignment.quantity = String(proposal.quantity);
         else proposal.item.amounts[personId] = proposal.quantity == null ? '' : String(proposal.quantity);
@@ -2572,12 +2573,31 @@ function mealProteinSummary(items, attendeeIds) {
     energyTag.className=`protein-tag ${!energy.known || objective==null?'protein-unknown':energy.kcal<=objective?'protein-sufficient':'protein-low'}`;
     energyTag.textContent=`Kcal : ${energy.known?format(energy.kcal):'—'} / ${objective==null?'—':format(objective)}`;
     energyTag.title=objective==null?'Objectif quotidien à renseigner dans le profil':`Objectif du repas : ${ratio*100} % du besoin quotidien. Les propositions automatiques autorisent une marge de 100 kcal, dans le budget quotidien restant.`;
-    row.append(name,energyTag,tag);root.append(row);
+    row.append(name,energyTag,tag);appendPlateComposition(row,meal,personId);root.append(row);
   }
   return root;
 }
 function updateMealProteinSummary() {
   $('#meal-protein-summary')?.replaceWith(mealProteinSummary(currentFormAmounts(),$$('#meal-attendees input:checked').map(input=>input.value)));
+}
+
+function appendPlateComposition(root,meal,personId) {
+  const labels={main:'Protéines',starch:'Féculents',vegetables:'Légumes'};
+  for(const report of plateComposition(meal.items,personId,state.recipes,state.plateRatios)){
+    const block=document.createElement('div');block.className='meal-plate-composition';
+    const title=document.createElement('strong');title.textContent='Assiette · '+report.name;block.append(title);
+    if(!report.complete){const message=document.createElement('p');message.textContent='Répartition non calculable : complète les quantités et vérifie les parties manquantes ou répétées.';block.append(message);}
+    else{
+      const note=document.createElement('p');note.textContent=report.exact?'Répartition en poids estimé conforme au repère.':'Répartition réelle en poids estimé · les unités entières peuvent créer un écart au repère.';block.append(note);
+      for(const part of report.parts){
+        const line=document.createElement('p');line.className='plate-composition-part';
+        const delta=Math.abs(part.deltaPoints)<0.005?'0':(part.deltaPoints>0?'+':'')+formatQty(part.deltaPoints);
+        line.textContent=(part.key==='main'&&!report.parts.some(p=>p.key==='vegetables')?'Viande et légumes':labels[part.key])+' : '+formatQty(part.percent)+' % ('+formatQty(part.grams)+' g) · repère '+formatQty(part.targetPercent)+' % · écart '+delta+' point(s)';
+        block.append(line);
+      }
+    }
+    root.append(block);
+  }
 }
 
 function allPlanningRecipes() { return state.recipes.flatMap(recipe => [recipe,...(recipe.servingParts ?? [])]); }
@@ -2628,6 +2648,9 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     const role = document.createElement('select'); role.name = 'role'; role.setAttribute('aria-label', 'Catégorie de la recette');
     plannedItemRoleOptions(item.role).forEach(([value, label]) => role.add(new Option(label, value)));
     role.value = item.role ?? 'main';
+    if(allPlanningRecipes().find(recipe=>recipe.id===item.recipeId)?.parentRecipeId){
+      for(const option of role.options)if(option.value==='main'||option.value==='accompaniment')option.textContent=option.value==='main'?'Recette principale · assiette':'Accompagnement · assiette';
+    }
     const slot = $('#meal-form').elements.slot.value;
     recipesForPlanning(slot, role.value, [item.recipeId]).forEach((recipe) => select.add(new Option(recipePlanningLabel(recipe), recipe.id)));
     select.value = item.recipeId ?? '';

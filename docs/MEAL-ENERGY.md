@@ -44,7 +44,7 @@ Les boissons, desserts et collations ne sont pas réduits. Les profils mineurs, 
 
 **Appliquer ces quantités** sauvegarde les propositions dans une transaction. Un changement de planning, recette, nutrition ou profil depuis l'aperçu impose un nouveau calcul. Réappliquer un ancien aperçu ne réduit pas une deuxième fois les portions.
 
-Le rééquilibrage change les prévisions et les réservations liées aux repas, pas les stocks physiques ni les mouvements d'ingrédients déjà enregistrés. Les parties liées d'une assiette sont réduites ensemble pour conserver leurs proportions saisies. La composition des nouvelles propositions se règle séparément dans Administration : voir [les proportions en grammes](SERVING-GRAMS.md). Aucun journal de consommation réelle n'est souhaité.
+Le rééquilibrage change les prévisions et les réservations liées aux repas, pas les stocks physiques ni les mouvements d'ingrédients déjà enregistrés. Les parties liées toutes en grammes sont réduites ensemble pour conserver leurs proportions saisies ; les parties à la pièce/tranche gardent leurs pas entiers et peuvent donc s’écarter du repère. La composition des nouvelles propositions se règle séparément dans Administration : voir [les proportions en grammes](SERVING-GRAMS.md). Aucun journal de consommation réelle n'est souhaité.
 
 ## Repères techniques
 
@@ -57,3 +57,7 @@ Le rééquilibrage change les prévisions et les réservations liées aux repas,
 ## Salades et sauces — 0.2.72
 
 Une salade suit les mêmes règles qu’un plat. Une sauce ajoutée par « + Sauce » compte dans les kcal et protéines du repas, avec quantité initiale 30 g/ml ou une unité selon le rendement, modifiable par personne et pouvant être nulle. Sa quantité est fixe pendant les suggestions et le rééquilibrage : elle ne sert pas à compléter un pourcentage ou un objectif protéique. Les quantités ajustables du plat tiennent compte de ses apports.
+
+## Lecture des proportions après arrondi — 0.2.85
+
+Les proportions d’Administration concernent les poids estimés servis, pas les kcal ni les nombres d’unités. Pour les assiettes à œufs/pièces et tranches, l’utilisateur privilégie les unités entières : le recalcul coordonne les comptes avec les services en grammes et affiche pour chaque personne poids, pourcentage réel, repère et écart en points. Les boissons et sauces fixes restent incluses dans le budget kcal, sans être intégrées aux pourcentages des parties de l’assiette.
