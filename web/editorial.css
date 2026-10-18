@@ -187,6 +187,11 @@
   .shopping-count-stock { min-width:0; }
   .cook-part label { color:var(--text); }
   .cook-part li { padding-block:10px; }
+  .cooking-instagram { padding:16px; border:1px solid var(--line); border-radius:12px; }
+  .cooking-instagram[hidden] { display:none; }
+  .cooking-instagram h3 { margin-top:0; }
+  .cooking-instagram .hint { margin:12px 0 8px; }
+  .cooking-instagram-player iframe { display:block; width:100%; max-width:480px; height:780px; margin:16px auto 0; border:0; border-radius:10px; background:var(--panel); }
   .form-grid,.yield-row,.profile-create,.ingredient-fields,.routine-row,.recipe-taxonomy,.planned-amounts { min-width:0; }
   .view>*,.card>*,.shopping-item-main>*,.recipe-line>*,.dashboard-layout>* { min-width:0; }
   /* Tablet: 768–1199px. Keep navigation visible and present data in two columns. */

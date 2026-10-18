@@ -1,3 +1,4 @@
+import {mountCookingInstagram} from '../web/cooking-instagram.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -21,7 +22,7 @@ function cookingUI(){
     servingParts:[{id:'whole',yield:{amount:2760,unitId:'g'}}],lines:[{foodName:'Ingredient',quantity:2760,unitId:'g'}]};
   const $=selector=>{if(!elements.has(selector))elements.set(selector,element());return elements.get(selector);};
   const context={$,document:{createElement:element,createTextNode:text=>({textContent:text})},state:{household:{id:'household'},recipes:[recipe]},
-    productionRecipe,scaledIngredients,scaledSourceIngredients,cookingYield,suggestedServingQuantities,formatQty:q=>String(q),localDateValue:()=> '2026-10-19',
+    mountCookingInstagram,productionRecipe,scaledIngredients,scaledSourceIngredients,cookingYield,suggestedServingQuantities,formatQty:q=>String(q),localDateValue:()=> '2026-10-19',
     showMessage:(target,text)=>{target.textContent=text;},newProductionRequestId:()=> 'request',
     api:async(path,options)=>{requests.push({path,payload:JSON.parse(options.body)});return {};},
     refreshShopping:async()=>{},refreshDashboard:async()=>{}};

@@ -1,4 +1,5 @@
 import { breakfastServingLimit, calculateDailyEnergy, calculateDailyProtein, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, dailyProteinTarget, capAccompanimentQuantity, mainServingLimit, MIN_PROTEIN_G_PER_MEAL, rebalanceNaturalPortions, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';
+import {mountCookingInstagram} from './cooking-instagram.js';
 import {servingUnit,servingUnitLabel,displayServingQuantity,setServingInput,servingInputValue} from './serving-quantities.js';
 import {roundServingCalories,compensateManualServing} from './serving-compensation.js';
 import {shoppingPreferenceControls,shoppingPreferencesPanel,shoppingPreferenceError} from './shopping-preferences.js';
@@ -1460,6 +1461,7 @@ async function showRecipeCard(recipeId,recipeName=null){
   $('#recipe-list [data-recipe-id="'+recipe.id+'"]')?.scrollIntoView({block:'center'});
 }
 let cookingRecipeId=null,cookingRequest=null,cookingPartInputs=[],cookingState=null;
+let stopCookingInstagram=()=>{};
 function renderCookingIngredients(){
   const recipe=state.recipes.find(item=>item.id===cookingRecipeId),form=$('#cook-form');if(!recipe)return;
   const free=cookingState?.mode==='free';
@@ -1526,12 +1528,15 @@ function openCookingSheet(recipeId,quantity,productionDate,planned,initialMode='
   $('#cook-title').textContent=recipe.name;$('#cook-description').textContent=recipe.description??'';
   $('#cook-instructions').textContent=recipe.instructions?.trim()||'Aucune instruction renseignée dans la recette.';
   const source=$('#cook-source');source.replaceChildren();if(recipe.sourceUrl){const link=document.createElement('a');link.href=recipe.sourceUrl;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Source de la recette';source.append(link);}
+  stopCookingInstagram();stopCookingInstagram=mountCookingInstagram($('#cook-video'),recipe.sourceUrl,document);
   const tracked=recipe.productionType&&recipe.productionType!=='none';
   $('#cook-production-fields').classList.toggle('hidden',!tracked);$('#save-cook').classList.toggle('hidden',!tracked);
   form.elements.producedOn.required=Boolean(tracked);
   showMessage($('#cook-message'),tracked?'':'Cette recette n’est pas suivie en stock. Sa fiche reste consultable et les quantités peuvent être ajustées.');
   configureCookingMode();$('#cook-dialog').showModal();
 }
+$('#cook-dialog')?.addEventListener('close',()=>stopCookingInstagram());
+$('#cook-dialog')?.addEventListener('cancel',()=>stopCookingInstagram());
 $('#cook-mode')?.addEventListener('change',configureCookingMode);
 $('#cook-form')?.elements.quantity.addEventListener('input',renderCookingIngredients);
 for(const id of ['close-cook-dialog','cancel-cook'])$('#'+id)?.addEventListener('click',()=>$('#cook-dialog').close());

@@ -1,6 +1,6 @@
 # Prochaines tâches — 18 octobre 2026
 
-Référence du code : **0.2.90**, webapp installable et icônes livrées après la charte claire Magazine culinaire · Encre framboise responsive PC/tablette/mobile, sans changement métier. La 0.2.88 conserve la saisie en unités d’achat et stock compté cohérents, après les produits communs et exclusions 0.2.87. Le calcul 0.2.86 (base 0.2.83) reste conservé ; les calculs 0.2.84/85 sont abandonnés. Vérifier les contrôles et la publication de main. Aucun nouveau chantier sans demande de l’utilisateur.
+Référence du code : **0.2.91**, volet Instagram de la fiche cuisine ajouté avant la suite des priorités, sur la webapp installable et icônes livrées après la charte claire Magazine culinaire · Encre framboise responsive PC/tablette/mobile, sans changement métier. La 0.2.88 conserve la saisie en unités d’achat et stock compté cohérents, après les produits communs et exclusions 0.2.87. Le calcul 0.2.86 (base 0.2.83) reste conservé ; les calculs 0.2.84/85 sont abandonnés. Vérifier les contrôles et la publication de main. Aucun nouveau chantier sans demande de l’utilisateur.
 
 ## Pistes à choisir et préciser
 
@@ -13,6 +13,8 @@ Référence du code : **0.2.90**, webapp installable et icônes livrées après 
 Détails et variantes dans [AMELIORATIONS.md](AMELIORATIONS.md). Les variantes indépendantes de recettes et l'affichage de photos en mode cuisine restent des pistes à confirmer, sans priorité décidée.
 
 ## Déjà livré — ne pas remettre dans le reste à faire
+
+- Instagram dans Cuisiner (0.2.91) : publication de la source chargée au clic, vidéo si disponible, lecteur arrêté à la fermeture et lien d’origine conservé. Lecture dépendante d’Instagram ; aucune vidéo téléchargée.
 
 - Webapp installable : manifeste, icônes lapin/cocotte, guide et invitation native quand disponible, ouverture standalone. Aucune couche de cache hors ligne ; mises à jour à la réouverture/actualisation.
 
