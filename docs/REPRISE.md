@@ -4,7 +4,7 @@
 
 - Dépôt : https://github.com/throlan/Lapinou-Dish ; branche de référence : `origin/main`.
 - Version du code : **0.2.91** : publication Instagram intégrable dans Cuisiner depuis le lien source, à la demande, puis webapp installable (manifeste, icônes et guide) sur la refonte visuelle claire Magazine culinaire · Encre framboise, responsive PC/tablette/mobile, sans changement métier. La 0.2.88 conserve la saisie des achats et du stock compté dans l’unité d’achat (œufs, pots, paquets…), conversion unique vers l’unité de stock. Regroupements et exclusions de la 0.2.87 conservés. Le calcul 0.2.86 reste fondé sur la **base fonctionnelle validée 0.2.83**, sans les calculs abandonnés 0.2.84/85.
-- Dernière publication applicative vérifiée avant ce chantier : **0.2.90**, PR #121, commit f59d45d, [contrôles et GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/39126715652). Priorités documentaires fusionnées par la PR #120. Pour 0.2.91, vérifier le workflow du dernier commit de main.
+- Dernière publication applicative vérifiée avant ce chantier : **0.2.91**, PR #122, commit c3bf80e, [contrôles et GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/39129593328). La présente mise à jour ne change que les documents et conserve la version applicative.
 - Validation 0.2.91 : **298 tests locaux réussis**. Lecteur testé sur publication fictive interceptée : chargement seulement au clic, arrêt au masquage/fermeture/Escape et aucune incrustation sans source Instagram compatible. Lecture d’une publication réelle non confirmée ; dépend des autorisations et restrictions Instagram. Chrome local : manifeste sans erreur et aucun motif de non-installabilité ; bouton natif proposé dans le profil jetable. Pas de service worker ni de nouvelle couche de cache hors ligne. Parcours des sept pages dans Chrome local sur base fictive PGlite, largeurs 1440, 1280, 900, 390 et 320 px ; fiches repas/aliment/cuisine et éditeur de recette, navigation mobile et absence de débordement horizontal vérifiés. Impression existante conservée ; tests par émulation de viewport, pas sur appareils physiques.
 - Références : [état](STATUS.md), [prochaines tâches](TODO.md), [produit](PRODUCT.md), [améliorations](AMELIORATIONS.md), [journal du 18 octobre](SESSION-2026-10-18.md).
 
@@ -19,6 +19,12 @@
 3. Récupérer `origin/main` sans écrasement. Sur un main propre, avancer seulement en fast-forward ; sinon inspecter et isoler le travail avant de changer de base. Aucun reset destructif ni nettoyage forcé.
 4. Vérifier GitHub, `package.json` et les documents liés ci-dessus. Les journaux antérieurs au 18 octobre sont historiques ; le dernier journal est `SESSION-2026-10-18.md`.
 5. Faire un état bref et proposer les prochaines étapes ; **attendre la demande de l'utilisateur avant une nouvelle modification fonctionnelle**.
+
+## Décisions de périmètre récentes
+
+- Comptes individuels reportés explicitement après discussion du projet communautaire/hébergé ; aucune implémentation commencée et aucun modèle de droits validé.
+- Une seule collation souhaitée, l’après-midi : évolution à planifier, pas encore implémentée. Les cinq créneaux et menus existants doivent être préservés tant que la transition n’est pas développée.
+- La recherche nutritionnelle n’a pas changé les pourcentages ni ajouté de quotas selon l’âge. Ne pas prendre un repère de discussion pour un réglage validé.
 
 ## Dernières fonctions à ne pas refaire
 
@@ -79,7 +85,7 @@ Reprends le développement de Lapinou Dish. Retrouve le dépôt local par son re
 
 La version du code est 0.2.91 : publication Instagram intégrable dans Cuisiner depuis la source, avec repli vers le lien et arrêt à la fermeture, déjà livrée. Depuis la 0.2.90 : webapp installable avec icônes et guide déjà livrée ; refonte visuelle claire Magazine culinaire · Encre framboise, responsive PC/tablette/mobile, sans changement des calculs ni des fonctionnalités. La 0.2.88 a livré la saisie des achats et du stock compté dans les unités d’achat configurées (ex. nombre d’œufs), avec conversion unique en stock. Produits communs et exclusions 0.2.87 déjà livrés. La version 0.2.86 a restauré le calcul de la 0.2.83, dernière référence fonctionnelle validée par l’utilisateur. Les algorithmes 0.2.84/85 sont abandonnés. Après le calcul initial, œufs/tranches sont arrondis au plus proche et la soupe compense l’écart calorique ; même compensation après saisie manuelle. Vérifie main, package.json et les contrôles/publication GitHub/GHCR correspondants. Ne réintroduis pas les calculs rejetés et ne refais pas les fonctions livrées.
 
-Le nettoyage du catalogue alimentaire est en dernière priorité, après consolidation du cahier de recettes. L’ordre décidé est : 1. webapp installable (livrée en 0.2.90), 2. comptes individuels et foyers, 3. correction des données nutritionnelles, 4. communauté publique, 5. nettoyage du catalogue. Le hors-ligne reste distinct. Fais-moi d'abord un état bref de la version, de la publication et des tâches réellement restantes. Attends ma demande avant toute nouvelle modification fonctionnelle.
+Le nettoyage du catalogue alimentaire est en dernière priorité, après consolidation du cahier de recettes. L’ordre décidé est : 1. webapp installable (livrée en 0.2.90), 2. comptes individuels et foyers (reportés explicitement, modèle non validé : ne pas commencer), 3. correction des données nutritionnelles, 4. communauté publique, 5. nettoyage du catalogue. Le hors-ligne reste distinct. Fais-moi d'abord un état bref de la version, de la publication et des tâches réellement restantes. Attends ma demande avant toute nouvelle modification fonctionnelle.
 
 Règle absolue : n'accède jamais à Unraid ni à Nginx, même pour vérifier ; je gère le déploiement. Les vérifications locales dans un navigateur sur données fictives sont autorisées. Pour les prochains travaux autorisés : tests locaux, commit/push, PR, fusion après réussite des contrôles et vérification de publication GitHub/GHCR.
 ```

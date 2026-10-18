@@ -5,12 +5,18 @@ Référence du code : **0.2.91**, volet Instagram de la fiche cuisine ajouté av
 ## Pistes à choisir et préciser
 
 1. **Webapp — livrée en 0.2.90** : installation, icônes et guide iOS/Android/PC en place, critères vérifiés dans Chrome local. Recueillir le retour sur appareils physiques. Le hors-ligne et la synchronisation restent des chantiers distincts, sans demande de lancement.
-2. **Comptes individuels et foyer** : concevoir compte/personne, rôles gestionnaire/membre, droits côté serveur, invitations et récupération. L'accès actuel reste une session par mot de passe du foyer.
+2. **Comptes individuels et foyer — reportés** : décision de l’utilisateur après discussion du futur usage communautaire et d’une distribution/hébergement. Le modèle de comptes, profils, appartenances et droits reste à cadrer ; le choix gestionnaire/membre proposé initialement n’est pas validé. Aucun développement d’authentification individuelle n’a commencé. L’accès actuel reste une session par mot de passe du foyer. Ne pas reprendre ce chantier sans nouvelle demande.
 3. **Correction des données nutritionnelles** : les filtres et badges existent. Améliorer l'explication des causes de calcul incomplet et l'accès aux ingrédients/conversions à corriger ; définir les critères avant développement.
 4. **Communauté publique** : cadrer bibliothèque volontaire, droits et attribution des images/recettes, modération et isolation des données privées avant toute ouverture.
 5. **Nettoyage du catalogue alimentaire — dernière priorité, après consolidation du cahier de recettes** : le compteur et les liens « Dans X recettes » sont livrés. Première étape proposée : filtre « inutilisés ». Ensuite, envisager une fusion guidée des doublons, avec aperçu des références et conservation des recettes, conversions, associations magasins et stocks. Ne pas supprimer automatiquement des aliments.
 
 Détails et variantes dans [AMELIORATIONS.md](AMELIORATIONS.md). Les variantes indépendantes de recettes et l'affichage de photos en mode cuisine restent des pistes à confirmer, sans priorité décidée.
+
+## Décisions récentes à conserver
+
+- La gestion des utilisateurs est différée ; les autres pistes restent à choisir, sans lancement automatique.
+- Une seule collation est souhaitée, l’après-midi. La suppression du créneau du soir n’est pas implémentée : cadrer la transition et préserver les menus historiques avant de modifier les cinq créneaux actuels.
+- Les répartitions horaires restent actuellement communes au foyer, avec objectifs kcal propres à chaque personne. Aucun quota par âge ni nouvelle répartition nutritionnelle n’a été ajouté à la suite de la recherche documentaire.
 
 ## Déjà livré — ne pas remettre dans le reste à faire
 
