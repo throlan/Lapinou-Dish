@@ -11,8 +11,8 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.2.91">
-    <link rel="stylesheet" href="/editorial.css?v=0.2.91">
+    <link rel="stylesheet" href="/style.css?v=0.2.92">
+    <link rel="stylesheet" href="/editorial.css?v=0.2.92">
   </head>
   <body>
     <header class="topbar">
@@ -121,10 +121,16 @@
             <label class="recipe-search">Rechercher une recette<input id="recipe-search" type="search" placeholder="Nom de la recette…" autocomplete="off"></label>
             <div><strong>Type</strong><div id="recipe-type-filters" class="recipe-filter-buttons"></div></div>
             <div><strong>Moment</strong><div id="recipe-moment-filters" class="recipe-filter-buttons"></div></div>
+            <label>Type de service<select id="recipe-service-filter"><option value="">Tous les services</option><option value="original">Pièces / portions</option><option value="whole">Ensemble · grammes estimés</option><option value="separate">Viande et légumes + féculents</option><option value="three">Protéines, légumes et féculents séparés</option></select></label>
             <label>Fiches à afficher<select id="recipe-missing-filter"><option value="">Toutes les fiches</option><option value="any">Toute donnée à compléter</option><option value="nutrition">Calcul nutritionnel incomplet</option><option value="nutrition-planned">Nutrition incomplète · au calendrier ce mois et après</option><option value="instructions">Instructions absentes</option><option value="image">Photo absente</option></select></label>
             <p id="recipe-filter-count" class="muted" role="status"></p>
           </aside>
           <div class="recipe-results">
+            <div class="recipe-display-toolbar" aria-label="Affichage des recettes">
+              <div class="recipe-view-switch" role="group" aria-label="Vue des recettes"><button type="button" class="secondary" id="recipe-view-grid" aria-pressed="true">Grille</button><button type="button" class="secondary" id="recipe-view-list" aria-pressed="false">Liste</button></div>
+              <label id="recipe-columns-label">Recettes par ligne<select id="recipe-columns"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></label>
+              <label>Recettes par page<select id="recipe-per-page"><option value="12">12</option><option value="24">24</option><option value="48">48</option><option value="96">96</option></select></label>
+            </div>
             <div id="recipe-list" class="recipe-list recipe-grid"><p class="empty">Chargement des recettes…</p></div>
             <nav id="recipe-pagination" class="recipe-pagination" aria-label="Pages de recettes"></nav>
           </div>
@@ -355,7 +361,7 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/install-app.js?v=0.2.91"></script>
-    <script type="module" src="/app.js?v=0.2.91"></script>
+    <script type="module" src="/install-app.js?v=0.2.92"></script>
+    <script type="module" src="/app.js?v=0.2.92"></script>
   </body>
 </html>

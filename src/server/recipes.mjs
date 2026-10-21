@@ -81,10 +81,34 @@ export function validateRecipeSettings(input) {
   if (!['none', 'batch_cooking', 'pasta', 'pastry', 'bread'].includes(input.productionType)) return { error: 'invalid-production-type' };
   const moments = input.mealMoments;
   if (!Array.isArray(moments) || moments.length > 4 || moments.some(moment => !['breakfast', 'lunch', 'dinner', 'snack'].includes(moment)) || new Set(moments).size !== moments.length) return { error: 'invalid-meal-moments' };
-  return { data: { householdId: input.householdId, version: input.version, productionType: input.productionType, mealMoments: moments } };
+  const configuration=input.configuration;
+  if(configuration != null){
+    if(!configuration || typeof configuration!=='object' || !['original','whole','separate','three'].includes(configuration.servingMode))return {error:'invalid-serving-parts'};
+    if(!configuration.yield || !Number.isFinite(configuration.yield.amount) || configuration.yield.amount<=0 || configuration.yield.amount>100000 || !['portion','piece','slice','g','ml'].includes(configuration.yield.unitId))return {error:'invalid-yield'};
+    if(!Array.isArray(configuration.lineParts) || configuration.lineParts.length>300 || configuration.lineParts.some(part=>!['main','vegetables','starch'].includes(part)))return {error:'invalid-serving-parts'};
+    for(const key of ['main','starch'])if(!Number.isFinite(configuration.cookingFactors?.[key]) || configuration.cookingFactors[key]<=0 || configuration.cookingFactors[key]>10)return {error:'invalid-cooking-factor'};
+  }
+  return { data: { householdId: input.householdId, version: input.version, productionType: input.productionType, mealMoments: moments, ...(configuration?{configuration}:{}) } };
 }
 
 export async function updateRecipeSettings(pool, id, data) {
+  if(data.configuration){
+    const ownership=await pool.query('SELECT id FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL',[id,data.householdId]);
+    if(!ownership.rowCount)return null;
+    const current=await readRecipe(pool,id);
+    if(!current)return null;
+    if(current.version!==data.version)return {error:'recipe-version-conflict'};
+    const config=data.configuration;
+    if(config.lineParts.length!==current.lines.length)return {error:'invalid-serving-parts'};
+    // Reuse the complete editor's validation, stock/history protections and parent propagation.
+    const outputUnits={...current.outputUnits};
+    if(Object.hasOwn(outputUnits,config.yield.unitId))outputUnits[config.yield.unitId]=config.yield.amount;
+    const checked=validateRecipeInput({...current,householdId:data.householdId,productionType:data.productionType,mealMoments:data.mealMoments,
+      yield:config.yield,outputUnits,servingMode:config.servingMode,separateStarch:config.servingMode!=='original',cookingFactors:{...config.cookingFactors,vegetables:1},
+      lines:current.lines.map((line,index)=>({...line,servingPart:['separate','three'].includes(config.servingMode)?config.lineParts[index]:'main'}))});
+    if(checked.error)return checked;
+    return updateRecipe(pool,id,checked.data,data.version);
+  }
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -137,7 +161,7 @@ export async function createRecipe(pool, data) {
     return recipe;
   } catch (error) {
     await client.query('ROLLBACK');
-    if ([...componentErrors,'serving-weight-conversion-required','invalid-serving-weight','serving-part-removal-not-supported'].includes(error.message)) return {error:error.message};
+    if ([...componentErrors,'serving-weight-conversion-required','invalid-serving-weight','serving-part-removal-not-supported','serving-parts-cannot-be-disabled'].includes(error.message)) return {error:error.message};
     if (error.code === '23503') return { error: 'unknown-household-food-or-unit' };
     throw error;
   } finally {
@@ -153,11 +177,16 @@ export async function listRecipes(pool, householdId) {
   return Promise.all(result.rows.map(({ id }) => readRecipe(pool, id)));
 }
 
-export async function updateRecipe(pool, id, data) {
+export async function updateRecipe(pool, id, data, expectedVersion=null) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     await lockHouseholdInventory(client,data.householdId);
+    if(expectedVersion!==null){
+      const found=await client.query('SELECT version FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL FOR UPDATE',[id,data.householdId]);
+      if(!found.rowCount){await client.query('ROLLBACK');return null;}
+      if(Number(found.rows[0].version)!==expectedVersion){await client.query('ROLLBACK');return {error:'recipe-version-conflict'};}
+    }
     if(data.lines.some(line=>line.recipeId===id))throw new Error('recipe-ingredient-cycle');
     const prepared=await client.query(`WITH RECURSIVE parents(id) AS (
       SELECT $2::uuid UNION SELECT r.id FROM parents p JOIN recipe_lines l ON l.ingredient_recipe_id=p.id JOIN recipes r ON r.id=l.recipe_id WHERE r.household_id=$1
@@ -203,7 +232,7 @@ export async function updateRecipe(pool, id, data) {
     return recipe;
   } catch (error) {
     await client.query('ROLLBACK');
-    if ([...componentErrors,'serving-weight-conversion-required','invalid-serving-weight','serving-part-removal-not-supported'].includes(error.message)) return {error:error.message};
+    if ([...componentErrors,'serving-weight-conversion-required','invalid-serving-weight','serving-part-removal-not-supported','serving-parts-cannot-be-disabled'].includes(error.message)) return {error:error.message};
     if (error.code === '23503') return { error: 'unknown-household-food-or-unit' };
     throw error;
   } finally {

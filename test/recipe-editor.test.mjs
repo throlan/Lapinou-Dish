@@ -1,3 +1,4 @@
+import {recipeDisplayPreferences} from '../web/recipe-directory.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -18,7 +19,7 @@ function editor() {
   const elements={'#recipe-form':form,'#recipe-lines':{replaceChildren(){}},'#recipe-message':{},'#recipe-result':{classList:{add(){}}},'#recipe-form-title':{},'#delete-current-recipe':remove};
   let recipe;
   const copiedLines=[];
-  const context={ $:selector=>elements[selector],state:{},api:async()=>({recipe}),addRecipeLine(line){copiedLines.push(line);},updateServingConfiguration(){},showMessage(target,text){target.textContent=text;} };
+  const context={ recipeDisplayPreferences,$:selector=>elements[selector],state:{},api:async()=>({recipe}),addRecipeLine(line){copiedLines.push(line);},updateServingConfiguration(){},showMessage(target,text){target.textContent=text;} };
   runInNewContext(source.slice(start,end)+'\nglobalThis.openEditor=openRecipeEditor;',context);
   return {form,boxes,copiedLines,context,remove,async open(value){recipe={name:'Synthetic recipe',yield:{amount:24,unitId:'piece'},nutrition:{lineIssues:[]},lines:[],...value};await context.openEditor('test-id');},async duplicate(value){recipe={name:'Synthetic recipe',yield:{amount:24,unitId:'piece'},nutrition:{lineIssues:[]},lines:[],...value};await context.openEditor('test-id',true);},async create(){await context.openEditor();}};
 }

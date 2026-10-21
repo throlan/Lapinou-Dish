@@ -1,3 +1,4 @@
+import {recipeServiceChoices,recipeServiceMode} from '../web/recipe-directory.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -51,10 +52,10 @@ test('protected recipes, conflicts and connection failures keep the card and sho
 
 test('rendered recipe cards visibly expose a named delete action bound to that recipe',()=>{
   const a=source.indexOf('function recipeCard('),b=source.indexOf('\nfunction renderRecipe(',a);
-  const element=tag=>({tag,children:[],attributes:{},handlers:{},append(...items){this.children.push(...items);},
+  const element=tag=>({tag,options:[],replaceChildren(){this.options=[];},children:[],attributes:{},handlers:{},append(...items){this.children.push(...items);for(const item of items)if(item&&typeof item==='object')item.parentElement=this;if(tag==='select')this.options.push(...items);},
     dataset:{},setAttribute(key,value){this.attributes[key]=value;},addEventListener(name,fn){this.handlers[name]=fn;}});
   const removed=[];const recipe={id:'card-id',name:'Visible recipe',lines:[],yield:{amount:4,unitId:'portion'},nutrition:{complete:true,perYieldUnit:{}}};
-  const context={document:{createElement:element,createTextNode:text=>({textContent:text})},recipeTypeLabel:()=> 'Plat',format:String,
+  const context={recipeServiceChoices,recipeServiceMode,document:{createElement:element,createTextNode:text=>({textContent:text})},recipeTypeLabel:()=> 'Plat',format:String,
     recipeMissingData:()=>[],requestRecipeDeletion:(...args)=>removed.push(args)};
   runInNewContext(source.slice(a,b)+'\nglobalThis.render=recipeCard;',context);
   const card=context.render(recipe);

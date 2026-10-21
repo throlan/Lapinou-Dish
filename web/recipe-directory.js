@@ -13,6 +13,7 @@ export function recipeMissingData(recipe) {
 export function filterRecipeDirectory(recipes, filters) {
   const query = normalize(filters.query ?? '');
   return recipes.filter(recipe => {
+    if (filters.service && recipeServiceMode(recipe)!==filters.service) return false;
     if (filters.type && (recipe.recipeType ?? 'dish') !== filters.type) return false;
     if (filters.moment === 'untagged' && recipe.mealMoments?.length) return false;
     if (filters.moment && filters.moment !== 'untagged' && !recipe.mealMoments?.includes(filters.moment)) return false;
@@ -57,3 +58,11 @@ export function recipePlanningLabel(recipe) {
 }
 export function recipeMomentLabel(moment) { return MOMENT_LABELS[moment] ?? moment; }
 function normalize(value) { return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr'); }
+
+export const recipeServiceChoices=[['original','Pièces / portions'],['whole','Ensemble · grammes estimés'],['separate','Viande et légumes + féculents'],['three','Protéines, légumes et féculents séparés']];
+export function recipeServiceMode(recipe){
+  return !recipe.separateStarch?'original':recipe.servingParts?.some(part=>part.servingPart==='vegetables')?'three':recipe.servingParts?.some(part=>part.servingPart==='starch')?'separate':'whole';
+}
+export function recipeDisplayPreferences(value={}){
+  return {view:value?.view==='list'?'list':'grid',columns:[1,2,3,4].includes(Number(value?.columns))?Number(value.columns):2,perPage:[12,24,48,96].includes(Number(value?.perPage))?Number(value.perPage):12};
+}
