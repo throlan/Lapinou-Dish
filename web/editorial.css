@@ -353,3 +353,14 @@
 @media screen and (max-width:520px) { .recipe-quick-ingredient { grid-template-columns:minmax(0,1fr); } }
 
 @media screen { .recipe-quick-ingredient>label[hidden]+label { grid-column:1/-1; } }
+
+@media screen {
+  .recipe-title-row { display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 12px; }
+  .recipe-title-row h3 { flex:1 1 180px; min-width:0; margin:0; }
+  .recipe-rename-button { flex:none; font-size:12px; padding:5px 0; }
+  .recipe-rename-editor { margin:12px 0; padding:12px; border:1px solid var(--line); border-radius:10px; }
+  .recipe-rename-editor[hidden] { display:none; }
+  .recipe-rename-editor label { font-size:13px; }
+  .recipe-rename-editor input { min-width:0; width:100%; }
+  .recipe-rename-editor .form-actions { flex-wrap:wrap; margin-top:8px; }
+}

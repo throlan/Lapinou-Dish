@@ -32,6 +32,9 @@ Depuis la 0.2.89, la charte validée est **Magazine culinaire · Encre framboise
 
 ## Recettes et composition
 
+- Depuis la 0.2.94, renommage direct du titre dans les vues grille et liste, validation ou annulation explicites. Les titres des parties liées suivent sans changer les ingrédients, quantités ni historiques.
+
+
 - Depuis la 0.2.93, les coefficients de cuisson sont choisis par ingrédient dans l’éditeur et les réglages rapides, sans réglage global visible. Choix Semoule ×2, valeurs historiques préservées, préparations maison déjà cuites à ×1. Les coefficients estiment le poids ; ils ne multiplient pas les apports nutritionnels.
 
 
