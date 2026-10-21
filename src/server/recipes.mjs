@@ -86,7 +86,9 @@ export function validateRecipeSettings(input) {
     if(!configuration || typeof configuration!=='object' || !['original','whole','separate','three'].includes(configuration.servingMode))return {error:'invalid-serving-parts'};
     if(!configuration.yield || !Number.isFinite(configuration.yield.amount) || configuration.yield.amount<=0 || configuration.yield.amount>100000 || !['portion','piece','slice','g','ml'].includes(configuration.yield.unitId))return {error:'invalid-yield'};
     if(!Array.isArray(configuration.lineParts) || configuration.lineParts.length>300 || configuration.lineParts.some(part=>!['main','vegetables','starch'].includes(part)))return {error:'invalid-serving-parts'};
-    for(const key of ['main','starch'])if(!Number.isFinite(configuration.cookingFactors?.[key]) || configuration.cookingFactors[key]<=0 || configuration.cookingFactors[key]>10)return {error:'invalid-cooking-factor'};
+    if(configuration.lineCookingFactors!==undefined){
+      if(!Array.isArray(configuration.lineCookingFactors) || configuration.lineCookingFactors.length!==configuration.lineParts.length || configuration.lineCookingFactors.some(f=>!Number.isFinite(f)||f<=0||f>10))return {error:'invalid-cooking-factor'};
+    }else for(const key of ['main','starch'])if(!Number.isFinite(configuration.cookingFactors?.[key]) || configuration.cookingFactors[key]<=0 || configuration.cookingFactors[key]>10)return {error:'invalid-cooking-factor'};
   }
   return { data: { householdId: input.householdId, version: input.version, productionType: input.productionType, mealMoments: moments, ...(configuration?{configuration}:{}) } };
 }
@@ -104,8 +106,8 @@ export async function updateRecipeSettings(pool, id, data) {
     const outputUnits={...current.outputUnits};
     if(Object.hasOwn(outputUnits,config.yield.unitId))outputUnits[config.yield.unitId]=config.yield.amount;
     const checked=validateRecipeInput({...current,householdId:data.householdId,productionType:data.productionType,mealMoments:data.mealMoments,
-      yield:config.yield,outputUnits,servingMode:config.servingMode,separateStarch:config.servingMode!=='original',cookingFactors:{...config.cookingFactors,vegetables:1},
-      lines:current.lines.map((line,index)=>({...line,servingPart:['separate','three'].includes(config.servingMode)?config.lineParts[index]:'main'}))});
+      yield:config.yield,outputUnits,servingMode:config.servingMode,separateStarch:config.servingMode!=='original',cookingFactors:config.lineCookingFactors?{main:1,starch:1,vegetables:1}:{...config.cookingFactors,vegetables:1},
+      lines:current.lines.map((line,index)=>({...line,cookingFactor:config.lineCookingFactors?(line.recipeId?1:config.lineCookingFactors[index]):line.cookingFactor,servingPart:['separate','three'].includes(config.servingMode)?config.lineParts[index]:'main'}))});
     if(checked.error)return checked;
     return updateRecipe(pool,id,checked.data,data.version);
   }

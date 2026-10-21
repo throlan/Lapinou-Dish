@@ -8,7 +8,7 @@ import { suggestPlatePortions } from './portion-planner.js';
 import { PLATE_PARTS, validPlateRatios } from './meal-config.js';
 import { preparationWeeks } from './preparation-weeks.js';
 import { groupPreparations, suggestedProductionQuantity, suggestedServingQuantities, scaledIngredients, scaledSourceIngredients, productionRecipe, cookingYield } from './cooking-sheet.js';
-import { recipeServiceChoices, recipeServiceMode, recipeDisplayPreferences, filterRecipeDirectory, recipeCardForSource, recipeMissingData, recipeMomentLabel, recipeTypeLabel, recipePlanningLabel } from './recipe-directory.js';
+import { ingredientCookingFactor, fillCookingFactorOptions, recipeServiceChoices, recipeServiceMode, recipeDisplayPreferences, filterRecipeDirectory, recipeCardForSource, recipeMissingData, recipeMomentLabel, recipeTypeLabel, recipePlanningLabel } from './recipe-directory.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -1216,14 +1216,13 @@ function addRecipeLine(initial = null) {
   if(!serving.options[2].hidden) serving.options[0].textContent='Viande / protéines et sauce';
   serving.addEventListener('change',updateServingConfiguration);
   const cooking = document.createElement('select'); cooking.name='cookingFactor'; cooking.className='ingredient-cooking-choice'; cooking.setAttribute('aria-label','Coefficient de cuisson de cet ingrédient');
-  for (const [factor,label] of [['','Coefficient de la partie'],['1','Poids inchangé — ×1'],['3','Riz — ×3'],['2.5','Pâtes sèches / pois chiches — ×2,5'],['1.25','Pâtes fraîches — ×1,25'],['1.5','Pâtes fraîches — ×1,5'],['2.4','Lentilles / haricots — ×2,4'],['2.3','Corail / pois cassés — ×2,3']]) cooking.add(new Option(label,factor));
-  cooking.value=initial?.cookingFactor == null ? '' : String(initial.cookingFactor);
+  fillCookingFactorOptions(cooking,initial?.cookingFactor??1,document);
   const controls=document.createElement('div');controls.className='recipe-line-controls';
   const field=(text,input,className)=>{const label=document.createElement('label');label.className=className;label.append(document.createTextNode(text),input);return label;};
   const quantityField=field('Quantité',quantity,'ingredient-quantity-field'),unitField=field('Unité',unit,'ingredient-unit-field');
   const servingField=field(servingMode === 'whole'?'Type d’ingrédient':'Partie servie',serving,'ingredient-serving-field'),cookingField=field('Coefficient de cuisson',cooking,'ingredient-cooking-field');
   servingField.hidden=serving.hidden;
-  cooking.hidden=serving.hidden || serving.value !== 'starch';cookingField.hidden=cooking.hidden;
+  cooking.hidden=false;cookingField.hidden=false;
   controls.append(quantityField,unitField,servingField,cookingField,remove);
   const actions=document.createElement('div');actions.className='ingredient-actions';actions.append(changeMatch,editFood);
   foodBox.append(search,select,incompleteTag);row.append(foodBox,controls,hint,actions);$('#recipe-lines').append(row);
@@ -1279,9 +1278,9 @@ $('#add-recipe-line').addEventListener('click',()=>addRecipeIngredientLine());
 $('#add-line').addEventListener('click', addRecipeLine);
 function updateServingConfiguration() {
   const form = $('#recipe-form'); const mode = form.elements.servingMode.value;
-  $('#cooking-factors').classList.toggle('hidden',mode === 'original');
+
   const split = ['separate','three'].includes(mode);
-  $('#starch-factor-label').classList.toggle('hidden',!split);
+
   $('#recipe-lines').classList.toggle('serving-parts-active',split);
   $$('.serving-part-choice').forEach(select => {
     select.hidden = mode === 'original';
@@ -1294,14 +1293,14 @@ function updateServingConfiguration() {
     if(mode !== 'three' && select.value === 'vegetables') select.value = 'main';
   });
   $$('.ingredient-cooking-choice').forEach(select=>{
-    select.hidden=mode === 'original' || $('select[name="servingPart"]',select.closest('.recipe-line')).value !== 'starch';
+    select.hidden=false;
     select.closest('label').hidden=select.hidden;
   });
   const status=$('#serving-assignment-status');
   status.classList.toggle('hidden',!split);
   const starchLines=$$('.serving-part-choice').filter(select=>select.value==='starch').length;
   status.textContent=starchLines ? `${starchLines} ingrédient(s) affecté(s) aux féculents. Les autres restent dans le plat.` : 'Choisis « Féculents » sur la ligne du riz, des pâtes ou des autres féculents dans les ingrédients ci-dessous. Cette affectation est nécessaire pour enregistrer deux parties.';
-  if(mode === 'three') status.textContent='Affecte chaque ingrédient à « Viande / protéines et sauce », « Légumes » ou « Féculents ». Les trois parties auront des quantités indépendantes dans le calendrier. Les légumes utilisent le coefficient ×1 ; les coefficients de cuisson s’affichent pour les féculents.';
+  if(mode === 'three') status.textContent='Affecte chaque ingrédient à « Viande / protéines et sauce », « Légumes » ou « Féculents ». Les trois parties auront des quantités indépendantes dans le calendrier. Chaque ingrédient possède son propre coefficient de cuisson, indépendant de son affectation.';
 }
 $('#recipe-form').elements.servingMode.addEventListener('change',updateServingConfiguration);
 $('#recipe-form').elements.recipeType.addEventListener('change', () => {
@@ -1346,7 +1345,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
   }
   const form = event.currentTarget;
   const servingMode = form.elements.servingMode.value;
-  const servingOptions = { servingMode, separateStarch: servingMode !== 'original', cookingFactors: { main: Number(form.elements.mainCookingFactor.value), starch: Number(form.elements.starchCookingFactor.value), vegetables:1 } };
+  const servingOptions = { servingMode, separateStarch: servingMode !== 'original', cookingFactors: { main:1, starch:1, vegetables:1 } };
   $$('.recipe-line').forEach((row,index) => { lines[index].servingPart = ['separate','three'].includes(servingMode) ? $('select[name="servingPart"]',row).value : 'main'; const factor=$('select[name="cookingFactor"]',row).value; lines[index].cookingFactor=factor === '' ? null : Number(factor); });
   if (['separate','three'].includes(servingMode) && !lines.some(line=>line.servingPart === 'starch')) {
     showMessage(message,'Affecte le riz ou les autres féculents à « Féculents » sur leurs lignes d’ingrédients avant d’enregistrer. Le service séparé est conservé dans le formulaire.');
@@ -1429,11 +1428,9 @@ async function openRecipeEditor(id = null, duplicate = false) {
       for(const unit of ['piece','slice','portion','g','ml'])if(form.elements['output_'+unit])form.elements['output_'+unit].value=recipe.outputUnits?.[unit]??'';
       if (form.elements.servingMode) {
         form.elements.servingMode.value = recipe.separateStarch ? (recipe.servingParts?.some(part=>part.servingPart==='vegetables') ? 'three' : recipe.servingParts?.some(part=>part.servingPart==='starch') ? 'separate' : 'whole') : 'original';
-        form.elements.mainCookingFactor.value = recipe.cookingFactors?.main ?? 1;
-        form.elements.starchCookingFactor.value = recipe.cookingFactors?.starch ?? 3;
       }
       const incompleteLines = new Set((recipe.nutrition.lineIssues ?? []).map((issue) => issue.lineIndex));
-      recipe.lines.forEach((line, index) => addRecipeLine({ ...line, incomplete: incompleteLines.has(index) }));
+      recipe.lines.forEach((line, index) => addRecipeLine({ ...line, cookingFactor:ingredientCookingFactor(recipe,line), incomplete: incompleteLines.has(index) }));
     } catch (error) {
       showMessage($('#recipe-message'), `Impossible de charger cette recette : ${error.body?.error ?? error.message}`);
       form.classList.remove('hidden');
@@ -1908,25 +1905,32 @@ function recipeCard(recipe) {
   const unit=makeControl('Unité du rendement',document.createElement('select'));
   for(const [value,label] of [['portion','portions'],['piece','pièces'],['slice','tranches'],['g','grammes'],['ml','millilitres']]){const option=document.createElement('option');option.value=value;option.textContent=label;unit.append(option);}
   unit.value=recipe.yield.unitId;
-  const factors=document.createElement('div');factors.className='recipe-quick-factors';config.append(factors);
-  const factorInputs={};
-  for(const [key,text] of [['main','Coefficient du plat'],['starch','Coefficient féculents']]){const label=document.createElement('label'),input=document.createElement('input');input.type='number';input.min='0.001';input.max='10';input.step='any';input.required=true;input.value=String(recipe.cookingFactors?.[key]??(key==='main'?1:3));label.append(document.createTextNode(text),input);factors.append(label);factorInputs[key]=input;}
-  const assignments=document.createElement('details');assignments.className='recipe-quick-assignments';const assignmentTitle=document.createElement('summary');assignmentTitle.textContent='Affectation des ingrédients';assignments.append(assignmentTitle);config.append(assignments);
-  const partSelects=recipe.lines.map(line=>{const label=document.createElement('label'),input=document.createElement('select');label.append(document.createTextNode(line.foodName??'Préparation maison'),input);assignments.append(label);return input;});
+  const assignments=document.createElement('details');assignments.className='recipe-quick-assignments';const assignmentTitle=document.createElement('summary');assignmentTitle.textContent='Affectation des ingrédients et cuisson';assignments.append(assignmentTitle);config.append(assignments);
+  const factorSelects=[];
+  const partSelects=recipe.lines.map(line=>{
+    const row=document.createElement('div');row.className='recipe-quick-ingredient';
+    const name=document.createElement('strong');name.textContent=line.foodName??'Préparation maison';
+    const label=document.createElement('label'),input=document.createElement('select');input.className='recipe-quick-part';label.append(document.createTextNode('Partie servie'),input);
+    const factorLabel=document.createElement('label'),factor=document.createElement('select');factor.className='recipe-quick-factor';factor.setAttribute('aria-label',`Coefficient de cuisson de ${name.textContent}`);
+    if(line.recipeId){const option=document.createElement('option');option.value='1';option.textContent='Déjà préparé — ×1';factor.append(option);factor.value='1';factor.disabled=true;}
+    else fillCookingFactorOptions(factor,ingredientCookingFactor(recipe,line),document);
+    factorLabel.append(document.createTextNode('Coefficient de cuisson'),factor);factorSelects.push(factor);
+    row.append(name,label,factorLabel);assignments.append(row);return input;
+  });
   let previousMode=mode.value;
   const configureParts=()=>{
-    const split=['separate','three'].includes(mode.value);assignments.hidden=!split;factors.hidden=mode.value==='original';factorInputs.starch.parentElement.hidden=!split;
+    const split=['separate','three'].includes(mode.value);assignments.hidden=false;partSelects.forEach(input=>input.parentElement.hidden=!split);
     partSelects.forEach((input,index)=>{const previous=input.value||recipe.lines[index].servingPart||'main';input.replaceChildren();for(const [value,text] of [['main',mode.value==='three'?'Viande / protéines et sauce':'Viande et légumes'],['vegetables','Légumes'],['starch','Féculents']]){if(value==='vegetables'&&mode.value!=='three')continue;const option=document.createElement('option');option.value=value;option.textContent=text;input.append(option);}input.value=[...input.options].some(option=>option.value===previous)?previous:'main';});
     if(split&&mode.value!==previousMode)assignments.open=true;previousMode=mode.value;
   };configureParts();
-  const configuration=()=>({servingMode:mode.value,yield:{amount:Number(amount.value),unitId:unit.value},cookingFactors:{main:Number(factorInputs.main.value),starch:Number(factorInputs.starch.value)},lineParts:partSelects.map(input=>['separate','three'].includes(mode.value)?input.value:'main')});
+  const configuration=()=>({servingMode:mode.value,yield:{amount:Number(amount.value),unitId:unit.value},lineCookingFactors:factorSelects.map(input=>Number(input.value)),lineParts:partSelects.map(input=>['separate','three'].includes(mode.value)?input.value:'main')});
   let savedConfiguration=JSON.stringify(configuration());
   const currentMoments=()=>[...moments.querySelectorAll('input:checked')].map(input=>input.value);
   const isDirty=()=>select.value!==(recipe.productionType??'none')||JSON.stringify(currentMoments().sort())!==JSON.stringify([...(recipe.mealMoments??[])].sort())||JSON.stringify(configuration())!==savedConfiguration;
   const updateDirty=()=>{save.disabled=!isDirty();status.textContent=save.disabled?'':'Modifications non enregistrées';};
   select.addEventListener('change',updateDirty);moments.addEventListener('change',updateDirty);config.addEventListener('input',updateDirty);config.addEventListener('change',updateDirty);mode.addEventListener('change',()=>{configureParts();updateDirty();});
   save.addEventListener('click',async()=>{
-    if(![amount,...Object.values(factorInputs)].every(input=>input.reportValidity()))return;
+    if(!amount.reportValidity())return;
     const changed=JSON.stringify(configuration())!==savedConfiguration;
     const payload={householdId:state.household.id,version:recipe.version,productionType:select.value,mealMoments:currentMoments(),...(changed?{configuration:configuration()}:{})};
     save.disabled=true;select.disabled=true;moments.disabled=true;config.disabled=true;status.textContent='Enregistrement…';
