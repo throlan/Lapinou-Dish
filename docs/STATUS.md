@@ -1,5 +1,9 @@
 # État du projet — 21 octobre 2026
 
+## Import IA — traduction française des brouillons, 0.2.95
+
+L'analyse OpenAI rédige désormais en français le titre, la description, les noms d'aliments, les instructions, avertissements et variantes, quelle que soit la langue source. Les citations exactes des ingrédients et le texte complet d'origine restent conservés pour vérification. Les 304 tests locaux et la publication GitHub/GHCR sont à vérifier après la fusion.
+
 ## Renommer depuis le répertoire — 0.2.94
 
 Bouton Renommer à côté du titre en grille et liste. Champ local avec Enregistrer le titre et Annuler, Entrée pour valider et Échap pour annuler ; titre obligatoire, espaces retirés aux extrémités et 200 caractères maximum. Les erreurs gardent la saisie, le conflit de version demande une actualisation. Aucun passage par l’éditeur complet.

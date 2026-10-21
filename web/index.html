@@ -11,8 +11,8 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.2.94">
-    <link rel="stylesheet" href="/editorial.css?v=0.2.94">
+    <link rel="stylesheet" href="/style.css?v=0.2.95">
+    <link rel="stylesheet" href="/editorial.css?v=0.2.95">
   </head>
   <body>
     <header class="topbar">
@@ -177,7 +177,7 @@
       <section id="import-view" class="view hidden">
         <div class="section-heading"><div><h2>Importer des recettes</h2><p>Les imports arrivent en brouillon. Vérifie les aliments, les quantités et le rendement avant de les enregistrer.</p></div><button type="button" class="secondary" id="back-to-recipes">Retour aux recettes</button></div>
         <section class="card import-card">
-          <p class="hint">Avec OpenAI, colle le lien d’une publication Instagram pour tenter de récupérer sa description. Si la lecture est bloquée, colle le texte. Les recettes importées restent à vérifier avant enregistrement.</p>
+          <p class="hint">Avec OpenAI, colle le lien d’une publication Instagram pour tenter de récupérer sa description. Si la lecture est bloquée, colle le texte. L’IA rédige le brouillon en français ; vérifie la traduction, les aliments, les quantités et le rendement avant enregistrement.</p>
           <form id="recipe-import-form">
             <label>Lien Instagram ou YouTube (facultatif)<input name="sourceUrl" type="url" placeholder="https://www.instagram.com/reel/… ou https://youtu.be/…"></label>
             <label>Texte de la recette<textarea name="text" rows="8" maxlength="30000" placeholder="Facultatif pour un lien Instagram avec l’analyse OpenAI. Colle la description ici si Instagram bloque la lecture…"></textarea></label>
@@ -357,7 +357,7 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/install-app.js?v=0.2.94"></script>
-    <script type="module" src="/app.js?v=0.2.94"></script>
+    <script type="module" src="/install-app.js?v=0.2.95"></script>
+    <script type="module" src="/app.js?v=0.2.95"></script>
   </body>
 </html>

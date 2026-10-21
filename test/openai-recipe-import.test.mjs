@@ -82,6 +82,27 @@ test('AI extraction uses structured output, preserves base/variants and never se
   assert.equal(result.data.rawText, text);
 });
 
+test('AI translates recipe fields into French while preserving exact source ingredient quotations', async () => {
+  const source = 'Protein pancakes\nIngredients: 2 eggs\nMix the eggs and cook in a pan.';
+  const data = {
+    name: 'Pancakes protéinés', description: 'Pancakes riches en protéines.', yieldAmount: 1, yieldUnitId: 'portion',
+    ingredients: [{ rawText: '2 eggs', foodName: 'œufs', quantity: 2, unitId: 'piece' }],
+    instructions: 'Mélanger les œufs et cuire dans une poêle.', warnings: [], variants: [],
+  };
+  const result = await extractRecipeWithOpenAI(source, null, { ...options, fetchImpl: async (_url, init) => {
+    const prompt = JSON.parse(init.body).instructions;
+    assert.match(prompt, /Tous les champs destinés à la fiche doivent être rédigés en français/);
+    assert.match(prompt, /sans traduction/);
+    return aiResponse(data);
+  } });
+  assert.equal(result.error, undefined);
+  assert.equal(result.data.name, 'Pancakes protéinés');
+  assert.equal(result.data.instructions, 'Mélanger les œufs et cuire dans une poêle.');
+  assert.equal(result.data.ingredients[0].foodName, 'œufs');
+  assert.equal(result.data.ingredients[0].rawText, '2 eggs');
+  assert.equal(result.data.rawText, source);
+});
+
 test('AI rejects unsupported units, invented source quotations and invalid quantities', () => {
   for (const changes of [{ rawText: '50 g de sucre' }, { unitId: 'ounce' }, { quantity: -2 }, { quantity: '90' }]) {
     const data = extracted(); Object.assign(data.ingredients[0], changes);

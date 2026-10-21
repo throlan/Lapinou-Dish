@@ -1,4 +1,8 @@
-# Cahier de reprise — 21 octobre 2026, webapp installable et icône lapin
+# Cahier de reprise — 21 octobre 2026, traduction des imports IA
+
+## Dernière modification en préparation — 0.2.95
+
+L'import IA rédige en français les champs de la fiche, même depuis une source anglaise, en conservant les extraits exacts des ingrédients et le texte complet original. Version `package.json` : 0.2.95. Vérifier l'état de la PR, les contrôles et GHCR avant d'annoncer la publication. Test ciblé : `test/openai-recipe-import.test.mjs`.
 
 ## Renommer depuis le répertoire — 0.2.94
 
