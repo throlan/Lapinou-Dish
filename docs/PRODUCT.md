@@ -73,6 +73,9 @@ Depuis la 0.2.89, la charte validée est **Magazine culinaire · Encre framboise
 
 ## Interface
 
+- Depuis la 0.2.92 : filtre par service, réglages rapides repliables du service/rendement et affectation explicite des ingrédients. Grille/liste et pagination 12/24/48/96, 1 à 4 colonnes PC plafonnées à 2 sur tablette et 1 sur mobile. Préférences mémorisées localement ; même validation et protection des historiques que l’éditeur complet.
+
+
 - Ordinateur en premier, responsive ensuite.
 - La page d'accueil répond rapidement à: quoi aujourd'hui, quoi décongeler, quels objectifs restent, prochaine session de production, courses à faire.
 - Le calendrier est la vue principale: semaine entière visible à une largeur desktop courante, navigation par semaine, résumés nutritionnels simples et accès direct aux détails.

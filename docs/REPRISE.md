@@ -1,4 +1,14 @@
-# Cahier de reprise — 18 octobre 2026, webapp installable et icône lapin
+# Cahier de reprise — 21 octobre 2026, webapp installable et icône lapin
+
+## Recettes : filtre service, réglages rapides et affichage — 0.2.92
+
+Depuis la 0.2.92, le répertoire ajoute un filtre Type de service (rendement pièces/portions, préparation entière en grammes, deux ou trois parties). Les Réglages rapides repliables de chaque fiche permettent de modifier service, rendement de base (quantité et unité : portions, pièces, tranches, g ou ml), coefficients et affectation des ingrédients pour un service séparé. Aucune affectation n’est déduite du nom d’un aliment. Les ingrédients, équivalences et autres champs sont conservés ; les mêmes validations et protections que l’éditeur complet s’appliquent. Les repas déjà préparés et historiques incompatibles peuvent empêcher une modification, avec explication. Les calculs de portions 0.2.83/0.2.86 restent inchangés.
+
+Choix Grille/Liste, de 1 à 4 recettes par ligne sur PC et 12/24/48/96 recettes par page ; au maximum deux colonnes sur tablette et une sur mobile pour la lisibilité. Filtre service et préférences d’affichage mémorisés dans le navigateur. Rechargement des fiches et apports après enregistrement ; réglages de production et moments conservés.
+
+Validation : **302 tests locaux réussis** ; PATCH réel PostgreSQL/PGlite (validation, versions, foyer, nutrition, services, références parentes, équivalences, historiques et retour arrière transactionnel). Chrome local sur données fictives : filtre, vues, pagination 30 recettes, persistance après rechargement, changement du rendement et du service, affectation des ingrédients, erreur corrigible ; PC 1440/1280, tablette 900 et mobile 390/320 px, sans erreur inattendue ni débordement horizontal. Impression d’origine conservée. Aucun test sur appareil physique, aucun accès à Unraid/Nginx.
+
+Les sections ci-dessous conservent le contexte des versions précédentes ; la référence courante est **0.2.92**. Dernière publication vérifiée avant ce chantier : PR #123, commit 836735f, tests et publication GHCR réussis. Vérifier le workflow du commit fusionné de la 0.2.92 après livraison.
 
 ## Version et publication vérifiées
 
@@ -6,7 +16,7 @@
 - Version du code : **0.2.91** : publication Instagram intégrable dans Cuisiner depuis le lien source, à la demande, puis webapp installable (manifeste, icônes et guide) sur la refonte visuelle claire Magazine culinaire · Encre framboise, responsive PC/tablette/mobile, sans changement métier. La 0.2.88 conserve la saisie des achats et du stock compté dans l’unité d’achat (œufs, pots, paquets…), conversion unique vers l’unité de stock. Regroupements et exclusions de la 0.2.87 conservés. Le calcul 0.2.86 reste fondé sur la **base fonctionnelle validée 0.2.83**, sans les calculs abandonnés 0.2.84/85.
 - Dernière publication applicative vérifiée avant ce chantier : **0.2.91**, PR #122, commit c3bf80e, [contrôles et GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/39129593328). La présente mise à jour ne change que les documents et conserve la version applicative.
 - Validation 0.2.91 : **298 tests locaux réussis**. Lecteur testé sur publication fictive interceptée : chargement seulement au clic, arrêt au masquage/fermeture/Escape et aucune incrustation sans source Instagram compatible. Lecture d’une publication réelle non confirmée ; dépend des autorisations et restrictions Instagram. Chrome local : manifeste sans erreur et aucun motif de non-installabilité ; bouton natif proposé dans le profil jetable. Pas de service worker ni de nouvelle couche de cache hors ligne. Parcours des sept pages dans Chrome local sur base fictive PGlite, largeurs 1440, 1280, 900, 390 et 320 px ; fiches repas/aliment/cuisine et éditeur de recette, navigation mobile et absence de débordement horizontal vérifiés. Impression existante conservée ; tests par émulation de viewport, pas sur appareils physiques.
-- Références : [état](STATUS.md), [prochaines tâches](TODO.md), [produit](PRODUCT.md), [améliorations](AMELIORATIONS.md), [journal du 18 octobre](SESSION-2026-10-18.md).
+- Références : [état](STATUS.md), [prochaines tâches](TODO.md), [produit](PRODUCT.md), [améliorations](AMELIORATIONS.md), [journal du 21 octobre](SESSION-2026-10-21.md).
 
 ## Interdiction d'accès à l'installation
 
@@ -17,7 +27,7 @@
 1. Retrouver le dépôt par son remote GitHub ; le chemin local dépend du PC. Ne pas confondre avec les anciens dossiers Norish ni supposer que le chemin de la session précédente existe encore.
 2. Lire les éventuels `AGENTS.md`. Examiner l'état Git, la branche, les derniers commits et **tous les stashes**. Préserver les modifications, branches et stashes existants ; aucune réapplication automatique d'un ancien chantier.
 3. Récupérer `origin/main` sans écrasement. Sur un main propre, avancer seulement en fast-forward ; sinon inspecter et isoler le travail avant de changer de base. Aucun reset destructif ni nettoyage forcé.
-4. Vérifier GitHub, `package.json` et les documents liés ci-dessus. Les journaux antérieurs au 18 octobre sont historiques ; le dernier journal est `SESSION-2026-10-18.md`.
+4. Vérifier GitHub, `package.json` et les documents liés ci-dessus. Le dernier journal est `SESSION-2026-10-21.md` ; les précédents sont historiques.
 5. Faire un état bref et proposer les prochaines étapes ; **attendre la demande de l'utilisateur avant une nouvelle modification fonctionnelle**.
 
 ## Décisions de périmètre récentes
@@ -81,11 +91,11 @@ Après une modification autorisée : branche, tests adaptés, commit/push, PR, c
 ## Prompt à copier pour demain
 
 ```text
-Reprends le développement de Lapinou Dish. Retrouve le dépôt local par son remote https://github.com/throlan/Lapinou-Dish, vérifie son état et préserve toute modification locale, branche et stash avant de récupérer origin/main sans écrasement. Lis AGENTS.md s'il existe, puis docs/REPRISE.md, docs/STATUS.md, docs/PRODUCT.md, docs/AMELIORATIONS.md, docs/TODO.md et le dernier journal dans docs/ (actuellement docs/SESSION-2026-10-18.md).
+Reprends Lapinou Dish depuis son remote https://github.com/throlan/Lapinou-Dish. Retrouve le dépôt local, préserve modifications, branches et stashes, puis récupère origin/main sans reset destructif ni clean. Lis AGENTS.md s’il existe, docs/REPRISE.md, STATUS.md, PRODUCT.md, AMELIORATIONS.md, TODO.md et le dernier journal (SESSION-2026-10-21.md).
 
-La version du code est 0.2.91 : publication Instagram intégrable dans Cuisiner depuis la source, avec repli vers le lien et arrêt à la fermeture, déjà livrée. Depuis la 0.2.90 : webapp installable avec icônes et guide déjà livrée ; refonte visuelle claire Magazine culinaire · Encre framboise, responsive PC/tablette/mobile, sans changement des calculs ni des fonctionnalités. La 0.2.88 a livré la saisie des achats et du stock compté dans les unités d’achat configurées (ex. nombre d’œufs), avec conversion unique en stock. Produits communs et exclusions 0.2.87 déjà livrés. La version 0.2.86 a restauré le calcul de la 0.2.83, dernière référence fonctionnelle validée par l’utilisateur. Les algorithmes 0.2.84/85 sont abandonnés. Après le calcul initial, œufs/tranches sont arrondis au plus proche et la soupe compense l’écart calorique ; même compensation après saisie manuelle. Vérifie main, package.json et les contrôles/publication GitHub/GHCR correspondants. Ne réintroduis pas les calculs rejetés et ne refais pas les fonctions livrées.
+La version du code est 0.2.92 : filtre par service, service/rendement modifiables dans les réglages rapides, vue grille/liste, colonnes et pagination personnalisables. 302 tests locaux réussis et parcours Chrome local sur données fictives. Vérifie GitHub, package.json et la publication GHCR du commit fusionné. Ne recommence pas les fonctionnalités déjà livrées. Les calculs 0.2.83/0.2.86 sont conservés ; les algorithmes 0.2.84/85 sont abandonnés.
 
-Le nettoyage du catalogue alimentaire est en dernière priorité, après consolidation du cahier de recettes. L’ordre décidé est : 1. webapp installable (livrée en 0.2.90), 2. comptes individuels et foyers (reportés explicitement, modèle non validé : ne pas commencer), 3. correction des données nutritionnelles, 4. communauté publique, 5. nettoyage du catalogue. Le hors-ligne reste distinct. Fais-moi d'abord un état bref de la version, de la publication et des tâches réellement restantes. Attends ma demande avant toute nouvelle modification fonctionnelle.
+Comptes individuels reportés, modèle non validé. Correction nutritionnelle : prochaine piste à confirmer. Catalogue en dernier après consolidation des recettes. Une seule collation souhaitée mais non développée ; préserver les menus historiques. Aucun quota selon l’âge ni ratio 20/40/10/30 appliqué. Fais un bilan bref puis attends ma demande avant de modifier.
 
-Règle absolue : n'accède jamais à Unraid ni à Nginx, même pour vérifier ; je gère le déploiement. Les vérifications locales dans un navigateur sur données fictives sont autorisées. Pour les prochains travaux autorisés : tests locaux, commit/push, PR, fusion après réussite des contrôles et vérification de publication GitHub/GHCR.
+Jamais d’accès à Unraid ni Nginx, même en lecture. Je déploie. Pour les travaux autorisés : tests adaptés, commit/push, PR, fusion après contrôles réussis, vérification GitHub/GHCR. Tests navigateur locaux sur données fictives autorisés.
 ```

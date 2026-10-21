@@ -1,6 +1,14 @@
 # Cahier des améliorations proposées
 
-Mis à jour le 18 octobre 2026 après le volet Instagram de Cuisiner 0.2.91, la webapp installable 0.2.90 et la refonte visuelle 0.2.89 Magazine culinaire · Encre framboise. Ce document rassemble des pistes demandées ou suggérées. Chaque chantier devra être précisé avant sa mise en œuvre. Les fonctionnalités livrées restent décrites dans [STATUS.md](STATUS.md) et le dernier journal est [SESSION-2026-10-18.md](SESSION-2026-10-18.md).
+Mis à jour le 21 octobre 2026 après le volet Instagram de Cuisiner 0.2.91, la webapp installable 0.2.90 et la refonte visuelle 0.2.89 Magazine culinaire · Encre framboise. Ce document rassemble des pistes demandées ou suggérées. Chaque chantier devra être précisé avant sa mise en œuvre. Les fonctionnalités livrées restent décrites dans [STATUS.md](STATUS.md) et le dernier journal est [SESSION-2026-10-18.md](SESSION-2026-10-18.md).
+
+## Recettes : filtre service, réglages rapides et affichage — 0.2.92
+
+Depuis la 0.2.92, le répertoire ajoute un filtre Type de service (rendement pièces/portions, préparation entière en grammes, deux ou trois parties). Les Réglages rapides repliables de chaque fiche permettent de modifier service, rendement de base (quantité et unité : portions, pièces, tranches, g ou ml), coefficients et affectation des ingrédients pour un service séparé. Aucune affectation n’est déduite du nom d’un aliment. Les ingrédients, équivalences et autres champs sont conservés ; les mêmes validations et protections que l’éditeur complet s’appliquent. Les repas déjà préparés et historiques incompatibles peuvent empêcher une modification, avec explication. Les calculs de portions 0.2.83/0.2.86 restent inchangés.
+
+Choix Grille/Liste, de 1 à 4 recettes par ligne sur PC et 12/24/48/96 recettes par page ; au maximum deux colonnes sur tablette et une sur mobile pour la lisibilité. Filtre service et préférences d’affichage mémorisés dans le navigateur. Rechargement des fiches et apports après enregistrement ; réglages de production et moments conservés.
+
+Validation : **302 tests locaux réussis** ; PATCH réel PostgreSQL/PGlite (validation, versions, foyer, nutrition, services, références parentes, équivalences, historiques et retour arrière transactionnel). Chrome local sur données fictives : filtre, vues, pagination 30 recettes, persistance après rechargement, changement du rendement et du service, affectation des ingrédients, erreur corrigible ; PC 1440/1280, tablette 900 et mobile 390/320 px, sans erreur inattendue ni débordement horizontal. Impression d’origine conservée. Aucun test sur appareil physique, aucun accès à Unraid/Nginx.
 
 ## Expérience des recettes
 
