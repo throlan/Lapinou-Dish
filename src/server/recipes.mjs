@@ -78,6 +78,9 @@ export function validateRecipeInput(input) {
 export function validateRecipeSettings(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input) || !isUuid(input.householdId)) return { error: 'invalid-household-id' };
   if (!Number.isSafeInteger(input.version) || input.version < 0) return { error: 'invalid-recipe-version' };
+  if(input.name!==undefined && (typeof input.name!=='string' || !input.name.trim() || input.name.trim().length>200))return {error:'invalid-name'};
+  const name=input.name===undefined?{}:{name:input.name.trim()};
+  if(input.name!==undefined && input.productionType===undefined && input.mealMoments===undefined && input.configuration==null)return {data:{householdId:input.householdId,version:input.version,...name}};
   if (!['none', 'batch_cooking', 'pasta', 'pastry', 'bread'].includes(input.productionType)) return { error: 'invalid-production-type' };
   const moments = input.mealMoments;
   if (!Array.isArray(moments) || moments.length > 4 || moments.some(moment => !['breakfast', 'lunch', 'dinner', 'snack'].includes(moment)) || new Set(moments).size !== moments.length) return { error: 'invalid-meal-moments' };
@@ -90,7 +93,7 @@ export function validateRecipeSettings(input) {
       if(!Array.isArray(configuration.lineCookingFactors) || configuration.lineCookingFactors.length!==configuration.lineParts.length || configuration.lineCookingFactors.some(f=>!Number.isFinite(f)||f<=0||f>10))return {error:'invalid-cooking-factor'};
     }else for(const key of ['main','starch'])if(!Number.isFinite(configuration.cookingFactors?.[key]) || configuration.cookingFactors[key]<=0 || configuration.cookingFactors[key]>10)return {error:'invalid-cooking-factor'};
   }
-  return { data: { householdId: input.householdId, version: input.version, productionType: input.productionType, mealMoments: moments, ...(configuration?{configuration}:{}) } };
+  return { data: { householdId: input.householdId, version: input.version, productionType: input.productionType, mealMoments: moments, ...name, ...(configuration?{configuration}:{}) } };
 }
 
 export async function updateRecipeSettings(pool, id, data) {
@@ -105,7 +108,7 @@ export async function updateRecipeSettings(pool, id, data) {
     // Reuse the complete editor's validation, stock/history protections and parent propagation.
     const outputUnits={...current.outputUnits};
     if(Object.hasOwn(outputUnits,config.yield.unitId))outputUnits[config.yield.unitId]=config.yield.amount;
-    const checked=validateRecipeInput({...current,householdId:data.householdId,productionType:data.productionType,mealMoments:data.mealMoments,
+    const checked=validateRecipeInput({...current,name:data.name??current.name,householdId:data.householdId,productionType:data.productionType,mealMoments:data.mealMoments,
       yield:config.yield,outputUnits,servingMode:config.servingMode,separateStarch:config.servingMode!=='original',cookingFactors:config.lineCookingFactors?{main:1,starch:1,vegetables:1}:{...config.cookingFactors,vegetables:1},
       lines:current.lines.map((line,index)=>({...line,cookingFactor:config.lineCookingFactors?(line.recipeId?1:config.lineCookingFactors[index]):line.cookingFactor,servingPart:['separate','three'].includes(config.servingMode)?config.lineParts[index]:'main'}))});
     if(checked.error)return checked;
@@ -118,7 +121,7 @@ export async function updateRecipeSettings(pool, id, data) {
     const current = await client.query('SELECT version, production_type FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL FOR UPDATE', [id, data.householdId]);
     if (!current.rowCount) { await client.query('ROLLBACK'); return null; }
     if (Number(current.rows[0].version) !== data.version) { await client.query('ROLLBACK'); return { error: 'recipe-version-conflict' }; }
-    if (current.rows[0].production_type !== data.productionType) {
+    if (data.productionType!==undefined && current.rows[0].production_type !== data.productionType) {
       const prepared = await client.query(`WITH RECURSIVE parents(id) AS (
         SELECT $2::uuid UNION SELECT r.id FROM parents p JOIN recipe_lines l ON l.ingredient_recipe_id=p.id JOIN recipes r ON r.id=l.recipe_id WHERE r.household_id=$1
       ) SELECT 1 FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
@@ -126,8 +129,15 @@ export async function updateRecipeSettings(pool, id, data) {
         AND (used.id IN(SELECT id FROM parents) OR used.parent_recipe_id IN(SELECT id FROM parents)) LIMIT 1`,[data.householdId,id]);
       if (prepared.rowCount) { await client.query('ROLLBACK'); return { error: 'recipe-used-in-prepared-meal' }; }
     }
-    await client.query(`UPDATE recipes SET production_type=$2, meal_moments=$3, version=version+1, updated_at=now()
-      WHERE household_id=$4 AND (id=$1 OR parent_recipe_id=$1)`, [id, data.productionType, data.mealMoments, data.householdId]);
+    await client.query(`UPDATE recipes SET production_type=COALESCE($2,production_type), meal_moments=COALESCE($3,meal_moments), version=version+1, updated_at=now()
+      WHERE household_id=$4 AND (id=$1 OR parent_recipe_id=$1)`, [id, data.productionType??null, data.mealMoments??null, data.householdId]);
+    if(data.name!==undefined){
+      await client.query('UPDATE recipes SET name=$3 WHERE id=$1 AND household_id=$2',[id,data.householdId,data.name]);
+      const parts=await client.query('SELECT serving_part FROM recipes WHERE parent_recipe_id=$1 AND household_id=$2',[id,data.householdId]);
+      const keys=new Set(parts.rows.map(row=>row.serving_part));
+      const labels={main:keys.has('vegetables')?'Viande / protéines':keys.has('starch')?'Viande et légumes':'Préparation entière',vegetables:'Légumes',starch:'Féculents'};
+      for(const [part,label] of Object.entries(labels))await client.query('UPDATE recipes SET name=$3 WHERE parent_recipe_id=$1 AND household_id=$2 AND serving_part=$4',[id,data.householdId,`${data.name} — ${label}`,part]);
+    }
     const recipe = await readRecipe(client, id);
     await client.query('COMMIT');
     return recipe;

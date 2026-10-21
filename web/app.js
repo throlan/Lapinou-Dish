@@ -1853,7 +1853,36 @@ function recipeCard(recipe) {
   const title=document.createElement('h3');title.textContent=recipe.name;
   const subtitle=document.createElement('p');subtitle.textContent=`${recipeTypeLabel(recipe.recipeType)} · ${recipe.lines.length} ingrédient${recipe.lines.length===1?'':'s'} · ${format(recipe.yield.amount)} ${recipe.yield.unitId}`;
   const serviceDescription=document.createElement('p');serviceDescription.className='recipe-service-label';serviceDescription.textContent=recipeServiceChoices.find(([value])=>value===recipeServiceMode(recipe))?.[1]??'';
-  identity.append(title,subtitle,serviceDescription);
+  const heading=document.createElement('div');heading.className='recipe-title-row';
+  const rename=document.createElement('button');rename.type='button';rename.className='text-button recipe-rename-button';rename.textContent='Renommer';rename.setAttribute('aria-label',`Renommer ${recipe.name}`);rename.setAttribute('aria-expanded','false');
+  heading.append(title,rename);
+  const renameEditor=document.createElement('div');renameEditor.className='recipe-rename-editor';renameEditor.hidden=true;
+  const nameLabel=document.createElement('label');nameLabel.textContent='Titre de la recette';const nameInput=document.createElement('input');nameInput.type='text';nameInput.required=true;nameInput.maxLength=200;nameInput.value=recipe.name;nameLabel.append(nameInput);
+  const renameActions=document.createElement('div');renameActions.className='form-actions';
+  const renameSave=document.createElement('button');renameSave.type='button';renameSave.className='secondary';renameSave.textContent='Enregistrer le titre';
+  const renameCancel=document.createElement('button');renameCancel.type='button';renameCancel.className='secondary';renameCancel.textContent='Annuler';
+  const renameStatus=document.createElement('p');renameStatus.className='form-message';renameStatus.setAttribute('role','status');
+  renameActions.append(renameSave,renameCancel);renameEditor.append(nameLabel,renameActions,renameStatus);
+  const closeRename=()=>{renameEditor.hidden=true;rename.setAttribute('aria-expanded','false');nameInput.value=recipe.name;renameStatus.textContent='';rename.focus();};
+  rename.addEventListener('click',()=>{renameEditor.hidden=false;rename.setAttribute('aria-expanded','true');nameInput.value=recipe.name;nameInput.focus();nameInput.select();});
+  renameCancel.addEventListener('click',closeRename);
+  const saveName=async()=>{
+    if(renameSave.disabled)return;
+    const name=nameInput.value.trim();if(!name){nameInput.setCustomValidity('Saisis un titre.');nameInput.reportValidity();return;}nameInput.setCustomValidity('');if(!nameInput.reportValidity())return;
+    if(name===recipe.name){closeRename();return;}
+    renameSave.disabled=true;renameCancel.disabled=true;nameInput.disabled=true;renameStatus.textContent='Enregistrement…';
+    try{
+      const result=await api(`/api/recipes/${recipe.id}`,{method:'PATCH',body:JSON.stringify({householdId:state.household.id,version:recipe.version,name})});
+      Object.assign(recipe,result.recipe);await refreshRecipes();showMessage($('#recipe-list-message'),`Titre enregistré : « ${recipe.name} ».`,true);
+      $('#recipe-list [data-recipe-id="'+recipe.id+'"] .recipe-rename-button')?.focus();
+      await Promise.allSettled([refreshShopping(),refreshDashboard()]);
+    }catch(error){renameStatus.textContent=error.body?.error==='recipe-version-conflict'?'Recette modifiée ailleurs. Actualise la liste avant de renommer.':`Titre non enregistré : ${error.body?.error??error.message}`;}
+    finally{renameSave.disabled=false;renameCancel.disabled=false;nameInput.disabled=false;}
+  };
+  nameInput.addEventListener('input',()=>nameInput.setCustomValidity(''));
+  nameInput.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();saveName();}if(event.key==='Escape'&&!renameSave.disabled){event.preventDefault();closeRename();}});
+  renameSave.addEventListener('click',saveName);
+  identity.append(heading,renameEditor,subtitle,serviceDescription);
   const nutrition=document.createElement('p');nutrition.className='recipe-nutrition';
   nutrition.textContent=`${format(recipe.nutrition.perYieldUnit.energyKcal)} kcal · P ${format(recipe.nutrition.perYieldUnit.proteinG)} g / ${recipe.yield.unitId}`;
   const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='Modifier';edit.setAttribute('aria-label',`Modifier ${recipe.name}`);edit.addEventListener('click',()=>openRecipeEditor(recipe.id));
