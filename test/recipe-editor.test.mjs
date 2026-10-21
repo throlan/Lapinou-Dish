@@ -1,4 +1,4 @@
-import {recipeDisplayPreferences} from '../web/recipe-directory.js';
+import {ingredientCookingFactor,recipeDisplayPreferences} from '../web/recipe-directory.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -19,7 +19,7 @@ function editor() {
   const elements={'#recipe-form':form,'#recipe-lines':{replaceChildren(){}},'#recipe-message':{},'#recipe-result':{classList:{add(){}}},'#recipe-form-title':{},'#delete-current-recipe':remove};
   let recipe;
   const copiedLines=[];
-  const context={ recipeDisplayPreferences,$:selector=>elements[selector],state:{},api:async()=>({recipe}),addRecipeLine(line){copiedLines.push(line);},updateServingConfiguration(){},showMessage(target,text){target.textContent=text;} };
+  const context={ ingredientCookingFactor,recipeDisplayPreferences,$:selector=>elements[selector],state:{},api:async()=>({recipe}),addRecipeLine(line){copiedLines.push(line);},updateServingConfiguration(){},showMessage(target,text){target.textContent=text;} };
   runInNewContext(source.slice(start,end)+'\nglobalThis.openEditor=openRecipeEditor;',context);
   return {form,boxes,copiedLines,context,remove,async open(value){recipe={name:'Synthetic recipe',yield:{amount:24,unitId:'piece'},nutrition:{lineIssues:[]},lines:[],...value};await context.openEditor('test-id');},async duplicate(value){recipe={name:'Synthetic recipe',yield:{amount:24,unitId:'piece'},nutrition:{lineIssues:[]},lines:[],...value};await context.openEditor('test-id',true);},async create(){await context.openEditor();}};
 }
@@ -76,10 +76,10 @@ test('duplicating a recipe prefills an independent new recipe with its variation
 
 test('duplicating a split dish keeps its serving mode, cooking factors and ingredient groups',async()=>{
   const ui=editor();
-  await ui.duplicate({name:'Plat complet',recipeType:'dish',separateStarch:true,servingParts:[{servingPart:'main'},{servingPart:'starch'}],cookingFactors:{main:1,starch:2.5},lines:[{foodId:'food-1',quantity:150,unitId:'g',servingPart:'main'},{foodId:'food-2',quantity:80,unitId:'g',servingPart:'starch',cookingFactor:2.5}]});
+  await ui.duplicate({name:'Plat complet',recipeType:'dish',separateStarch:true,servingParts:[{servingPart:'main'},{servingPart:'starch'}],cookingFactors:{main:1,starch:2.5},lines:[{foodId:'food-1',quantity:150,unitId:'g',servingPart:'main'},{foodId:'food-2',quantity:80,unitId:'g',servingPart:'starch'}]});
   assert.equal(ui.form.elements.servingMode.value,'separate');
-  assert.equal(ui.form.elements.mainCookingFactor.value,1);
-  assert.equal(ui.form.elements.starchCookingFactor.value,2.5);
+  assert.equal(ui.copiedLines[0].cookingFactor,1);
+  assert.equal(ui.copiedLines[1].cookingFactor,2.5);
   assert.deepEqual(ui.copiedLines.map(line=>line.servingPart),['main','starch']);
   assert.equal(ui.copiedLines[1].cookingFactor,2.5);
 });

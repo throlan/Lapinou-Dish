@@ -1,5 +1,14 @@
 # Cahier de reprise — 21 octobre 2026, webapp installable et icône lapin
 
+## Coefficients de cuisson par ingrédient — 0.2.93
+
+Suppression des champs globaux Coefficient du plat et Coefficient féculents de l’éditeur et des Réglages rapides. Chaque aliment a son propre coefficient dans les ingrédients de l’éditeur et dans Affectation des ingrédients et cuisson des fiches. Ajout de Semoule — ×2 aux choix partagés, poids inchangé ×1 et autres choix conservés. Plusieurs féculents d’une même recette peuvent utiliser des valeurs différentes. Les préparations maison restent déjà préparées à ×1. Les champs de cuisson sont affichés pour tous les aliments et modes de service, pas seulement les féculents. Le contraste des blocs d’ingrédients est aligné sur la charte claire.
+
+Compatibilité : aucune migration ni réécriture automatique. Une ancienne valeur héritée est résolue selon la priorité existante et affichée sur chaque ligne, même hors des valeurs prédéfinies. À l’enregistrement, elle devient explicite ; les nouveaux formulaires utilisent des valeurs globales neutres internes. Les anciens champs restent pris en charge pour les données et clients historiques. À coefficients identiques, poids, nutrition, quantités des menus et stocks restent identiques. Les protections des historiques et versions s’appliquent toujours. Aucun changement du moteur de portions 0.2.83/0.2.86.
+
+Validation : **303 tests locaux réussis**, dont riz et haricots avec coefficients indépendants dans une même partie, semoule ×2, héritage ancien et personnalisé conservé, préparations maison ×1, enregistrement PATCH et apports inchangés. Chrome local sur base fictive à 1440/1280/900/390/320 px : absence des champs globaux, valeur héritée ×0,8 visible/conservée, sélection ×2 dans les réglages rapides et l’éditeur, persistance après enregistrement, parcours des vues et aucune erreur inattendue ni débordement horizontal. Pas d’appareil physique testé, aucun accès à Unraid/Nginx.
+
+
 ## Recettes : filtre service, réglages rapides et affichage — 0.2.92
 
 Depuis la 0.2.92, le répertoire ajoute un filtre Type de service (rendement pièces/portions, préparation entière en grammes, deux ou trois parties). Les Réglages rapides repliables de chaque fiche permettent de modifier service, rendement de base (quantité et unité : portions, pièces, tranches, g ou ml), coefficients et affectation des ingrédients pour un service séparé. Aucune affectation n’est déduite du nom d’un aliment. Les ingrédients, équivalences et autres champs sont conservés ; les mêmes validations et protections que l’éditeur complet s’appliquent. Les repas déjà préparés et historiques incompatibles peuvent empêcher une modification, avec explication. Les calculs de portions 0.2.83/0.2.86 restent inchangés.
@@ -8,7 +17,7 @@ Choix Grille/Liste, de 1 à 4 recettes par ligne sur PC et 12/24/48/96 recettes 
 
 Validation : **302 tests locaux réussis** ; PATCH réel PostgreSQL/PGlite (validation, versions, foyer, nutrition, services, références parentes, équivalences, historiques et retour arrière transactionnel). Chrome local sur données fictives : filtre, vues, pagination 30 recettes, persistance après rechargement, changement du rendement et du service, affectation des ingrédients, erreur corrigible ; PC 1440/1280, tablette 900 et mobile 390/320 px, sans erreur inattendue ni débordement horizontal. Impression d’origine conservée. Aucun test sur appareil physique, aucun accès à Unraid/Nginx.
 
-Les sections ci-dessous conservent le contexte des versions précédentes ; la référence courante est **0.2.92**. Dernière publication vérifiée avant ce chantier : PR #123, commit 836735f, tests et publication GHCR réussis. Vérifier le workflow du commit fusionné de la 0.2.92 après livraison.
+Les sections ci-dessous conservent le contexte des versions précédentes ; la référence courante est **0.2.93**. Dernière publication vérifiée avant ce chantier : PR #123, commit 836735f, tests et publication GHCR réussis. Vérifier le workflow du commit fusionné de la 0.2.92 après livraison.
 
 ## Version et publication vérifiées
 
@@ -93,7 +102,7 @@ Après une modification autorisée : branche, tests adaptés, commit/push, PR, c
 ```text
 Reprends Lapinou Dish depuis son remote https://github.com/throlan/Lapinou-Dish. Retrouve le dépôt local, préserve modifications, branches et stashes, puis récupère origin/main sans reset destructif ni clean. Lis AGENTS.md s’il existe, docs/REPRISE.md, STATUS.md, PRODUCT.md, AMELIORATIONS.md, TODO.md et le dernier journal (SESSION-2026-10-21.md).
 
-La version du code est 0.2.92 : filtre par service, service/rendement modifiables dans les réglages rapides, vue grille/liste, colonnes et pagination personnalisables. 302 tests locaux réussis et parcours Chrome local sur données fictives. Vérifie GitHub, package.json et la publication GHCR du commit fusionné. Ne recommence pas les fonctionnalités déjà livrées. Les calculs 0.2.83/0.2.86 sont conservés ; les algorithmes 0.2.84/85 sont abandonnés.
+La version du code est 0.2.93 : coefficients globaux retirés des interfaces, coefficients par ingrédient dans l’éditeur et les réglages rapides, Semoule ×2. Anciennes valeurs héritées conservées puis explicitées à l’enregistrement. Les filtres/vues/pagination 0.2.92 restent livrés. 303 tests locaux réussis et parcours Chrome local sur données fictives. Vérifie GitHub, package.json et la publication GHCR du commit fusionné. Ne recommence pas les fonctionnalités déjà livrées. Les calculs 0.2.83/0.2.86 sont conservés ; les algorithmes 0.2.84/85 sont abandonnés.
 
 Comptes individuels reportés, modèle non validé. Correction nutritionnelle : prochaine piste à confirmer. Catalogue en dernier après consolidation des recettes. Une seule collation souhaitée mais non développée ; préserver les menus historiques. Aucun quota selon l’âge ni ratio 20/40/10/30 appliqué. Fais un bilan bref puis attends ma demande avant de modifier.
 

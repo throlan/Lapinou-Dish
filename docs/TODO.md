@@ -1,6 +1,6 @@
 # Prochaines tâches — 21 octobre 2026
 
-Référence du code : **0.2.92**, volet Instagram de la fiche cuisine ajouté avant la suite des priorités, sur la webapp installable et icônes livrées après la charte claire Magazine culinaire · Encre framboise responsive PC/tablette/mobile, sans changement métier. La 0.2.88 conserve la saisie en unités d’achat et stock compté cohérents, après les produits communs et exclusions 0.2.87. Le calcul 0.2.86 (base 0.2.83) reste conservé ; les calculs 0.2.84/85 sont abandonnés. Vérifier les contrôles et la publication de main. Aucun nouveau chantier sans demande de l’utilisateur.
+Référence du code : **0.2.93**, volet Instagram de la fiche cuisine ajouté avant la suite des priorités, sur la webapp installable et icônes livrées après la charte claire Magazine culinaire · Encre framboise responsive PC/tablette/mobile, sans changement métier. La 0.2.88 conserve la saisie en unités d’achat et stock compté cohérents, après les produits communs et exclusions 0.2.87. Le calcul 0.2.86 (base 0.2.83) reste conservé ; les calculs 0.2.84/85 sont abandonnés. Vérifier les contrôles et la publication de main. Aucun nouveau chantier sans demande de l’utilisateur.
 
 ## Pistes à choisir et préciser
 
@@ -19,6 +19,8 @@ Détails et variantes dans [AMELIORATIONS.md](AMELIORATIONS.md). Les variantes i
 - Les répartitions horaires restent actuellement communes au foyer, avec objectifs kcal propres à chaque personne. Aucun quota par âge ni nouvelle répartition nutritionnelle n’a été ajouté à la suite de la recherche documentaire.
 
 ## Déjà livré — ne pas remettre dans le reste à faire
+
+- 0.2.93 : coefficients individuels dans l’éditeur et les fiches, Semoule ×2, retrait des champs globaux visibles ; anciens coefficients appliqués conservés. 303 tests locaux et parcours Chrome fictif.
 
 - 0.2.92 : filtre par service, service et rendement dans les réglages rapides, grille/liste, colonnes et taille des pages configurables. 302 tests locaux et parcours Chrome sur données fictives.
 

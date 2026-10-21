@@ -11,8 +11,8 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.2.92">
-    <link rel="stylesheet" href="/editorial.css?v=0.2.92">
+    <link rel="stylesheet" href="/style.css?v=0.2.93">
+    <link rel="stylesheet" href="/editorial.css?v=0.2.93">
   </head>
   <body>
     <header class="topbar">
@@ -164,11 +164,7 @@
             <legend>Portions dans le calendrier</legend>
             <label>Service<select name="servingMode"><option value="original">Proportions du rendement de la recette (pièces / portions)</option><option value="whole">Préparation servie ensemble — grammes estimés</option><option value="separate">Viande et légumes ensemble, féculents à part — grammes estimés</option><option value="three">Viande, légumes et féculents séparés — grammes estimés</option></select></label>
             <p id="serving-assignment-status" class="hint hidden" role="status"></p>
-            <div id="cooking-factors" class="yield-row hidden">
-              <label>Coefficient du plat / de la préparation<input name="mainCookingFactor" type="number" min="0.1" max="10" step="0.05" value="1"></label>
-              <label id="starch-factor-label">Féculents<select name="starchCookingFactor"><option value="3">Riz — ×3</option><option value="2.5">Pâtes sèches / pois chiches — ×2,5</option><option value="1.25">Pâtes fraîches — ×1,25</option><option value="1.5">Pâtes fraîches — ×1,5</option><option value="2.4">Lentilles vertes / haricots — ×2,4</option><option value="2.3">Lentilles corail / pois cassés — ×2,3</option><option value="2.5">Lentilles vertes / haricots — ×2,5</option></select></label>
-            </div>
-            <p class="hint">Aucune pesée après cuisson. Les grammes sont estimés à partir des ingrédients et des coefficients. ×1 pour le plat conserve le poids des ingrédients ; les pertes d’eau ne sont pas déduites. Pour les lasagnes et les plats mélangés, choisis « Préparation servie ensemble » et règle le coefficient des pâtes sur leur ligne d’ingrédient.</p>
+            <p class="hint">Chaque ingrédient possède son propre coefficient de cuisson : par exemple riz ×3, semoule ×2 ou poids inchangé ×1. Ces coefficients estiment le poids préparé ; les calories restent calculées depuis les ingrédients. Une préparation maison est déjà préparée et ne reçoit pas un second coefficient.</p>
           </fieldset>
           <div class="line-heading"><h3>Ingrédients</h3><div class="form-actions"><button type="button" class="secondary" id="add-line">+ Aliment</button><button type="button" class="secondary" id="add-recipe-line">+ Préparation maison</button></div></div>
           <div id="recipe-lines"></div>
@@ -361,7 +357,7 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/install-app.js?v=0.2.92"></script>
-    <script type="module" src="/app.js?v=0.2.92"></script>
+    <script type="module" src="/install-app.js?v=0.2.93"></script>
+    <script type="module" src="/app.js?v=0.2.93"></script>
   </body>
 </html>

@@ -66,3 +66,13 @@ export function recipeServiceMode(recipe){
 export function recipeDisplayPreferences(value={}){
   return {view:value?.view==='list'?'list':'grid',columns:[1,2,3,4].includes(Number(value?.columns))?Number(value.columns):2,perPage:[12,24,48,96].includes(Number(value?.perPage))?Number(value.perPage):12};
 }
+
+export const cookingFactorChoices=[['1','Poids inchangé — ×1'],['2','Semoule — ×2'],['3','Riz — ×3'],['2.5','Pâtes sèches / pois chiches — ×2,5'],['1.25','Pâtes fraîches — ×1,25'],['1.5','Pâtes fraîches — ×1,5'],['2.4','Lentilles / haricots — ×2,4'],['2.3','Corail / pois cassés — ×2,3']];
+export function ingredientCookingFactor(recipe,line){
+  return line.recipeId?1:line.cookingFactor??(recipe.separateStarch?recipe.cookingFactors?.[line.servingPart??'main']:1)??1;
+}
+export function fillCookingFactorOptions(select,value,document){
+  for(const [factor,label] of cookingFactorChoices){const option=document.createElement('option');option.value=factor;option.textContent=label;select.append(option);}
+  if(!cookingFactorChoices.some(([factor])=>Number(factor)===Number(value))){const option=document.createElement('option');option.value=String(value);option.textContent='×'+String(value).replace('.',',')+' — coefficient conservé';select.append(option);}
+  select.value=String(value);
+}

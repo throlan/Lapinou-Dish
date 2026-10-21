@@ -32,6 +32,9 @@ Depuis la 0.2.89, la charte validée est **Magazine culinaire · Encre framboise
 
 ## Recettes et composition
 
+- Depuis la 0.2.93, les coefficients de cuisson sont choisis par ingrédient dans l’éditeur et les réglages rapides, sans réglage global visible. Choix Semoule ×2, valeurs historiques préservées, préparations maison déjà cuites à ×1. Les coefficients estiment le poids ; ils ne multiplient pas les apports nutritionnels.
+
+
 - Une recette inutilisée peut être supprimée explicitement, avec confirmation. Un menu ou un historique de production lié à la recette ou à une partie empêche la suppression pour préserver les références ; aucune suppression automatique de doublons.
 - Les catégories incluent Plat, Salade, Sauce, Boisson, Accompagnement et Dessert. Les salades peuvent être complètes ou vertes, servies comme plat ou accompagnement ; elles utilisent les mêmes modes de service et calculs que les plats.
 - Une sauce est ajoutable au repas avec une quantité choisie par personne, éventuellement nulle. Ses apports comptent dans les totaux ; sa quantité ne sert pas à combler automatiquement un budget kcal ou protéique.

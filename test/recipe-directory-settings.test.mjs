@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile,readdir} from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
 import {createRecipe,readRecipe,updateRecipeSettings,validateRecipeInput,validateRecipeSettings,updateRecipe} from '../src/server/recipes.mjs';
-import {recipeServiceMode,filterRecipeDirectory,recipeDisplayPreferences} from '../web/recipe-directory.js';
+import {ingredientCookingFactor,cookingFactorChoices,recipeServiceMode,filterRecipeDirectory,recipeDisplayPreferences} from '../web/recipe-directory.js';
 import {handleRequest} from '../src/server/app.mjs';
 
 test('service filter combines with existing filters and distinguishes all four saved modes',()=>{
@@ -23,10 +23,22 @@ test('display preferences restore only bounded supported values, including corru
   for(const input of [null,{},'bad',{view:'anything',columns:999,perPage:-1}])assert.deepEqual(recipeDisplayPreferences(input),{view:'grid',columns:2,perPage:12});
 });
 
+test('ingredient coefficients preserve inherited and custom values, never recook components, and include semolina',()=>{
+  const recipe={separateStarch:true,cookingFactors:{main:0.8,starch:2.7,vegetables:1}};
+  assert.equal(ingredientCookingFactor(recipe,{servingPart:'main'}),0.8);
+  assert.equal(ingredientCookingFactor(recipe,{servingPart:'starch'}),2.7);
+  assert.equal(ingredientCookingFactor(recipe,{servingPart:'starch',cookingFactor:1}),1);
+  assert.equal(ingredientCookingFactor(recipe,{recipeId:'bread',servingPart:'starch',cookingFactor:3}),1);
+  assert.equal(ingredientCookingFactor({separateStarch:false,cookingFactors:{main:0.8}},{servingPart:'main'}),1);
+  assert.ok(cookingFactorChoices.some(([value,label])=>value==='2'&&label.includes('Semoule')));
+});
+
 test('quick configuration rejects invalid yields, assignments, modes and coefficients before writing',()=>{
   const input={householdId:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',version:1,productionType:'none',mealMoments:[],
     configuration:{servingMode:'whole',yield:{amount:4,unitId:'portion'},lineParts:['main'],cookingFactors:{main:1,starch:3}}};
   assert.ok(validateRecipeSettings(input).data);
+  assert.ok(validateRecipeSettings({...input,configuration:{...input.configuration,cookingFactors:undefined,lineCookingFactors:[2]}}).data);
+  for(const factors of [[0],[-1],[11],[],[1,2],['2']])assert.equal(validateRecipeSettings({...input,configuration:{...input.configuration,lineCookingFactors:factors}}).error,'invalid-cooking-factor');
   for(const patch of [{yield:{amount:0,unitId:'g'}},{yield:{amount:4,unitId:'unknown'}},{servingMode:'bad'},{lineParts:['bad']},{cookingFactors:{main:-1,starch:3}}])assert.ok(validateRecipeSettings({...input,configuration:{...input.configuration,...patch}}).error);
 });
 
@@ -73,6 +85,20 @@ test('quick service and yield PATCH reuse editor transactions, conversions and h
   await db.exec(`INSERT INTO stock_lots(id,household_id,recipe_id,produced_on,quantity,storage) VALUES('ffffffff-ffff-4fff-8fff-ffffffffffff','${h}','${component.id}','2026-10-21',3,'freezer');`);
   const blocked=await updateRecipeSettings(pool,component.id,{householdId:h,version:changed.version,productionType:'none',mealMoments:[],configuration:{...config,servingMode:'original',yield:{amount:1,unitId:'piece'},lineParts:['main']}});
   assert.equal(blocked.error,'recipe-output-in-use');assert.equal((await readRecipe(pool,component.id)).yield.unitId,'slice');
+  // Legacy defaults are materialized per line with identical weights and nutrition.
+  const oldWeights={...recipe.servingWeights},oldNutrition=recipe.nutrition.batch;
+  const explicitFactors=recipe.lines.map(line=>ingredientCookingFactor(recipe,line));
+  recipe=await updateRecipeSettings(pool,recipe.id,{...request,version:recipe.version,configuration:{...config,cookingFactors:undefined,lineCookingFactors:explicitFactors}});
+  assert.deepEqual(recipe.servingWeights,oldWeights);assert.deepEqual(recipe.nutrition.batch,oldNutrition);
+  assert.deepEqual(recipe.lines.map(line=>line.cookingFactor),[1,2,1]);
+  // Two starches in the same recipe retain independent coefficients.
+  const mixed=await createRecipe(pool,validateRecipeInput({...original,name:'Mixed rice and beans',lines:[...original.lines,{foodId:food,quantity:50,unitId:'g'}]}).data);
+  const mixedRequest={householdId:h,version:mixed.version,productionType:'none',mealMoments:[],configuration:{servingMode:'three',yield:mixed.yield,lineParts:['main','starch','starch','vegetables'],lineCookingFactors:[0.8,3,1,1]}};
+  const splitMixed=await updateRecipeSettings(pool,mixed.id,mixedRequest);
+  assert.deepEqual(splitMixed.servingWeights,{main:80,starch:900,vegetables:50});
+  assert.equal(splitMixed.nutrition.batch.energyKcal,650);
+  const semolina=await updateRecipeSettings(pool,mixed.id,{...mixedRequest,version:splitMixed.version,configuration:{...mixedRequest.configuration,lineCookingFactors:[0.8,2,1,1]}});
+  assert.equal(semolina.servingWeights.starch,700);assert.equal(semolina.nutrition.batch.energyKcal,650);
   // A concurrent change is checked again under the transaction lock.
   const checked=validateRecipeInput({...original,yield:{amount:8,unitId:'portion'}}).data;
   assert.deepEqual(await updateRecipe(pool,recipe.id,checked,1),{error:'recipe-version-conflict'});
