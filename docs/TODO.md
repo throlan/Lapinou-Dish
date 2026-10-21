@@ -1,6 +1,6 @@
 # Prochaines tâches — 21 octobre 2026
 
-Référence du code : **0.2.94**, volet Instagram de la fiche cuisine ajouté avant la suite des priorités, sur la webapp installable et icônes livrées après la charte claire Magazine culinaire · Encre framboise responsive PC/tablette/mobile, sans changement métier. La 0.2.88 conserve la saisie en unités d’achat et stock compté cohérents, après les produits communs et exclusions 0.2.87. Le calcul 0.2.86 (base 0.2.83) reste conservé ; les calculs 0.2.84/85 sont abandonnés. Vérifier les contrôles et la publication de main. Aucun nouveau chantier sans demande de l’utilisateur.
+Référence préparée : **0.2.95**, traduction française des champs de brouillon lors de l'import IA ; vérifier les contrôles et la publication après fusion. Les fonctions des versions 0.2.92 à 0.2.94 restent livrées. La 0.2.88 conserve la saisie en unités d’achat et stock compté cohérents, après les produits communs et exclusions 0.2.87. Le calcul 0.2.86 (base 0.2.83) reste conservé ; les calculs 0.2.84/85 sont abandonnés. Aucun nouveau chantier sans demande de l’utilisateur.
 
 ## Pistes à choisir et préciser
 

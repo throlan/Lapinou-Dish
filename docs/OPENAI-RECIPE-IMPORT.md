@@ -4,6 +4,8 @@ Dans Recettes → Importer des recettes, cocher « Analyser avec OpenAI » et co
 
 L'analyse conserve le texte original, distingue les ingrédients communs des variantes et laisse les quantités, unités et rendements inconnus à préciser. Les variantes figurent dans les instructions et doivent être choisies puis ajoutées aux ingrédients avant enregistrement. Les calories annoncées par l'auteur ne sont pas importées : le calcul utilise les aliments du catalogue. Le format structuré et les contrôles locaux ne garantissent pas l'exactitude de l'interprétation : vérifier le brouillon reste nécessaire.
 
+Les champs de la fiche créés par l'IA (titre, description, noms d'aliments, étapes, avertissements et variantes) sont rédigés en français, même si le texte source est dans une autre langue. Les extraits d'ingrédients `rawText` restent fidèles au texte original pour faciliter leur vérification ; le texte source complet est conservé dans le brouillon.
+
 ## Configuration à réaliser par le propriétaire
 
 - `OPENAI_API_KEY` : clé API dans l'environnement du serveur uniquement, jamais dans Git, le navigateur ou une conversation.
