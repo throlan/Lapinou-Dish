@@ -20,9 +20,10 @@ let visibleStoreFoods=[],storeSearchSequence=0,storeSearchTimer;
 let preparationsRequest=0;
 
 async function api(path, options = {}) {
+  const { timeoutMs, ...requestOptions } = options;
   const response = await fetch(path, {
-    ...options,
-    signal: options.signal ?? AbortSignal.timeout(8000),
+    ...requestOptions,
+    signal: options.signal ?? AbortSignal.timeout(timeoutMs ?? 8000),
     headers: { 'Content-Type': 'application/json', ...(options.headers ?? {}) },
   });
   const body = await response.json().catch(() => ({}));
@@ -1697,13 +1698,17 @@ $('#recipe-import-form').addEventListener('submit', async (event) => {
   button.disabled = true; button.textContent = 'Analyse en cours…';
   const generateImageAfterReview=form.elements.generateImage.checked;
   try {
-    const result = await api(useAI ? '/api/recipe-imports/ai' : '/api/recipe-imports/text', { method: 'POST', body: JSON.stringify({ householdId: state.household.id, text: form.elements.text.value, sourceUrl: form.elements.sourceUrl.value || null }) });
+    const result = await api(useAI ? '/api/recipe-imports/ai' : '/api/recipe-imports/text', { method: 'POST', timeoutMs: useAI ? 90_000 : undefined, body: JSON.stringify({ householdId: state.household.id, text: form.elements.text.value, sourceUrl: form.elements.sourceUrl.value || null }) });
     form.reset(); showMessage($('#recipe-import-message'), 'Recette ajoutée aux brouillons. Associe ses ingrédients aux aliments du catalogue.', true);
     await refreshImportDrafts();
     const { drafts } = await api(`/api/recipe-imports?householdId=${encodeURIComponent(state.household.id)}`);
     const draft = drafts.find((item) => item.id === result.drafts?.[0]?.id);
     if (draft) { state.generateImportedImage=generateImageAfterReview; await openImportDraft(draft); }
   } catch (error) {
+    if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+      showMessage($('#recipe-import-message'), 'L’analyse a dépassé le délai d’attente. Ton texte est toujours dans le champ : réessaie, ou importe le texte sans OpenAI.');
+      return;
+    }
     const messages = {
       'instagram-caption-unavailable': 'Instagram ne permet pas de lire la description complète. Colle la description dans le champ texte, puis relance l’analyse.',
       'invalid-instagram-post-url': 'Pour importer avec un lien seul, indique un lien vers une publication ou un reel Instagram. Pour YouTube, colle aussi le texte.',
