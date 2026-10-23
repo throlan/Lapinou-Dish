@@ -26,6 +26,8 @@ Détails et variantes dans [AMELIORATIONS.md](AMELIORATIONS.md). Les variantes i
 
 ## Déjà livré — ne pas remettre dans le reste à faire
 
+- Publication avec versions numérotées et conservation des images pour retour arrière : voir ROLLBACK.md. Application 0.2.99 inchangée ; vérifier les alias restaurés après livraison de ce workflow.
+
 - 0.2.94 : renommage direct des recettes depuis les fiches grille/liste, avec conservation des ingrédients/calculs et actualisation du titre des parties.
 
 - 0.2.93 : coefficients individuels dans l’éditeur et les fiches, Semoule ×2, retrait des champs globaux visibles ; anciens coefficients appliqués conservés. 303 tests locaux et parcours Chrome fictif.
