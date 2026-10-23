@@ -1,8 +1,14 @@
-# État du projet — 21 octobre 2026
+# État du projet — 23 octobre 2026
+
+## Courses : équivalences d’achat configurables — 0.2.96
+
+Depuis la fiche aliment dans la page Aliments, chaque foyer peut définir l’unité de vente habituelle, sa quantité et l’unité couverte, ainsi que des libellés singulier/pluriel et une note. Les conversions de recette déjà documentées (par exemple grammes par cuillère) sont utilisées pour afficher le nombre d’unités d’achat dans les courses ; la quantité nécessaire reste visible en détail. Un format de paquet saisi sur la ligne de courses garde la priorité. Les réglages sont propres au foyer. Les conversions entre deux aliments se définissent séparément dans « Acheter sous… » et appliquent le coefficient seulement aux courses et au stock commun, sans changer les recettes ni leur nutrition. Exemple vérifié : 250 g de pois chiches cuits égouttés → 200 g secs avec le coefficient 0,8. La page catalogue Aliments, ses champs modifiables et sa suppression protégée existaient déjà.
+
+Validation : **306 tests locaux réussis**, incluant 3 c. à café de poudre à 2 g chacune achetée en sachet de 500 g (1 sachet), équivalence pois chiches 250 g → 200 g et conservation de la recette d’origine. Aucun accès à Unraid/Nginx.
 
 ## Import IA — traduction française des brouillons, 0.2.95
 
-L'analyse OpenAI rédige désormais en français le titre, la description, les noms d'aliments, les instructions, avertissements et variantes, quelle que soit la langue source. Les citations exactes des ingrédients et le texte complet d'origine restent conservés pour vérification. Les 304 tests locaux et la publication GitHub/GHCR sont à vérifier après la fusion.
+L'analyse OpenAI rédige désormais en français le titre, la description, les noms d'aliments, les instructions, avertissements et variantes, quelle que soit la langue source. Les citations exactes des ingrédients et le texte complet d'origine restent conservés pour vérification. Les 304 tests locaux et la publication GHCR ont réussi après la fusion de la PR #127 : https://github.com/throlan/Lapinou-Dish/actions/runs/39615679377.
 
 ## Renommer depuis le répertoire — 0.2.94
 
@@ -36,7 +42,7 @@ Les sections ci-dessous conservent le contexte des versions précédentes ; la r
 
 Application **0.2.91** : volet Instagram dans Cuisiner à partir de la source, lecteur à la demande et lien de repli, sur la webapp installable, icône lapin/cocotte et guide d’installation, sur la charte claire Magazine culinaire · Encre framboise, navigation et formulaires responsive PC/tablette/mobile, photos valorisées. Fonctionnalités et calculs inchangés. La 0.2.88 conserve les achats et stock compté saisis dans l’unité d’achat affichée lorsqu’elle est configurée (ex. 26 œufs, 1 œuf = 50 g), stock affiché aussi dans cette unité, conversion unique vers les API de stock existantes. Les regroupements/exclusions de la 0.2.87 et le calcul 0.2.86 sont conservés. **298 tests locaux réussis**. Chargement/arrêt du volet Instagram vérifiés sur publication fictive interceptée, sans lecture réelle confirmée. Manifeste et critères d’installation Chrome vérifiés sans erreur dans un profil local jetable, invitation native disponible ; installation OS réelle non effectuée. Sept pages et fiches principales vérifiées dans Chrome local sur données fictives à 1440, 1280, 900, 390 et 320 px (émulation, pas appareils physiques). Dernière publication applicative vérifiée avant ce chantier : 0.2.91, PR #122, commit c3bf80e, [contrôles et GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/39129593328).
 
-Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 21 octobre](SESSION-2026-10-21.md).
+Pour reprendre le projet sur un autre poste : [cahier de reprise](REPRISE.md). Pour le détail des dernières modifications : [journal de session du 23 octobre](SESSION-2026-10-23.md).
 
 Les tâches réellement restantes et les fonctions déjà livrées sont séparées dans [TODO.md](TODO.md). Les pistes détaillées restent dans [AMELIORATIONS.md](AMELIORATIONS.md) ; aucune nouvelle modification fonctionnelle ne doit démarrer sans demande de l’utilisateur.
 

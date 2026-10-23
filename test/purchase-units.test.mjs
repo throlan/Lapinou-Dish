@@ -32,7 +32,7 @@ test('documented conversions combine a food into one purchase line; unknown conv
 });
 
 test('a teaspoon weight converts recipe spoons and combines them for package shopping',()=>{
-  const cocoaRule={...rule,singularLabel:'paquet',pluralLabel:'paquets',coveredQuantity:250,coveredUnitId:'g',estimateNote:''};
+  const cocoaRule={...rule,singularLabel:'sachet de 500 g',pluralLabel:'sachets de 500 g',coveredQuantity:500,coveredUnitId:'g',estimateNote:''};
   const base={foodId,name:'Cacao',gramsPerUnit:{tsp:6},gramsPerMillilitre:null,recipes:[]};
   const combined=applyPurchaseUnits([
     {...base,unitId:'tsp',quantity:1},
@@ -40,7 +40,7 @@ test('a teaspoon weight converts recipe spoons and combines them for package sho
   ],[cocoaRule]);
   assert.equal(combined.length,1);
   assert.equal(combined[0].quantity,150);
-  assert.equal(purchaseDescription({...combined[0],neededQuantity:150}).text,'1 paquet');
+  assert.equal(purchaseDescription({...combined[0],neededQuantity:150}).text,'1 sachet de 500 g');
 });
 
 test('a configured pinch remains a shopping need and converts to grams for buying',()=>{

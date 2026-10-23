@@ -18,7 +18,13 @@ Compatibilité : aucune migration ni réécriture automatique. Une ancienne vale
 Validation : **303 tests locaux réussis**, dont riz et haricots avec coefficients indépendants dans une même partie, semoule ×2, héritage ancien et personnalisé conservé, préparations maison ×1, enregistrement PATCH et apports inchangés. Chrome local sur base fictive à 1440/1280/900/390/320 px : absence des champs globaux, valeur héritée ×0,8 visible/conservée, sélection ×2 dans les réglages rapides et l’éditeur, persistance après enregistrement, parcours des vues et aucune erreur inattendue ni débordement horizontal. Pas d’appareil physique testé, aucun accès à Unraid/Nginx.
 
 
-Mis à jour le 21 octobre 2026 après le volet Instagram de Cuisiner 0.2.91, la webapp installable 0.2.90 et la refonte visuelle 0.2.89 Magazine culinaire · Encre framboise. Ce document rassemble des pistes demandées ou suggérées. Chaque chantier devra être précisé avant sa mise en œuvre. Les fonctionnalités livrées restent décrites dans [STATUS.md](STATUS.md) et le dernier journal est [SESSION-2026-10-18.md](SESSION-2026-10-18.md).
+Mis à jour le 23 octobre 2026. Les améliorations livrées jusqu’à la 0.2.96 sont consignées ici comme références ; les pistes restantes sont des propositions à préciser avant leur mise en œuvre. Voir [STATUS.md](STATUS.md) pour l’état actuel et [SESSION-2026-10-23.md](SESSION-2026-10-23.md) pour le journal récent.
+
+## Courses : équivalences des aliments et unités d’achat — en préparation pour la 0.2.96
+
+Les règles « Acheter sous… » permettent de remplacer un aliment de recette par un produit d’achat du catalogue avec unités et coefficient explicites, par exemple 250 g de pois chiches cuits égouttés pour 200 g secs. Les règles sont propres au foyer et ne modifient ni la recette source ni son calcul nutritionnel. Dans la fiche aliment, le foyer peut aussi définir une unité d’achat par défaut : libellés singulier/pluriel, quantité contenue, unité et note. Les mesures d’ingrédients déjà renseignées (g/c. à café, etc.) convertissent le besoin vers les paquets affichés. Le format d’achat saisi directement sur une ligne reste prioritaire. La page Aliments avec modification et suppression protégée existait déjà et n’a pas été refaite.
+
+Validation : 306 tests locaux réussis, y compris l’équivalence 250 g cuits → 200 g secs et la conversion de cuillères en sachet de 500 g.
 
 ## Recettes : filtre service, réglages rapides et affichage — 0.2.92
 

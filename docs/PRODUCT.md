@@ -30,6 +30,10 @@ Depuis la 0.2.89, la charte validée est **Magazine culinaire · Encre framboise
 - Les équivalences d'unités dépendent de l'aliment: g et ml ne sont pas interchangeables sans densité; une pièce ou une cuillère peut avoir un poids seulement si une équivalence documentée existe.
 - Les recettes et recherches utilisent le même identifiant alimentaire et affichent le nom canonique. Aucun champ de nom libre parallèle ne sert au calcul.
 
+## Courses et unités d’achat
+
+Les règles d’achat sont propres au foyer. Une fiche aliment peut définir l’unité d’achat habituelle et son contenu (par exemple sachet de 500 g) ; les équivalences de recette connues convertissent les cuillères, pièces et autres mesures vers l’achat affiché. Les achats au format saisi directement sur une ligne restent prioritaires. Une préférence distincte peut lier un aliment de recette à un autre produit de courses avec une conversion explicite (par exemple pois chiches cuits égouttés vers pois chiches secs). Ces règles ne changent pas les ingrédients ni les apports de la recette. La page Aliments sert à consulter, modifier, ajouter, dupliquer et supprimer les fiches, avec protection des aliments référencés.
+
 ## Recettes et composition
 
 - Depuis la 0.2.94, renommage direct du titre dans les vues grille et liste, validation ou annulation explicites. Les titres des parties liées suivent sans changer les ingrédients, quantités ni historiques.
