@@ -1,5 +1,13 @@
 # Cahier de reprise — 23 octobre 2026, unités d’achat et équivalences en courses
 
+## Modification en cours — 0.2.97
+
+La page Administration ajoute des conversions de rendement propres au foyer : aliment de départ → aliment obtenu, facteur en grammes obtenus par gramme de départ. La règle alimente les choix de coefficient de cuisson uniquement sur l’ingrédient de départ concerné ; les coefficients déjà sauvegardés ne sont pas modifiés. Pour les courses, une ligne de recette utilisant l’aliment obtenu peut être convertie en sens inverse vers l’aliment de départ. Une préférence explicite « Acheter sous… » prend la priorité. Exemple : 1 g sec → 1,25 g égoutté ; 250 g égouttés donnent 200 g secs. Ne pas appliquer une même valeur à des aliments différents sans conversion explicitement enregistrée.
+
+Dans le catalogue alimentaire, la table n’est plus enfermée dans une zone de défilement interne. La pagination existante reste en place. La sélection groupée permet la page actuelle ou tous les résultats du filtre courant, puis affiche un aperçu des fiches supprimables/protégées. Seules les fiches inutilisées sélectionnées sont supprimées ; les recettes, stocks, regroupements d’achat et conversions les protègent. Le serveur recontrôle les références au moment de la suppression.
+
+La base de cette modification est 0.2.96 / PR #129 (vérifier le commit de `origin/main` au redémarrage). Validation locale effectuée : **308 tests réussis**. Vérifier les tests, diffs, version, migration, publication GitHub/GHCR après livraison. Jamais d’accès à Unraid ni Nginx ; l’utilisateur déploie lui-même.
+
 ## Dernière modification en préparation — 0.2.96
 
 Dans le catalogue **Aliments**, la fiche modifiable permet de régler l’unité d’achat habituelle du foyer (libellé singulier/pluriel, quantité et unité par sachet/paquet, note). Exemple : l’aliment reste en cuillères à café dans les recettes ; renseigner 2 g par cuillère et un sachet de 500 g affiche les sachets nécessaires dans les courses. Les équivalences entre aliments cuits et secs restent des regroupements explicites dans les préférences d’achat : ex. pois chiches cuits égouttés → pois chiches secs, coefficient 0,8. Les recettes, leur nutrition et leurs ingrédients restent inchangés. Catalogue dédié Aliments, édition complète et suppression protégée déjà disponibles ; aucun remplacement de cette page n’est à refaire. Version `package.json` : 0.2.96. **306 tests locaux réussis**, dont conversions cuillères/sachets et pois chiches cuits/secs. Branche de travail basée sur origin/main au commit 75761384252b13d7a5e25e20496b07d9c85506d3 (PR #128). PR et publication GHCR de la 0.2.96 à vérifier après livraison.

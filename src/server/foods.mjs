@@ -198,6 +198,44 @@ export async function deleteFood(pool, id) {
   } finally { client.release(); }
 }
 
+export async function deleteFoods(pool, foodIds, {dryRun=false}={}) {
+  const uuid=value=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+  if(!Array.isArray(foodIds)||!foodIds.length||foodIds.length>5000||foodIds.some(id=>!uuid(id)))return{error:'invalid-food-ids'};
+  const ids=[...new Set(foodIds.map(id=>id.toLowerCase()))];
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    const foods=await client.query('SELECT id,canonical_name FROM foods WHERE id=ANY($1::uuid[]) ORDER BY id FOR UPDATE',[ids]);
+    const foundIds=foods.rows.map(row=>row.id);
+    const usage=foundIds.length?await client.query(`SELECT f.id,
+        COALESCE((SELECT array_agg(DISTINCT r.name ORDER BY r.name) FROM recipe_lines rl JOIN recipes r ON r.id=rl.recipe_id WHERE rl.food_id=f.id),'{}') AS recipes,
+        (SELECT count(*)::integer FROM household_ingredient_stock s WHERE s.food_id=f.id) AS stock_count,
+        (SELECT count(*)::integer FROM household_purchase_products p WHERE p.food_id=f.id OR p.purchase_food_id=f.id) AS purchase_rule_count,
+        (SELECT count(*)::integer FROM household_food_yield_conversions c WHERE c.source_food_id=f.id OR c.target_food_id=f.id) AS yield_conversion_count
+      FROM foods f WHERE f.id=ANY($1::uuid[])`,[foundIds]):{rows:[]};
+    const usageById=new Map(usage.rows.map(row=>[row.id,row]));
+    const deletable=[],blocked=[];
+    for(const food of foods.rows){
+      const refs=usageById.get(food.id),recipes=refs?.recipes??[],stockCount=Number(refs?.stock_count??0),purchaseRuleCount=Number(refs?.purchase_rule_count??0),yieldConversionCount=Number(refs?.yield_conversion_count??0);
+      if(recipes.length||stockCount||purchaseRuleCount||yieldConversionCount)blocked.push({id:food.id,name:food.canonical_name,recipes,stockCount,purchaseRuleCount,yieldConversionCount});
+      else deletable.push({id:food.id,name:food.canonical_name});
+    }
+    const missingCount=ids.length-foods.rows.length;
+    let deleted=[];
+    if(!dryRun&&deletable.length){
+      const result=await client.query('DELETE FROM foods WHERE id=ANY($1::uuid[]) RETURNING id',[deletable.map(food=>food.id)]);
+      deleted=result.rows.map(row=>row.id);
+      if(deleted.length!==deletable.length)throw new Error('bulk-food-delete-incomplete');
+    }
+    await client.query('COMMIT');
+    return{deletable,dueToUsage:blocked,missingCount,deleted};
+  }catch(error){
+    await client.query('ROLLBACK');
+    if(error.code==='23503')return{error:'food-in-use',deleted:[]};
+    throw error;
+  }finally{client.release();}
+}
+
 export async function fillMissingNutritionFromExternal(pool, foodId, product) {
   if (!product || !/^\d{8,14}$/.test(product.barcode ?? '') || !product.url?.startsWith('https://world.openfoodfacts.org/product/')) {
     return { error: 'invalid-nutrition-source' };

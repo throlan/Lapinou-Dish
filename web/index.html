@@ -11,8 +11,8 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.2.96">
-    <link rel="stylesheet" href="/editorial.css?v=0.2.96">
+    <link rel="stylesheet" href="/style.css?v=0.2.97">
+    <link rel="stylesheet" href="/editorial.css?v=0.2.97">
   </head>
   <body>
     <header class="topbar">
@@ -92,6 +92,19 @@
           <button type="submit" class="primary" disabled>Enregistrer la composition</button>
           <p id="plate-ratios-message" class="form-message" role="status"></p>
         </form>
+        <h3>Conversions de rendement des aliments</h3>
+        <form id="food-yield-form" class="card food-yield-form">
+          <p class="muted">Relie un aliment de départ à l’aliment obtenu après cuisson ou préparation. Le coefficient indique le poids obtenu pour 1 g de l’aliment de départ. Il sera proposé dans les recettes et sa conversion inverse pourra servir aux courses. Une règle « Acheter sous… » explicite reste prioritaire.</p>
+          <input type="hidden" name="id">
+          <div class="form-grid">
+            <label>Aliment de départ<input name="sourceFoodName" list="yield-source-options" autocomplete="off" required placeholder="Rechercher un aliment…"><datalist id="yield-source-options"></datalist><input name="sourceFoodId" type="hidden"></label>
+            <label>Aliment obtenu<input name="targetFoodName" list="yield-target-options" autocomplete="off" required placeholder="Rechercher un aliment…"><datalist id="yield-target-options"></datalist><input name="targetFoodId" type="hidden"></label>
+            <label>Coefficient obtenu<input name="factor" type="number" min="0.000001" max="10" step="any" required placeholder="Ex. 1,25"></label>
+          </div>
+          <div class="form-actions"><button type="submit" class="primary">Ajouter la conversion</button><button type="button" class="secondary hidden" id="cancel-food-yield-edit">Annuler la modification</button></div>
+          <p id="food-yield-message" class="form-message" role="status"></p>
+        </form>
+        <div id="food-yield-conversions" class="food-yield-conversions" aria-live="polite"><p class="muted">Chargement des conversions…</p></div>
       </section>
       <section id="calendar-view" class="view hidden">
         <div class="section-heading"><div><h2>Calendrier familial</h2><p>Prévisions par personne, reliées aux recettes du catalogue.</p></div><button type="button" class="secondary" id="manage-profiles">Gérer les profils</button></div>
@@ -107,9 +120,10 @@
       </section>
       <section id="foods-view" class="view hidden">
         <div class="section-heading"><div><h2>Catalogue alimentaire</h2><p>Une fiche canonique par aliment, enrichie par Ciqual et modifiable.</p></div><button class="primary" id="add-food">+ Nouvel aliment</button></div>
-        <div class="toolbar"><label class="search"><span>⌕</span><input id="food-search" type="search" placeholder="Rechercher un aliment…" autocomplete="off"></label><label class="incomplete-filter"><input id="food-incomplete" type="checkbox"> À compléter</label><span class="muted" id="food-count"></span></div>
+        <div class="toolbar food-toolbar"><label class="search"><span>⌕</span><input id="food-search" type="search" placeholder="Rechercher un aliment…" autocomplete="off"></label><label class="incomplete-filter"><input id="food-incomplete" type="checkbox"> À compléter</label><span class="muted" id="food-count"></span></div>
+        <div class="food-bulk-toolbar"><label><input id="select-food-page" type="checkbox"> Sélectionner la page</label><button type="button" class="secondary" id="select-food-results">Sélectionner tous les résultats</button><span id="food-selection-count" class="muted">Aucun aliment sélectionné</span><button type="button" class="secondary" id="clear-food-selection" disabled>Effacer la sélection</button><button type="button" class="secondary danger-button" id="bulk-delete-foods" disabled>Supprimer la sélection</button></div>
         <p id="food-list-message" class="form-message" role="status"></p>
-        <div class="table-wrap"><table><thead><tr><th>Aliment</th><th>Provenance</th><th>Pour 100 g</th><th></th></tr></thead><tbody id="food-rows"><tr><td colspan="4" class="empty">Chargement du catalogue…</td></tr></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th aria-label="Sélection"></th><th>Aliment</th><th>Provenance</th><th>Pour 100 g</th><th></th></tr></thead><tbody id="food-rows"><tr><td colspan="5" class="empty">Chargement du catalogue…</td></tr></tbody></table></div>
         <div class="pagination"><span class="muted" id="page-label"></span><div><button class="secondary" id="previous-page">Précédent</button><button class="secondary" id="next-page">Suivant</button></div></div>
       </section>
 
@@ -334,6 +348,12 @@
         <p class="form-message" id="food-message" role="status"></p>
       </form>
     </dialog>
+    <dialog id="bulk-food-delete-dialog" class="bulk-food-delete-dialog" aria-labelledby="bulk-food-delete-title">
+      <div class="dialog-heading"><div><p class="eyebrow">CATALOGUE ALIMENTAIRE</p><h2 id="bulk-food-delete-title">Suppression groupée</h2></div><button type="button" class="icon-button" id="close-bulk-food-delete" aria-label="Fermer">×</button></div>
+      <div id="bulk-food-delete-preview"><p class="muted">Vérification des aliments sélectionnés…</p></div>
+      <p id="bulk-food-delete-message" class="form-message" role="status"></p>
+      <div class="form-actions"><button type="button" class="secondary" id="cancel-bulk-food-delete">Annuler</button><button type="button" class="primary danger-button" id="confirm-bulk-food-delete" disabled>Supprimer les aliments inutilisés</button></div>
+    </dialog>
     <dialog id="install-app-dialog" class="install-app-dialog" aria-labelledby="install-app-title">
       <div class="dialog-heading"><div><p class="eyebrow">LAPINOU DISH À PORTÉE DE MAIN</p><h2 id="install-app-title">Installer l’app</h2></div><button type="button" class="icon-button" id="close-install-app" aria-label="Fermer">×</button></div>
       <img class="install-app-icon" src="/icons/app-192.png" width="80" height="80" alt="Lapinou Dish, le lapin cuisinier">
@@ -369,7 +389,7 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/install-app.js?v=0.2.96"></script>
-    <script type="module" src="/app.js?v=0.2.96"></script>
+    <script type="module" src="/install-app.js?v=0.2.97"></script>
+    <script type="module" src="/app.js?v=0.2.97"></script>
   </body>
 </html>

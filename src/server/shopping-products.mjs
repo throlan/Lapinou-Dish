@@ -74,18 +74,24 @@ function convert(quantity,from,to,food) {
 }
 export async function purchaseProductRequirements(pool,householdId,rows,preferences=null) {
   const {mappings}=preferences??await listShoppingPreferences(pool,householdId);
-  if(!mappings.length)return rows;
-  const foods=await foodPurchaseMass(pool,[...new Set(mappings.flatMap(row=>[row.foodId,row.purchaseFoodId]))]);
+  const conversionResult=await pool.query(`SELECT source_food_id AS "sourceFoodId",target_food_id AS "targetFoodId",factor
+    FROM household_food_yield_conversions WHERE household_id=$1`,[householdId]);
+  const yieldConversions=conversionResult.rows.map(row=>({...row,factor:Number(row.factor)}));
+  if(!mappings.length&&!yieldConversions.length)return rows;
+  const foodIds=[...new Set([...mappings.flatMap(row=>[row.foodId,row.purchaseFoodId]),...yieldConversions.flatMap(row=>[row.sourceFoodId,row.targetFoodId]),...rows.map(row=>row.foodId)])];
+  const foods=await foodPurchaseMass(pool,foodIds);
   const targetUnits=new Map(mappings.map(row=>[row.purchaseFoodId,row.targetUnitId])),result=new Map();
   for(const row of rows){
-    const mapping=mappings.find(m=>m.foodId===row.foodId),targetId=mapping?.purchaseFoodId??row.foodId;
-    const unit=mapping?.targetUnitId??targetUnits.get(row.foodId),target=foods.get(targetId);
+    const mapping=mappings.find(m=>m.foodId===row.foodId),yieldConversion=mapping?null:yieldConversions.find(item=>item.targetFoodId===row.foodId),targetId=mapping?.purchaseFoodId??yieldConversion?.sourceFoodId??row.foodId;
+    const unit=mapping?.targetUnitId??(yieldConversion?null:targetUnits.get(row.foodId)),target=foods.get(targetId);
     let quantity=Number(row.quantity);
     if(mapping)quantity=convert(quantity,row.unitId,mapping.sourceUnitId,foods.get(row.foodId));
     if(quantity!=null&&mapping)quantity*=mapping.factor;
     if(!mapping&&unit)quantity=convert(quantity,row.unitId,unit,foods.get(row.foodId));
-    const converted=unit&&target&&quantity!=null&&Number.isFinite(quantity)&&quantity<=100000000&&toGrams(1,unit,target)>0;
-    const next=converted?{...row,...target,foodId:targetId,name:target.name,unitId:unit,quantity}:({...row,...(unit?{mappingError:true,warning:'Regroupement non appliqué : conversion manquante'}:{})});
+    let outputUnit=unit;
+    if(yieldConversion){const grams=quantity==null?null:toGrams(quantity,row.unitId,foods.get(row.foodId));quantity=grams==null?null:grams/yieldConversion.factor;outputUnit='g';}
+    const converted=(unit||yieldConversion)&&target&&quantity!=null&&Number.isFinite(quantity)&&quantity<=100000000&&(yieldConversion||toGrams(1,unit,target)>0);
+    const next=converted?{...row,...target,foodId:targetId,name:target.name,unitId:outputUnit,quantity}:({...row,...(unit||yieldConversion?{mappingError:true,warning:'Regroupement non appliqué : conversion manquante'}:{})});
     const key=next.foodId+':'+next.unitId+(next.mappingError?':unresolved':'');
     if(!result.has(key))result.set(key,{...next,quantity:0,recipes:[],purchaseSources:[]});
     const item=result.get(key);item.quantity+=Number(next.quantity);

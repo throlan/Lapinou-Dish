@@ -71,8 +71,9 @@ export const cookingFactorChoices=[['1','Poids inchangé — ×1'],['2','Semoule
 export function ingredientCookingFactor(recipe,line){
   return line.recipeId?1:line.cookingFactor??(recipe.separateStarch?recipe.cookingFactors?.[line.servingPart??'main']:1)??1;
 }
-export function fillCookingFactorOptions(select,value,document){
+export function fillCookingFactorOptions(select,value,document,customChoices=[]){
   for(const [factor,label] of cookingFactorChoices){const option=document.createElement('option');option.value=factor;option.textContent=label;select.append(option);}
-  if(!cookingFactorChoices.some(([factor])=>Number(factor)===Number(value))){const option=document.createElement('option');option.value=String(value);option.textContent='×'+String(value).replace('.',',')+' — coefficient conservé';select.append(option);}
+  for(const preset of customChoices){const factor=String(preset.factor),existing=[...select.options].find(option=>option.value===factor);if(existing){existing.textContent+=` · ${preset.targetFoodName}`;continue;}const option=document.createElement('option');option.value=factor;option.textContent=`${preset.targetFoodName} — ×${factor.replace('.',',')}`;select.append(option);}
+  if(![...cookingFactorChoices.map(([factor])=>Number(factor)),...customChoices.map(preset=>Number(preset.factor))].some(factor=>factor===Number(value))){const option=document.createElement('option');option.value=String(value);option.textContent='×'+String(value).replace('.',',')+' — coefficient conservé';select.append(option);}
   select.value=String(value);
 }

@@ -1,5 +1,11 @@
 # État du projet — 23 octobre 2026
 
+## Catalogue alimentaire : conversions et gestion groupée — préparation 0.2.97
+
+En cours : Administration permet d’associer un aliment de départ à l’aliment obtenu et d’indiquer le rendement en grammes (ex. 1 g sec → 1,25 g égoutté). La valeur est proposée comme coefficient de cuisson uniquement pour cet aliment ; les recettes déjà enregistrées ne sont pas réécrites. Pour les courses, l’aliment obtenu se convertit à l’inverse vers le produit de départ, sauf si une préférence explicite « Acheter sous… » est déjà définie. Le catalogue défile avec la page et garde sa pagination. Une sélection par page ou sur tous les résultats filtrés ouvre un aperçu ; recettes, stocks, regroupements d’achat et conversions protègent les fiches référencées. Suppression groupée uniquement des fiches inutilisées sélectionnées.
+
+Validation locale : **308 tests réussis** après ajout des parcours de conversion inverse et de suppression protégée. Les contrôles GitHub et publication de cette version restent à faire après commit/PR/fusion. Pas de vérification visuelle navigateur ni d’accès à Unraid/Nginx pendant cette passe.
+
 ## Courses : équivalences d’achat configurables — 0.2.96
 
 Depuis la fiche aliment dans la page Aliments, chaque foyer peut définir l’unité de vente habituelle, sa quantité et l’unité couverte, ainsi que des libellés singulier/pluriel et une note. Les conversions de recette déjà documentées (par exemple grammes par cuillère) sont utilisées pour afficher le nombre d’unités d’achat dans les courses ; la quantité nécessaire reste visible en détail. Un format de paquet saisi sur la ligne de courses garde la priorité. Les réglages sont propres au foyer. Les conversions entre deux aliments se définissent séparément dans « Acheter sous… » et appliquent le coefficient seulement aux courses et au stock commun, sans changer les recettes ni leur nutrition. Exemple vérifié : 250 g de pois chiches cuits égouttés → 200 g secs avec le coefficient 0,8. La page catalogue Aliments, ses champs modifiables et sa suppression protégée existaient déjà.

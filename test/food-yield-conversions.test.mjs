@@ -1,0 +1,32 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {readFile,readdir} from 'node:fs/promises';
+import {PGlite} from '@electric-sql/pglite';
+import {deleteFoodYieldConversion,listFoodYieldConversions,saveFoodYieldConversion,validateFoodYieldConversion} from '../src/server/food-yield-conversions.mjs';
+import {purchaseProductRequirements} from '../src/server/shopping-products.mjs';
+import {fillCookingFactorOptions} from '../web/recipe-directory.js';
+import {handleRequest} from '../src/server/app.mjs';
+
+test('household food yield conversions drive recipe choices and inverse shopping mass',async t=>{
+  const db=new PGlite();t.after(()=>db.close());const dir=new URL('../db/migrations/',import.meta.url);
+  for(const file of (await readdir(dir)).filter(file=>file.endsWith('.sql')).sort())await db.exec(await readFile(new URL(file,dir),'utf8'));
+  const pool={async query(sql,args=[]){const result=await db.query(sql,args);return{...result,rowCount:result.rows.length||result.affectedRows||0};},async connect(){return{...this,release(){}};}};
+  const householdId=randomUUID(),dry=randomUUID(),cooked=randomUUID();await pool.query("INSERT INTO households(id,name) VALUES($1,'Synthetic')",[householdId]);
+  await pool.query("INSERT INTO foods(id,canonical_name,source,grams_per_millilitre) VALUES($1,'Dry chickpeas','manual',NULL),($2,'Cooked drained chickpeas','manual',NULL)",[dry,cooked]);
+  await pool.query("INSERT INTO food_unit_conversions(food_id,unit_id,grams_per_unit,source_note) VALUES($1,'g',1,'Test'),($2,'g',1,'Test')",[dry,cooked]);
+  const input={householdId,sourceFoodId:dry,targetFoodId:cooked,factor:1.25};assert.ok(validateFoodYieldConversion(input).data);
+  const conversion=await saveFoodYieldConversion(pool,input);assert.equal(conversion.sourceFoodName,'Dry chickpeas');assert.equal(conversion.targetFoodName,'Cooked drained chickpeas');
+  const recipes=[];for(const row of await listFoodYieldConversions(pool,householdId))recipes.push(row);
+  assert.equal(recipes.length,1);assert.equal(recipes[0].factor,1.25);
+  const options=[];const fakeDocument={createElement(){return{value:'',textContent:'',};}};const select={options:[],append(option){this.options.push(option);}};
+  fillCookingFactorOptions(select,1,fakeDocument,recipes.filter(row=>row.sourceFoodId===dry));assert.ok(select.options.some(option=>option.textContent.includes('Cooked drained chickpeas')&&Number(option.value)===1.25));
+  const purchased=await purchaseProductRequirements(pool,householdId,[{foodId:cooked,name:'Cooked drained chickpeas',unitId:'g',quantity:250}],{mappings:[]});
+  assert.equal(purchased.length,1);assert.equal(purchased[0].foodId,dry);assert.equal(purchased[0].unitId,'g');assert.equal(purchased[0].quantity,200);
+  const selectedProduct=randomUUID();await pool.query("INSERT INTO foods(id,canonical_name,source,grams_per_millilitre) VALUES($1,'Selected chickpea product','manual',NULL)",[selectedProduct]);
+  const other=await purchaseProductRequirements(pool,householdId,[{foodId:cooked,name:'Cooked drained chickpeas',unitId:'g',quantity:250}],{mappings:[{foodId:cooked,purchaseFoodId:selectedProduct,sourceUnitId:'g',targetUnitId:'g',factor:0.6}]});
+  assert.equal(other[0].foodId,selectedProduct);assert.equal(other[0].quantity,150,'explicit user purchase setup takes precedence over inferred yield');
+  const response={headers:{},setHeader(k,v){this.headers[k]=v;},writeHead(status){this.status=status;},end(body){this.body=JSON.parse(body);}};
+  await handleRequest({method:'PUT',url:'/api/household-food-yields',headers:{},async *[Symbol.asyncIterator](){yield Buffer.from(JSON.stringify({...input,factor:0}));}},response,pool);assert.equal(response.status,400);
+  assert.equal(await deleteFoodYieldConversion(pool,householdId,conversion.id),true);assert.deepEqual(await listFoodYieldConversions(pool,householdId),[]);
+});

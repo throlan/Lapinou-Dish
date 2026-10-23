@@ -1,5 +1,13 @@
 # Cahier des améliorations proposées
 
+## Catalogue alimentaire : conversions de rendement et suppression groupée — préparation 0.2.97
+
+Administration permet d’associer un aliment de départ à un aliment obtenu avec un rendement en grammes. Les recettes proposent ce coefficient sur les seules lignes correspondant à l’aliment de départ, sans réécrire les valeurs déjà enregistrées. Aux courses, l’aliment obtenu peut être converti inversement en aliment de départ ; une préférence « Acheter sous… » définie explicitement garde la priorité. Exemple : 1 g sec → 1,25 g égoutté, donc 250 g égouttés → 200 g secs.
+
+Le catalogue n’impose plus une scrollbar verticale imbriquée. On peut sélectionner la page ou tous les résultats filtrés, consulter l’aperçu des éléments supprimables/protégés et supprimer en lot uniquement les aliments inutilisés. Les références de recettes, stocks, produits d’achat et conversions bloquent la suppression.
+
+Validation locale : **308 tests réussis**, y compris sauvegarde des conversions, suggestion de coefficient, conversion inverse aux courses, priorité des règles explicites et protection du catalogue.
+
 ## Renommer depuis le répertoire — 0.2.94
 
 Bouton Renommer à côté du titre en grille et liste. Champ local avec Enregistrer le titre et Annuler, Entrée pour valider et Échap pour annuler ; titre obligatoire, espaces retirés aux extrémités et 200 caractères maximum. Les erreurs gardent la saisie, le conflit de version demande une actualisation. Aucun passage par l’éditeur complet.
