@@ -17,7 +17,7 @@ test('actual settings controls search a catalogue product and submit an explicit
   const dom=fakeDom(t),saved=[],searches=[],preferences={mappings:[],exclusions:[]};
   const actions={startDate:'2026-10-19',endDate:'2026-10-25',save:async data=>{saved.push(data);},searchFoods:async query=>{searches.push(query);return [{id:'raw',name:'Raw eggs'},{id:'white',name:'White'}];}};
   const root=shoppingPreferenceControls({foodId:'white',name:'White',unitId:'piece'},preferences,actions);
-  assert.equal(saved.length,0);assert.match(dom.texts(root),/blancs.*explicitement/);
+  assert.equal(saved.length,0);assert.match(dom.texts(root),/blancs.*explicitement/);assert.match(dom.texts(root),/250 g.*200 g.*0,8/);
   const search=dom.find(root,e=>e.type==='search');search.value='egg';await search.listeners.input();assert.deepEqual(searches,['egg']);
   const target=dom.find(root,e=>e['aria-label']==='Produit à acheter pour White');assert.equal(target.options.some(o=>o.value==='white'),false);target.value='raw';
   const form=dom.find(root,e=>e.tag==='form');form.listeners.submit({preventDefault(){}});

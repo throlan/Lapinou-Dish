@@ -39,6 +39,24 @@ test('explicit purchase products aggregate before rounding, share stock and leav
   const meals=[];for(const r of dishes)meals.push(await savePlannedMeal(pool,null,{householdId,mealDate:start,slot:'lunch',notes:'',attendeeIds:[personId],items:[{recipeId:r.id,role:'main',amounts:[{personId,quantity:1}]}]}));
   const list=()=>listShoppingRequirements(pool,householdId,start,end);
   const pref=async data=>{const checked=validateShoppingPreference({householdId,...data});assert.equal(checked.error,undefined);return saveShoppingPreference(pool,checked.data);};
+  const cookedChickpeas=await food('Synthetic cooked drained chickpeas',140),dryChickpeas=await food('Synthetic dry chickpeas',360);
+  const chickpeaRecipe=await recipe(cookedChickpeas,250,'g');
+  await savePlannedMeal(pool,null,{householdId,mealDate:start,slot:'breakfast',notes:'',attendeeIds:[personId],items:[{recipeId:chickpeaRecipe.id,role:'main',amounts:[{personId,quantity:1}]}]});
+  await pref({kind:'product',foodId:cookedChickpeas,purchaseFoodId:dryChickpeas,sourceUnitId:'g',targetUnitId:'g',factor:0.8});
+  await t.test('cooked chickpeas are listed as dry chickpeas with the configured ratio while recipe quantities stay intact',async()=>{
+    const items=await list();assert.equal(items.some(row=>row.foodId===cookedChickpeas),false);
+    const dry=items.find(row=>row.foodId===dryChickpeas);assert.equal(dry.neededQuantity,200);
+    const original=await readRecipe(pool,chickpeaRecipe.id);assert.equal(original.lines[0].foodId,cookedChickpeas);assert.equal(original.lines[0].quantity,250);
+    await pref({kind:'product',foodId:cookedChickpeas,purchaseFoodId:null});
+  });
+  const garlicPowder=await food('Synthetic garlic powder',300);
+  await pool.query("INSERT INTO food_unit_conversions(food_id,unit_id,grams_per_unit,source_note) VALUES($1,'tsp',2,'Synthetic')",[garlicPowder]);
+  const garlicRecipe=await recipe(garlicPowder,3,'tsp');
+  await savePlannedMeal(pool,null,{householdId,mealDate:start,slot:'dinner',notes:'',attendeeIds:[personId],items:[{recipeId:garlicRecipe.id,role:'main',amounts:[{personId,quantity:1}]}]});
+  await savePurchaseUnit(pool,{householdId,foodId:garlicPowder,singularLabel:'sachet de 500 g',pluralLabel:'sachets de 500 g',coveredQuantity:500,coveredUnitId:'g',estimateNote:''});
+  await t.test('recipe teaspoons become grams then default purchase sachets',async()=>{
+    const garlic=(await list()).find(row=>row.foodId===garlicPowder);assert.equal(garlic.neededQuantity,6);assert.equal(garlic.purchase.text,'1 sachet de 500 g');
+  });
   const mapping={kind:'product',foodId:hard,purchaseFoodId:raw,sourceUnitId:'piece',targetUnitId:'piece',factor:1};
   await t.test('merge documented grams and pieces, subtract target stock once, round only the combined purchase',async()=>{
     assert.equal((await countProductInventory(pool,{householdId,foodId:raw,quantity:400,unitId:'g',version:0})).saved,true);

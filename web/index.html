@@ -11,8 +11,8 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.2.95">
-    <link rel="stylesheet" href="/editorial.css?v=0.2.95">
+    <link rel="stylesheet" href="/style.css?v=0.2.96">
+    <link rel="stylesheet" href="/editorial.css?v=0.2.96">
   </head>
   <body>
     <header class="topbar">
@@ -318,6 +318,18 @@
         </section>
         <div class="food-conversion-row"><label>Densité (g/ml)<input name="gramsPerMillilitre" type="number" min="0.001" step="any" placeholder="Si connue"></label><label>Poids d'une c. à café (g)<input name="tspGrams" type="number" min="0.001" step="any" placeholder="Si connu"></label><label>Poids d'une c. à soupe (g)<input name="tbspGrams" type="number" min="0.001" step="any" placeholder="Si connu"></label><label>Poids d'une pincée (g)<input name="pinchGrams" type="number" min="0.001" step="any" placeholder="Si connu"></label><label>Poids d'un scoop (g)<input name="scoopGrams" type="number" min="0.001" step="any" placeholder="Selon le doseur"></label><label>Poids d'une pièce (g)<input name="pieceGrams" type="number" min="0.001" step="any" placeholder="Si applicable"></label></div>
         <p class="hint">Renseigne le poids des mesures utilisées dans tes recettes pour convertir les courses et les stocks en grammes. Une pincée ne rend pas le calcul nutritionnel incomplet ; sans son poids, elle reste toutefois affichée en pincées dans les courses.</p>
+        <fieldset id="food-purchase-unit-settings">
+          <legend>Unité d’achat habituelle du foyer</legend>
+          <p class="hint">Les recettes gardent leurs unités. Exemple : si 1 c. à café vaut 2 g et qu’un sachet contient 500 g, renseigne la conversion dans les mesures puis « sachet de 500 g » ci-dessous. Les courses calculeront les sachets nécessaires.</p>
+          <div class="food-conversion-row">
+            <label>Une unité achetée<input name="purchaseSingularLabel" maxlength="60" placeholder="Ex. sachet de 500 g"></label>
+            <label>Plusieurs unités achetées<input name="purchasePluralLabel" maxlength="60" placeholder="Ex. sachets de 500 g"></label>
+            <label>Quantité contenue<input name="purchaseCoveredQuantity" type="number" min="0.00001" step="any" placeholder="Ex. 500"></label>
+            <label>Unité de la quantité<select name="purchaseCoveredUnitId"><option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="l">l</option><option value="piece">pièce</option><option value="tsp">cuillère à café</option><option value="tbsp">cuillère à soupe</option><option value="cup">tasse</option><option value="pinch">pincée</option><option value="scoop">dosette</option></select></label>
+            <label>Précision facultative<input name="purchaseEstimateNote" maxlength="160" placeholder="Ex. poids indiqué sur l’emballage"></label>
+          </div>
+          <p id="food-purchase-unit-status" class="muted" role="status"></p>
+        </fieldset>
         <div class="form-actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" id="save-food" value="default">Enregistrer</button></div>
         <p class="form-message" id="food-message" role="status"></p>
       </form>
@@ -357,7 +369,7 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/install-app.js?v=0.2.95"></script>
-    <script type="module" src="/app.js?v=0.2.95"></script>
+    <script type="module" src="/install-app.js?v=0.2.96"></script>
+    <script type="module" src="/app.js?v=0.2.96"></script>
   </body>
 </html>

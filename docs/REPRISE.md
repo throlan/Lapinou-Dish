@@ -1,8 +1,8 @@
-# Cahier de reprise — 21 octobre 2026, traduction des imports IA
+# Cahier de reprise — 23 octobre 2026, unités d’achat et équivalences en courses
 
-## Dernière modification en préparation — 0.2.95
+## Dernière modification en préparation — 0.2.96
 
-L'import IA rédige en français les champs de la fiche, même depuis une source anglaise, en conservant les extraits exacts des ingrédients et le texte complet original. Version `package.json` : 0.2.95. Vérifier l'état de la PR, les contrôles et GHCR avant d'annoncer la publication. Test ciblé : `test/openai-recipe-import.test.mjs`.
+Dans le catalogue **Aliments**, la fiche modifiable permet de régler l’unité d’achat habituelle du foyer (libellé singulier/pluriel, quantité et unité par sachet/paquet, note). Exemple : l’aliment reste en cuillères à café dans les recettes ; renseigner 2 g par cuillère et un sachet de 500 g affiche les sachets nécessaires dans les courses. Les équivalences entre aliments cuits et secs restent des regroupements explicites dans les préférences d’achat : ex. pois chiches cuits égouttés → pois chiches secs, coefficient 0,8. Les recettes, leur nutrition et leurs ingrédients restent inchangés. Catalogue dédié Aliments, édition complète et suppression protégée déjà disponibles ; aucun remplacement de cette page n’est à refaire. Version `package.json` : 0.2.96. **306 tests locaux réussis**, dont conversions cuillères/sachets et pois chiches cuits/secs. Branche de travail basée sur origin/main au commit 75761384252b13d7a5e25e20496b07d9c85506d3 (PR #128). PR et publication GHCR de la 0.2.96 à vérifier après livraison.
 
 ## Renommer depuis le répertoire — 0.2.94
 
@@ -38,7 +38,7 @@ Les sections ci-dessous conservent le contexte des versions précédentes ; la r
 - Version du code : **0.2.91** : publication Instagram intégrable dans Cuisiner depuis le lien source, à la demande, puis webapp installable (manifeste, icônes et guide) sur la refonte visuelle claire Magazine culinaire · Encre framboise, responsive PC/tablette/mobile, sans changement métier. La 0.2.88 conserve la saisie des achats et du stock compté dans l’unité d’achat (œufs, pots, paquets…), conversion unique vers l’unité de stock. Regroupements et exclusions de la 0.2.87 conservés. Le calcul 0.2.86 reste fondé sur la **base fonctionnelle validée 0.2.83**, sans les calculs abandonnés 0.2.84/85.
 - Dernière publication applicative vérifiée avant ce chantier : **0.2.91**, PR #122, commit c3bf80e, [contrôles et GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/39129593328). La présente mise à jour ne change que les documents et conserve la version applicative.
 - Validation 0.2.91 : **298 tests locaux réussis**. Lecteur testé sur publication fictive interceptée : chargement seulement au clic, arrêt au masquage/fermeture/Escape et aucune incrustation sans source Instagram compatible. Lecture d’une publication réelle non confirmée ; dépend des autorisations et restrictions Instagram. Chrome local : manifeste sans erreur et aucun motif de non-installabilité ; bouton natif proposé dans le profil jetable. Pas de service worker ni de nouvelle couche de cache hors ligne. Parcours des sept pages dans Chrome local sur base fictive PGlite, largeurs 1440, 1280, 900, 390 et 320 px ; fiches repas/aliment/cuisine et éditeur de recette, navigation mobile et absence de débordement horizontal vérifiés. Impression existante conservée ; tests par émulation de viewport, pas sur appareils physiques.
-- Références : [état](STATUS.md), [prochaines tâches](TODO.md), [produit](PRODUCT.md), [améliorations](AMELIORATIONS.md), [journal du 21 octobre](SESSION-2026-10-21.md).
+- Références : [état](STATUS.md), [prochaines tâches](TODO.md), [produit](PRODUCT.md), [améliorations](AMELIORATIONS.md), [journal du 23 octobre](SESSION-2026-10-23.md).
 
 ## Interdiction d'accès à l'installation
 
@@ -49,7 +49,7 @@ Les sections ci-dessous conservent le contexte des versions précédentes ; la r
 1. Retrouver le dépôt par son remote GitHub ; le chemin local dépend du PC. Ne pas confondre avec les anciens dossiers Norish ni supposer que le chemin de la session précédente existe encore.
 2. Lire les éventuels `AGENTS.md`. Examiner l'état Git, la branche, les derniers commits et **tous les stashes**. Préserver les modifications, branches et stashes existants ; aucune réapplication automatique d'un ancien chantier.
 3. Récupérer `origin/main` sans écrasement. Sur un main propre, avancer seulement en fast-forward ; sinon inspecter et isoler le travail avant de changer de base. Aucun reset destructif ni nettoyage forcé.
-4. Vérifier GitHub, `package.json` et les documents liés ci-dessus. Le dernier journal est `SESSION-2026-10-21.md` ; les précédents sont historiques.
+4. Vérifier GitHub, `package.json` et les documents liés ci-dessus. Le dernier journal est `SESSION-2026-10-23.md` ; les précédents sont historiques.
 5. Faire un état bref et proposer les prochaines étapes ; **attendre la demande de l'utilisateur avant une nouvelle modification fonctionnelle**.
 
 ## Décisions de périmètre récentes
@@ -110,14 +110,12 @@ node --experimental-strip-types --test test/*.test.ts test/*.test.mjs
 
 Après une modification autorisée : branche, tests adaptés, commit/push, PR, contrôles GitHub, fusion puis vérification de publication de l'image. Aucun déploiement sur l'installation. Un échec réseau du shell ne prouve pas une déconnexion du compte GitHub : distinguer réseau local, connexion et état réel des workflows.
 
-## Prompt à copier pour demain
+## Prompt à copier pour reprendre le projet
 
 ```text
-Reprends Lapinou Dish depuis son remote https://github.com/throlan/Lapinou-Dish. Retrouve le dépôt local, préserve modifications, branches et stashes, puis récupère origin/main sans reset destructif ni clean. Lis AGENTS.md s’il existe, docs/REPRISE.md, STATUS.md, PRODUCT.md, AMELIORATIONS.md, TODO.md et le dernier journal (SESSION-2026-10-21.md).
+Reprends Lapinou Dish depuis son remote https://github.com/throlan/Lapinou-Dish. Retrouve le dépôt local, préserve toutes les modifications, branches et stashes puis récupère origin/main sans écrasement, reset destructif ni clean. Lis AGENTS.md s’il existe, docs/REPRISE.md, docs/STATUS.md, docs/PRODUCT.md, docs/AMELIORATIONS.md, docs/TODO.md et le dernier journal docs/SESSION-2026-10-23.md.
 
-La version du code est 0.2.94 : renommage direct depuis les fiches en grille/liste, sans modification des ingrédients ou calculs. La 0.2.93 conserve les fonctions déjà livrées : coefficients globaux retirés des interfaces, coefficients par ingrédient dans l’éditeur et les réglages rapides, Semoule ×2. Anciennes valeurs héritées conservées puis explicitées à l’enregistrement. Les filtres/vues/pagination 0.2.92 restent livrés. 303 tests locaux réussis et parcours Chrome local sur données fictives. Vérifie GitHub, package.json et la publication GHCR du commit fusionné. Ne recommence pas les fonctionnalités déjà livrées. Les calculs 0.2.83/0.2.86 sont conservés ; les algorithmes 0.2.84/85 sont abandonnés.
+La version en préparation est 0.2.96 : unité d’achat habituelle réglable sur la fiche aliment, conversions de recette vers paquets et équivalences explicites entre produits (par exemple pois chiches cuits égouttés → secs, coefficient 0,8). La page Aliments avec édition et suppression protégée existait déjà. Les 306 tests locaux passent. Vérifie GitHub, package.json, la PR, les contrôles et la publication GHCR avant d’annoncer la livraison. La 0.2.95 est la dernière version publiée connue, PR #127, commit 50ab3db3d3c5f4b5b13849705d66b791483ab7fb.
 
-Comptes individuels reportés, modèle non validé. Correction nutritionnelle : prochaine piste à confirmer. Catalogue en dernier après consolidation des recettes. Une seule collation souhaitée mais non développée ; préserver les menus historiques. Aucun quota selon l’âge ni ratio 20/40/10/30 appliqué. Fais un bilan bref puis attends ma demande avant de modifier.
-
-Jamais d’accès à Unraid ni Nginx, même en lecture. Je déploie. Pour les travaux autorisés : tests adaptés, commit/push, PR, fusion après contrôles réussis, vérification GitHub/GHCR. Tests navigateur locaux sur données fictives autorisés.
+Ne recommence aucune fonction déjà livrée et respecte les décisions en attente consignées dans le cahier de reprise et le TODO. Aucun accès à Unraid ni à Nginx, même en lecture ; je gère le déploiement. Les tests locaux sur données fictives sont autorisés. Pour les travaux autorisés : tests adaptés, commit/push, PR, fusion après réussite des contrôles, puis vérification de publication GitHub/GHCR.
 ```

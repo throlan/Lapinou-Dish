@@ -646,7 +646,7 @@ async function refreshShoppingList() {
           const storeChoice=foodStoreSelect(item.store?.id??'',item.name);storeLabel.append(storeChoice);
           const purchaseForm=document.createElement('form');purchaseForm.className='shopping-purchase-form';
           const purchaseTitle=document.createElement('strong');purchaseTitle.textContent='Unité d’achat personnalisée';
-          const purchaseHint=document.createElement('small');purchaseHint.textContent='Ex. 1 tête couvre 9 gousses (pièces). Pour le basilic pesé en g, indique le poids approximatif de ton bouquet. Un format de paquet renseigné ci-dessus reste prioritaire.';
+          const purchaseHint=document.createElement('small');purchaseHint.textContent='Ex. 1 sachet couvre 500 g : une recette en cuillères sera convertie grâce au poids par cuillère renseigné dans la fiche aliment. Tu peux aussi définir l’unité habituelle dans Aliments → Modifier. Le besoin reste affiché en détail. Un format de paquet renseigné ici est prioritaire.';
           const rule=item.purchaseRule??item.purchaseRuleSuggestion??{};
           const singularLabel=document.createElement('label');singularLabel.textContent='Une unité achetée';
           const singular=document.createElement('input');singular.name='singularLabel';singular.maxLength=60;singular.required=true;singular.placeholder='Ex. tête d’ail';singular.value=rule.singularLabel??'';singularLabel.append(singular);
@@ -994,6 +994,12 @@ async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = 
   state.editingFoodFromRecipe = fromRecipe;
   state.editingFoodFromShopping = fromShopping;
   const form = $('#food-form'); form.reset(); form.elements.id.value = '';
+  form.dataset.purchaseUnitReady = String(Boolean(state.household));
+  form.dataset.purchaseUnitExists = 'false';
+  const purchaseSettings = $('#food-purchase-unit-settings');
+  purchaseSettings.classList.toggle('hidden', !state.household);
+  purchaseSettings.disabled = !state.household;
+  $('#food-purchase-unit-status').textContent = state.household ? 'Réglage propre au foyer ; les unités des recettes restent inchangées.' : 'Crée un foyer pour définir une unité d’achat.';
   delete form.dataset.duplicateSource;
   delete form.dataset.duplicateSourceNote;
   delete form.dataset.duplicateNutrientSourceNote;
@@ -1028,6 +1034,25 @@ async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = 
   } else {
     $('#nutrition-completion').classList.add('hidden');
     $('#nutrition-matches').replaceChildren();
+  }
+  if (state.household && id && !duplicate) {
+    try {
+      const { units } = await api(`/api/household-purchase-units?householdId=${encodeURIComponent(state.household.id)}`);
+      const rule = units.find(item => item.foodId === id);
+      if (rule) {
+        form.dataset.purchaseUnitExists = 'true';
+        form.elements.purchaseSingularLabel.value = rule.singularLabel;
+        form.elements.purchasePluralLabel.value = rule.pluralLabel;
+        form.elements.purchaseCoveredQuantity.value = rule.coveredQuantity;
+        form.elements.purchaseCoveredUnitId.value = rule.coveredUnitId;
+        form.elements.purchaseEstimateNote.value = rule.estimateNote ?? '';
+        $('#food-purchase-unit-status').textContent = `Actuel : ${rule.singularLabel} · 1 unité couvre ${format(rule.coveredQuantity)} ${rule.coveredUnitId}.`;
+      }
+    } catch {
+      form.dataset.purchaseUnitReady = 'false';
+      purchaseSettings.disabled = true;
+      $('#food-purchase-unit-status').textContent = 'Réglage d’achat indisponible. Les autres champs de la fiche restent modifiables.';
+    }
   }
   $('#food-dialog').showModal();
   if (id && searchExternal) $('#find-external-nutrition').click();
@@ -1091,6 +1116,12 @@ $('#food-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   const numeric = (name) => form.elements[name].value === '' ? null : Number(form.elements[name].value);
+  const purchaseFields = ['purchaseSingularLabel', 'purchasePluralLabel', 'purchaseCoveredQuantity'];
+  const hasPurchaseUnit = purchaseFields.some(name => form.elements[name].value.trim() !== '');
+  if (form.dataset.purchaseUnitReady === 'true' && hasPurchaseUnit && purchaseFields.some(name => !form.elements[name].value.trim())) {
+    $('#food-purchase-unit-status').textContent = 'Renseigne le nom au singulier, le pluriel et la quantité couverte, ou vide ces trois champs pour retirer le réglage.';
+    return;
+  }
   const payload = {
     name: form.elements.name.value,
     brand: form.elements.brand.value || null,
@@ -1104,13 +1135,36 @@ $('#food-form').addEventListener('submit', async (event) => {
     payload.nutrientSourceNote = form.dataset.duplicateNutrientSourceNote;
   }
   const id = form.elements.id.value;
+  let savedFood = false;
   try {
     const result = await api(id ? `/api/foods/${id}` : '/api/foods', { method: id ? 'PATCH' : 'POST', body: JSON.stringify(payload) });
+    savedFood = true;
+    form.elements.id.value = result.food.id;
+    if (state.household && form.dataset.purchaseUnitReady === 'true') {
+      if (hasPurchaseUnit) {
+        await api('/api/household-purchase-units', { method: 'PUT', body: JSON.stringify({
+          householdId: state.household.id, foodId: result.food.id,
+          singularLabel: form.elements.purchaseSingularLabel.value,
+          pluralLabel: form.elements.purchasePluralLabel.value,
+          coveredQuantity: numeric('purchaseCoveredQuantity'),
+          coveredUnitId: form.elements.purchaseCoveredUnitId.value,
+          estimateNote: form.elements.purchaseEstimateNote.value,
+        }) });
+        form.dataset.purchaseUnitExists = 'true';
+      } else if (form.dataset.purchaseUnitExists === 'true') {
+        await api(`/api/household-purchase-units?householdId=${encodeURIComponent(state.household.id)}&foodId=${encodeURIComponent(result.food.id)}`, { method: 'DELETE' });
+        form.dataset.purchaseUnitExists = 'false';
+      }
+    }
     $('#food-dialog').close();
     await refreshFoods();
     if (state.editingFoodFromShopping) { state.editingFoodFromShopping = false; await refreshShoppingList(); }
     if (state.editingFoodFromRecipe) showMessage($('#recipe-message'), 'Fiche mise à jour. Les valeurs seront recalculées à l’enregistrement de la recette.', true);
   } catch (error) {
+    if (savedFood) {
+      showMessage($('#food-message'), `Fiche enregistrée, mais réglage d’unité d’achat non enregistré : ${error.body?.error ?? error.message}`);
+      return;
+    }
     const duplicates = error.body?.matches?.map((food) => food.name).join(', ');
     showMessage($('#food-message'), error.body?.error === 'possible-duplicate' ? `Cette fiche ressemble à un aliment déjà présent : ${duplicates}.` : `Enregistrement impossible : ${error.body?.error ?? error.message}`);
   }
