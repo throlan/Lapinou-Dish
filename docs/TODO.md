@@ -1,6 +1,6 @@
 # Prochaines tâches — 23 octobre 2026
 
-Mise à jour en préparation : catalogue sans scrollbar imbriquée, suppression groupée avec aperçu/protections, conversions de rendement par aliment dans Administration et conversion inverse automatique aux courses. 308 tests locaux réussis ; commit, PR, contrôles, fusion et publication restent à vérifier.
+Mise à jour livrée en 0.2.97 : catalogue sans scrollbar imbriquée, suppression groupée avec aperçu/protections, conversions de rendement par aliment dans Administration et conversion inverse automatique aux courses. 308 tests locaux réussis ; PR #130 fusionnée et publication GHCR vérifiée. Ces travaux ne sont plus à reprendre.
 
 Référence préparée : **0.2.96**, réglages d’unité d’achat par aliment et équivalences entre aliments explicites dans les courses ; 306 tests locaux réussis. Vérifier les contrôles GitHub et la publication après fusion. Les fonctions des versions 0.2.92 à 0.2.94 restent livrées. La 0.2.88 conserve la saisie en unités d’achat et stock compté cohérents, après les produits communs et exclusions 0.2.87. Le calcul 0.2.86 (base 0.2.83) reste conservé ; les calculs 0.2.84/85 sont abandonnés. Aucun nouveau chantier sans demande de l’utilisateur.
 

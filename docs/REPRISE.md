@@ -1,12 +1,16 @@
 # Cahier de reprise — 23 octobre 2026, unités d’achat et équivalences en courses
 
-## Modification en cours — 0.2.97
+## Dernière version livrée — 0.2.97
+
+PR #130 fusionnée au commit `5d90528e2dd26f3b836221959be9a86379988231`. **308 tests locaux réussis** ; contrôles GitHub et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/39966604840. Les conversions de rendement administrables, les courses en sens inverse, la table catalogue sans scrollbar imbriquée et la suppression groupée avec aperçu/protection sont livrées. L’utilisateur gère son déploiement ; aucun accès à Unraid ou Nginx.
+
+## Fonction livrée — 0.2.97
 
 La page Administration ajoute des conversions de rendement propres au foyer : aliment de départ → aliment obtenu, facteur en grammes obtenus par gramme de départ. La règle alimente les choix de coefficient de cuisson uniquement sur l’ingrédient de départ concerné ; les coefficients déjà sauvegardés ne sont pas modifiés. Pour les courses, une ligne de recette utilisant l’aliment obtenu peut être convertie en sens inverse vers l’aliment de départ. Une préférence explicite « Acheter sous… » prend la priorité. Exemple : 1 g sec → 1,25 g égoutté ; 250 g égouttés donnent 200 g secs. Ne pas appliquer une même valeur à des aliments différents sans conversion explicitement enregistrée.
 
 Dans le catalogue alimentaire, la table n’est plus enfermée dans une zone de défilement interne. La pagination existante reste en place. La sélection groupée permet la page actuelle ou tous les résultats du filtre courant, puis affiche un aperçu des fiches supprimables/protégées. Seules les fiches inutilisées sélectionnées sont supprimées ; les recettes, stocks, regroupements d’achat et conversions les protègent. Le serveur recontrôle les références au moment de la suppression.
 
-La base de cette modification est 0.2.96 / PR #129 (vérifier le commit de `origin/main` au redémarrage). Validation locale effectuée : **308 tests réussis**. Vérifier les tests, diffs, version, migration, publication GitHub/GHCR après livraison. Jamais d’accès à Unraid ni Nginx ; l’utilisateur déploie lui-même.
+La base de cette modification était 0.2.96 / PR #129. La 0.2.97 est maintenant sur `origin/main` et vérifiée côté GitHub/GHCR. Au prochain redémarrage, vérifier le nouvel état Git et ces documents avant tout changement. Jamais d’accès à Unraid ni Nginx ; l’utilisateur déploie lui-même.
 
 ## Dernière modification en préparation — 0.2.96
 

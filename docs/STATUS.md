@@ -1,10 +1,10 @@
 # État du projet — 23 octobre 2026
 
-## Catalogue alimentaire : conversions et gestion groupée — préparation 0.2.97
+## Catalogue alimentaire : conversions et gestion groupée — livrée 0.2.97
 
 En cours : Administration permet d’associer un aliment de départ à l’aliment obtenu et d’indiquer le rendement en grammes (ex. 1 g sec → 1,25 g égoutté). La valeur est proposée comme coefficient de cuisson uniquement pour cet aliment ; les recettes déjà enregistrées ne sont pas réécrites. Pour les courses, l’aliment obtenu se convertit à l’inverse vers le produit de départ, sauf si une préférence explicite « Acheter sous… » est déjà définie. Le catalogue défile avec la page et garde sa pagination. Une sélection par page ou sur tous les résultats filtrés ouvre un aperçu ; recettes, stocks, regroupements d’achat et conversions protègent les fiches référencées. Suppression groupée uniquement des fiches inutilisées sélectionnées.
 
-Validation locale : **308 tests réussis** après ajout des parcours de conversion inverse et de suppression protégée. Les contrôles GitHub et publication de cette version restent à faire après commit/PR/fusion. Pas de vérification visuelle navigateur ni d’accès à Unraid/Nginx pendant cette passe.
+Validation : **308 tests locaux réussis** ; contrôles de la PR et tests du commit fusionné réussis. Publication GHCR réussie après PR #130, commit `5d90528e2dd26f3b836221959be9a86379988231` : https://github.com/throlan/Lapinou-Dish/actions/runs/39966604840. Pas de vérification visuelle navigateur ni d’accès à Unraid/Nginx pendant cette passe.
 
 ## Courses : équivalences d’achat configurables — 0.2.96
 
