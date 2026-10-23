@@ -1,10 +1,10 @@
 # Cahier de reprise — 23 octobre 2026, unités d’achat et équivalences en courses
 
-## Modification en cours — catalogue alimentaire 0.2.98
+## Dernière version livrée — 0.2.98
 
 La nouvelle pagination du catalogue ajoute Précédent/Suivant au-dessus et au-dessous de la liste et le choix de 25/50/100/150/200/250 produits. Le serveur plafonne aussi à 250. Les suppressions simples et groupées gardent la page ; si elle devient vide après suppression, l’affichage se place sur la dernière page valide. Les lignes du catalogue sont compactées sur ordinateur : aliment, recettes liées, provenance, valeurs nutritionnelles et boutons sont alignés sur une ligne, avec boutons moins hauts et noms longs accessibles au survol.
 
-Tests : **310 tests complets réussis**, puis **30 tests ciblés catalogue/API** après la dernière retouche d’affichage. Branche de travail : `feature/catalogue-food-pagination`. PR, contrôles GitHub, fusion et publication GHCR à vérifier après livraison. Aucun accès à Unraid/Nginx.
+PR #132 fusionnée au commit `be007ef6b030bf22f800cbb703117227b9d2e578`. **310 tests complets réussis**, puis **30 tests ciblés catalogue/API** après la dernière retouche d’affichage. Contrôles et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/39977314240. L’utilisateur gère le déploiement ; aucun accès à Unraid/Nginx.
 
 ## Dernière version livrée — 0.2.97
 

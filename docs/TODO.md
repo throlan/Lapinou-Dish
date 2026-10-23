@@ -2,7 +2,7 @@
 
 Mise à jour livrée en 0.2.97 : catalogue sans scrollbar imbriquée, suppression groupée avec aperçu/protections, conversions de rendement par aliment dans Administration et conversion inverse automatique aux courses. 308 tests locaux réussis ; PR #130 fusionnée et publication GHCR vérifiée. Ces travaux ne sont plus à reprendre.
 
-En préparation 0.2.98 : pagination du catalogue en haut et en bas, choix de taille jusqu’à 250 fiches, conservation de la page après suppression et lignes compactes sur ordinateur. La suite locale complète (310 tests) et 30 tests ciblés après la dernière retouche passent. Vérifier la PR, les contrôles, la fusion et la publication GHCR.
+Mise à jour livrée en 0.2.98 : pagination en haut et en bas, choix jusqu’à 250 aliments, conservation de la page après suppression, et lignes compactes sur ordinateur. 310 tests complets réussis, PR #132 fusionnée et publication GHCR vérifiée. Ces améliorations sont terminées.
 
 Référence préparée : **0.2.96**, réglages d’unité d’achat par aliment et équivalences entre aliments explicites dans les courses ; 306 tests locaux réussis. Vérifier les contrôles GitHub et la publication après fusion. Les fonctions des versions 0.2.92 à 0.2.94 restent livrées. La 0.2.88 conserve la saisie en unités d’achat et stock compté cohérents, après les produits communs et exclusions 0.2.87. Le calcul 0.2.86 (base 0.2.83) reste conservé ; les calculs 0.2.84/85 sont abandonnés. Aucun nouveau chantier sans demande de l’utilisateur.
 

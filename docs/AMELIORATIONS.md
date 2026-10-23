@@ -1,10 +1,10 @@
 # Cahier des améliorations proposées
 
-## Catalogue alimentaire : pagination et lignes compactes — préparation 0.2.98
+## Catalogue alimentaire : pagination et lignes compactes — livrée 0.2.98
 
 Précédent/Suivant sont disponibles en haut et en bas de la page Aliments. Le sélecteur de taille propose jusqu’à 250 fiches, limite appliquée côté serveur également. Les suppressions gardent la page courante et se replacent seulement si cette page n’existe plus. Sur ordinateur, nom, nombre de recettes liées, source, nutrition et actions sont alignés sur une seule ligne compacte.
 
-Validation locale : 310 tests complets, puis 30 tests ciblés après la dernière modification de l’affichage. Publication et contrôles GitHub à vérifier après ouverture de PR.
+Validation : 310 tests complets, puis 30 tests ciblés après la dernière modification de l’affichage. PR #132 fusionnée ; contrôles et publication GHCR réussis au commit `be007ef6b030bf22f800cbb703117227b9d2e578` : https://github.com/throlan/Lapinou-Dish/actions/runs/39977314240.
 
 ## Catalogue alimentaire : conversions de rendement et suppression groupée — livrée 0.2.97
 

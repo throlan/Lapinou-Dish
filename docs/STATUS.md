@@ -1,10 +1,10 @@
 # État du projet — 23 octobre 2026
 
-## Catalogue alimentaire : pagination et lignes compactes — préparation 0.2.98
+## Catalogue alimentaire : pagination et lignes compactes — livrée 0.2.98
 
 Le catalogue propose les boutons Précédent/Suivant au-dessus et au-dessous de la table, ainsi qu’un choix de 25 à 250 aliments par page. Les suppressions simples et groupées gardent la page affichée ; si sa dernière ligne disparaît, la liste revient à la dernière page encore valide. Sur ordinateur, chaque aliment tient sur une ligne compacte : nom, recettes liées, provenance, nutrition et actions. Le nombre de recettes est dans une colonne dédiée, les noms longs restent accessibles au survol.
 
-Validation locale : **310 tests de la suite complète réussis** ; après la dernière retouche d’affichage, **30 tests ciblés** catalogue/API réussis et `node --check web/app.js` valide. Aucun accès à Unraid/Nginx.
+Validation : **310 tests complets réussis**, puis 30 tests ciblés catalogue/API après la dernière retouche. PR #132 fusionnée au commit `be007ef6b030bf22f800cbb703117227b9d2e578` ; tests et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/39977314240. Aucun accès à Unraid/Nginx.
 
 ## Catalogue alimentaire : conversions et gestion groupée — livrée 0.2.97
 
