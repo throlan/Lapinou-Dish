@@ -1,5 +1,7 @@
 # Prochaines tâches — 23 octobre 2026
 
+0.2.99 : correction du chargement bloqué par le module food-pagination.js non servi. 311 tests locaux, dont parcours HTTP de toutes les dépendances module. Les fonctions catalogue 0.2.97/0.2.98 sont conservées. Vérifier la publication du correctif après fusion.
+
 Mise à jour livrée en 0.2.97 : catalogue sans scrollbar imbriquée, suppression groupée avec aperçu/protections, conversions de rendement par aliment dans Administration et conversion inverse automatique aux courses. 308 tests locaux réussis ; PR #130 fusionnée et publication GHCR vérifiée. Ces travaux ne sont plus à reprendre.
 
 Mise à jour livrée en 0.2.98 : pagination en haut et en bas, choix jusqu’à 250 aliments, conservation de la page après suppression, et lignes compactes sur ordinateur. 310 tests complets réussis, PR #132 fusionnée et publication GHCR vérifiée. Ces améliorations sont terminées.
