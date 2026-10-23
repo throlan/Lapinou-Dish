@@ -7,10 +7,11 @@ import { deletePurchaseUnit,listPurchaseUnits,savePurchaseUnit,validatePurchaseU
 import { previewDailyRebalance, applyDailyRebalance } from './daily-rebalance.mjs';
 import { readMealSettings, saveMealSettings, readPlateSettings, savePlateSettings } from './meal-settings.mjs';
 import { readProteinSettings, saveProteinSettings } from './protein-settings.mjs';
+import { deleteFoodYieldConversion,listFoodYieldConversions,saveFoodYieldConversion,validateFoodYieldConversion } from './food-yield-conversions.mjs';
 import { deleteSavingPlan, getEnergyReserveOverview, saveSavingPlan, validateSavingPlan } from './energy-reserve.mjs';
 import { countProductInventory, listIngredientStock, recordPurchaseReceipt, saveIngredientStock, validateIngredientStock, validateProductCount, validatePurchaseReceipt } from './ingredient-stock.mjs';
 import { createHmac, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
-import { createFood, deleteFood, fillMissingNutritionFromExternal, getFood, listFoodRecipeUsage, updateFood, validateFoodInput } from './foods.mjs';
+import { createFood, deleteFood, deleteFoods, fillMissingNutritionFromExternal, getFood, listFoodRecipeUsage, updateFood, validateFoodInput } from './foods.mjs';
 import { getOpenFoodFactsProduct, searchOpenFoodFacts } from './open-food-facts.mjs';
 import { createRecipe, deleteRecipe, listRecipes, readRecipe, updateRecipe, updateRecipeSettings, validateRecipeInput, validateRecipeSettings, validateRecipeDeletion } from './recipes.mjs';
 import { listImportDrafts, saveImportDrafts } from './recipe-imports.mjs';
@@ -149,6 +150,23 @@ export async function handleRequest(request, response, pool, appPassword = null,
         if(!result || result.error === 'household-not-found') return send(response,404,{error:'household-not-found'});
         return send(response,result.error ? 400 : 200,result);
       } catch { return send(response,500,{error:'meal-settings-failed'}); }
+    }
+    if(url.pathname==='/api/household-food-yields'&&request.method==='GET'){
+      const householdId=url.searchParams.get('householdId');if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});
+      try{return send(response,200,{conversions:await listFoodYieldConversions(pool,householdId)});}
+      catch{return send(response,500,{error:'food-yields-read-failed'});}
+    }
+    if(url.pathname==='/api/household-food-yields'&&request.method==='PUT'){
+      const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
+      const validation=validateFoodYieldConversion(body.value);if(validation.error)return send(response,400,{error:validation.error});
+      try{const conversion=await saveFoodYieldConversion(pool,validation.data);return conversion?.error?send(response,404,conversion):send(response,200,{conversion});}
+      catch(error){return send(response,error.code==='23505'?409:500,{error:error.code==='23505'?'food-yield-already-defined':'food-yield-save-failed'});}
+    }
+    if(url.pathname==='/api/household-food-yields'&&request.method==='DELETE'){
+      const householdId=url.searchParams.get('householdId'),id=url.searchParams.get('id');
+      if(!isUuid(householdId)||!isUuid(id))return send(response,400,{error:'invalid-food-yield-id'});
+      try{return await deleteFoodYieldConversion(pool,householdId,id)?send(response,200,{deleted:true}):send(response,404,{error:'food-yield-not-found'});}
+      catch{return send(response,500,{error:'food-yield-delete-failed'});}
     }
     if (url.pathname === '/api/energy-reserve' && request.method === 'GET') {
       const householdId=url.searchParams.get('householdId'),asOf=url.searchParams.get('asOf');
@@ -698,6 +716,13 @@ export async function handleRequest(request, response, pool, appPassword = null,
       } catch {
         return send(response, 500, { error: 'food-create-failed' });
       }
+    }
+
+    if(url.pathname==='/api/foods/bulk-delete'&&request.method==='POST'){
+      const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
+      if(typeof body.value?.dryRun!=='boolean'&&body.value?.dryRun!==undefined)return send(response,400,{error:'invalid-bulk-delete-request'});
+      try{const result=await deleteFoods(pool,body.value?.foodIds,{dryRun:body.value?.dryRun===true});return send(response,result.error?400:200,result);}
+      catch{return send(response,500,{error:'food-bulk-delete-failed'});}
     }
 
     const foodId = url.pathname.match(/^\/api\/foods\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i)?.[1];

@@ -364,3 +364,33 @@
   .recipe-rename-editor input { min-width:0; width:100%; }
   .recipe-rename-editor .form-actions { flex-wrap:wrap; margin-top:8px; }
 }
+
+@media screen {
+  #foods-view .table-wrap { max-height:none; overflow-x:auto; overflow-y:visible; }
+  #foods-view th { position:static; }
+  #foods-view .food-actions { display:flex; flex-wrap:wrap; gap:7px; }
+  #foods-view .food-actions button { padding:8px 12px; }
+  .food-bulk-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:9px 14px; margin:8px 0 14px; padding:12px 14px; border:1px solid var(--line); border-radius:12px; background:var(--panel); }
+  .food-bulk-toolbar>label { display:flex; align-items:center; gap:8px; color:var(--text); }
+  .food-bulk-toolbar>span { margin-right:auto; }
+  .food-select-cell { width:42px; text-align:center; }
+  .food-select-cell input { accent-color:var(--accent); }
+  .food-bulk-toolbar button.danger-button,.bulk-food-delete-dialog button.danger-button { color:#a52648; }
+  .bulk-food-delete-dialog { width:min(620px,calc(100vw - 28px)); }
+  .bulk-food-delete-dialog h2 { margin:0; }
+  .bulk-food-delete-preview { max-height:min(48dvh,420px); overflow:auto; }
+  .bulk-food-delete-preview ul { padding-left:22px; }
+  .bulk-food-delete-preview .bulk-blocked-list { max-height:180px; overflow:auto; }
+  .food-yield-conversions { display:grid; gap:8px; margin:12px 0 26px; }
+  .food-yield-conversion { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:var(--panel); }
+  .food-yield-conversion>div { display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 12px; }
+  .food-yield-conversion-actions { display:flex; flex-wrap:wrap; gap:8px; }
+  .food-yield-form .form-grid { grid-template-columns:2fr 2fr 1fr; }
+}
+@media screen and (max-width:520px) {
+  .food-bulk-toolbar { align-items:stretch; }
+  .food-bulk-toolbar>span { flex-basis:100%; }
+  .food-bulk-toolbar>button { flex:1 1 42%; }
+  .food-yield-conversion { align-items:flex-start; flex-direction:column; }
+  .food-yield-form .form-grid { grid-template-columns:1fr; }
+}
