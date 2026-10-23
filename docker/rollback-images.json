@@ -1,0 +1,7 @@
+[
+  {"version":"0.2.95","digest":"sha256:f293a9eaa3964d72f8f5d0116a0db5e9ce40017a4d05e862d4874d7b3037457a","revision":"50ab3db3d3c5f4b5b13849705d66b791483ab7fb"},
+  {"version":"0.2.96","digest":"sha256:56605545eca8cf784b72c719ea6267a22d4bc2ad1e92cee4dc21cbaa1238060c","revision":"d7e6a6ca85f63bc3dcad22d5075c511bcdc95259"},
+  {"version":"0.2.97","digest":"sha256:4bdb87f70c916380890b6bb0dcf8e8464bb8e4027aaa0f14e5bf80db41e1c1c6","revision":"5d90528e2dd26f3b836221959be9a86379988231"},
+  {"version":"0.2.98","digest":"sha256:112c02fd2a62a4f5469997c2aec3ef334b64aeaf231273eef67514fd82eceea3","revision":"be007ef6b030bf22f800cbb703117227b9d2e578"},
+  {"version":"0.2.99","digest":"sha256:28b7a048ccb11760ce446bea3a7315b60c943fad55a30932eb48ffc008686bbb","revision":"a98f750fee05e7d14c5012d8507b3b64d3cf6ab2"}
+]

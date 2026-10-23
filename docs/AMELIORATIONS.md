@@ -1,5 +1,14 @@
 # Cahier des améliorations proposées
 
+## Publication : versions numérotées et retour arrière
+
+Application toujours **0.2.99**. Le workflow publie désormais les alias numériques et préfixés v depuis package.json, sans réécrire une version déjà publiée. Conservation sans suppression automatique : au minimum les cinq dernières versions publiées restent sélectionnables. Les images 0.2.95 à 0.2.99 ont été retrouvées par tag technique ; digests et révisions vérifiés et enregistrés dans docker/rollback-images.json. Le workflow rétablit leurs alias depuis les digests exacts, sans reconstruire les anciennes images. Voir [ROLLBACK.md](ROLLBACK.md).
+
+Pour revenir à la 0.2.97 : ghcr.io/throlan/lapinou-dish:0.2.97. La 0.2.98 reste identifiée comme défectueuse au démarrage. Aucun changement de migration entre 0.2.97 et 0.2.99 ; une ancienne image ne restaure pas les données. Ne jamais supprimer les volumes pour changer de version. Aucun accès à Unraid/Nginx.
+
+Mise en place validée par tests du script (alias exacts, idempotence, conservation, erreurs/conflits sans écrasement). Vérifier la publication et les manifests GHCR après fusion avant d’annoncer les alias disponibles.
+
+
 ## Maintenance — démarrage 0.2.99
 
 Le module food-pagination.js de la 0.2.98 manquait dans les ressources servies, bloquant l’exécution du module principal. Route statique corrigée, test HTTP de toutes les dépendances ajouté ; les fonctions et priorités restent identiques.
