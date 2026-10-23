@@ -1,5 +1,15 @@
 # État du projet — 23 octobre 2026
 
+## Correctif de démarrage — 0.2.99
+
+Cause reproduite sur le code 0.2.98 : app.js importe food-pagination.js, ajouté pour la pagination du catalogue, mais ce module n’était pas inscrit dans la liste des ressources statiques du serveur. GET /food-pagination.js renvoyait 404 avec un contenu JSON. Le navigateur ne pouvait donc pas exécuter app.js : connexion et tableau de bord restaient au chargement, sans gestionnaires utilisables sur les boutons.
+
+Correction minimale : servir explicitement /food-pagination.js avec le type JavaScript, sans authentification préalable, comme les autres modules de démarrage. Version et clés de cache passent en 0.2.99. Aucun changement métier, calcul, pagination, donnée ou migration.
+
+Un nouveau test parcourt les points d’entrée module du HTML et leurs dépendances locales via le vrai gestionnaire HTTP, avant connexion, avec contrôle du statut et du type MIME. Il échoue sur la 0.2.98 avec /food-pagination.js : 404, puis passe après correction. **311 tests complets locaux réussis**. Validation Chrome locale sur base fictive : connexion initiale et rechargement connecté, tableau de bord rempli, navigation sur les sept pages à 1440/1280/900/390/320 px, pagination haute/basse (25 puis 250 sélectionnés, 87 aliments fictifs), ouverture de la fiche aliment. Aucune erreur JS/HTTP ou ressource manquante ni débordement horizontal. Aucun appareil physique ou accès à l’installation. Dernière version publiée vérifiée avant ce correctif : 0.2.98, documentation PR #133, commit 6547d6a, workflow réussi https://github.com/throlan/Lapinou-Dish/actions/runs/39978043811 . Vérifier la publication du commit fusionné 0.2.99 avant d’annoncer la livraison. Aucun accès à Unraid/Nginx ; l’utilisateur déploie lui-même.
+
+Les chapitres suivants décrivent les livraisons précédentes ; la référence courante du code est **0.2.99**.
+
 ## Catalogue alimentaire : pagination et lignes compactes — livrée 0.2.98
 
 Le catalogue propose les boutons Précédent/Suivant au-dessus et au-dessous de la table, ainsi qu’un choix de 25 à 250 aliments par page. Les suppressions simples et groupées gardent la page affichée ; si sa dernière ligne disparaît, la liste revient à la dernière page encore valide. Sur ordinateur, chaque aliment tient sur une ligne compacte : nom, recettes liées, provenance, nutrition et actions. Le nombre de recettes est dans une colonne dédiée, les noms longs restent accessibles au survol.

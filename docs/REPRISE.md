@@ -1,5 +1,15 @@
 # Cahier de reprise — 23 octobre 2026, unités d’achat et équivalences en courses
 
+## Correctif de démarrage — 0.2.99
+
+Cause reproduite sur le code 0.2.98 : app.js importe food-pagination.js, ajouté pour la pagination du catalogue, mais ce module n’était pas inscrit dans la liste des ressources statiques du serveur. GET /food-pagination.js renvoyait 404 avec un contenu JSON. Le navigateur ne pouvait donc pas exécuter app.js : connexion et tableau de bord restaient au chargement, sans gestionnaires utilisables sur les boutons.
+
+Correction minimale : servir explicitement /food-pagination.js avec le type JavaScript, sans authentification préalable, comme les autres modules de démarrage. Version et clés de cache passent en 0.2.99. Aucun changement métier, calcul, pagination, donnée ou migration.
+
+Un nouveau test parcourt les points d’entrée module du HTML et leurs dépendances locales via le vrai gestionnaire HTTP, avant connexion, avec contrôle du statut et du type MIME. Il échoue sur la 0.2.98 avec /food-pagination.js : 404, puis passe après correction. **311 tests complets locaux réussis**. Validation Chrome locale sur base fictive : connexion initiale et rechargement connecté, tableau de bord rempli, navigation sur les sept pages à 1440/1280/900/390/320 px, pagination haute/basse (25 puis 250 sélectionnés, 87 aliments fictifs), ouverture de la fiche aliment. Aucune erreur JS/HTTP ou ressource manquante ni débordement horizontal. Aucun appareil physique ou accès à l’installation. Dernière version publiée vérifiée avant ce correctif : 0.2.98, documentation PR #133, commit 6547d6a, workflow réussi https://github.com/throlan/Lapinou-Dish/actions/runs/39978043811 . Vérifier la publication du commit fusionné 0.2.99 avant d’annoncer la livraison. Aucun accès à Unraid/Nginx ; l’utilisateur déploie lui-même.
+
+Les chapitres suivants décrivent les livraisons précédentes ; la référence courante du code est **0.2.99**.
+
 ## Dernière version livrée — 0.2.98
 
 La nouvelle pagination du catalogue ajoute Précédent/Suivant au-dessus et au-dessous de la liste et le choix de 25/50/100/150/200/250 produits. Le serveur plafonne aussi à 250. Les suppressions simples et groupées gardent la page ; si elle devient vide après suppression, l’affichage se place sur la dernière page valide. Les lignes du catalogue sont compactées sur ordinateur : aliment, recettes liées, provenance, valeurs nutritionnelles et boutons sont alignés sur une ligne, avec boutons moins hauts et noms longs accessibles au survol.
@@ -131,9 +141,11 @@ Après une modification autorisée : branche, tests adaptés, commit/push, PR, c
 ## Prompt à copier pour reprendre le projet
 
 ```text
-Reprends Lapinou Dish depuis son remote https://github.com/throlan/Lapinou-Dish. Retrouve le dépôt local, préserve toutes les modifications, branches et stashes puis récupère origin/main sans écrasement, reset destructif ni clean. Lis AGENTS.md s’il existe, docs/REPRISE.md, docs/STATUS.md, docs/PRODUCT.md, docs/AMELIORATIONS.md, docs/TODO.md et le dernier journal docs/SESSION-2026-10-23.md.
+Reprends Lapinou Dish depuis https://github.com/throlan/Lapinou-Dish. Retrouve le dépôt local, préserve modifications, branches et stashes puis récupère origin/main sans écrasement, reset destructif ni clean. Lis AGENTS.md s’il existe, docs/REPRISE.md, STATUS.md, PRODUCT.md, AMELIORATIONS.md, TODO.md et le dernier journal SESSION-2026-10-23.md.
 
-La version en préparation est 0.2.96 : unité d’achat habituelle réglable sur la fiche aliment, conversions de recette vers paquets et équivalences explicites entre produits (par exemple pois chiches cuits égouttés → secs, coefficient 0,8). La page Aliments avec édition et suppression protégée existait déjà. Les 306 tests locaux passent. Vérifie GitHub, package.json, la PR, les contrôles et la publication GHCR avant d’annoncer la livraison. La 0.2.95 est la dernière version publiée connue, PR #127, commit 50ab3db3d3c5f4b5b13849705d66b791483ab7fb.
+La version du code est 0.2.99 : corrige le démarrage bloqué de la 0.2.98 en servant le module food-pagination.js qui manquait dans les routes statiques. Le test de chargement de tous les modules du navigateur reproduit le 404 avant correction. 311 tests complets locaux réussis ; vérifie GitHub, package.json et la publication GHCR après fusion avant d’annoncer la livraison. Pagination haute/basse jusqu’à 250 aliments, lignes compactes, suppression groupée protégée et conversions de rendement déjà livrées ; ne pas les refaire.
 
-Ne recommence aucune fonction déjà livrée et respecte les décisions en attente consignées dans le cahier de reprise et le TODO. Aucun accès à Unraid ni à Nginx, même en lecture ; je gère le déploiement. Les tests locaux sur données fictives sont autorisés. Pour les travaux autorisés : tests adaptés, commit/push, PR, fusion après réussite des contrôles, puis vérification de publication GitHub/GHCR.
+Préserver les calculs 0.2.83/0.2.86, coefficients individuels prioritaires et anciens héritages conservés, recettes comme ingrédients, unités d’achat, design Encre framboise et webapp. Comptes reportés ; correction nutritionnelle à confirmer ; une seule collation souhaitée mais non développée. Aucun quota par âge ni ratio 20/40/10/30 appliqué. Fais un bilan bref puis attends ma demande avant toute modification.
+
+Jamais d’accès à Unraid ni Nginx, même en lecture : je déploie. Tests locaux fictifs autorisés. Pour les travaux demandés : tests, commit/push, PR, fusion après contrôles réussis, vérification GitHub/GHCR.
 ```
