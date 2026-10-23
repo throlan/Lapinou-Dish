@@ -31,3 +31,7 @@ L’utilisateur gère seul le déploiement et les sauvegardes. L’agent n’acc
 Le workflow doit réussir sa dernière étape Preserve versioned images and restore rollback aliases. Son résumé liste les versions et digests. Vérifier aussi les manifests GHCR par tags numériques après livraison. Les documents de reprise et le journal du 23 octobre décrivent la mise en place ; les sources des anciens digests sont enregistrées dans docker/rollback-images.json.
 
 Références : [Docker imagetools create](https://docs.docker.com/reference/cli/docker/buildx/imagetools/create/), [GitHub Container registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
+
+## Restauration des alias vérifiée
+
+Livraison vérifiée : PR #135 fusionnée au commit 7af9a023c961637f780157b6665d31110d22be28 ; tests et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/39991969857 . Les dix tags numériques/v des versions 0.2.95 à 0.2.99 ont été vérifiés directement dans GHCR et correspondent aux digests des images d’origine.
