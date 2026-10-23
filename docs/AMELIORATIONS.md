@@ -1,5 +1,11 @@
 # Cahier des améliorations proposées
 
+## Catalogue alimentaire : pagination et lignes compactes — préparation 0.2.98
+
+Précédent/Suivant sont disponibles en haut et en bas de la page Aliments. Le sélecteur de taille propose jusqu’à 250 fiches, limite appliquée côté serveur également. Les suppressions gardent la page courante et se replacent seulement si cette page n’existe plus. Sur ordinateur, nom, nombre de recettes liées, source, nutrition et actions sont alignés sur une seule ligne compacte.
+
+Validation locale : 310 tests complets, puis 30 tests ciblés après la dernière modification de l’affichage. Publication et contrôles GitHub à vérifier après ouverture de PR.
+
 ## Catalogue alimentaire : conversions de rendement et suppression groupée — livrée 0.2.97
 
 Administration permet d’associer un aliment de départ à un aliment obtenu avec un rendement en grammes. Les recettes proposent ce coefficient sur les seules lignes correspondant à l’aliment de départ, sans réécrire les valeurs déjà enregistrées. Aux courses, l’aliment obtenu peut être converti inversement en aliment de départ ; une préférence « Acheter sous… » définie explicitement garde la priorité. Exemple : 1 g sec → 1,25 g égoutté, donc 250 g égouttés → 200 g secs.

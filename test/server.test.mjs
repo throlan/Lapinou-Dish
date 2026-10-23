@@ -85,7 +85,7 @@ test('food search requires two characters, searches the catalogue, and caps resu
     assert.match(sql, /FROM foods f/);
     assertSqlParenthesesBalanced(sql);
     if (calls++ === 0) {
-      assert.deepEqual(values, ['oeuf', 'oeuf', 50, 0, 'piece', ['oeuf'], false, '']);
+      assert.deepEqual(values, ['oeuf', 'oeuf', 250, 0, 'piece', ['oeuf'], false, '']);
       assert.match(sql, /grams_per_millilitre IS NOT NULL/);
       assert.match(sql, /normalized_alias = \$2/);
       assert.match(sql, /unnest\(\$6::text\[\]\)/);
@@ -97,12 +97,12 @@ test('food search requires two characters, searches the catalogue, and caps resu
     assert.deepEqual(values, ['oeuf', 'oeuf', ['oeuf'], false, '']);
     return { rows: [{ total: 1 }] };
   } };
-  const empty = await invoke('/api/foods?q=o', pool);
-  assert.deepEqual(empty.body, { foods: [], total: 0, limit: 50, offset: 0 });
+  const empty = await invoke('/api/foods?q=o&limit=500&offset=250', pool);
+  assert.deepEqual(empty.body, { foods: [], total: 0, limit: 250, offset: 250 });
   assert.equal(called, false);
-  const found = await invoke('/api/foods?q=oeuf&unit=piece', pool);
+  const found = await invoke('/api/foods?q=oeuf&unit=piece&limit=500', pool);
   assert.equal(found.status, 200);
-  assert.deepEqual(found.body, { foods: [{ id: 'food-1', name: 'Oeuf cru' }], total: 1, limit: 50, offset: 0 });
+  assert.deepEqual(found.body, { foods: [{ id: 'food-1', name: 'Oeuf cru' }], total: 1, limit: 250, offset: 0 });
   assert.equal(called, true);
 });
 

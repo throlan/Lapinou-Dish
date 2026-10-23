@@ -11,8 +11,8 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.2.97">
-    <link rel="stylesheet" href="/editorial.css?v=0.2.97">
+    <link rel="stylesheet" href="/style.css?v=0.2.98">
+    <link rel="stylesheet" href="/editorial.css?v=0.2.98">
   </head>
   <body>
     <header class="topbar">
@@ -123,8 +123,9 @@
         <div class="toolbar food-toolbar"><label class="search"><span>⌕</span><input id="food-search" type="search" placeholder="Rechercher un aliment…" autocomplete="off"></label><label class="incomplete-filter"><input id="food-incomplete" type="checkbox"> À compléter</label><span class="muted" id="food-count"></span></div>
         <div class="food-bulk-toolbar"><label><input id="select-food-page" type="checkbox"> Sélectionner la page</label><button type="button" class="secondary" id="select-food-results">Sélectionner tous les résultats</button><span id="food-selection-count" class="muted">Aucun aliment sélectionné</span><button type="button" class="secondary" id="clear-food-selection" disabled>Effacer la sélection</button><button type="button" class="secondary danger-button" id="bulk-delete-foods" disabled>Supprimer la sélection</button></div>
         <p id="food-list-message" class="form-message" role="status"></p>
-        <div class="table-wrap"><table><thead><tr><th aria-label="Sélection"></th><th>Aliment</th><th>Provenance</th><th>Pour 100 g</th><th></th></tr></thead><tbody id="food-rows"><tr><td colspan="5" class="empty">Chargement du catalogue…</td></tr></tbody></table></div>
-        <div class="pagination"><span class="muted" id="page-label"></span><div><button class="secondary" id="previous-page">Précédent</button><button class="secondary" id="next-page">Suivant</button></div></div>
+        <div class="pagination food-pagination"><span class="muted" id="page-label-top"></span><div><label for="food-page-size">Produits par page</label><select id="food-page-size" aria-label="Nombre de produits par page"><option>25</option><option selected>50</option><option>100</option><option>150</option><option>200</option><option>250</option></select><button type="button" class="secondary" id="previous-page-top">Précédent</button><button type="button" class="secondary" id="next-page-top">Suivant</button></div></div>
+        <div class="table-wrap"><table class="food-catalogue-table"><thead><tr><th aria-label="Sélection"></th><th>Aliment</th><th>Recettes</th><th>Provenance</th><th>Pour 100 g</th><th></th></tr></thead><tbody id="food-rows"><tr><td colspan="6" class="empty">Chargement du catalogue…</td></tr></tbody></table></div>
+        <div class="pagination food-pagination"><span class="muted" id="page-label"></span><div><button class="secondary" id="previous-page">Précédent</button><button class="secondary" id="next-page">Suivant</button></div></div>
       </section>
 
       <section id="recipes-view" class="view hidden">
@@ -389,7 +390,7 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/install-app.js?v=0.2.97"></script>
-    <script type="module" src="/app.js?v=0.2.97"></script>
+    <script type="module" src="/install-app.js?v=0.2.98"></script>
+    <script type="module" src="/app.js?v=0.2.98"></script>
   </body>
 </html>

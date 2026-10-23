@@ -1,5 +1,11 @@
 # État du projet — 23 octobre 2026
 
+## Catalogue alimentaire : pagination et lignes compactes — préparation 0.2.98
+
+Le catalogue propose les boutons Précédent/Suivant au-dessus et au-dessous de la table, ainsi qu’un choix de 25 à 250 aliments par page. Les suppressions simples et groupées gardent la page affichée ; si sa dernière ligne disparaît, la liste revient à la dernière page encore valide. Sur ordinateur, chaque aliment tient sur une ligne compacte : nom, recettes liées, provenance, nutrition et actions. Le nombre de recettes est dans une colonne dédiée, les noms longs restent accessibles au survol.
+
+Validation locale : **310 tests de la suite complète réussis** ; après la dernière retouche d’affichage, **30 tests ciblés** catalogue/API réussis et `node --check web/app.js` valide. Aucun accès à Unraid/Nginx.
+
 ## Catalogue alimentaire : conversions et gestion groupée — livrée 0.2.97
 
 En cours : Administration permet d’associer un aliment de départ à l’aliment obtenu et d’indiquer le rendement en grammes (ex. 1 g sec → 1,25 g égoutté). La valeur est proposée comme coefficient de cuisson uniquement pour cet aliment ; les recettes déjà enregistrées ne sont pas réécrites. Pour les courses, l’aliment obtenu se convertit à l’inverse vers le produit de départ, sauf si une préférence explicite « Acheter sous… » est déjà définie. Le catalogue défile avec la page et garde sa pagination. Une sélection par page ou sur tous les résultats filtrés ouvre un aperçu ; recettes, stocks, regroupements d’achat et conversions protègent les fiches référencées. Suppression groupée uniquement des fiches inutilisées sélectionnées.

@@ -30,7 +30,7 @@ Depuis la 0.2.89, la charte validée est **Magazine culinaire · Encre framboise
 - Les équivalences d'unités dépendent de l'aliment: g et ml ne sont pas interchangeables sans densité; une pièce ou une cuillère peut avoir un poids seulement si une équivalence documentée existe.
 - Les recettes et recherches utilisent le même identifiant alimentaire et affichent le nom canonique. Aucun champ de nom libre parallèle ne sert au calcul.
 - Administration permet de définir, pour le foyer, un rendement explicite entre un aliment de départ (sec/cru) et le produit obtenu (cuit/égoutté). Le coefficient décrit le poids obtenu par gramme de départ. Il suggère le coefficient de cuisson de cet ingrédient et sa conversion inverse peut alimenter les courses ; une règle d’achat explicite prime. Les recettes existantes ne sont pas réécrites.
-- Le catalogue reste dans le flux normal de la page, avec pagination. La sélection groupée porte sur la page ou les résultats filtrés et passe par un aperçu ; toute fiche liée à une recette, un stock, un achat ou une conversion est protégée.
+- Le catalogue reste dans le flux normal de la page, avec pagination haute et basse, tailles de 25 à 250 fiches et lignes compactes sur ordinateur. La sélection groupée porte sur la page ou les résultats filtrés et passe par un aperçu ; toute fiche liée à une recette, un stock, un achat ou une conversion est protégée.
 
 ## Courses et unités d’achat
 

@@ -7,6 +7,7 @@ import { MEAL_ORDER, MEAL_LABELS, validMealRatios } from './meal-config.js';
 import { suggestPlatePortions } from './portion-planner.js';
 import { PLATE_PARTS, validPlateRatios } from './meal-config.js';
 import { preparationWeeks } from './preparation-weeks.js';
+import { clampFoodPageOffset } from './food-pagination.js';
 import { groupPreparations, suggestedProductionQuantity, suggestedServingQuantities, scaledIngredients, scaledSourceIngredients, productionRecipe, cookingYield } from './cooking-sheet.js';
 import { ingredientCookingFactor, fillCookingFactorOptions, recipeServiceChoices, recipeServiceMode, recipeDisplayPreferences, filterRecipeDirectory, recipeCardForSource, recipeMissingData, recipeMomentLabel, recipeTypeLabel, recipePlanningLabel } from './recipe-directory.js';
 
@@ -920,17 +921,20 @@ async function refreshFoods() {
   const params = new URLSearchParams({ limit: String(state.limit), offset: String(state.offset) });
   if (state.query) params.set('q', state.query);
   if (state.onlyIncomplete) params.set('incomplete', 'true');
-  $('#food-rows').innerHTML = '<tr><td colspan="5" class="empty">Chargement…</td></tr>';
+  $('#food-rows').innerHTML = '<tr><td colspan="6" class="empty">Chargement…</td></tr>';
   try {
     const { foods, total } = await api(`/api/foods?${params}`);
     if(request!==foodsRequest)return;
+    const validOffset=clampFoodPageOffset(total,state.limit,state.offset);
+    if(validOffset!==state.offset){state.offset=validOffset;return refreshFoods();}
     state.total = total;
     $('#food-count').textContent = `${total.toLocaleString('fr-FR')} aliment${total > 1 ? 's' : ''}`;
-    $('#page-label').textContent = total ? `${state.offset + 1}–${Math.min(state.offset + foods.length, total)} sur ${total}` : 'Aucun résultat';
-    $('#previous-page').disabled = state.offset === 0;
-    $('#next-page').disabled = state.offset + state.limit >= total;
+    const pageLabel=total?`${state.offset+1}–${Math.min(state.offset+foods.length,total)} sur ${total}`:'Aucun résultat';
+    for(const selector of ['#page-label','#page-label-top'])$(selector).textContent=pageLabel;
+    for(const selector of ['#previous-page','#previous-page-top'])$(selector).disabled=state.offset===0;
+    for(const selector of ['#next-page','#next-page-top'])$(selector).disabled=state.offset+state.limit>=total;
     if (!foods.length) {
-      currentFoodPageIds=[];$('#food-rows').innerHTML = '<tr><td colspan="5" class="empty">Aucun aliment trouvé.</td></tr>';updateFoodSelectionUi();
+      currentFoodPageIds=[];$('#food-rows').innerHTML = '<tr><td colspan="6" class="empty">Aucun aliment trouvé.</td></tr>';updateFoodSelectionUi();
       return;
     }
     let usage=null;
@@ -944,7 +948,7 @@ async function refreshFoods() {
     currentFoodPageIds=foods.map(food=>food.id);$('#food-rows').replaceChildren(...foods.map(food=>foodRow(food,usage?.get(food.id) ?? null)));updateFoodSelectionUi();
   } catch {
     if(request!==foodsRequest)return;
-    currentFoodPageIds=[];$('#food-rows').innerHTML = '<tr><td colspan="5" class="empty">Catalogue indisponible. Vérifie la connexion à la base.</td></tr>';updateFoodSelectionUi();
+    currentFoodPageIds=[];$('#food-rows').innerHTML = '<tr><td colspan="6" class="empty">Catalogue indisponible. Vérifie la connexion à la base.</td></tr>';updateFoodSelectionUi();
   }
 }
 
@@ -954,12 +958,15 @@ function foodRow(food, recipes = null) {
   const select=document.createElement('input');select.type='checkbox';select.checked=state.selectedFoodIds.has(food.id.toLowerCase());select.setAttribute('aria-label',`Sélectionner ${food.name}`);
   select.addEventListener('change',()=>{const id=food.id.toLowerCase();if(select.checked)state.selectedFoodIds.add(id);else state.selectedFoodIds.delete(id);updateFoodSelectionUi();});selectCell.append(select);
   const name = document.createElement('td');
+  name.className='food-name-cell';
   const strong = document.createElement('strong'); strong.textContent = food.name;
-  const small = document.createElement('small'); small.textContent = [food.brand, food.source === 'ciqual' ? `Ciqual ${food.source_reference ?? ''}` : food.source].filter(Boolean).join(' · ');
+  strong.title=food.name;
+  const small = document.createElement('small'); small.textContent = food.brand ?? '';
   const requiredValues = ['energy_kcal', 'protein_g', 'carbohydrate_g', 'fat_g', 'fibre_g'];
   const hasMissingNutrition = requiredValues.some((key) => food.nutrients_per_100g?.[key] == null);
   if (hasMissingNutrition) small.textContent += `${small.textContent ? ' · ' : ''}À compléter`;
-  name.append(strong, small);
+  name.append(strong);if(small.textContent)name.append(small);
+  const recipeUsage=document.createElement('td');recipeUsage.className='food-recipe-usage-cell';
   if(recipes){
     const usage=document.createElement('details');usage.className='food-recipe-usage';
     const summary=document.createElement('summary');summary.textContent=`Dans ${recipes.length} recette${recipes.length>1?'s':''}`;
@@ -969,22 +976,23 @@ function foodRow(food, recipes = null) {
       link.addEventListener('click',()=>showRecipeCard(recipe.id,recipe.name));links.append(link);
     }
     if(!recipes.length){const empty=document.createElement('small');empty.textContent='Cet aliment n’apparaît dans aucune recette du foyer.';links.append(empty);}
-    usage.append(summary,links);name.append(usage);
+    usage.append(summary,links);recipeUsage.append(usage);
   } else {
-    const status=document.createElement('small');status.textContent=state.household?'Recettes liées indisponibles.':'Crée un foyer pour voir les recettes liées.';name.append(status);
+    const status=document.createElement('small');status.textContent=state.household?'Indisponible':'Foyer requis';recipeUsage.append(status);
   }
-  const source = document.createElement('td'); source.textContent = food.source === 'ciqual' ? 'Ciqual' : food.source === 'manual' ? 'Saisie manuelle' : food.source;
+  const source = document.createElement('td'); source.textContent = food.source === 'ciqual' ? 'Ciqual' : food.source === 'manual' ? 'Saisie manuelle' : food.source;source.title=food.source==='ciqual'?`Ciqual ${food.source_reference??''}`:source.textContent;
   const values = document.createElement('td'); values.className = 'food-nutrients';
   values.textContent = nutrientLabels.map(([key, unit]) => `${format(food.nutrients_per_100g?.[key === 'energyKcal' ? 'energy_kcal' : key === 'proteinG' ? 'protein_g' : key === 'carbohydrateG' ? 'carbohydrate_g' : 'fat_g'])} ${unit}`).join(' · ');
-  const action = document.createElement('td'); action.className = 'food-actions';
+  const action = document.createElement('td');
+  const actionButtons=document.createElement('div');actionButtons.className='food-actions';
   const duplicate = document.createElement('button'); duplicate.type = 'button'; duplicate.className = 'secondary'; duplicate.textContent = 'Dupliquer';
   duplicate.setAttribute('aria-label', `Dupliquer ${food.name}`);
-  duplicate.addEventListener('click', () => openFoodEditor(food.id, { duplicate: true })); action.append(duplicate);
-  const button = document.createElement('button'); button.className = 'secondary'; button.textContent = 'Modifier'; button.addEventListener('click', () => openFoodEditor(food.id)); action.append(button);
+  duplicate.addEventListener('click', () => openFoodEditor(food.id, { duplicate: true })); actionButtons.append(duplicate);
+  const button = document.createElement('button'); button.className = 'secondary'; button.textContent = 'Modifier'; button.addEventListener('click', () => openFoodEditor(food.id)); actionButtons.append(button);
   if (hasMissingNutrition) {
     const complete = document.createElement('button'); complete.className = 'primary'; complete.textContent = 'Compléter';
     complete.setAttribute('aria-label', `Rechercher des valeurs nutritionnelles manquantes pour ${food.name}`);
-    complete.addEventListener('click', () => openFoodEditor(food.id, { searchExternal: true })); action.append(complete);
+    complete.addEventListener('click', () => openFoodEditor(food.id, { searchExternal: true })); actionButtons.append(complete);
   }
   const remove = document.createElement('button'); remove.type='button'; remove.className='secondary danger-button'; remove.textContent='Supprimer';
   remove.setAttribute('aria-label',`Supprimer ${food.name}`);
@@ -993,8 +1001,8 @@ function foodRow(food, recipes = null) {
     remove.disabled=true;
     try{await api(`/api/foods/${food.id}`,{method:'DELETE'});showMessage($('#food-list-message'),`« ${food.name} » a été supprimé du catalogue.`,true);await refreshFoods();}
     catch(error){const body=error.body??{};const refs=[...(body.recipes??[])];const details=refs.length?` Recettes concernées : ${refs.join(', ')}.`:'';const stocks=body.stockCount?` Fiche suivie dans ${body.stockCount} stock(s).`:'';showMessage($('#food-list-message'),body.error==='food-in-use'?`Suppression impossible : cet aliment est encore utilisé.${details}${stocks}`:`Suppression impossible : ${body.error??error.message}`);remove.disabled=false;}
-  });action.append(remove);
-  row.append(selectCell,name, source, values, action); return row;
+  });actionButtons.append(remove);action.append(actionButtons);
+  row.append(selectCell,name,recipeUsage,source,values,action); return row;
 }
 
 $('#select-food-page').addEventListener('change',event=>{
@@ -1036,7 +1044,7 @@ $('#confirm-bulk-food-delete').addEventListener('click',async event=>{
   try{
     const result=await api('/api/foods/bulk-delete',{method:'POST',body:JSON.stringify({foodIds:bulkDeleteDeletableIds})});
     for(const id of bulkDeleteIds)state.selectedFoodIds.delete(id.toLowerCase());
-    state.offset=0;closeBulkFoodDialog();await refreshFoods();updateFoodSelectionUi();
+    closeBulkFoodDialog();await refreshFoods();updateFoodSelectionUi();
     const retained=bulkDeleteProtectedCount+result.dueToUsage.length;showMessage($('#food-list-message'),`${result.deleted.length.toLocaleString('fr-FR')} aliment${result.deleted.length===1?'':'s'} supprimé${result.deleted.length===1?'':'s'}${retained?` · ${retained} conservé${retained===1?'':'s'} car encore utilisé${retained===1?'':'s'}`:''}.`,true);
   }catch(error){$('#bulk-food-delete-message').textContent=`Suppression impossible : ${error.body?.error??error.message}`;button.disabled=false;button.textContent='Réessayer la suppression';}
 });
@@ -1116,8 +1124,10 @@ $('#food-search').addEventListener('input', (event) => {
   state.debounce = setTimeout(() => { state.query = event.target.value.trim(); state.offset = 0; refreshFoods(); }, 180);
 });
 $('#food-incomplete').addEventListener('change', (event) => { state.onlyIncomplete = event.target.checked; state.offset = 0; refreshFoods(); });
-$('#previous-page').addEventListener('click', () => { state.offset = Math.max(0, state.offset - state.limit); refreshFoods(); });
-$('#next-page').addEventListener('click', () => { state.offset += state.limit; refreshFoods(); });
+function moveFoodPage(direction){state.offset=Math.max(0,state.offset+direction*state.limit);refreshFoods();}
+for(const selector of ['#previous-page','#previous-page-top'])$(selector).addEventListener('click',()=>moveFoodPage(-1));
+for(const selector of ['#next-page','#next-page-top'])$(selector).addEventListener('click',()=>moveFoodPage(1));
+$('#food-page-size').addEventListener('change',event=>{state.limit=Math.min(250,Math.max(1,Number(event.target.value)||50));state.offset=0;refreshFoods();});
 $('#add-food').addEventListener('click', () => openFoodEditor());
 $('#find-external-nutrition').addEventListener('click', async () => {
   const matches = $('#nutrition-matches');
