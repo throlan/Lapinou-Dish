@@ -793,13 +793,13 @@ export async function handleRequest(request, response, pool, appPassword = null,
       const unit = url.searchParams.get('unit') ?? '';
       const onlyIncomplete = url.searchParams.get('incomplete') === 'true';
       const sourceFilter = url.searchParams.get('source') === 'ciqual' ? 'ciqual' : '';
-      if (query.length === 1) return send(response, 200, { foods: [], total: 0, limit: 50, offset: 0 });
+      const limit = integerInRange(url.searchParams.get('limit'), 50, 1, 250);
+      const offset = integerInRange(url.searchParams.get('offset'), 0, 0, 100000);
+      if (query.length === 1) return send(response, 200, { foods: [], total: 0, limit, offset });
       const normalizedQuery = normalizeSearch(query);
       const ignoredSearchTokens = new Set(['de', 'du', 'des', 'la', 'le', 'les', 'un', 'une', 'et', 'au', 'aux']);
       const searchTokens = [...new Set(normalizedQuery.split(' ').filter((token) => token.length > 1 && !ignoredSearchTokens.has(token))
         .map((token) => token.length > 4 && token.endsWith('s') ? token.slice(0, -1) : token))];
-      const limit = integerInRange(url.searchParams.get('limit'), 50, 1, 100);
-      const offset = integerInRange(url.searchParams.get('offset'), 0, 0, 100000);
       try {
         const result = await pool.query(
           `SELECT f.id, f.canonical_name AS name, f.brand, f.source,
