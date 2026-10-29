@@ -1,5 +1,11 @@
 # Cahier des améliorations proposées
 
+## Administration et lots minimums propres aux recettes — 0.3.3 en préparation
+
+L’administration présente sept rubriques en onglets. Elle charge aussi les types de production dès son ouverture, avant toute édition, pour éviter l’envoi d’une liste incomplète.
+
+Les types de production ne portent plus de quantité minimum : ils regroupent les recettes. Chaque recette définit son lot minimum et son unité. Les équivalences convertissent ce minimum vers le rendement pour produire les ingrédients et réserver le surplus au stock. Exemple : un pain équivalent à 1 pièce et 10 tranches peut être produit par pain entier ; une recette de bagels peut avoir un lot de 24 pièces et des pancakes un lot de 36. La migration reprend une ancienne valeur partagée seulement lorsqu’une recette était seule dans le type ; en cas d’ambiguïté, les minimums sont laissés à zéro pour réglage manuel. Suite complète, PR et publication à vérifier.
+
 ## Catégories personnalisées au calendrier — livré en 0.3.2
 
 Le filtre du calendrier rejetait un type de recette personnalisé même lorsqu’une catégorie l’associait explicitement à un rôle standard, comme « Assaisonnement » avec le rôle « Sauce ». La sélection respecte maintenant le type exact déclaré par cette catégorie. Les recettes personnalisées commencent à une unité au lieu d’hériter du défaut de 30 g des sauces standard. Le rôle et la catégorie ne créent pas deux recettes ; les catégories distinctes activées gardent leurs boutons propres. PR #140, commit `d17030f18ba4546334cf78b6e116b1f1c4863baf`, **321 tests réussis**. Publication GHCR : https://github.com/throlan/Lapinou-Dish/actions/runs/40858994728 ; digest `sha256:09d71fc82d9e6862f7a982bdeb5b3d6cdb84a6e9cbeed24cc02661733a25ee5a`.

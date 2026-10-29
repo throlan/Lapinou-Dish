@@ -11,8 +11,8 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.3.2">
-    <link rel="stylesheet" href="/editorial.css?v=0.3.2">
+    <link rel="stylesheet" href="/style.css?v=0.3.3">
+    <link rel="stylesheet" href="/editorial.css?v=0.3.3">
   </head>
   <body>
     <header class="topbar">
@@ -51,7 +51,18 @@
 
       <section id="home-view" class="view"><div id="dashboard-content"><p class="empty">Chargement du tableau de bord…</p></div></section>
       <section id="admin-view" class="view hidden">
-        <div class="section-heading"><div><h2>Administration du foyer</h2><p>Réglages de la répartition des repas et des repères nutritionnels du foyer.</p></div></div>
+        <div class="section-heading"><div><h2>Administration du foyer</h2><p>Réglages rangés par rubrique. Choisis un onglet pour afficher uniquement les paramètres concernés.</p></div></div>
+        <nav class="admin-tabs" role="tablist" aria-label="Rubriques d’administration">
+          <button type="button" role="tab" aria-selected="true" aria-controls="admin-panel-profiles" data-admin-tab="profiles">Profils</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="admin-panel-meals" data-admin-tab="meals">Repas et kcal</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="admin-panel-productions" data-admin-tab="productions">Productions</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="admin-panel-additions" data-admin-tab="additions">Ajouts individuels</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="admin-panel-proteins" data-admin-tab="proteins">Protéines</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="admin-panel-plates" data-admin-tab="plates">Assiettes</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="admin-panel-yields" data-admin-tab="yields">Conversions aliments</button>
+        </nav>
+        <div class="admin-panels">
+        <section id="admin-panel-profiles" class="admin-panel" role="tabpanel" tabindex="0" data-admin-panel="profiles">
       <section id="profiles-view" class="admin-profile-section">
         <div class="section-heading"><div><h2>Profils du foyer</h2><p>Mesures et activité saisies par les membres, conservées dans leur historique.</p></div></div>
         <details class="profile-create-panel"><summary>Ajouter une personne</summary><form id="person-form" class="profile-create">
@@ -62,6 +73,8 @@
         <p id="people-message" class="form-message" role="status"></p>
         <div id="people-list" class="people-list"><p class="empty">Chargement des profils…</p></div>
       </section>
+        </section>
+        <section id="admin-panel-meals" class="admin-panel" role="tabpanel" tabindex="0" data-admin-panel="meals" hidden>
         <h3>Répartition des kcal</h3>
         <form id="meal-ratios-form" class="card">
           <div class="form-grid">
@@ -77,13 +90,17 @@
           <p id="meal-ratios-message" class="form-message" role="status"></p>
         </form>
         <div id="meal-ratios-preview" class="card"></div>
+        </section>
+        <section id="admin-panel-productions" class="admin-panel" role="tabpanel" tabindex="0" data-admin-panel="productions" hidden>
         <h3>Productions à suivre</h3>
         <form id="production-types-form" class="card">
-          <p class="muted">Ajoute des types de production et, si nécessaire, un lot minimum. Par exemple, une recette de bagels produisant 24 pièces minimum : 4 demandées déclenchent une fabrication de 24. Le surplus reste en stock pour les menus suivants. L’unité doit être définie dans le rendement ou les équivalences de la recette.</p>
+          <p class="muted">Les types servent à classer et suivre les préparations. Le lot minimum se règle dans chaque fiche recette : par exemple 1 pain entier, 24 bagels ou 36 pancakes. Le surplus reste en stock pour les menus suivants.</p>
           <div id="production-type-rows" class="production-type-rows"></div>
           <div class="form-actions"><button type="button" class="secondary" id="add-production-type">+ Ajouter un type de production</button><button type="submit" class="primary">Enregistrer les productions</button></div>
           <p id="production-types-message" class="form-message" role="status"></p>
         </form>
+        </section>
+        <section id="admin-panel-additions" class="admin-panel" role="tabpanel" tabindex="0" data-admin-panel="additions" hidden>
         <h3>Ajouts individuels aux repas</h3>
         <form id="meal-additions-form" class="card">
           <p class="muted">Définis les catégories proposées à chaque créneau. Chaque ajout est choisi et quantifié séparément pour chaque personne ; une quantité de 0 signifie « aucun ».</p>
@@ -91,6 +108,8 @@
           <div class="form-actions"><button type="button" class="secondary" id="add-meal-category">+ Ajouter une catégorie</button><button type="submit" class="primary">Enregistrer les catégories</button></div>
           <p id="meal-additions-message" class="form-message" role="status"></p>
         </form>
+        </section>
+        <section id="admin-panel-proteins" class="admin-panel" role="tabpanel" tabindex="0" data-admin-panel="proteins" hidden>
         <h3>Minima quotidiens de protéines</h3>
         <form id="protein-targets-form" class="card">
           <p class="muted">Ces repères sont personnalisables et servent uniquement à colorer les prévisions du calendrier. Laisse un champ vide si aucun minimum n’est défini ; valide les valeurs avec le professionnel de santé concerné.</p>
@@ -98,6 +117,8 @@
           <button type="submit" class="primary" disabled>Enregistrer les minima</button>
           <p id="protein-targets-message" class="form-message" role="status"></p>
         </form>
+        </section>
+        <section id="admin-panel-plates" class="admin-panel" role="tabpanel" tabindex="0" data-admin-panel="plates" hidden>
         <h3>Composition des assiettes</h3>
         <form id="plate-ratios-form" class="card">
           <p class="muted">Proportions en poids estimé servi, après application des coefficients de cuisson. Chaque mode totalise 100 %. Ces pourcentages ne représentent ni les kcal, ni la surface de l’assiette, ni des grammes de protéines nutritionnelles.</p>
@@ -106,6 +127,8 @@
           <button type="submit" class="primary" disabled>Enregistrer la composition</button>
           <p id="plate-ratios-message" class="form-message" role="status"></p>
         </form>
+        </section>
+        <section id="admin-panel-yields" class="admin-panel" role="tabpanel" tabindex="0" data-admin-panel="yields" hidden>
         <h3>Conversions de rendement des aliments</h3>
         <form id="food-yield-form" class="card food-yield-form">
           <p class="muted">Relie un aliment de départ à l’aliment obtenu après cuisson ou préparation. Le coefficient indique le poids obtenu pour 1 g de l’aliment de départ. Il sera proposé dans les recettes et sa conversion inverse pourra servir aux courses. Une règle « Acheter sous… » explicite reste prioritaire.</p>
@@ -119,6 +142,8 @@
           <p id="food-yield-message" class="form-message" role="status"></p>
         </form>
         <div id="food-yield-conversions" class="food-yield-conversions" aria-live="polite"><p class="muted">Chargement des conversions…</p></div>
+        </section>
+        </div>
       </section>
       <section id="calendar-view" class="view hidden">
         <div class="section-heading"><div><h2>Calendrier familial</h2><p>Prévisions par personne, reliées aux recettes du catalogue.</p></div><button type="button" class="secondary" id="manage-profiles">Gérer les profils</button></div>
@@ -182,8 +207,9 @@
           </div>
           <label>Source (facultatif)<input name="sourceUrl" type="url" placeholder="Lien vers la recette d'origine"></label>
           <label>Instructions<textarea name="instructions" rows="4" maxlength="20000" placeholder="Étapes de préparation"></textarea></label>
-          <label>Production à suivre (facultatif)<select name="productionType"><option value="none">Aucune</option><option value="batch_cooking">Batch cooking</option><option value="pasta">Pâtes</option><option value="pastry">Pâtisserie</option><option value="bread">Pain</option></select></label>
+          <label>Production à suivre (facultatif)<select name="productionType"><option value="none">Aucune</option><option value="batch_cooking">Batch cooking</option><option value="pasta">Pâtes</option><option value="pastry">Pâtisserie</option><option value="bread">Pain</option></select><span class="hint">Le type sert à classer les préparations. Le lot minimum se règle juste dessous, pour cette recette uniquement.</span></label>
           <div class="yield-row"><label>Rendement<input name="yieldAmount" required type="number" min="0.01" step="any" value="4"></label><label>Unité<select name="yieldUnit"><option value="portion">portions</option><option value="piece">pièces</option><option value="slice">tranches</option><option value="g">grammes</option><option value="ml">millilitres</option></select></label></div>
+          <fieldset class="recipe-production-minimum"><legend>Lot minimum pour cette recette</legend><p class="hint">Exemples : 1 pain entier (équivalence avec ses tranches), 24 bagels ou 36 pancakes. La liste de courses calcule les ingrédients nécessaires au lot.</p><div class="yield-row"><label>Minimum<input name="minimumProductionAmount" type="number" min="0" max="100000" step="any" value="0"></label><label>Unité<select name="minimumProductionUnitId"><option value="piece">pièce(s)</option><option value="slice">tranche(s)</option><option value="portion">portion(s)</option><option value="g">g</option><option value="ml">ml</option></select></label></div></fieldset>
           <details class="recipe-output-units"><summary>Utiliser cette recette à la pièce, à la tranche…</summary>
             <p class="hint">Équivalences pour toute la recette de base. Exemple : 1 pain = 20 tranches. Le rendement ci-dessus reste la référence ; laisse vides les unités inutiles. Le poids est estimé depuis les ingrédients, sauf si tu renseignes un poids ici.</p>
             <div class="yield-row"><label>Pièces<input name="output_piece" type="number" min="0.001" max="100000" step="any"></label><label>Tranches<input name="output_slice" type="number" min="0.001" max="100000" step="any"></label><label>Portions<input name="output_portion" type="number" min="0.001" max="100000" step="any"></label><label>Poids total (g)<input name="output_g" type="number" min="0.001" max="100000" step="any"></label><label>Volume total (ml)<input name="output_ml" type="number" min="0.001" max="100000" step="any"></label></div>
@@ -404,7 +430,7 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/install-app.js?v=0.3.2"></script>
-    <script type="module" src="/app.js?v=0.3.2"></script>
+    <script type="module" src="/install-app.js?v=0.3.3"></script>
+    <script type="module" src="/app.js?v=0.3.3"></script>
   </body>
 </html>

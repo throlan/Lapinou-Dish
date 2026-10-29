@@ -1,5 +1,7 @@
 # Prochaines tâches — 29 octobre 2026
 
+0.3.3 en préparation : onglets d’administration, chargement des types de production à l’ouverture, et minimum de lot réglable par recette avec conversion vers rendement/équivalences. Tests ciblés réussis ; suite complète et publication à vérifier.
+
 0.3.2 livrée : recettes personnalisées visibles sous leur catégorie calendrier liée à un rôle standard ; défaut de quantité indépendant du rôle Sauce. PR #140 fusionnée, 321 tests et publication GHCR réussis.
 
 0.3.1 livrée : types de production personnalisés, minimum de fabrication par type avec unité, ingrédients du lot complet dans les courses et réutilisation du surplus pour les menus suivants. Correctif calendrier : les catégories configurées sont chargées avant l’ouverture d’un repas. 319 tests réussis ; PR #138 fusionnée et publication GHCR vérifiée.

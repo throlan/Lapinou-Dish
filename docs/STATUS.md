@@ -1,5 +1,11 @@
 # État du projet — 29 octobre 2026
 
+## Administration par rubriques et minimums par recette — 0.3.3 en préparation
+
+Le premier chargement de l’administration doit afficher les types existants ; auparavant leur liste n’était pas chargée à l’entrée, si bien qu’ajouter « Bagel » envoyait une liste incomplète et renvoyait `invalid-production-types`. Le chargement est maintenant intégré aux réglages d’administration. La page est répartie en sept onglets accessibles au clavier pour réduire le défilement.
+
+Les types de production classent les recettes ; le lot minimum est désormais propre à chaque recette. Une équivalence explicite permet par exemple de produire 1 pain entier (350 g = 10 tranches), 24 bagels ou 36 pancakes et de calculer les ingrédients du lot ainsi que le surplus de stock. La migration reprend l’ancien minimum partagé uniquement lorsqu’un seul type de recette y était affecté ; en cas de plusieurs recettes, le réglage reste à zéro pour éviter d’imposer un lot commun inadapté. Tests ciblés réussis ; suite complète, PR et publication à vérifier.
+
 ## Catégories personnalisées au calendrier — 0.3.2 livrée
 
 Une recette de type personnalisé associée à une catégorie ayant le rôle « Sauce » était masquée par le filtre qui exigeait le type standard `sauce`. Le filtre respecte maintenant le type personnalisé déclaré par la catégorie. En outre, les recettes personnalisées ne récupèrent pas le défaut de 30 g du rôle Sauce : elles commencent à 1 unité. Le rôle et la catégorie ne créent pas de copie de recette. **321 tests locaux et contrôles GitHub réussis.** PR #140 fusionnée au commit `d17030f18ba4546334cf78b6e116b1f1c4863baf`. Publication GHCR vérifiée : https://github.com/throlan/Lapinou-Dish/actions/runs/40858994728 ; digest `sha256:09d71fc82d9e6862f7a982bdeb5b3d6cdb84a6e9cbeed24cc02661733a25ee5a`.
