@@ -1,10 +1,10 @@
 # État du projet — 29 octobre 2026
 
-## Administration par rubriques et minimums par recette — 0.3.3 en préparation
+## Administration par rubriques et minimums par recette — 0.3.3 livrée
 
-Le premier chargement de l’administration doit afficher les types existants ; auparavant leur liste n’était pas chargée à l’entrée, si bien qu’ajouter « Bagel » envoyait une liste incomplète et renvoyait `invalid-production-types`. Le chargement est maintenant intégré aux réglages d’administration. La page est répartie en sept onglets accessibles au clavier pour réduire le défilement.
+Le premier chargement de l’administration affiche maintenant les types existants ; auparavant leur liste n’était pas chargée à l’entrée, si bien qu’ajouter « Bagel » envoyait une liste incomplète et renvoyait `invalid-production-types`. La page est répartie en sept onglets accessibles au clavier pour réduire le défilement.
 
-Les types de production classent les recettes ; le lot minimum est désormais propre à chaque recette. Une équivalence explicite permet par exemple de produire 1 pain entier (350 g = 10 tranches), 24 bagels ou 36 pancakes et de calculer les ingrédients du lot ainsi que le surplus de stock. La migration reprend l’ancien minimum partagé uniquement lorsqu’un seul type de recette y était affecté ; en cas de plusieurs recettes, le réglage reste à zéro pour éviter d’imposer un lot commun inadapté. Tests ciblés réussis ; suite complète, PR et publication à vérifier.
+Les types de production classent les recettes ; le lot minimum est propre à chaque recette. Une équivalence explicite permet par exemple de produire 1 pain entier (350 g = 10 tranches), 24 bagels ou 36 pancakes et de calculer les ingrédients du lot ainsi que le surplus de stock. La migration reprend l’ancien minimum partagé uniquement lorsqu’une seule recette racine utilisait ce type ; en cas de plusieurs recettes, le réglage reste à zéro pour éviter d’imposer un lot commun inadapté. PR #142 fusionnée au commit `f997a39eb1a23d12e276e8ac5b815036d77f2421`. **324 tests locaux et contrôles GitHub réussis.** Image `ghcr.io/throlan/lapinou-dish:0.3.3`, digest `sha256:dc2ec2fafaf286712f99a4b1dd4e3fd17326e5e05ae9bf6ff1d8debff5026a73`. Publication : https://github.com/throlan/Lapinou-Dish/actions/runs/40905467035.
 
 ## Catégories personnalisées au calendrier — 0.3.2 livrée
 
