@@ -1,8 +1,14 @@
-# Cahier de reprise — 23 octobre 2026, unités d’achat et équivalences en courses
+# Cahier de reprise — 29 octobre 2026, catégories de repas et choix individuels
+
+## Travail courant — catégories configurables et choix individuels
+
+Version en préparation : **0.3.0**. Administration configure les ajouts complémentaires par créneau, leur type de recette et leur rôle connu (accompagnement, boisson, sauce ou dessert). Les types personnalisés sont proposés dans les fiches recettes et les filtres. Le plat principal reste commun. Chaque ajout complémentaire est propre à chaque personne ; « Aucun » ou quantité 0 signifie qu’elle n’en prend pas. Ces quantités nulles ne sont pas enregistrées ni ajoutées aux courses. Les repas et quantités historiques restent conservés. Migration ajoutant `households.meal_additions` et `planned_meal_items.category_id` ; les anciens rôles sont repris comme catégories.
+
+315 tests complets locaux réussis. Aucun accès à Unraid/Nginx. Étape suivante : relire le diff, commit/push, créer une PR, attendre les contrôles réussis, fusionner, puis vérifier la publication GHCR.
 
 ## Publication : versions numérotées et retour arrière
 
-Application toujours **0.2.99**. Le workflow publie désormais les alias numériques et préfixés v depuis package.json, sans réécrire une version déjà publiée. Conservation sans suppression automatique : au minimum les cinq dernières versions publiées restent sélectionnables. Les images 0.2.95 à 0.2.99 ont été retrouvées par tag technique ; digests et révisions vérifiés et enregistrés dans docker/rollback-images.json. Le workflow rétablit leurs alias depuis les digests exacts, sans reconstruire les anciennes images. Voir [ROLLBACK.md](ROLLBACK.md).
+Dernière version publiée : **0.2.99** (la 0.3.0 est en préparation). Le workflow publie les alias numériques et préfixés v depuis package.json, sans réécrire une version déjà publiée. Conservation sans suppression automatique : au minimum les cinq dernières versions publiées restent sélectionnables. Les images 0.2.95 à 0.2.99 ont été retrouvées par tag technique ; digests et révisions vérifiés et enregistrés dans docker/rollback-images.json. Le workflow rétablit leurs alias depuis les digests exacts, sans reconstruire les anciennes images. Voir [ROLLBACK.md](ROLLBACK.md).
 
 Pour revenir à la 0.2.97 : ghcr.io/throlan/lapinou-dish:0.2.97. La 0.2.98 reste identifiée comme défectueuse au démarrage. Aucun changement de migration entre 0.2.97 et 0.2.99 ; une ancienne image ne restaure pas les données. Ne jamais supprimer les volumes pour changer de version. Aucun accès à Unraid/Nginx.
 

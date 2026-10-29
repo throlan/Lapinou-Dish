@@ -25,6 +25,8 @@ test('recipe lines require canonical food IDs and a positive named yield', () =>
   });
   assert.equal(result.error, undefined);
   assert.equal(result.data.lines[0].foodId, '20202020-2020-4020-8020-202020202020');
+  assert.equal(validateRecipeInput({...result.data,recipeType:'custom-patisserie'}).data.recipeType,'custom-patisserie');
+  assert.equal(validateRecipeInput({...result.data,recipeType:'custom-'+'x'.repeat(34)}).error,'invalid-recipe-type');
   assert.equal(validateRecipeInput({ ...result.data, yield: { amount: 0, unitId: 'piece' } }).error, 'invalid-yield');
   assert.equal(validateRecipeInput({ ...result.data, lines: [{ importText: '200g farine' }] }).error, 'invalid-food-id');
 });

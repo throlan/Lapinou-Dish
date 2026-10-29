@@ -1,8 +1,14 @@
-# État du projet — 23 octobre 2026
+# État du projet — 29 octobre 2026
+
+## Catégories dynamiques et ajouts individuels — 0.3.0 (en préparation)
+
+Administration permet de configurer les catégories complémentaires proposées à chaque créneau, leur type de recette et leur rôle de calcul. Les catégories personnalisées deviennent des types sélectionnables dans les fiches recettes et apparaissent dans les filtres du répertoire. Le plat principal reste commun ; tous les ajouts sont indépendants par personne. Choisir 0 ou « Aucun » est accepté et signifie que la personne ne prend pas cet ajout. Les quantités nulles ne sont pas enregistrées ni comptées dans les courses. Les repas historiques sont conservés ; une migration ajoute les réglages de catégorie et leur identifiant aux lignes de repas existantes.
+
+Validation locale : **315 tests complets réussis**. Aucun déploiement Unraid/Nginx effectué. Publication et contrôles GitHub à vérifier après PR.
 
 ## Publication : versions numérotées et retour arrière
 
-Application toujours **0.2.99**. Le workflow publie désormais les alias numériques et préfixés v depuis package.json, sans réécrire une version déjà publiée. Conservation sans suppression automatique : au minimum les cinq dernières versions publiées restent sélectionnables. Les images 0.2.95 à 0.2.99 ont été retrouvées par tag technique ; digests et révisions vérifiés et enregistrés dans docker/rollback-images.json. Le workflow rétablit leurs alias depuis les digests exacts, sans reconstruire les anciennes images. Voir [ROLLBACK.md](ROLLBACK.md).
+Dernière version publiée : **0.2.99** (la 0.3.0 est en préparation). Le workflow publie les alias numériques et préfixés v depuis package.json, sans réécrire une version déjà publiée. Conservation sans suppression automatique : au minimum les cinq dernières versions publiées restent sélectionnables. Les images 0.2.95 à 0.2.99 ont été retrouvées par tag technique ; digests et révisions vérifiés et enregistrés dans docker/rollback-images.json. Le workflow rétablit leurs alias depuis les digests exacts, sans reconstruire les anciennes images. Voir [ROLLBACK.md](ROLLBACK.md).
 
 Pour revenir à la 0.2.97 : ghcr.io/throlan/lapinou-dish:0.2.97. La 0.2.98 reste identifiée comme défectueuse au démarrage. Aucun changement de migration entre 0.2.97 et 0.2.99 ; une ancienne image ne restaure pas les données. Ne jamais supprimer les volumes pour changer de version. Aucun accès à Unraid/Nginx.
 

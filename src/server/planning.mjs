@@ -33,7 +33,11 @@ export function validatePlannedMeal(input) {
     if (!item || !isUuid(item.recipeId) || !Array.isArray(item.amounts)) return { error: 'invalid-planned-item' };
     const role = item.role ?? 'main';
     if (!['main', 'accompaniment', 'beverage', 'dessert', 'sauce'].includes(role)) return { error: 'invalid-planned-item-role' };
-    const optional = ['beverage','dessert','sauce'].includes(role);
+    const categoryId = item.categoryId ?? role;
+    const storedRole=role;
+    const optional = storedRole !== 'main';
+    if (typeof categoryId !== 'string' || !/^[a-z][a-z0-9_-]{0,39}$/.test(categoryId)) return { error:'invalid-planned-item-category' };
+    if (storedRole === 'main' && categoryId !== 'main') return { error:'invalid-planned-item-category' };
     if (!optional && item.amounts.length !== attendeeIds.length) return { error: 'amounts-must-match-attendees' };
     if (optional && (item.amounts.length < 1 || item.amounts.length > attendeeIds.length)) return { error: `invalid-${role}-amounts` };
     const seen = new Set();
@@ -46,7 +50,7 @@ export function validatePlannedMeal(input) {
       amounts.push({ personId: amount.personId, quantity });
     }
     if (!optional && seen.size !== attendeeIds.length) return { error: 'amounts-must-match-attendees' };
-    items.push({ recipeId: item.recipeId, role, amounts });
+    items.push({ recipeId: item.recipeId, role:storedRole, categoryId, amounts });
   }
   return { data: { householdId: input.householdId, mealDate: input.mealDate, slot: input.slot, notes, attendeeIds, items, isOccasion, occasionTitle, occasionEnergy } };
 }
@@ -106,7 +110,7 @@ export async function savePlannedMeal(pool, id, data) {
       if (recipe.rows[0]?.separate_starch) {
         const parts = await client.query('SELECT id,serving_part,yield_amount FROM recipes WHERE parent_recipe_id=$1',[item.recipeId]);
         if (!parts.rows.length) { await client.query('ROLLBACK'); return {error:'serving-parts-missing'}; }
-        for (const part of parts.rows) normalizedItems.push({recipeId:part.id,role:part.serving_part !== 'main' ? 'accompaniment' : item.role,amounts:item.amounts.map(amount=>({personId:amount.personId,quantity:amount.quantity/Number(recipe.rows[0].yield_amount)*Number(part.yield_amount)}))});
+        for (const part of parts.rows) normalizedItems.push({recipeId:part.id,role:part.serving_part !== 'main' ? 'accompaniment' : item.role,categoryId:part.serving_part !== 'main' ? 'accompaniment' : item.categoryId,amounts:item.amounts.map(amount=>({personId:amount.personId,quantity:amount.quantity/Number(recipe.rows[0].yield_amount)*Number(part.yield_amount)}))});
       } else normalizedItems.push(item);
     }
     if (normalizedItems.some(item=>item.amounts.some(amount=>!Number.isFinite(amount.quantity) || amount.quantity > 100000))) { await client.query('ROLLBACK'); return {error:'invalid-planned-quantity'}; }
@@ -133,7 +137,7 @@ export async function savePlannedMeal(pool, id, data) {
     for (const entry of data.occasionEnergy ?? []) await client.query('INSERT INTO planned_occasion_energy(meal_id,person_id,energy_kcal) VALUES($1,$2,$3)',[mealId,entry.personId,entry.kcal]);
     for (const [index, item] of normalizedItems.entries()) {
       const itemId = randomUUID();
-      await client.query('INSERT INTO planned_meal_items (id, meal_id, recipe_id, sort_order, role) VALUES ($1,$2,$3,$4,$5)', [itemId, mealId, item.recipeId, index, item.role]);
+      await client.query('INSERT INTO planned_meal_items (id, meal_id, recipe_id, sort_order, role, category_id) VALUES ($1,$2,$3,$4,$5,$6)', [itemId, mealId, item.recipeId, index, item.role, item.categoryId ?? item.role]);
       for (const amount of item.amounts) {
         await client.query('INSERT INTO planned_amounts (planned_item_id, person_id, quantity) VALUES ($1,$2,$3)', [itemId, amount.personId, amount.quantity]);
       }
@@ -181,7 +185,7 @@ export async function duplicatePlannedMeal(pool, sourceId, input) {
     if(input.slot===source.rows[0].slot && input.dates.includes(source.rows[0].date)){
       await client.query('ROLLBACK');return {error:'source-date-selected'};
     }
-    const items=await client.query('SELECT id,recipe_id,sort_order,role FROM planned_meal_items WHERE meal_id=$1 ORDER BY sort_order',[sourceId]);
+    const items=await client.query('SELECT id,recipe_id,sort_order,role,category_id FROM planned_meal_items WHERE meal_id=$1 ORDER BY sort_order',[sourceId]);
     const mealIds=[];
     for(const date of input.dates){
       const id=randomUUID();mealIds.push(id);
@@ -190,7 +194,7 @@ export async function duplicatePlannedMeal(pool, sourceId, input) {
       if(source.rows[0].is_occasion)await client.query('INSERT INTO planned_occasion_energy(meal_id,person_id,energy_kcal) SELECT $1,person_id,energy_kcal FROM planned_occasion_energy WHERE meal_id=$2',[id,sourceId]);
       for(const item of items.rows){
         const newId=randomUUID();
-        await client.query('INSERT INTO planned_meal_items(id,meal_id,recipe_id,sort_order,role) VALUES($1,$2,$3,$4,$5)',[newId,id,item.recipe_id,item.sort_order,item.role]);
+        await client.query('INSERT INTO planned_meal_items(id,meal_id,recipe_id,sort_order,role,category_id) VALUES($1,$2,$3,$4,$5,$6)',[newId,id,item.recipe_id,item.sort_order,item.role,item.category_id??item.role]);
         await client.query('INSERT INTO planned_amounts(planned_item_id,person_id,quantity) SELECT $1,person_id,quantity FROM planned_amounts WHERE planned_item_id=$2',[newId,item.id]);
       }
     }
@@ -211,7 +215,7 @@ async function readPlannedMeal(client, meal, householdId) {
       'SELECT p.id, p.display_name FROM planned_meal_attendees a JOIN people p ON p.id = a.person_id WHERE a.meal_id = $1 ORDER BY p.display_name',
       [row.id],
     ),
-    client.query('SELECT id, recipe_id, role FROM planned_meal_items WHERE meal_id = $1 ORDER BY sort_order', [row.id]),
+    client.query('SELECT id, recipe_id, role, category_id FROM planned_meal_items WHERE meal_id = $1 ORDER BY sort_order', [row.id]),
   ]);
   const items = [];
   for (const item of itemsResult.rows) {
@@ -220,7 +224,7 @@ async function readPlannedMeal(client, meal, householdId) {
       client.query('SELECT person_id, quantity FROM planned_amounts WHERE planned_item_id = $1', [item.id]),
     ]);
     items.push({
-      recipeId: item.recipe_id, role: item.role ?? 'main', recipe,
+      recipeId: item.recipe_id, role: item.role ?? 'main', categoryId:item.category_id||item.role||'main', recipe,
       amounts: amounts.rows.map((amount) => ({ personId: amount.person_id, quantity: Number(amount.quantity) })),
     });
   }

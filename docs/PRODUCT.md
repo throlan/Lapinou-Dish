@@ -45,8 +45,9 @@ Les règles d’achat sont propres au foyer. Une fiche aliment peut définir l�
 
 
 - Une recette inutilisée peut être supprimée explicitement, avec confirmation. Un menu ou un historique de production lié à la recette ou à une partie empêche la suppression pour préserver les références ; aucune suppression automatique de doublons.
-- Les catégories incluent Plat, Salade, Sauce, Boisson, Accompagnement et Dessert. Les salades peuvent être complètes ou vertes, servies comme plat ou accompagnement ; elles utilisent les mêmes modes de service et calculs que les plats.
-- Une sauce est ajoutable au repas avec une quantité choisie par personne, éventuellement nulle. Ses apports comptent dans les totaux ; sa quantité ne sert pas à combler automatiquement un budget kcal ou protéique.
+- Les types de recette de base incluent Plat, Salade, Sauce, Boisson, Accompagnement et Dessert. L’administration du foyer permet d’ajouter des catégories de recette personnalisées et de choisir les créneaux où chaque catégorie peut être proposée.
+- Au calendrier, le plat principal reste commun au repas. Chaque ajout complémentaire (accompagnement, boisson, sauce, dessert ou catégorie personnalisée) se choisit et se quantifie séparément pour chaque personne ; une quantité nulle signifie qu’elle n’en prend pas. Les rôles connus continuent d’appliquer leurs règles nutritionnelles et de calcul.
+- Les salades peuvent être complètes ou vertes, servies comme plat ou accompagnement ; elles utilisent les mêmes modes de service et calculs que les plats.
 - La ligne structurée de recette est: aliment, quantité, unité d'usage, état (cru/sec/cuit si pertinent), composant optionnel et variante optionnelle.
 - L'import texte/URL crée un brouillon à examiner. Il ne crée pas silencieusement un aliment ni une correspondance.
 - Les calculs nutritionnels proviennent exclusivement des lignes liées au catalogue. Les valeurs importées peuvent être conservées comme référence non vérifiée, jamais comme calcul validé.

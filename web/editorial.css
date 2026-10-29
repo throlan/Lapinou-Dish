@@ -76,6 +76,7 @@
   .form-message,#meal-message,#people-message { color:#962448; }
   .form-message[style*="color"],#shopping-export-message[style*="color"] { color:#236046!important; }
   .nutrition-grid>div,.profile-entry,.profile-histories section,.profile-create,.person-forecast,.reserve-plan-form,.routine-row,.stock-row,.order-link-row,.shopping-store h5,.rebalance-person,.nutrition-candidate,.planned-item-editor,.cook-part { background:var(--panel); border-color:var(--line); box-shadow:none; color:var(--text); }
+  .meal-addition-row { border-color:var(--line); background:var(--panel); }
   .nutrition-grid strong,.result h3,.profile-card-heading h3,.profile-entry h4,.profile-histories h4,.nutrition-completion h3,.person-forecast strong,.reserve-plan-form h3,.cook-dialog h3,.cook-part h4,.calendar-summary h3 { color:var(--text); }
   .nutrition-grid span,.profile-histories ul,.stock-row p,.production-lot span,.person-forecast span,.person-forecast small,.beverage-person span,.recipe-pagination span,.recipe-row-moments legend { color:var(--muted); }
   .admin-profile-section .profile-card-heading::after,.recipe-row-status { color:var(--accent); }

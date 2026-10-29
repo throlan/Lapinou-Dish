@@ -11,8 +11,8 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.2.99">
-    <link rel="stylesheet" href="/editorial.css?v=0.2.99">
+    <link rel="stylesheet" href="/style.css?v=0.3.0">
+    <link rel="stylesheet" href="/editorial.css?v=0.3.0">
   </head>
   <body>
     <header class="topbar">
@@ -77,6 +77,13 @@
           <p id="meal-ratios-message" class="form-message" role="status"></p>
         </form>
         <div id="meal-ratios-preview" class="card"></div>
+        <h3>Ajouts individuels aux repas</h3>
+        <form id="meal-additions-form" class="card">
+          <p class="muted">Définis les catégories proposées à chaque créneau. Chaque ajout est choisi et quantifié séparément pour chaque personne ; une quantité de 0 signifie « aucun ».</p>
+          <div id="meal-addition-categories" class="meal-addition-categories"></div>
+          <div class="form-actions"><button type="button" class="secondary" id="add-meal-category">+ Ajouter une catégorie</button><button type="submit" class="primary">Enregistrer les catégories</button></div>
+          <p id="meal-additions-message" class="form-message" role="status"></p>
+        </form>
         <h3>Minima quotidiens de protéines</h3>
         <form id="protein-targets-form" class="card">
           <p class="muted">Ces repères sont personnalisables et servent uniquement à colorer les prévisions du calendrier. Laisse un champ vide si aucun minimum n’est défini ; valide les valeurs avec le professionnel de santé concerné.</p>
@@ -156,7 +163,7 @@
           <label>Nom de la recette<input name="name" required maxlength="200" placeholder="Ex. Muffins pomme-cannelle"></label>
           <label>Description<textarea name="description" rows="2" maxlength="5000" placeholder="Facultatif"></textarea></label>
           <div class="recipe-taxonomy">
-            <label>Type de préparation<select name="recipeType">
+            <label>Type de préparation<select name="recipeType" id="recipe-type-select">
               <option value="dish">Plat</option><option value="salad">Salade</option><option value="sauce">Sauce</option><option value="beverage">Boisson</option><option value="accompaniment">Accompagnement</option><option value="dessert">Dessert</option>
             </select></label>
             <fieldset class="recipe-moments"><legend>Moments adaptés</legend>
@@ -289,7 +296,7 @@
         <fieldset class="attendee-fieldset"><legend>Qui sera présent ?</legend><div id="meal-attendees" class="attendee-list"></div></fieldset>
         <label class="occasion-toggle"><input type="checkbox" name="isOccasion"> Repas exceptionnel, hors quotas — utiliser l’épargne</label>
         <section id="occasion-fields" class="hidden occasion-fields"><label>Nom de l’occasion<input name="occasionTitle" maxlength="200" placeholder="Ex. Raclette, vin blanc et tiramisu"></label><div id="occasion-energy" class="planned-amounts"></div><p class="hint">Estime les kcal par personne. Ce repas ne sera pas plafonné par créneau et sera déduit de la réserve.</p></section>
-        <section id="regular-meal-fields"><div class="line-heading"><h3>Recettes et quantités par personne</h3><button type="button" class="secondary" id="recalculate-portions">Recalculer les portions</button><button type="button" class="secondary" id="add-planned-item">+ Ajouter une recette</button><button type="button" class="secondary" id="add-planned-sauce">+ Sauce</button><button type="button" class="secondary" id="add-planned-dessert">+ Dessert</button></div>
+        <section id="regular-meal-fields"><div class="line-heading"><h3>Recettes et quantités par personne</h3><button type="button" class="secondary" id="recalculate-portions">Recalculer les portions</button><button type="button" class="secondary" id="add-planned-item">+ Plat principal</button><div id="planned-addition-actions" class="planned-addition-actions"></div></div>
         <div id="planned-items" class="planned-items"></div></section>
         <label>Note (facultatif)<textarea name="notes" rows="2" maxlength="1000" placeholder="Ex. à décongeler la veille"></textarea></label>
         <p id="meal-message" class="form-message" role="status"></p>
@@ -390,7 +397,7 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/install-app.js?v=0.2.99"></script>
-    <script type="module" src="/app.js?v=0.2.99"></script>
+    <script type="module" src="/install-app.js?v=0.3.0"></script>
+    <script type="module" src="/app.js?v=0.3.0"></script>
   </body>
 </html>

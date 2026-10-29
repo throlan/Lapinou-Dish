@@ -6,6 +6,7 @@ import { MEAL_ORDER,DEFAULT_MEAL_RATIOS,validMealRatios } from '../web/meal-conf
 import { suggestQuantity } from '../web/portion-planner.js';
 import { handleRequest } from '../src/server/app.mjs';
 import { validateProteinTargets } from '../src/server/protein-settings.mjs';
+import { validateMealAdditions } from '../src/server/meal-additions.mjs';
 import { createRecipe,validateRecipeInput } from '../src/server/recipes.mjs';
 import { savePlannedMeal,listPlannedMeals,duplicatePlannedMeal,validatePlannedMeal } from '../src/server/planning.mjs';
 import { rawShoppingRequirements } from '../src/server/shopping-requirements.mjs';
@@ -39,6 +40,11 @@ test('protein minimum settings validate household person IDs and bounded gram ta
   assert.deepEqual(validateProteinTargets({[p]:90,[food]:null}),{data:{[p]:90,[food]:null}});
   for(const targets of [null,[],{invalid:90},{[p]:'90'},{[p]:-1},{[p]:501},{[p]:Infinity}])assert.equal(validateProteinTargets(targets).error,'invalid-protein-targets');
 });
+test('meal addition categories validate labels, recipe types, identifiers and configured moments',()=>{
+  assert.deepEqual(validateMealAdditions([{id:'patisserie',label:'Pâtisserie',recipeType:'custom-patisserie',role:'dessert',slots:['breakfast','snack']}]),{data:[{id:'patisserie',label:'Pâtisserie',recipeType:'custom-patisserie',role:'dessert',slots:['breakfast','snack']}]});
+  assert.deepEqual(validateMealAdditions([]),{data:[]});
+  for(const invalid of [null,[{id:'Main',label:'Plat',recipeType:'dish',slots:['lunch']}],[{id:'fruit',label:'Fruit',recipeType:'unknown',slots:['breakfast']}],[{id:'fruit',label:'Fruit',recipeType:'dessert',slots:[]}],[{id:'fruit',label:'Fruit',recipeType:'dessert',slots:['midnight']}],[{id:'fruit',label:'Fruit',recipeType:'dessert',slots:['breakfast','breakfast']}],[{id:'fruit',label:'Fruit',recipeType:'dessert',slots:['breakfast']},{id:'fruit',label:'Fruit 2',recipeType:'dessert',slots:['snack']}],[{id:'fruit',label:'  ',recipeType:'dessert',slots:['breakfast']}]] )assert.ok(validateMealAdditions(invalid).error);
+});
 test('saved household ratios, evening meals, copies and shopping persist against PostgreSQL',async()=>{
   const db=new PGlite();
   try{
@@ -46,6 +52,13 @@ test('saved household ratios, evening meals, copies and shopping persist against
     for(const file of (await readdir(dir)).filter(f=>f.endsWith('.sql')).sort())await db.exec(await readFile(new URL(file,dir),'utf8'));
     const pool={async query(sql,args=[]){const r=await db.query(sql,args);return {...r,rowCount:r.rows.length||r.affectedRows||0};},async connect(){return {...this,release(){}};}};
     await pool.query('INSERT INTO households(id,name) VALUES($1,\'A\'),($2,\'B\')',[h,other]);
+    const additionsPath='/api/meal-additions?householdId='+h;
+    const defaults=(await request(pool,'GET',additionsPath)).body.additions;
+    assert.ok(defaults.some(item=>item.id==='pastry'&&item.slots.includes('breakfast')));
+    const customAdditions=[...defaults,{id:'fruit',label:'Fruit',recipeType:'custom-fruit',role:'dessert',slots:['breakfast','snack']}];
+    assert.equal((await request(pool,'PUT',additionsPath,{householdId:h,additions:customAdditions})).status,200);
+    assert.deepEqual((await request(pool,'GET',additionsPath)).body.additions,customAdditions.map(item=>({...item,role:item.role??(['beverage','sauce','dessert'].includes(item.recipeType)?item.recipeType:'accompaniment')})));
+    assert.equal((await request(pool,'PUT',additionsPath,{householdId:h,additions:[{id:'bad',label:'Mauvaise catégorie',recipeType:'dessert',slots:[]}]})).status,400);
     const path='/api/meal-settings?householdId='+h;
     assert.deepEqual((await request(pool,'GET',path)).body.ratios,DEFAULT_MEAL_RATIOS);
     assert.equal((await request(pool,'PUT',path,{householdId:h,ratios:{...custom,lunch:0.5}})).status,400);
@@ -63,13 +76,16 @@ test('saved household ratios, evening meals, copies and shopping persist against
     assert.deepEqual((await request(pool,'GET','/api/protein-settings?householdId='+other)).body.targets,{});
     await pool.query('INSERT INTO foods(id,canonical_name,source) VALUES($1,\'Snack test\',\'manual\')',[food]);
     const recipe=await createRecipe(pool,validateRecipeInput({householdId:h,name:'Snack',mealMoments:['snack'],yield:{amount:100,unitId:'g'},lines:[{foodId:food,quantity:100,unitId:'g'}]}).data);
-    const input={householdId:h,mealDate:'2026-10-19',slot:'evening_snack',notes:'soir',attendeeIds:[p],items:[{recipeId:recipe.id,role:'main',amounts:[{personId:p,quantity:80}]}]};
+    const fruitRecipe=await createRecipe(pool,validateRecipeInput({householdId:h,name:'Fruit individuel',recipeType:'custom-fruit',mealMoments:['snack'],yield:{amount:100,unitId:'g'},lines:[{foodId:food,quantity:100,unitId:'g'}]}).data);
+    const input={householdId:h,mealDate:'2026-10-19',slot:'evening_snack',notes:'soir',attendeeIds:[p],items:[{recipeId:recipe.id,role:'main',categoryId:'main',amounts:[{personId:p,quantity:80}]},{recipeId:fruitRecipe.id,role:'dessert',categoryId:'fruit',amounts:[{personId:p,quantity:0.5}]}]};
     assert.equal(validatePlannedMeal(input).error,undefined);
     const meal=await savePlannedMeal(pool,null,input);
     assert.equal(meal.slot,'evening_snack');
+    assert.equal(meal.items[1].categoryId,'fruit');
     const copy=await duplicatePlannedMeal(pool,meal.id,{householdId:h,requestId:'ffffffff-ffff-4fff-8fff-ffffffffffff',slot:'evening_snack',dates:['2026-10-20']});
     const meals=await listPlannedMeals(pool,h,'2026-10-19');assert.equal(meals.find(m=>m.id===copy.mealIds[0]).slot,'evening_snack');
-    assert.equal((await rawShoppingRequirements(pool,h,'2026-10-19','2026-10-20'))[0].quantity,160);
+    assert.equal(meals.find(m=>m.id===copy.mealIds[0]).items[1].categoryId,'fruit');
+    assert.equal((await rawShoppingRequirements(pool,h,'2026-10-19','2026-10-20'))[0].quantity,161);
     await request(pool,'PUT',path,{householdId:h,ratios:DEFAULT_MEAL_RATIOS});
     assert.equal((await listPlannedMeals(pool,h,'2026-10-19'))[0].items[0].amounts[0].quantity,80);
   }finally{await db.close();}
