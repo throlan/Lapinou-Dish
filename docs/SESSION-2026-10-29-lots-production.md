@@ -20,6 +20,6 @@ Ajouter des types de production au suivi, pouvoir fixer un minimum par type de r
 
 Version `package.json` : 0.3.1. Aucun accès à Unraid/Nginx ; le déploiement reste géré par l’utilisateur.
 
-## Suite
+## Publication
 
-Commit/push, créer une PR, fusionner après contrôles réussis et vérifier la publication GHCR. Ne pas déclarer 0.3.1 publiée avant la réussite du workflow sur `main`.
+PR #138 fusionnée au commit `351de3a47b82328efeb301923bb089c38f8970c9`. Contrôles et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/40856567306. Image 0.3.1 vérifiée, digest `sha256:a9c9548561fdfddc3a785fd3857ab6d753d33d60ade91f53318e10ac6285b0bf`.

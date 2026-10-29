@@ -1,10 +1,10 @@
 # Cahier des améliorations proposées
 
-## Types de production et lots minimums — 0.3.1 en préparation
+## Types de production et lots minimums — livré en 0.3.1
 
 Administration permet d’ajouter des catégories de production, de les affecter à des recettes et de définir un minimum de lot avec une unité. Les besoins sont d’abord couverts par le stock ; le manque restant déclenche au moins le minimum configuré. Les ingrédients du lot complet alimentent les courses, et le surplus planifié couvre les menus ultérieurs. L’unité doit être prise en charge par le rendement ou les équivalences explicites de chaque recette concernée. Les lots réellement enregistrés suivent les stocks existants ; si aucun minimum n’est défini, le calcul précédent au besoin exact s’applique.
 
-Validation ciblée : besoin de 4 bagels, lot de 24, ingrédients pour 24, puis 20 unités disponibles pour les menus suivants sans nouvel achat. Vérifier la suite complète et les contrôles GitHub/GHCR après la PR.
+Validation : besoin de 4 bagels, lot de 24, ingrédients pour 24, puis 20 unités disponibles pour les menus suivants sans nouvel achat. Correctif calendrier testé pour charger les catégories dès l’ouverture. 319 tests locaux et contrôles GitHub réussis. PR #138 fusionnée ; publication GHCR vérifiée : https://github.com/throlan/Lapinou-Dish/actions/runs/40856567306.
 
 ## Catégories de repas et quantités individuelles — livré en 0.3.0
 

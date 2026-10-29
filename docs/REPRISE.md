@@ -1,14 +1,14 @@
 # Cahier de reprise — 29 octobre 2026, lots minimums de production
 
-## Travail courant — types de production et lots minimums
+## Fonction livrée — types de production et lots minimums, 0.3.1
 
-Version en préparation : **0.3.1**. Administration permet d’ajouter des types de production personnalisés, de les affecter à des recettes et de définir un minimum par type avec son unité (pièces, tranches, portions, g ou ml). Le besoin des menus et le stock réservé déterminent si une fabrication est nécessaire ; si un manque subsiste, la quantité planifiée atteint au moins le minimum. Les ingrédients de la fabrication complète sont inclus dans les courses et le surplus réserve les menus suivants. Après enregistrement d’un lot, le stock de production réel évite les achats et fabrications en double. Une unité minimum doit être définie par le rendement ou les équivalences de toutes les recettes assignées au type ; l’enregistrement la refuse sinon. Sans minimum, le comportement reste inchangé.
+Version livrée : **0.3.1**. Administration permet d’ajouter des types de production personnalisés, de les affecter à des recettes et de définir un minimum par type avec son unité (pièces, tranches, portions, g ou ml). Le besoin des menus et le stock réservé déterminent si une fabrication est nécessaire ; si un manque subsiste, la quantité planifiée atteint au moins le minimum. Les ingrédients de la fabrication complète sont inclus dans les courses et le surplus réserve les menus suivants. Après enregistrement d’un lot, le stock de production réel évite les achats et fabrications en double. Une unité minimum doit être définie par le rendement ou les équivalences de toutes les recettes assignées au type ; l’enregistrement la refuse sinon. Sans minimum, le comportement reste inchangé.
 
 Exemple validé en test : un burger utilise un bagel, quatre burgers demandent quatre bagels ; minimum 24 pièces → liste de courses pour les ingrédients de 24 bagels ; après fabrication, le stock disponible est 20 pour ces quatre menus et couvre une prochaine commande de quatre sans nouvelle production. « Productions à suivre » a des types supplémentaires configurables, et l’ajout de productions indépendantes des menus reste disponible via la production supplémentaire existante.
 
 Correctif du calendrier : les catégories configurées du foyer sont maintenant rechargées avec les données de la semaine, afin que leurs boutons d’ajout apparaissent dès l’ouverture du calendrier, sans passage préalable par l’administration.
 
-Branche `feat/configurable-production-batches`, basée sur la PR #137 fusionnée. Migration `20261029_configurable_production_types.sql`. Vérifier les tests complets, finaliser la documentation, commit/push, ouvrir une PR, fusionner après contrôles puis vérifier la publication GHCR. Ne pas accéder à Unraid/Nginx.
+PR #138 fusionnée au commit `351de3a47b82328efeb301923bb089c38f8970c9` ; 319 tests locaux et tests GitHub réussis. Publication GHCR réussie : https://github.com/throlan/Lapinou-Dish/actions/runs/40856567306. Image `ghcr.io/throlan/lapinou-dish:0.3.1`, digest `sha256:a9c9548561fdfddc3a785fd3857ab6d753d33d60ade91f53318e10ac6285b0bf`.
 
 ## Fonction livrée — catégories configurables et choix individuels, 0.3.0
 
