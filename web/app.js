@@ -13,7 +13,7 @@ import { ingredientCookingFactor, fillCookingFactorOptions, recipeServiceChoices
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, selectedFoodIds:new Set(), foodYieldConversions:[], mealAdditions:[], debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, editingFoodFromShopping: false, editingOrderLinkId: null, importingDraftId: null, generateImportedImage: false, people: [], recipes: [], plannedRecipeIds: [], plannedRecipeLookupError: null, preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, proteinTargets: {}, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
+const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, selectedFoodIds:new Set(), foodYieldConversions:[], mealAdditions:[], productionTypes:[], productionTypesHouseholdId:null, debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, editingFoodFromShopping: false, editingOrderLinkId: null, importingDraftId: null, generateImportedImage: false, people: [], recipes: [], plannedRecipeIds: [], plannedRecipeLookupError: null, preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, proteinTargets: {}, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
 let recipeImageConfig={enabled:false}, imageRecipeId=null;
 const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbohydrateG', 'g gluc.'], ['fatG', 'g lip.']];
 const selectedStoreFoods=new Map();
@@ -444,6 +444,7 @@ function preparationRow(group,productionDate) {
   const suggested=suggestedProductionQuantity(group,recipe);
   amount.textContent=covered?'Couvert par le stock':recipe?`${formatQty(suggested)} ${cookingYield(recipe).unitId} à produire`:'À produire';
   row.append(title);if(nutritionBadge)row.append(nutritionBadge);row.append(dates,amount);
+  if(first.minimumProductionQuantity>0){const minimum=document.createElement('small');minimum.className='preparation-minimum';minimum.textContent=`Lot minimum : ${formatQty(first.minimumProductionAmount)} ${productionUnitLabels[first.minimumProductionUnitId]??first.minimumProductionUnitId}`;row.append(minimum);}
   const details=document.createElement('ul');details.className='preparation-parts';
   for(const part of parts){const line=document.createElement('li');line.textContent=`${part.parentRecipeId?part.name.split(' — ').at(-1):'Recette entière'} : ${part.toMakeQuantity<=0.00001?'couvert':`${formatQty(part.toMakeQuantity)} ${part.unitId} à produire`} · prévu ${formatQty(part.plannedQuantity)} ${part.unitId} · stock couvrant ${formatQty(part.coveredQuantity)} ${part.unitId}`;details.append(line);}
   row.append(details);
@@ -469,6 +470,7 @@ async function refreshPreparations(start,end) {
   const openKeys=new Set([...root.querySelectorAll('details[open]')].map(group=>group.dataset.key));
   root.replaceChildren(emptyMessage('Calcul des préparations…'));
   try {
+    await refreshProductionTypes();
     const path=(from,to)=>`/api/household-planning/preparations?householdId=${encodeURIComponent(state.household.id)}&startDate=${encodeURIComponent(from)}&endDate=${encodeURIComponent(to)}`;
     const {preparations}=await api(path(start,end));
     if(request!==preparationsRequest)return;
@@ -479,13 +481,12 @@ async function refreshPreparations(start,end) {
     if(request!==preparationsRequest)return;
     state.preparations=preparations;
     renderProductionOptions();
-    const pastry=preparations.filter(item=>item.productionType==='pastry');
-    const bread=preparations.filter(item=>item.productionType==='bread');
-    const pasta=preparations.filter(item=>item.productionType==='pasta');
-    const tasks=[...groupPreparations(pastry),...groupPreparations(bread),...groupPreparations(pasta),...batchWeeks.flatMap(week=>groupPreparations(week.items))];
+    const batchType=productionTypeLabel('batch_cooking');
+    const typedGroups=state.productionTypes.filter(type=>type.id!=='batch_cooking').map(type=>({type,items:preparations.filter(item=>item.productionType===type.id)}));
+    const tasks=[...typedGroups.flatMap(group=>groupPreparations(group.items)),...batchWeeks.flatMap(week=>groupPreparations(week.items))];
     count.textContent=`${tasks.filter(group=>group.parts.some(item=>item.toMakeQuantity>0.00001)).length} à faire · ${tasks.length} suivies`;
     const batch=document.createElement('details');batch.className='preparation-group';batch.dataset.key='batch';batch.open=openKeys.has('batch');
-    const batchSummary=document.createElement('summary');batchSummary.textContent=`Batch cooking · ${batchWeeks.length} semaine${batchWeeks.length>1?'s':''}`;
+    const batchSummary=document.createElement('summary');batchSummary.textContent=`${batchType} · ${batchWeeks.length} semaine${batchWeeks.length>1?'s':''}`;
     const batchBody=document.createElement('div');batchBody.className='preparation-group-body';
     batchBody.replaceChildren(...batchWeeks.map((week,index)=>{
       const label=`Semaine ${index+1} · du ${displayDate(week.start)} au ${displayDate(week.end)}`;
@@ -494,12 +495,7 @@ async function refreshPreparations(start,end) {
       group.querySelector('.preparation-group-body').prepend(hint);
       group.classList.add('preparation-week');return group;
     }));batch.append(batchSummary,batchBody);
-    root.replaceChildren(
-      preparationGroup('Pâtisserie','pastry',pastry,openKeys,'Aucune pâtisserie sur cette période.'),
-      preparationGroup('Pain','bread',bread,openKeys,'Aucun pain sur cette période.'),
-      preparationGroup('Pâtes','pasta',pasta,openKeys,'Aucune pâte sur cette période.'),
-      batch,
-    );
+    root.replaceChildren(...typedGroups.map(({type,items})=>preparationGroup(type.label,type.id,items,openKeys,`Aucune production « ${type.label} » sur cette période.`)),batch);
   }catch(error){if(request===preparationsRequest){root.replaceChildren(emptyMessage('Préparations indisponibles : '+(error.body?.error??error.message)));count.textContent='';}}
 }
 async function refreshShoppingList() {
@@ -1517,9 +1513,11 @@ $('#recipe-form').addEventListener('submit', async (event) => {
 });
 
 async function openRecipeEditor(id = null, duplicate = false) {
+  await refreshProductionTypes();
   const form = $('#recipe-form');
   $('#recipe-import-source')?.remove();
   form.reset();
+  populateProductionTypeSelect(form.elements.productionType,'none');
   $('#recipe-lines').replaceChildren();
   $('#recipe-message').textContent = '';
   $('#recipe-result').classList.add('hidden');
@@ -1540,7 +1538,7 @@ async function openRecipeEditor(id = null, duplicate = false) {
       if(recipe.recipeType && form.elements.recipeType.options && ![...form.elements.recipeType.options].some(option=>option.value===recipe.recipeType))form.elements.recipeType.add(new Option(state.mealAdditions.find(item=>item.recipeType===recipe.recipeType)?.label??recipe.recipeType,recipe.recipeType));
       form.elements.recipeType.value = recipe.recipeType ?? 'dish';
       for (const checkbox of form.querySelectorAll('input[name="mealMoments"]')) checkbox.checked = (recipe.mealMoments ?? []).includes(checkbox.value);
-      form.elements.productionType.value = recipe.productionType ?? 'none';
+      populateProductionTypeSelect(form.elements.productionType,recipe.productionType ?? 'none');
       form.elements.sourceUrl.value = recipe.sourceUrl ?? '';
       form.elements.instructions.value = recipe.instructions ?? '';
       form.elements.yieldAmount.value = recipe.yield.amount;
@@ -1738,6 +1736,7 @@ async function refreshRecipes() {
   if (!state.household) { list.innerHTML = '<p class="empty">Crée d’abord un foyer pour enregistrer des recettes.</p>'; return; }
   list.innerHTML = '<p class="empty">Chargement des recettes…</p>';
   try {
+    await refreshProductionTypes();
     const today=localDateValue(),monthStart=`${today.slice(0,7)}-01`;
     const [{ recipes }, plannedLookup] = await Promise.all([
       api(`/api/recipes?householdId=${encodeURIComponent(state.household.id)}`),
@@ -2045,10 +2044,7 @@ function recipeCard(recipe) {
   const settings=document.createElement('div');settings.className='recipe-row-settings';
   const production=document.createElement('label');production.textContent='Production à suivre';
   const select=document.createElement('select');select.setAttribute('aria-label',`Production à suivre pour ${recipe.name}`);
-  for(const [value,label] of [['none','Aucune'],['batch_cooking','Batch cooking'],['pasta','Pâtes'],['pastry','Pâtisserie'],['bread','Pain']]){
-    const option=document.createElement('option');option.value=value;option.textContent=label;select.append(option);
-  }
-  select.value=recipe.productionType??'none';production.append(select);
+  populateProductionTypeSelect(select,recipe.productionType??'none');production.append(select);
   const moments=document.createElement('fieldset');moments.className='recipe-row-moments';
   const legend=document.createElement('legend');legend.textContent='Moments adaptés';moments.append(legend);
   for(const [value,label] of Object.entries({breakfast:'Petit-déjeuner',lunch:'Déjeuner',dinner:'Dîner',snack:'Collation'})){
@@ -2274,6 +2270,50 @@ $('#meal-additions-form').addEventListener('submit',async event=>{
   catch(error){showMessage(message,`Enregistrement impossible : ${error.body?.error??error.message}`);}
   finally{button.disabled=false;}
 });
+const productionUnitLabels={piece:'pièce(s)',slice:'tranche(s)',portion:'portion(s)',g:'g',ml:'ml'};
+function productionTypeLabel(id){return state.productionTypes.find(item=>item.id===id)?.label??({batch_cooking:'Batch cooking',pasta:'Pâtes',pastry:'Pâtisserie',bread:'Pain'}[id]??id);}
+function populateProductionTypeSelect(select,value){
+  select.replaceChildren(new Option('Aucune','none'),...state.productionTypes.map(item=>new Option(item.label,item.id)));
+  if(value&&![...select.options].some(option=>option.value===value))select.add(new Option(value,value));
+  select.value=value??'none';
+}
+function renderProductionTypeRows(types=state.productionTypes){
+  const root=$('#production-type-rows');if(!root)return;root.replaceChildren();
+  for(const type of types){
+    const row=document.createElement('div');row.className='production-type-row';row.dataset.id=type.id;
+    const label=document.createElement('label');label.textContent='Nom';const name=document.createElement('input');name.value=type.label;name.required=true;name.maxLength=60;name.dataset.productionName='true';label.append(name);
+    const amountLabel=document.createElement('label');amountLabel.textContent='Lot minimum';const amount=document.createElement('input');amount.type='number';amount.min='0';amount.max='100000';amount.step='any';amount.value=type.minimumAmount??0;amount.dataset.productionMinimum='true';amountLabel.append(amount);
+    const unitLabel=document.createElement('label');unitLabel.textContent='Unité du minimum';const unit=document.createElement('select');for(const [id,text] of Object.entries(productionUnitLabels))unit.add(new Option(text,id));unit.value=type.minimumUnitId??'portion';unit.dataset.productionUnit='true';unitLabel.append(unit);
+    row.append(label,amountLabel,unitLabel);
+    if(type.id.startsWith('custom-')){const remove=document.createElement('button');remove.type='button';remove.className='secondary danger-button';remove.textContent='Supprimer';remove.addEventListener('click',()=>row.remove());row.append(remove);}
+    else {const fixed=document.createElement('span');fixed.className='muted';fixed.textContent='Type intégré';row.append(fixed);}
+    root.append(row);
+  }
+}
+function productionTypesFromForm(){return $$('.production-type-row',$('#production-type-rows')).map(row=>({
+  id:row.dataset.id,label:$('[data-production-name]',row).value.trim(),minimumAmount:Number($('[data-production-minimum]',row).value),minimumUnitId:$('[data-production-unit]',row).value,
+}));}
+async function refreshProductionTypes(){
+  if(!state.household)return;
+  if(state.productionTypesHouseholdId===state.household.id&&state.productionTypes.length)return;
+  const result=await api(`/api/production-types?householdId=${encodeURIComponent(state.household.id)}`);
+  state.productionTypes=result.productionTypes??[];state.productionTypesHouseholdId=state.household.id;
+}
+$('#add-production-type')?.addEventListener('click',()=>{
+  const existing=productionTypesFromForm(),base='custom-nouveau-type';let id=base,index=2;while(existing.some(item=>item.id===id))id=`${base}-${index++}`;
+  renderProductionTypeRows([...existing,{id,label:'Nouveau type',minimumAmount:0,minimumUnitId:'piece'}]);
+  $('#production-type-rows .production-type-row:last-child [data-production-name]')?.focus();
+});
+$('#production-types-form')?.addEventListener('submit',async event=>{
+  event.preventDefault();const form=event.currentTarget,message=$('#production-types-message');if(!form.reportValidity()||!state.household)return;
+  const button=$('button[type="submit"]',form);button.disabled=true;
+  try{
+    const result=await api('/api/production-types',{method:'PUT',body:JSON.stringify({householdId:state.household.id,productionTypes:productionTypesFromForm()})});
+    state.productionTypes=result.productionTypes;state.productionTypesHouseholdId=state.household.id;renderProductionTypeRows();
+    showMessage(message,'Types et minimums de production enregistrés.',true);await refreshRecipes();await refreshShopping();
+  }catch(error){const code=error.body?.error;showMessage(message,code==='production-type-in-use'?`Ce type est utilisé par ${error.body.recipeCount} recette(s). Réaffecte-les avant de le supprimer.`:code==='production-minimum-unit-missing'?`La recette « ${error.body.recipeName} » doit définir son rendement en ${productionUnitLabels[error.body.unitId]??error.body.unitId} avant d’activer ce minimum.`:`Enregistrement impossible : ${code??error.message}`);}
+  finally{button.disabled=false;}
+});
 async function refreshMealSettings() {
   const form=$('#meal-ratios-form');
   $('button[type="submit"]',form).disabled=true;
@@ -2474,7 +2514,7 @@ async function refreshCalendar() {
   grid.replaceChildren(emptyMessage('Chargement de la semaine…'));
   try {
     const end = addDays(state.calendarWeekStart, 6);
-    const [plan, peopleResult, recipesResult, mealSettings, reserve, plateSettings, proteinSettings] = await Promise.all([
+    const [plan, peopleResult, recipesResult, mealSettings, reserve, plateSettings, proteinSettings, mealAdditionsResult] = await Promise.all([
       api(`/api/planning?householdId=${encodeURIComponent(state.household.id)}&weekStart=${state.calendarWeekStart}`),
       api(`/api/people?householdId=${encodeURIComponent(state.household.id)}`),
       api(`/api/recipes?householdId=${encodeURIComponent(state.household.id)}`),
@@ -2482,10 +2522,12 @@ async function refreshCalendar() {
       api(`/api/energy-reserve?householdId=${encodeURIComponent(state.household.id)}&asOf=${end}`),
       api(`/api/plate-settings?householdId=${encodeURIComponent(state.household.id)}`),
       api(`/api/protein-settings?householdId=${encodeURIComponent(state.household.id)}`),
+      api(`/api/meal-additions?householdId=${encodeURIComponent(state.household.id)}`),
     ]);
     state.mealRatios=mealSettings.ratios;
     state.plateRatios=plateSettings.ratios;
     state.proteinTargets=proteinSettings.targets??{};
+    state.mealAdditions=mealAdditionsResult.additions??[];
     state.people = peopleResult.people;
     state.recipes = recipesResult.recipes;
     state.calendarReserveOverview=reserve;

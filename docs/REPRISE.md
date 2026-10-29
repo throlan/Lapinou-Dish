@@ -1,14 +1,32 @@
-# Cahier de reprise — 29 octobre 2026, catégories de repas et choix individuels
+# Cahier de reprise — 29 octobre 2026, lots minimums de production
+
+## Travail courant — types de production et lots minimums
+
+Version en préparation : **0.3.1**. Administration permet d’ajouter des types de production personnalisés, de les affecter à des recettes et de définir un minimum par type avec son unité (pièces, tranches, portions, g ou ml). Le besoin des menus et le stock réservé déterminent si une fabrication est nécessaire ; si un manque subsiste, la quantité planifiée atteint au moins le minimum. Les ingrédients de la fabrication complète sont inclus dans les courses et le surplus réserve les menus suivants. Après enregistrement d’un lot, le stock de production réel évite les achats et fabrications en double. Une unité minimum doit être définie par le rendement ou les équivalences de toutes les recettes assignées au type ; l’enregistrement la refuse sinon. Sans minimum, le comportement reste inchangé.
+
+Exemple validé en test : un burger utilise un bagel, quatre burgers demandent quatre bagels ; minimum 24 pièces → liste de courses pour les ingrédients de 24 bagels ; après fabrication, le stock disponible est 20 pour ces quatre menus et couvre une prochaine commande de quatre sans nouvelle production. « Productions à suivre » a des types supplémentaires configurables, et l’ajout de productions indépendantes des menus reste disponible via la production supplémentaire existante.
+
+Correctif du calendrier : les catégories configurées du foyer sont maintenant rechargées avec les données de la semaine, afin que leurs boutons d’ajout apparaissent dès l’ouverture du calendrier, sans passage préalable par l’administration.
+
+Branche `feat/configurable-production-batches`, basée sur la PR #137 fusionnée. Migration `20261029_configurable_production_types.sql`. Vérifier les tests complets, finaliser la documentation, commit/push, ouvrir une PR, fusionner après contrôles puis vérifier la publication GHCR. Ne pas accéder à Unraid/Nginx.
+
+## Fonction livrée — catégories configurables et choix individuels, 0.3.0
+
+PR #137 fusionnée au commit `5349f9b407400d44b6a0376ffb8f787a48b6883d`; contrôles et publication réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/40849807550. **315 tests locaux réussis** à cette livraison.
+
+Administration configure les ajouts complémentaires par créneau, leur type de recette et leur rôle connu (accompagnement, boisson, sauce ou dessert). Les types personnalisés sont proposés dans les fiches recettes et les filtres. Le plat principal reste commun. Chaque ajout complémentaire est propre à chaque personne ; « Aucun » ou quantité 0 signifie qu’elle n’en prend pas. Les quantités nulles ne sont pas enregistrées ni ajoutées aux courses. Les repas et quantités historiques restent conservés. Migration ajoutant `households.meal_additions` et `planned_meal_items.category_id` ; les anciens rôles sont repris comme catégories.
+
+## Archive de la reprise du 29 octobre
 
 ## Travail courant — catégories configurables et choix individuels
 
-Version en préparation : **0.3.0**. Administration configure les ajouts complémentaires par créneau, leur type de recette et leur rôle connu (accompagnement, boisson, sauce ou dessert). Les types personnalisés sont proposés dans les fiches recettes et les filtres. Le plat principal reste commun. Chaque ajout complémentaire est propre à chaque personne ; « Aucun » ou quantité 0 signifie qu’elle n’en prend pas. Ces quantités nulles ne sont pas enregistrées ni ajoutées aux courses. Les repas et quantités historiques restent conservés. Migration ajoutant `households.meal_additions` et `planned_meal_items.category_id` ; les anciens rôles sont repris comme catégories.
+Version précédente : **0.3.0**. Administration configure les ajouts complémentaires par créneau, leur type de recette et leur rôle connu (accompagnement, boisson, sauce ou dessert). Les types personnalisés sont proposés dans les fiches recettes et les filtres. Le plat principal reste commun. Chaque ajout complémentaire est propre à chaque personne ; « Aucun » ou quantité 0 signifie qu’elle n’en prend pas. Ces quantités nulles ne sont pas enregistrées ni ajoutées aux courses. Les repas et quantités historiques restent conservés. Migration ajoutant `households.meal_additions` et `planned_meal_items.category_id` ; les anciens rôles sont repris comme catégories.
 
-315 tests complets locaux réussis. Aucun accès à Unraid/Nginx. Étape suivante : relire le diff, commit/push, créer une PR, attendre les contrôles réussis, fusionner, puis vérifier la publication GHCR.
+315 tests complets locaux réussis à l’époque. Aucun accès à Unraid/Nginx. PR #137 est depuis fusionnée et publiée.
 
 ## Publication : versions numérotées et retour arrière
 
-Dernière version publiée : **0.2.99** (la 0.3.0 est en préparation). Le workflow publie les alias numériques et préfixés v depuis package.json, sans réécrire une version déjà publiée. Conservation sans suppression automatique : au minimum les cinq dernières versions publiées restent sélectionnables. Les images 0.2.95 à 0.2.99 ont été retrouvées par tag technique ; digests et révisions vérifiés et enregistrés dans docker/rollback-images.json. Le workflow rétablit leurs alias depuis les digests exacts, sans reconstruire les anciennes images. Voir [ROLLBACK.md](ROLLBACK.md).
+Dernière version publiée vérifiée : **0.3.0** via PR #137 et workflow https://github.com/throlan/Lapinou-Dish/actions/runs/40849807550. Le workflow publie les alias numériques et préfixés v depuis package.json, sans réécrire une version déjà publiée. Conservation sans suppression automatique : au minimum les cinq dernières versions publiées restent sélectionnables. Voir [ROLLBACK.md](ROLLBACK.md).
 
 Pour revenir à la 0.2.97 : ghcr.io/throlan/lapinou-dish:0.2.97. La 0.2.98 reste identifiée comme défectueuse au démarrage. Aucun changement de migration entre 0.2.97 et 0.2.99 ; une ancienne image ne restaure pas les données. Ne jamais supprimer les volumes pour changer de version. Aucun accès à Unraid/Nginx.
 

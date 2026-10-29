@@ -55,7 +55,7 @@ test('rendered recipe cards visibly expose a named delete action bound to that r
   const element=tag=>({tag,options:[],replaceChildren(){this.options=[];},children:[],attributes:{},handlers:{},append(...items){this.children.push(...items);for(const item of items)if(item&&typeof item==='object')item.parentElement=this;if(tag==='select')this.options.push(...items);},
     dataset:{},setAttribute(key,value){this.attributes[key]=value;},addEventListener(name,fn){this.handlers[name]=fn;}});
   const removed=[];const recipe={id:'card-id',name:'Visible recipe',lines:[],yield:{amount:4,unitId:'portion'},nutrition:{complete:true,perYieldUnit:{}}};
-  const context={recipeServiceChoices,recipeServiceMode,document:{createElement:element,createTextNode:text=>({textContent:text})},recipeTypeLabel:()=> 'Plat',format:String,
+  const context={recipeServiceChoices,recipeServiceMode,document:{createElement:element,createTextNode:text=>({textContent:text})},recipeTypeLabel:()=> 'Plat',productionTypeLabel:id=>id,populateProductionTypeSelect:(select,value)=>{select.replaceChildren({value,textContent:'none'});select.value=value;},format:String,
     recipeMissingData:()=>[],requestRecipeDeletion:(...args)=>removed.push(args)};
   runInNewContext(source.slice(a,b)+'\nglobalThis.render=recipeCard;',context);
   const card=context.render(recipe);

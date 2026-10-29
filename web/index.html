@@ -11,8 +11,8 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.3.0">
-    <link rel="stylesheet" href="/editorial.css?v=0.3.0">
+    <link rel="stylesheet" href="/style.css?v=0.3.1">
+    <link rel="stylesheet" href="/editorial.css?v=0.3.1">
   </head>
   <body>
     <header class="topbar">
@@ -77,6 +77,13 @@
           <p id="meal-ratios-message" class="form-message" role="status"></p>
         </form>
         <div id="meal-ratios-preview" class="card"></div>
+        <h3>Productions à suivre</h3>
+        <form id="production-types-form" class="card">
+          <p class="muted">Ajoute des types de production et, si nécessaire, un lot minimum. Par exemple, une recette de bagels produisant 24 pièces minimum : 4 demandées déclenchent une fabrication de 24. Le surplus reste en stock pour les menus suivants. L’unité doit être définie dans le rendement ou les équivalences de la recette.</p>
+          <div id="production-type-rows" class="production-type-rows"></div>
+          <div class="form-actions"><button type="button" class="secondary" id="add-production-type">+ Ajouter un type de production</button><button type="submit" class="primary">Enregistrer les productions</button></div>
+          <p id="production-types-message" class="form-message" role="status"></p>
+        </form>
         <h3>Ajouts individuels aux repas</h3>
         <form id="meal-additions-form" class="card">
           <p class="muted">Définis les catégories proposées à chaque créneau. Chaque ajout est choisi et quantifié séparément pour chaque personne ; une quantité de 0 signifie « aucun ».</p>
@@ -397,7 +404,7 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/install-app.js?v=0.3.0"></script>
-    <script type="module" src="/app.js?v=0.3.0"></script>
+    <script type="module" src="/install-app.js?v=0.3.1"></script>
+    <script type="module" src="/app.js?v=0.3.1"></script>
   </body>
 </html>

@@ -56,7 +56,7 @@ export function validateRecipeInput(input) {
   const recipeType = input.recipeType == null ? 'dish' : input.recipeType;
   if (typeof recipeType !== 'string' || (!recipeTypes.includes(recipeType) && !/^custom-[a-z0-9_-]{1,33}$/.test(recipeType))) return { error: 'invalid-recipe-type' };
   const productionType = input.productionType == null ? 'none' : input.productionType;
-  if (!productionTypes.includes(productionType)) return { error: 'invalid-production-type' };
+  if (!productionTypes.includes(productionType) && !/^custom-[a-z0-9_-]{1,33}$/.test(productionType)) return { error: 'invalid-production-type' };
   const moments = input.mealMoments == null ? [] : input.mealMoments;
   if (!Array.isArray(moments) || moments.length > mealMoments.length || moments.some((moment) => !mealMoments.includes(moment)) || new Set(moments).size !== moments.length) return { error: 'invalid-meal-moments' };
   if (!Array.isArray(input.lines) || input.lines.length === 0 || input.lines.length > 300) return { error: 'invalid-lines' };
@@ -81,7 +81,8 @@ export function validateRecipeSettings(input) {
   if(input.name!==undefined && (typeof input.name!=='string' || !input.name.trim() || input.name.trim().length>200))return {error:'invalid-name'};
   const name=input.name===undefined?{}:{name:input.name.trim()};
   if(input.name!==undefined && input.productionType===undefined && input.mealMoments===undefined && input.configuration==null)return {data:{householdId:input.householdId,version:input.version,...name}};
-  if (!['none', 'batch_cooking', 'pasta', 'pastry', 'bread'].includes(input.productionType)) return { error: 'invalid-production-type' };
+  if (!['none', 'batch_cooking', 'pasta', 'pastry', 'bread'].includes(input.productionType)
+    && !/^custom-[a-z0-9_-]{1,33}$/.test(input.productionType??'')) return { error: 'invalid-production-type' };
   const moments = input.mealMoments;
   if (!Array.isArray(moments) || moments.length > 4 || moments.some(moment => !['breakfast', 'lunch', 'dinner', 'snack'].includes(moment)) || new Set(moments).size !== moments.length) return { error: 'invalid-meal-moments' };
   const configuration=input.configuration;

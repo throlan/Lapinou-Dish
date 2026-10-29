@@ -1,6 +1,7 @@
 import {purchaseProductRequirements} from './shopping-products.mjs';
 import {randomUUID} from 'node:crypto';
 import {toGrams} from '../domain/foods.ts';
+import {productionMinimumInYield} from './production-types.mjs';
 
 export const componentErrors = ['recipe-ingredient-cycle','recipe-ingredient-not-found','recipe-ingredient-unit-missing','recipe-output-in-use'];
 const fail = code => {throw new Error(code);};
@@ -89,7 +90,18 @@ export async function availableRecipeStock(client,householdId) {
 // Expand missing quantities only, sharing the same finished-stock pool for direct
 // menus and nested uses. Earlier menus reserve first, exactly as before.
 export async function recipeRequirements(client,householdId,startDate,endDate) {
-  const graph=await loadRecipeGraph(client,householdId),stock=await availableRecipeStock(client,householdId),initialStock=new Map(stock);
+  const [graph,stock,typeSettings]=await Promise.all([
+    loadRecipeGraph(client,householdId),availableRecipeStock(client,householdId),
+    client.query('SELECT production_types FROM households WHERE id=$1',[householdId]),
+  ]);
+  const productionTypes=new Map((typeSettings.rows[0]?.production_types??[]).map(item=>[item.id,item]));
+  for(const recipe of graph.values()){
+    const type=productionTypes.get(recipe.productionType);
+    recipe.minimumProductionQuantity=productionMinimumInYield(recipe,type);
+    recipe.minimumProductionAmount=Number(type?.minimumAmount??0);
+    recipe.minimumProductionUnitId=type?.minimumUnitId??recipe.yield.unitId;
+  }
+  const initialStock=new Map(stock);
   const events=await client.query(`SELECT m.id,m.meal_date::text AS date,i.recipe_id,sum(a.quantity) AS quantity
     FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id JOIN planned_amounts a ON a.planned_item_id=i.id
     WHERE m.household_id=$1 AND m.prepared_at IS NULL AND m.meal_date<=$2::date
@@ -105,19 +117,23 @@ export async function recipeRequirements(client,householdId,startDate,endDate) {
     }
     const covered=r.productionType==='none'?0:Math.min(quantity,Math.max(0,stock.get(recipeId)??0));
     const missing=quantity-covered;
+    const inRange=event.date>=startDate;
+    const produceQuantity=r.productionType!=='none'&&missing>0
+      ?Math.max(missing,inRange?r.minimumProductionQuantity??0:0):0;
     if(r.productionType!=='none'){
-      stock.set(recipeId,(stock.get(recipeId)??0)-covered);
+      stock.set(recipeId,(stock.get(recipeId)??0)-covered+produceQuantity-missing);
       reservations.set(recipeId,(reservations.get(recipeId)??0)+quantity);
     }
-    const inRange=event.date>=startDate;
     if(inRange && r.productionType!=='none'){
       const p=preparations.get(recipeId)??{recipeId,parentRecipeId:r.parentRecipeId,name:r.name,productionType:r.productionType,
         unitId:r.yield.unitId,yieldAmount:r.yield.amount,plannedQuantity:0,coveredQuantity:0,toMakeQuantity:0,
-        stockQuantity:initialStock.get(recipeId)??0,firstDate:event.date,lastDate:event.date,meals:new Set()};
-      p.plannedQuantity+=quantity;p.coveredQuantity+=covered;p.toMakeQuantity+=missing;p.lastDate=event.date;p.meals.add(event.id);preparations.set(recipeId,p);
+        minimumProductionQuantity:r.minimumProductionQuantity??0,minimumProductionAmount:r.minimumProductionAmount??0,
+        minimumProductionUnitId:r.minimumProductionUnitId??r.yield.unitId,stockQuantity:initialStock.get(recipeId)??0,firstDate:event.date,lastDate:event.date,meals:new Set()};
+      p.plannedQuantity+=quantity;p.coveredQuantity+=covered;p.toMakeQuantity+=produceQuantity;p.lastDate=event.date;p.meals.add(event.id);preparations.set(recipeId,p);
     }
+    const ingredientQuantity=r.productionType==='none'?missing:produceQuantity;
     for(const line of r.lines){
-      const scaled=line.quantity*missing/r.yield.amount;if(!(scaled>0))continue;
+      const scaled=line.quantity*ingredientQuantity/r.yield.amount;if(!(scaled>0))continue;
       if(line.recipeId){
         const child=graph.get(line.recipeId);
         demand(child.id,recipeFraction(graph,child.id,scaled,line.unitId)*child.yield.amount,event,[...path,recipeId]);
