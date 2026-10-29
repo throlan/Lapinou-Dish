@@ -1,5 +1,9 @@
 # État du projet — 29 octobre 2026
 
+## Correctif de catégorie personnalisée — 0.3.2 en préparation
+
+Une recette de type personnalisé associée à une catégorie ayant le rôle « Sauce » était masquée par le filtre qui exigeait le type standard `sauce`. Le filtre respecte maintenant le type personnalisé déclaré par la catégorie. En outre, les recettes personnalisées ne récupèrent pas le défaut de 30 g du rôle Sauce : elles commencent à 1 unité. Le rôle et la catégorie sont des métadonnées de sélection, pas des copies de recette. Tests complets : **321 réussis**. Version 0.3.2 en préparation ; PR, contrôles GitHub et publication restent à faire.
+
 ## Types de production et lots minimums — 0.3.1 livrée
 
 Administration peut définir de nouveaux types de production, les attribuer aux recettes et définir pour chacun un lot minimum et son unité. Exemple : un minimum de 24 pièces pour les bagels transforme un besoin de 4 en fabrication de 24 ; les ingrédients des 24 pièces apparaissent dans les courses. Le surplus virtuel couvre les menus suivants, puis le stock réellement enregistré couvre les besoins après fabrication. Les unités configurées doivent exister dans le rendement ou les équivalences de chaque recette concernée ; l’administration refuse un réglage incompatible.
