@@ -2753,6 +2753,7 @@ function renderCalendarSummary(meals, people, weekStart) {
 
 function isIndividualRole(role) { return role !== 'main'; }
 function individualDefaultQuantity(recipe, role) {
+  if(recipe?.recipeType?.startsWith('custom-'))return 1;
   if(role==='sauce')return sauceDefaultQuantity(recipe);
   return role === 'dessert' && ['g','ml'].includes(recipe?.yield?.unitId) ? recipe.yield.amount : 1;
 }
@@ -2973,8 +2974,8 @@ function recipesForPlanning(slot, role, selectedIds = [], requiredRecipeType = n
       const planningTypeRole=configuredRoles[0]??recipe.recipeType;
       if(requiredRecipeType&&recipe.recipeType!==requiredRecipeType)return false;
       if (!requiredRecipeType&&isIndividualRole(role) && recipe.recipeType !== role && !(role==='accompaniment'&&recipe.recipeType==='salad')) return false;
-      if (role === 'sauce' && recipe.recipeType !== 'sauce') return false;
-      if (role === 'accompaniment' && !['accompaniment','salad'].includes(recipe.recipeType)) return false;
+      if (!requiredRecipeType && role === 'sauce' && recipe.recipeType !== 'sauce') return false;
+      if (!requiredRecipeType && role === 'accompaniment' && !['accompaniment','salad'].includes(recipe.recipeType)) return false;
       if (role === 'main' && ['beverage', 'accompaniment', 'sauce'].includes(planningTypeRole)) return false;
       if (role === 'main' && planningTypeRole === 'dessert' && !['breakfast', 'snack', 'evening_snack'].includes(slot)) return false;
     }

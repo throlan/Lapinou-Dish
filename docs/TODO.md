@@ -1,5 +1,7 @@
 # Prochaines tâches — 29 octobre 2026
 
+0.3.2 en préparation : afficher les recettes de type personnalisé dans les catégories auxquelles elles sont liées par rôle (ex. Assaisonnement / Sauce). Test ciblé ajouté ; suite complète et publication à vérifier.
+
 0.3.1 livrée : types de production personnalisés, minimum de fabrication par type avec unité, ingrédients du lot complet dans les courses et réutilisation du surplus pour les menus suivants. Correctif calendrier : les catégories configurées sont chargées avant l’ouverture d’un repas. 319 tests réussis ; PR #138 fusionnée et publication GHCR vérifiée.
 
 0.3.0 livrée : catégories complémentaires configurables par créneau, types personnalisés de recettes depuis Administration et choix/quantité individuels pour chaque personne. Le principal reste partagé ; 0 signifie « aucun » pour les ajouts. PR #137 fusionnée, publication réussie et 315 tests locaux.

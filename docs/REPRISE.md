@@ -1,5 +1,9 @@
 # Cahier de reprise — 29 octobre 2026, lots minimums de production
 
+## Travail courant — recettes personnalisées dans leur catégorie, 0.3.2
+
+Corriger le filtre de sélection du calendrier : un type de recette personnalisé lié par l’administration à un rôle existant (par exemple « Assaisonnement » lié à « Sauce ») doit apparaître dans sa catégorie et à ses créneaux configurés. Le rôle « Sauce » ne doit pas imposer le défaut de 30 g aux recettes personnalisées : elles commencent à 1 unité. La catégorie et le rôle ne créent pas deux recettes ; seules les catégories configurées séparément peuvent fournir des boutons distincts. Tests locaux réussis : 321. Version 0.3.2 ; commit/push, PR, contrôles, fusion et publication GHCR à faire. Aucun accès à Unraid/Nginx.
+
 ## Fonction livrée — types de production et lots minimums, 0.3.1
 
 Version livrée : **0.3.1**. Administration permet d’ajouter des types de production personnalisés, de les affecter à des recettes et de définir un minimum par type avec son unité (pièces, tranches, portions, g ou ml). Le besoin des menus et le stock réservé déterminent si une fabrication est nécessaire ; si un manque subsiste, la quantité planifiée atteint au moins le minimum. Les ingrédients de la fabrication complète sont inclus dans les courses et le surplus réserve les menus suivants. Après enregistrement d’un lot, le stock de production réel évite les achats et fabrications en double. Une unité minimum doit être définie par le rendement ou les équivalences de toutes les recettes assignées au type ; l’enregistrement la refuse sinon. Sans minimum, le comportement reste inchangé.
