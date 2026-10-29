@@ -11,7 +11,7 @@ assert.ok(start>=0 && end>start);
 
 function editor() {
   const boxes=['breakfast','lunch','dinner','snack'].map(value=>({value,checked:false}));
-  const fields=['name','description','recipeType','productionType','sourceUrl','instructions','yieldAmount','yieldUnit','servingMode','mainCookingFactor','starchCookingFactor'];
+  const fields=['name','description','recipeType','productionType','minimumProductionAmount','minimumProductionUnitId','sourceUrl','instructions','yieldAmount','yieldUnit','servingMode','mainCookingFactor','starchCookingFactor'];
   const form={elements:Object.fromEntries(fields.map(name=>[name,{value:''}])),
     reset(){this.elements.recipeType.value='dish';this.elements.productionType.value='none';boxes.forEach(box=>box.checked=false);},
     querySelectorAll(){return boxes;},classList:{remove(){}},scrollIntoView(){}};
@@ -43,6 +43,16 @@ test('recipe editor restores saved preparation type, meal tags and production mo
   await ui.open({recipeType:'beverage',mealMoments:['breakfast']});
   assert.equal(ui.form.elements.recipeType.value,'beverage');
   assert.deepEqual(ui.boxes.filter(box=>box.checked).map(box=>box.value),['breakfast']);
+});
+
+test('recipe editor keeps minimum batch settings with the recipe rather than its production category',async()=>{
+  const ui=editor();
+  await ui.open({productionType:'bread',yield:{amount:350,unitId:'g'},outputUnits:{piece:1,slice:10},minimumProductionAmount:1,minimumProductionUnitId:'piece'});
+  assert.equal(ui.form.elements.minimumProductionAmount.value,1);
+  assert.equal(ui.form.elements.minimumProductionUnitId.value,'piece');
+  await ui.create();
+  assert.equal(ui.form.elements.minimumProductionAmount.value,0);
+  assert.equal(ui.form.elements.minimumProductionUnitId.value,'g');
 });
 
 test('legacy and new recipes reset tags without retaining the preceding recipe choices',async()=>{

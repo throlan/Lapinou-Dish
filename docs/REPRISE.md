@@ -1,5 +1,11 @@
 # Cahier de reprise — 29 octobre 2026, lots minimums de production
 
+## Travail courant — administration et lots minimums par recette, 0.3.3
+
+L’administration se parcourt par sept onglets accessibles au clavier. À son ouverture, ses types de production sont chargés et rendus avant qu’on puisse les modifier, corrigeant l’erreur `invalid-production-types` lors de l’ajout du premier type.
+
+Les types ne définissent plus le minimum de lot : ils classent seulement les préparations. Chaque recette possède son minimum et son unité, convertis avec son rendement/équivalences, puis appliqués aux ingrédients, aux préparations à faire et au surplus de stock. Exemple : un pain de 350 g équivalent à 1 pain et 10 tranches peut avoir un lot minimum de 1 pain ; bagels 24 pièces et pancakes 36 pièces se configurent indépendamment. La migration reprend l’ancien minimum commun si une seule recette racine était concernée ; si plusieurs recettes partageaient le type, elle laisse leurs nouveaux minima à zéro pour éviter une hypothèse trompeuse. Tests ciblés réussis ; version 0.3.3, suite complète et publication restent à vérifier.
+
 ## Fonction livrée — catégories personnalisées au calendrier, 0.3.2
 
 PR #140 fusionnée au commit `d17030f18ba4546334cf78b6e116b1f1c4863baf`. Une recette de type personnalisé apparaît sous sa catégorie configurée même si celle-ci utilise un rôle standard, par exemple Assaisonnement lié au rôle Sauce. Ce rôle ne force plus les recettes personnalisées à 30 g : elles démarrent à une unité. La catégorie et le rôle ne créent pas de doublon de recette ; des catégories distinctes configurées sur un créneau gardent leurs boutons respectifs. **321 tests locaux et contrôles GitHub réussis.** Publication GHCR vérifiée : https://github.com/throlan/Lapinou-Dish/actions/runs/40858994728 ; image `ghcr.io/throlan/lapinou-dish:0.3.2`, digest `sha256:09d71fc82d9e6862f7a982bdeb5b3d6cdb84a6e9cbeed24cc02661733a25ee5a`. Aucun accès à Unraid/Nginx.

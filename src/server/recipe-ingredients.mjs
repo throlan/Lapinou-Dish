@@ -1,15 +1,21 @@
 import {purchaseProductRequirements} from './shopping-products.mjs';
 import {randomUUID} from 'node:crypto';
 import {toGrams} from '../domain/foods.ts';
-import {productionMinimumInYield} from './production-types.mjs';
 
 export const componentErrors = ['recipe-ingredient-cycle','recipe-ingredient-not-found','recipe-ingredient-unit-missing','recipe-output-in-use'];
 const fail = code => {throw new Error(code);};
 
+export function recipeMinimumInYield(recipe){
+  const minimum=Number(recipe.minimumProductionAmount??0);
+  if(!(minimum>0))return 0;
+  const output=recipe.minimumProductionUnitId===recipe.yield.unitId?recipe.yield.amount:Number(recipe.outputUnits?.[recipe.minimumProductionUnitId]);
+  return output>0?recipe.yield.amount*minimum/output:0;
+}
+
 // One household snapshot shared by nutrition, cooked weights, planning and stock.
 // References stay live: no copied nutrition or duplicated catalogue food.
 export async function loadRecipeGraph(client,householdId) {
-  const recipes=await client.query(`SELECT id,name,yield_amount,yield_unit_id,output_units,production_type,
+  const recipes=await client.query(`SELECT id,name,yield_amount,yield_unit_id,output_units,production_type,minimum_production_amount,minimum_production_unit_id,
     parent_recipe_id,separate_starch,cooking_factors FROM recipes WHERE household_id=$1`,[householdId]);
   const lines=await client.query(`SELECT l.recipe_id,l.food_id,l.ingredient_recipe_id,l.quantity,l.unit_id,l.serving_part,l.cooking_factor,
     f.canonical_name,f.grams_per_millilitre,
@@ -17,7 +23,7 @@ export async function loadRecipeGraph(client,householdId) {
     FROM recipe_lines l JOIN recipes r ON r.id=l.recipe_id LEFT JOIN foods f ON f.id=l.food_id
     WHERE r.household_id=$1 ORDER BY l.sort_order,l.id`,[householdId]);
   const graph=new Map(recipes.rows.map(r=>[r.id,{id:r.id,name:r.name,yield:{amount:Number(r.yield_amount),unitId:r.yield_unit_id},
-    outputUnits:r.output_units??{},productionType:r.production_type,parentRecipeId:r.parent_recipe_id,
+    outputUnits:r.output_units??{},productionType:r.production_type,minimumProductionAmount:Number(r.minimum_production_amount??0),minimumProductionUnitId:r.minimum_production_unit_id??r.yield_unit_id,parentRecipeId:r.parent_recipe_id,
     separateStarch:r.separate_starch,cookingFactors:r.cooking_factors??{},lines:[],parts:[]}]));
   for(const r of graph.values())if(r.parentRecipeId)graph.get(r.parentRecipeId)?.parts.push(r);
   for(const l of lines.rows)graph.get(l.recipe_id).lines.push({foodId:l.food_id,recipeId:l.ingredient_recipe_id,
@@ -90,16 +96,9 @@ export async function availableRecipeStock(client,householdId) {
 // Expand missing quantities only, sharing the same finished-stock pool for direct
 // menus and nested uses. Earlier menus reserve first, exactly as before.
 export async function recipeRequirements(client,householdId,startDate,endDate) {
-  const [graph,stock,typeSettings]=await Promise.all([
-    loadRecipeGraph(client,householdId),availableRecipeStock(client,householdId),
-    client.query('SELECT production_types FROM households WHERE id=$1',[householdId]),
-  ]);
-  const productionTypes=new Map((typeSettings.rows[0]?.production_types??[]).map(item=>[item.id,item]));
+  const [graph,stock]=await Promise.all([loadRecipeGraph(client,householdId),availableRecipeStock(client,householdId)]);
   for(const recipe of graph.values()){
-    const type=productionTypes.get(recipe.productionType);
-    recipe.minimumProductionQuantity=productionMinimumInYield(recipe,type);
-    recipe.minimumProductionAmount=Number(type?.minimumAmount??0);
-    recipe.minimumProductionUnitId=type?.minimumUnitId??recipe.yield.unitId;
+    recipe.minimumProductionQuantity=recipeMinimumInYield(recipe);
   }
   const initialStock=new Map(stock);
   const events=await client.query(`SELECT m.id,m.meal_date::text AS date,i.recipe_id,sum(a.quantity) AS quantity

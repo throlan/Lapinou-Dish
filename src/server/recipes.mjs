@@ -64,6 +64,10 @@ export function validateRecipeInput(input) {
   if (serving.error) return serving;
   const outputUnits=input.outputUnits ?? {};
   if(!outputUnits || typeof outputUnits!=='object' || Array.isArray(outputUnits) || Object.entries(outputUnits).some(([unit,value])=>!['piece','slice','portion','g','ml'].includes(unit) || !Number.isFinite(value) || value<=0 || value>100000 || (unit===unitId && value!==amount)))return {error:'invalid-output-units'};
+  const minimumProductionAmount=input.minimumProductionAmount??0;
+  const minimumProductionUnitId=input.minimumProductionUnitId??(['piece','slice','portion','g','ml'].includes(unitId)?unitId:'portion');
+  if(!Number.isFinite(minimumProductionAmount)||minimumProductionAmount<0||minimumProductionAmount>100000||!['piece','slice','portion','g','ml'].includes(minimumProductionUnitId))return {error:'invalid-production-minimum'};
+  if(minimumProductionAmount>0&&(productionType==='none'||!(minimumProductionUnitId===unitId||Number(outputUnits[minimumProductionUnitId])>0)))return {error:productionType==='none'?'production-minimum-requires-tracking':'production-minimum-unit-missing'};
   const lines = [];
   for (const line of input.lines) {
     if (!line || Boolean(line.foodId) === Boolean(line.recipeId) || !(line.foodId ? isUuid(line.foodId) : isUuid(line.recipeId))) return { error: 'invalid-food-id' };
@@ -72,7 +76,7 @@ export function validateRecipeInput(input) {
     if (line.cookingFactor != null && (typeof line.cookingFactor !== 'number' || !Number.isFinite(line.cookingFactor) || line.cookingFactor <= 0 || line.cookingFactor > 10)) return {error:'invalid-cooking-factor'};
     lines.push({ foodId: line.foodId || null, recipeId:line.recipeId || null, quantity: line.quantity, unitId: line.unitId, componentId: null, variantId: null, servingPart: serving.data.separateStarch ? line.servingPart ?? 'main' : 'main', cookingFactor: line.cookingFactor ?? null });
   }
-  return { data: { ...serving.data, name: input.name.trim(), description: typeof input.description === 'string' ? input.description.slice(0, 5000) : '', instructions: typeof input.instructions === 'string' ? input.instructions.slice(0, 20000) : '', sourceUrl: typeof input.sourceUrl === 'string' && /^https:\/\//i.test(input.sourceUrl) ? input.sourceUrl.slice(0, 2000) : null, recipeType, productionType, mealMoments: [...moments], householdId: input.householdId, outputUnits, yield: { amount, unitId }, lines } };
+  return { data: { ...serving.data, name: input.name.trim(), description: typeof input.description === 'string' ? input.description.slice(0, 5000) : '', instructions: typeof input.instructions === 'string' ? input.instructions.slice(0, 20000) : '', sourceUrl: typeof input.sourceUrl === 'string' && /^https:\/\//i.test(input.sourceUrl) ? input.sourceUrl.slice(0, 2000) : null, recipeType, productionType, minimumProductionAmount, minimumProductionUnitId, mealMoments: [...moments], householdId: input.householdId, outputUnits, yield: { amount, unitId }, lines } };
 }
 
 export function validateRecipeSettings(input) {
@@ -155,9 +159,9 @@ export async function createRecipe(pool, data) {
     await client.query('BEGIN');
     await lockHouseholdInventory(client,data.householdId);
     await client.query(
-      `INSERT INTO recipes (id, household_id, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type, meal_moments,separate_starch,cooking_factors,output_units)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,$12,$13::jsonb,$14::jsonb)`,
-      [id, data.householdId, data.name, data.description, data.yield.amount, data.yield.unitId, data.instructions, data.sourceUrl, data.recipeType, data.productionType, data.mealMoments,data.separateStarch ?? false,JSON.stringify(data.cookingFactors ?? {main:1,starch:3}),JSON.stringify(data.outputUnits??{})],
+      `INSERT INTO recipes (id, household_id, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type, meal_moments,separate_starch,cooking_factors,output_units,minimum_production_amount,minimum_production_unit_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,$12,$13::jsonb,$14::jsonb,$15,$16)`,
+      [id, data.householdId, data.name, data.description, data.yield.amount, data.yield.unitId, data.instructions, data.sourceUrl, data.recipeType, data.productionType, data.mealMoments,data.separateStarch ?? false,JSON.stringify(data.cookingFactors ?? {main:1,starch:3}),JSON.stringify(data.outputUnits??{}),data.minimumProductionAmount??0,data.minimumProductionUnitId??data.yield.unitId],
     );
     for (const [index, line] of data.lines.entries()) {
       await client.query(
@@ -221,9 +225,9 @@ export async function updateRecipe(pool, id, data, expectedVersion=null) {
     if (!data.separateStarch) await restoreOriginalServingMode(client,id);
     const updated = await client.query(
       `UPDATE recipes SET name = $3, description = $4, yield_amount = $5,
-              yield_unit_id = $6, instructions = $7, source_url = $8, recipe_type = $9, production_type = $10, meal_moments = $11,separate_starch=$12,serving_weights=CASE WHEN $12 THEN serving_weights ELSE '{}'::jsonb END,cooking_factors=$13::jsonb,output_units=$14::jsonb, version = version + 1, updated_at = now()
+              yield_unit_id = $6, instructions = $7, source_url = $8, recipe_type = $9, production_type = $10, meal_moments = $11,separate_starch=$12,serving_weights=CASE WHEN $12 THEN serving_weights ELSE '{}'::jsonb END,cooking_factors=$13::jsonb,output_units=$14::jsonb,minimum_production_amount=$15,minimum_production_unit_id=$16, version = version + 1, updated_at = now()
         WHERE id = $1 AND household_id = $2 AND parent_recipe_id IS NULL RETURNING id`,
-      [id, data.householdId, data.name, data.description, data.yield.amount, data.yield.unitId, data.instructions, data.sourceUrl, data.recipeType, data.productionType, data.mealMoments,data.separateStarch ?? false,JSON.stringify(data.cookingFactors ?? {main:1,starch:3}),JSON.stringify(data.outputUnits??{})],
+      [id, data.householdId, data.name, data.description, data.yield.amount, data.yield.unitId, data.instructions, data.sourceUrl, data.recipeType, data.productionType, data.mealMoments,data.separateStarch ?? false,JSON.stringify(data.cookingFactors ?? {main:1,starch:3}),JSON.stringify(data.outputUnits??{}),data.minimumProductionAmount??0,data.minimumProductionUnitId??data.yield.unitId],
     );
     if (!updated.rowCount) {
       await client.query('ROLLBACK');
@@ -256,7 +260,7 @@ export async function updateRecipe(pool, id, data, expectedVersion=null) {
 export async function readRecipe(client, id, path=[]) {
   if(path.includes(id))throw new Error('recipe-ingredient-cycle');
   const recipeResult = await client.query(
-    `SELECT id, household_id,output_units, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type, meal_moments,separate_starch,serving_weights,cooking_factors,parent_recipe_id,serving_part,version,
+    `SELECT id, household_id,output_units, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type,minimum_production_amount,minimum_production_unit_id, meal_moments,separate_starch,serving_weights,cooking_factors,parent_recipe_id,serving_part,version,
             EXISTS (SELECT 1 FROM recipe_images WHERE recipe_id=recipes.id) AS image_available,
             (SELECT count(*) FROM recipes siblings WHERE siblings.parent_recipe_id=recipes.parent_recipe_id) AS sibling_count
        FROM recipes WHERE id = $1`, [id],
@@ -329,7 +333,7 @@ export async function readRecipe(client, id, path=[]) {
     separateStarch:row.separate_starch ?? false,servingWeights:row.serving_weights ?? {},cookingFactors:row.cooking_factors ?? {main:1,starch:3},parentRecipeId:row.parent_recipe_id ?? null,servingPart:row.serving_part ?? null,servingParts,imageAvailable:Boolean(row.image_available),
     id: row.id, version: Number(row.version ?? 0), name: row.name, description: row.description, instructions: row.instructions ?? '', sourceUrl: row.source_url ?? null,
     recipeType: row.recipe_type ?? 'dish', productionType: row.production_type ?? 'none', mealMoments: row.meal_moments ?? [],
-    outputUnits:row.output_units??{},
+    outputUnits:row.output_units??{},minimumProductionAmount:Number(row.minimum_production_amount??0),minimumProductionUnitId:row.minimum_production_unit_id??row.yield_unit_id,
     yield: { amount: Number(row.yield_amount), unitId: row.yield_unit_id },
     lines: lines.map((line, index) => ({ ...line, foodName: line.foodName??foodById.get(line.foodId)?.name ?? null, resolved: !nutrition.unresolvedLineIndexes.includes(index) })),
     nutrition,

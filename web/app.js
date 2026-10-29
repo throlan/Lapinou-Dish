@@ -66,6 +66,18 @@ $('#app-back')?.addEventListener('click',()=>{
   currentAppView=previous;$('#app-back').disabled=appViewHistory.length===0;
   setView(previous,{recordHistory:false});
 });
+function setAdminTab(name){
+  $$('.admin-tabs [data-admin-tab]').forEach(button=>{const selected=button.dataset.adminTab===name;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1;});
+  $$('[data-admin-panel]').forEach(panel=>{panel.hidden=panel.dataset.adminPanel!==name;});
+}
+$$('.admin-tabs [data-admin-tab]').forEach(button=>{
+  button.addEventListener('click',()=>setAdminTab(button.dataset.adminTab));
+  button.addEventListener('keydown',event=>{
+    const buttons=$$('.admin-tabs [data-admin-tab]'),index=buttons.indexOf(button);
+    const next=event.key==='ArrowRight'?(index+1)%buttons.length:event.key==='ArrowLeft'?(index-1+buttons.length)%buttons.length:event.key==='Home'?0:event.key==='End'?buttons.length-1:-1;
+    if(next>=0){event.preventDefault();buttons[next].focus();setAdminTab(buttons[next].dataset.adminTab);}
+  });
+});
 
 const dashboardSlots = MEAL_ORDER;
 const dashboardSlotLabels = MEAL_LABELS;
@@ -1473,7 +1485,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
   try {
     const path = state.editingRecipeId ? `/api/recipes/${state.editingRecipeId}` : '/api/recipes';
     const method = state.editingRecipeId ? 'PUT' : 'POST';
-    const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, productionType: form.elements.productionType.value, recipeType: form.elements.recipeType.value, mealMoments: [...form.querySelectorAll('input[name="mealMoments"]:checked')].map((input) => input.value), instructions: form.elements.instructions.value, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, outputUnits:Object.fromEntries(['piece','slice','portion','g','ml'].flatMap(unit=>{const value=form.elements['output_'+unit]?.value;return value?[ [unit,Number(value)] ]:[];})), ...servingOptions, lines }) });
+    const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, productionType: form.elements.productionType.value, minimumProductionAmount:Number(form.elements.minimumProductionAmount.value||0),minimumProductionUnitId:form.elements.minimumProductionUnitId.value, recipeType: form.elements.recipeType.value, mealMoments: [...form.querySelectorAll('input[name="mealMoments"]:checked')].map((input) => input.value), instructions: form.elements.instructions.value, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, outputUnits:Object.fromEntries(['piece','slice','portion','g','ml'].flatMap(unit=>{const value=form.elements['output_'+unit]?.value;return value?[ [unit,Number(value)] ]:[];})), ...servingOptions, lines }) });
     const generateImage=state.generateImportedImage;state.generateImportedImage=false;
     if (state.importingDraftId) {
       await api(`/api/recipe-imports/${state.importingDraftId}/converted`, { method: 'POST', body: JSON.stringify({ householdId: state.household.id }) });
@@ -1498,6 +1510,9 @@ $('#recipe-form').addEventListener('submit', async (event) => {
       'recipe-ingredient-not-found':'Une préparation liée est indisponible dans ce foyer. Choisis une recette existante.',
       'recipe-ingredient-unit-missing':'Cette unité n’est pas définie pour la préparation choisie. Renseigne son équivalence dans la recette source (par exemple 20 tranches pour un pain).',
       'invalid-output-units':'Vérifie les équivalences : valeurs positives, et même quantité que le rendement pour son unité.',
+      'invalid-production-minimum':'Le lot minimum doit être un nombre positif ou nul, dans une unité reconnue.',
+      'production-minimum-requires-tracking':'Choisis un type dans « Production à suivre » avant de définir un lot minimum.',
+      'production-minimum-unit-missing':'Renseigne l’équivalence de cette unité dans « Utiliser cette recette à la pièce, à la tranche… » avant de définir le lot minimum.',
 
       'starch-ingredients-required':'Affecte au moins un ingrédient à la partie « Féculents » avant d’enregistrer le service séparé.',
       'vegetable-ingredients-required':'Affecte au moins un ingrédient à la partie « Légumes » avant d’enregistrer les trois parties.',
@@ -1543,6 +1558,8 @@ async function openRecipeEditor(id = null, duplicate = false) {
       form.elements.instructions.value = recipe.instructions ?? '';
       form.elements.yieldAmount.value = recipe.yield.amount;
       form.elements.yieldUnit.value = recipe.yield.unitId;
+      form.elements.minimumProductionAmount.value=recipe.minimumProductionAmount??0;
+      form.elements.minimumProductionUnitId.value=recipe.minimumProductionUnitId??recipe.yield.unitId;
       for(const unit of ['piece','slice','portion','g','ml'])if(form.elements['output_'+unit])form.elements['output_'+unit].value=recipe.outputUnits?.[unit]??'';
       if (form.elements.servingMode) {
         form.elements.servingMode.value = recipe.separateStarch ? (recipe.servingParts?.some(part=>part.servingPart==='vegetables') ? 'three' : recipe.servingParts?.some(part=>part.servingPart==='starch') ? 'separate' : 'whole') : 'original';
@@ -1554,7 +1571,7 @@ async function openRecipeEditor(id = null, duplicate = false) {
       form.classList.remove('hidden');
       return;
     }
-  } else { form.elements.servingMode && (form.elements.servingMode.value = 'whole'); addRecipeLine(); }
+  } else { form.elements.minimumProductionAmount.value=0;form.elements.minimumProductionUnitId.value=['piece','slice','portion','g','ml'].includes(form.elements.yieldUnit.value)?form.elements.yieldUnit.value:'portion';form.elements.servingMode && (form.elements.servingMode.value = 'whole'); addRecipeLine(); }
   if (form.elements.servingMode) updateServingConfiguration();
   form.classList.remove('hidden');
   form.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2282,22 +2299,21 @@ function renderProductionTypeRows(types=state.productionTypes){
   for(const type of types){
     const row=document.createElement('div');row.className='production-type-row';row.dataset.id=type.id;
     const label=document.createElement('label');label.textContent='Nom';const name=document.createElement('input');name.value=type.label;name.required=true;name.maxLength=60;name.dataset.productionName='true';label.append(name);
-    const amountLabel=document.createElement('label');amountLabel.textContent='Lot minimum';const amount=document.createElement('input');amount.type='number';amount.min='0';amount.max='100000';amount.step='any';amount.value=type.minimumAmount??0;amount.dataset.productionMinimum='true';amountLabel.append(amount);
-    const unitLabel=document.createElement('label');unitLabel.textContent='Unité du minimum';const unit=document.createElement('select');for(const [id,text] of Object.entries(productionUnitLabels))unit.add(new Option(text,id));unit.value=type.minimumUnitId??'portion';unit.dataset.productionUnit='true';unitLabel.append(unit);
-    row.append(label,amountLabel,unitLabel);
+    row.append(label);
     if(type.id.startsWith('custom-')){const remove=document.createElement('button');remove.type='button';remove.className='secondary danger-button';remove.textContent='Supprimer';remove.addEventListener('click',()=>row.remove());row.append(remove);}
     else {const fixed=document.createElement('span');fixed.className='muted';fixed.textContent='Type intégré';row.append(fixed);}
     root.append(row);
   }
 }
 function productionTypesFromForm(){return $$('.production-type-row',$('#production-type-rows')).map(row=>({
-  id:row.dataset.id,label:$('[data-production-name]',row).value.trim(),minimumAmount:Number($('[data-production-minimum]',row).value),minimumUnitId:$('[data-production-unit]',row).value,
+  id:row.dataset.id,label:$('[data-production-name]',row).value.trim(),minimumAmount:0,minimumUnitId:'portion',
 }));}
 async function refreshProductionTypes(){
   if(!state.household)return;
   if(state.productionTypesHouseholdId===state.household.id&&state.productionTypes.length)return;
   const result=await api(`/api/production-types?householdId=${encodeURIComponent(state.household.id)}`);
   state.productionTypes=result.productionTypes??[];state.productionTypesHouseholdId=state.household.id;
+  renderProductionTypeRows();
 }
 $('#add-production-type')?.addEventListener('click',()=>{
   const existing=productionTypesFromForm(),base='custom-nouveau-type';let id=base,index=2;while(existing.some(item=>item.id===id))id=`${base}-${index++}`;
@@ -2310,7 +2326,7 @@ $('#production-types-form')?.addEventListener('submit',async event=>{
   try{
     const result=await api('/api/production-types',{method:'PUT',body:JSON.stringify({householdId:state.household.id,productionTypes:productionTypesFromForm()})});
     state.productionTypes=result.productionTypes;state.productionTypesHouseholdId=state.household.id;renderProductionTypeRows();
-    showMessage(message,'Types et minimums de production enregistrés.',true);await refreshRecipes();await refreshShopping();
+    showMessage(message,'Types de production enregistrés. Les lots minimums se règlent dans chaque fiche recette.',true);await refreshRecipes();await refreshShopping();
   }catch(error){const code=error.body?.error;showMessage(message,code==='production-type-in-use'?`Ce type est utilisé par ${error.body.recipeCount} recette(s). Réaffecte-les avant de le supprimer.`:code==='production-minimum-unit-missing'?`La recette « ${error.body.recipeName} » doit définir son rendement en ${productionUnitLabels[error.body.unitId]??error.body.unitId} avant d’activer ce minimum.`:`Enregistrement impossible : ${code??error.message}`);}
   finally{button.disabled=false;}
 });
@@ -2322,7 +2338,7 @@ async function refreshMealSettings() {
     const settings=await api(`/api/meal-settings?householdId=${encodeURIComponent(state.household.id)}`);
     state.mealRatios=settings.ratios;
     for(const slot of MEAL_ORDER)form.elements[slot].value=Number((settings.ratios[slot]*100).toFixed(4));
-    await refreshPeople();await refreshProteinSettings();updateMealRatiosPreview();
+    await Promise.all([refreshPeople(),refreshProductionTypes(),refreshProteinSettings()]);updateMealRatiosPreview();
     await refreshPlateSettings();await refreshFoodYieldConversions();await refreshMealAdditions();
     showMessage($('#meal-ratios-message'),'');
   }catch(error){showMessage($('#meal-ratios-message'),`Répartition indisponible : ${error.body?.error ?? error.message}`);}
