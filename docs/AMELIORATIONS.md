@@ -1,10 +1,10 @@
 # Cahier des améliorations proposées
 
-## Administration et lots minimums propres aux recettes — 0.3.3 en préparation
+## Administration et lots minimums propres aux recettes — livré en 0.3.3
 
-L’administration présente sept rubriques en onglets. Elle charge aussi les types de production dès son ouverture, avant toute édition, pour éviter l’envoi d’une liste incomplète.
+L’administration présente sept rubriques en onglets. Elle charge aussi les types de production dès son ouverture, avant toute édition, pour éviter l’envoi d’une liste incomplète et l’erreur `invalid-production-types`.
 
-Les types de production ne portent plus de quantité minimum : ils regroupent les recettes. Chaque recette définit son lot minimum et son unité. Les équivalences convertissent ce minimum vers le rendement pour produire les ingrédients et réserver le surplus au stock. Exemple : un pain équivalent à 1 pièce et 10 tranches peut être produit par pain entier ; une recette de bagels peut avoir un lot de 24 pièces et des pancakes un lot de 36. La migration reprend une ancienne valeur partagée seulement lorsqu’une recette était seule dans le type ; en cas d’ambiguïté, les minimums sont laissés à zéro pour réglage manuel. Suite complète, PR et publication à vérifier.
+Les types de production ne portent plus de quantité minimum : ils regroupent les recettes. Chaque recette définit son lot minimum et son unité. Les équivalences convertissent ce minimum vers le rendement pour produire les ingrédients et réserver le surplus au stock. Exemple : un pain équivalent à 1 pièce et 10 tranches peut être produit par pain entier ; une recette de bagels peut avoir un lot de 24 pièces et des pancakes un lot de 36. La migration reprend une ancienne valeur partagée seulement lorsqu’une recette était seule dans le type ; en cas d’ambiguïté, les minimums sont laissés à zéro pour réglage manuel. PR #142, commit `f997a39eb1a23d12e276e8ac5b815036d77f2421`, **324 tests réussis**, publication GHCR `0.3.3` : https://github.com/throlan/Lapinou-Dish/actions/runs/40905467035 ; digest `sha256:dc2ec2fafaf286712f99a4b1dd4e3fd17326e5e05ae9bf6ff1d8debff5026a73`.
 
 ## Catégories personnalisées au calendrier — livré en 0.3.2
 

@@ -1,10 +1,10 @@
 # Cahier de reprise — 29 octobre 2026, lots minimums de production
 
-## Travail courant — administration et lots minimums par recette, 0.3.3
+## Fonction livrée — administration et lots minimums par recette, 0.3.3
 
-L’administration se parcourt par sept onglets accessibles au clavier. À son ouverture, ses types de production sont chargés et rendus avant qu’on puisse les modifier, corrigeant l’erreur `invalid-production-types` lors de l’ajout du premier type.
+PR #142 fusionnée au commit `f997a39eb1a23d12e276e8ac5b815036d77f2421`. L’administration se parcourt par sept onglets accessibles au clavier. À son ouverture, ses types de production sont chargés et rendus avant qu’on puisse les modifier, corrigeant l’erreur `invalid-production-types` lors de l’ajout du premier type.
 
-Les types ne définissent plus le minimum de lot : ils classent seulement les préparations. Chaque recette possède son minimum et son unité, convertis avec son rendement/équivalences, puis appliqués aux ingrédients, aux préparations à faire et au surplus de stock. Exemple : un pain de 350 g équivalent à 1 pain et 10 tranches peut avoir un lot minimum de 1 pain ; bagels 24 pièces et pancakes 36 pièces se configurent indépendamment. La migration reprend l’ancien minimum commun si une seule recette racine était concernée ; si plusieurs recettes partageaient le type, elle laisse leurs nouveaux minima à zéro pour éviter une hypothèse trompeuse. Tests ciblés réussis ; version 0.3.3, suite complète et publication restent à vérifier.
+Les types ne définissent plus le minimum de lot : ils classent seulement les préparations. Chaque recette possède son minimum et son unité, convertis avec son rendement/équivalences, puis appliqués aux ingrédients, aux préparations à faire et au surplus de stock. Exemple : un pain de 350 g équivalent à 1 pain et 10 tranches peut avoir un lot minimum de 1 pain ; bagels 24 pièces et pancakes 36 pièces se configurent indépendamment. La migration reprend l’ancien minimum commun si une seule recette racine était concernée ; si plusieurs recettes partageaient le type, elle laisse leurs nouveaux minima à zéro pour éviter une hypothèse trompeuse. **324 tests locaux réussis.** Publication GHCR réussie : https://github.com/throlan/Lapinou-Dish/actions/runs/40905467035 ; image `ghcr.io/throlan/lapinou-dish:0.3.3`, digest `sha256:dc2ec2fafaf286712f99a4b1dd4e3fd17326e5e05ae9bf6ff1d8debff5026a73`. Aucun accès à Unraid/Nginx.
 
 ## Fonction livrée — catégories personnalisées au calendrier, 0.3.2
 

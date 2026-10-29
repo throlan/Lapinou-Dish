@@ -4,7 +4,7 @@
 
 Corriger l’enregistrement des types de production lors du premier ajout, rendre l’administration navigable par rubriques et définir les tailles minimales de fabrication sur chaque recette. Un pain peut être fabriqué entier, des bagels par 24 et des pancakes par 36 ; les ingrédients du lot sont ajoutés aux besoins et le surplus fini reste disponible pour les repas suivants.
 
-## Réalisation en préparation — 0.3.3
+## Réalisation livrée — 0.3.3
 
 - L’administration charge maintenant les types de production lors de son ouverture. Elle est organisée en sept onglets accessibles au clavier.
 - Les types de production servent au classement. Le lot minimum et son unité sont enregistrés sur chaque recette.
@@ -17,9 +17,10 @@ Corriger l’enregistrement des types de production lors du premier ajout, rendr
 - 324 tests locaux réussis, dont migration PostgreSQL de test, administration, équivalences pain/bagels/pancakes, achats du lot, stock et menus suivants.
 - `node --check` réussi sur les modules serveur et le JavaScript navigateur.
 - `git diff --check` réussi.
-- PR, contrôles GitHub, fusion et publication GHCR restent à vérifier.
+- PR #142 fusionnée au commit `f997a39eb1a23d12e276e8ac5b815036d77f2421` ; contrôles GitHub réussis.
+- Publication : https://github.com/throlan/Lapinou-Dish/actions/runs/40905467035. Image `ghcr.io/throlan/lapinou-dish:0.3.3`, digest `sha256:dc2ec2fafaf286712f99a4b1dd4e3fd17326e5e05ae9bf6ff1d8debff5026a73`.
 - Aucun accès à Unraid ou Nginx.
 
 ## Suite
 
-Pousser la branche, ouvrir une PR, attendre ses contrôles, puis fusionner selon le workflow du projet et vérifier la publication GHCR. Après la fusion, mettre à jour les documents avec le numéro de PR, le commit, les contrôles et la publication effectivement observés.
+Garder les tailles de lots configurées recette par recette, en renseignant leurs équivalences explicites pour les mesures utiles (pain/pièce/tranche, bagel/pièce, pancake/pièce). Le prochain chantier fonctionnel reste à choisir avec l’utilisateur.
