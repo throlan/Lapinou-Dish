@@ -54,7 +54,7 @@ export function validateRecipeInput(input) {
   const productionTypes = ['none', 'batch_cooking', 'pasta', 'pastry', 'bread'];
   const mealMoments = ['breakfast', 'lunch', 'dinner', 'snack'];
   const recipeType = input.recipeType == null ? 'dish' : input.recipeType;
-  if (!recipeTypes.includes(recipeType)) return { error: 'invalid-recipe-type' };
+  if (typeof recipeType !== 'string' || (!recipeTypes.includes(recipeType) && !/^custom-[a-z0-9_-]{1,33}$/.test(recipeType))) return { error: 'invalid-recipe-type' };
   const productionType = input.productionType == null ? 'none' : input.productionType;
   if (!productionTypes.includes(productionType)) return { error: 'invalid-production-type' };
   const moments = input.mealMoments == null ? [] : input.mealMoments;

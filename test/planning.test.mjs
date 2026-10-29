@@ -27,13 +27,18 @@ test('requires a person to be explicitly selected', () => {
   assert.equal(validatePlannedMeal(valid({ attendeeIds: [] })).error, 'attendees-required');
 });
 
-test('shared recipes require everyone while beverage amounts may be person-specific', () => {
+test('the main recipe requires everyone while every optional addition may be person-specific', () => {
   assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, amounts: [{ personId: personA, quantity: 1 }] }] })).error, 'amounts-must-match-attendees');
   const individualDrink = validatePlannedMeal(valid({ items: [{ recipeId, role: 'beverage', amounts: [{ personId: personA, quantity: 1 }] }] }));
   assert.equal(individualDrink.error, undefined);
   assert.equal(individualDrink.data.items[0].amounts.length, 1);
   assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, role: 'beverage', amounts: [] }] })).error, 'invalid-beverage-amounts');
   assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, amounts: [{ personId: personA, quantity: 0 }, { personId: personB, quantity: 1 }] }] })).error, 'invalid-planned-quantity');
+  const individualSide=validatePlannedMeal(valid({items:[{recipeId,role:'accompaniment',categoryId:'patisserie',amounts:[{personId:personB,quantity:1}]}]}));
+  assert.equal(individualSide.error,undefined);
+  assert.equal(individualSide.data.items[0].categoryId,'patisserie');
+  assert.equal(validatePlannedMeal(valid({items:[{recipeId,role:'accompaniment',categoryId:'patisserie',amounts:[]}]})).error,'invalid-accompaniment-amounts');
+  assert.equal(validatePlannedMeal(valid({items:[{recipeId,role:'accompaniment',categoryId:'Pâtisserie',amounts:[{personId:personB,quantity:1}]}]})).error,'invalid-planned-item-category');
 });
 
 test('rejects invalid dates, slots and people outside the attendee set', () => {

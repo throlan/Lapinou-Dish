@@ -63,18 +63,21 @@ test('sauce calories fit within the meal budget without increasing a fixed sauce
   const salad={id:'salad',recipeType:'salad',yield:{amount:4,unitId:'portion'},nutrition:{perYieldUnit:{energyKcal:400,proteinG:30}}};
   const sauce={id:'sauce',recipeType:'sauce',yield:{amount:200,unitId:'g'},nutrition:{perYieldUnit:{energyKcal:5,proteinG:0.01}}};
   const people=[{id:'a',displayName:'A'},{id:'b',displayName:'B'},{id:'c',displayName:'C'}];
-  const items={0:{recipeId:'salad',role:'main'},1:{recipeId:'sauce',role:'sauce',amounts:{a:'40',b:'0'}}};
+  const items={0:{recipeId:'salad',role:'main'},1:{recipeId:'',role:'sauce',categoryId:'sauce',assignments:{a:{recipeId:'sauce',quantity:'40'},b:{recipeId:'sauce',quantity:'0'}}}};
   const root={replaceChildren(){}};
   const context={...planner,roundServingCalories,state:{recipes:[salad,sauce],people,calendarMeals:[]},
     $:selector=>selector==='#meal-form'?{elements:{mealDate:{value:'2026-10-19'},slot:{value:'lunch'}}}:root,
-    allPlanningRecipes:()=>[salad,sauce],isIndividualRole:()=>false,latestProfile:()=>({dailyEnergyKcal:1500}),
+    allPlanningRecipes:()=>[salad,sauce],isIndividualRole:role=>role!=='main',latestProfile:()=>({dailyEnergyKcal:1500}),
     plannedCaloriesForPerson:()=>0,document:{createElement:()=>({append(){}})}};
   const helper=source.slice(source.indexOf('function sauceDefaultQuantity('),source.indexOf('function plannedItemRoleOptions('));
   runInNewContext(helper+source.slice(start,end)+'\nglobalThis.calculate=applyAutomaticPortions;',context);
   context.calculate(items,people.map(p=>p.id));
-  assert.deepEqual(items[1].amounts,{a:'40',b:'0',c:'30'});
+  assert.equal(items[1].assignments.a.quantity,'40');
+  assert.equal(items[1].assignments.b.quantity,'0');
+  assert.equal(items[1].assignments.c,undefined);
   for(const person of people){
-    const total=Number(items[0].amounts[person.id])*400+Number(items[1].amounts[person.id])*5;
+    const sauceQuantity=Number(items[1].assignments[person.id]?.quantity??0);
+    const total=Number(items[0].amounts?.[person.id]??1)*400+sauceQuantity*5;
     assert.ok(total<=700,`${person.id}: ${total} kcal exceeds the slot envelope`);
   }
 });
