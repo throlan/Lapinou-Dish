@@ -1,8 +1,8 @@
 # Cahier de reprise — 29 octobre 2026, lots minimums de production
 
-## Travail courant — recettes personnalisées dans leur catégorie, 0.3.2
+## Fonction livrée — catégories personnalisées au calendrier, 0.3.2
 
-Corriger le filtre de sélection du calendrier : un type de recette personnalisé lié par l’administration à un rôle existant (par exemple « Assaisonnement » lié à « Sauce ») doit apparaître dans sa catégorie et à ses créneaux configurés. Le rôle « Sauce » ne doit pas imposer le défaut de 30 g aux recettes personnalisées : elles commencent à 1 unité. La catégorie et le rôle ne créent pas deux recettes ; seules les catégories configurées séparément peuvent fournir des boutons distincts. Tests locaux réussis : 321. Version 0.3.2 ; commit/push, PR, contrôles, fusion et publication GHCR à faire. Aucun accès à Unraid/Nginx.
+PR #140 fusionnée au commit `d17030f18ba4546334cf78b6e116b1f1c4863baf`. Une recette de type personnalisé apparaît sous sa catégorie configurée même si celle-ci utilise un rôle standard, par exemple Assaisonnement lié au rôle Sauce. Ce rôle ne force plus les recettes personnalisées à 30 g : elles démarrent à une unité. La catégorie et le rôle ne créent pas de doublon de recette ; des catégories distinctes configurées sur un créneau gardent leurs boutons respectifs. **321 tests locaux et contrôles GitHub réussis.** Publication GHCR vérifiée : https://github.com/throlan/Lapinou-Dish/actions/runs/40858994728 ; image `ghcr.io/throlan/lapinou-dish:0.3.2`, digest `sha256:09d71fc82d9e6862f7a982bdeb5b3d6cdb84a6e9cbeed24cc02661733a25ee5a`. Aucun accès à Unraid/Nginx.
 
 ## Fonction livrée — types de production et lots minimums, 0.3.1
 

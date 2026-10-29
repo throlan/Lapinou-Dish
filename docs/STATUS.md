@@ -1,8 +1,8 @@
 # État du projet — 29 octobre 2026
 
-## Correctif de catégorie personnalisée — 0.3.2 en préparation
+## Catégories personnalisées au calendrier — 0.3.2 livrée
 
-Une recette de type personnalisé associée à une catégorie ayant le rôle « Sauce » était masquée par le filtre qui exigeait le type standard `sauce`. Le filtre respecte maintenant le type personnalisé déclaré par la catégorie. En outre, les recettes personnalisées ne récupèrent pas le défaut de 30 g du rôle Sauce : elles commencent à 1 unité. Le rôle et la catégorie sont des métadonnées de sélection, pas des copies de recette. Tests complets : **321 réussis**. Version 0.3.2 en préparation ; PR, contrôles GitHub et publication restent à faire.
+Une recette de type personnalisé associée à une catégorie ayant le rôle « Sauce » était masquée par le filtre qui exigeait le type standard `sauce`. Le filtre respecte maintenant le type personnalisé déclaré par la catégorie. En outre, les recettes personnalisées ne récupèrent pas le défaut de 30 g du rôle Sauce : elles commencent à 1 unité. Le rôle et la catégorie ne créent pas de copie de recette. **321 tests locaux et contrôles GitHub réussis.** PR #140 fusionnée au commit `d17030f18ba4546334cf78b6e116b1f1c4863baf`. Publication GHCR vérifiée : https://github.com/throlan/Lapinou-Dish/actions/runs/40858994728 ; digest `sha256:09d71fc82d9e6862f7a982bdeb5b3d6cdb84a6e9cbeed24cc02661733a25ee5a`.
 
 ## Types de production et lots minimums — 0.3.1 livrée
 
