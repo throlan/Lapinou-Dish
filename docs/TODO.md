@@ -1,6 +1,8 @@
-# Prochaines tâches — 23 octobre 2026
+# Prochaines tâches — 29 octobre 2026
 
-0.3.0 en préparation : catégories complémentaires configurables par créneau, nouveaux types de recettes depuis Administration et choix/quantité individuels pour chaque personne. Le principal reste partagé ; 0 signifie « aucun » pour les ajouts. 315 tests locaux complets réussis. Après PR, vérifier les contrôles et la publication GHCR.
+0.3.1 en préparation : administration des types de production personnalisés, minimum de fabrication par type avec unité, courses recalculées pour le lot complet, et réutilisation du stock excédentaire sur les menus suivants. Le chargement des catégories proposées du calendrier est aussi corrigé. 319 tests complets réussis ; PR et publication GitHub/GHCR à vérifier.
+
+0.3.0 livrée : catégories complémentaires configurables par créneau, types personnalisés de recettes depuis Administration et choix/quantité individuels pour chaque personne. Le principal reste partagé ; 0 signifie « aucun » pour les ajouts. PR #137 fusionnée, publication réussie et 315 tests locaux.
 
 0.2.99 : correction du chargement bloqué par le module food-pagination.js non servi. 311 tests locaux, dont parcours HTTP de toutes les dépendances module. Les fonctions catalogue 0.2.97/0.2.98 sont conservées. Vérifier la publication du correctif après fusion.
 

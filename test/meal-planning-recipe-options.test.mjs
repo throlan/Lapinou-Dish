@@ -39,6 +39,15 @@ test('all configured additions are optional per-person categories while the main
   assert.deepEqual(Array.from(context.options('main','dinner'),([id])=>id),['main','accompaniment','beverage','dessert','sauce']);
 });
 
+test('calendar refresh loads the household addition categories before opening meal editors',()=>{
+  const calendarStart=source.indexOf('async function refreshCalendar()');
+  const calendarEnd=source.indexOf('\nfunction renderCalendarDay(',calendarStart);
+  assert.ok(calendarStart>=0&&calendarEnd>calendarStart,'calendar refresh function is present');
+  const calendarSource=source.slice(calendarStart,calendarEnd);
+  assert.ok(calendarSource.includes('api(`/api/meal-additions?householdId=${encodeURIComponent(state.household.id)}`)'));
+  assert.ok(calendarSource.includes('state.mealAdditions=mealAdditionsResult.additions??[]'));
+});
+
 test('recipe moment tags filter each configurable category and salad can be its own category',()=>{
   assert.deepEqual(Array.from(context.selectRecipes('dinner','accompaniment',[],'salad'),recipe=>recipe.id),['salad']);
   assert.deepEqual(Array.from(context.selectRecipes('breakfast','sauce',[],'sauce'),recipe=>recipe.id),[]);

@@ -7,6 +7,7 @@ import { deletePurchaseUnit,listPurchaseUnits,savePurchaseUnit,validatePurchaseU
 import { previewDailyRebalance, applyDailyRebalance } from './daily-rebalance.mjs';
 import { readMealSettings, saveMealSettings, readPlateSettings, savePlateSettings } from './meal-settings.mjs';
 import { readMealAdditions, saveMealAdditions } from './meal-additions.mjs';
+import { readProductionTypes, saveProductionTypes } from './production-types.mjs';
 import { readProteinSettings, saveProteinSettings } from './protein-settings.mjs';
 import { deleteFoodYieldConversion,listFoodYieldConversions,saveFoodYieldConversion,validateFoodYieldConversion } from './food-yield-conversions.mjs';
 import { deleteSavingPlan, getEnergyReserveOverview, saveSavingPlan, validateSavingPlan } from './energy-reserve.mjs';
@@ -163,6 +164,17 @@ export async function handleRequest(request, response, pool, appPassword = null,
         if(!result||result.error==='household-not-found')return send(response,404,{error:'household-not-found'});
         return send(response,result.error?400:200,result);
       }catch{return send(response,500,{error:'meal-additions-failed'});}
+    }
+    if(url.pathname==='/api/production-types'&&['GET','PUT'].includes(request.method)){
+      const body=request.method==='PUT'?await readJson(request):null;
+      if(body?.error)return send(response,body.status??400,{error:body.error});
+      const householdId=request.method==='PUT'?body.value?.householdId:url.searchParams.get('householdId');
+      if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});
+      try{
+        const result=request.method==='GET'?await readProductionTypes(pool,householdId):await saveProductionTypes(pool,householdId,body.value?.productionTypes);
+        if(!result||result.error==='household-not-found')return send(response,404,{error:'household-not-found'});
+        return send(response,result.error?409:200,result);
+      }catch{return send(response,500,{error:'production-types-failed'});}
     }
     if(url.pathname==='/api/household-food-yields'&&request.method==='GET'){
       const householdId=url.searchParams.get('householdId');if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});

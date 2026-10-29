@@ -1,14 +1,20 @@
 # Cahier des améliorations proposées
 
-## Catégories de repas et quantités individuelles — 0.3.0 en préparation
+## Types de production et lots minimums — 0.3.1 en préparation
+
+Administration permet d’ajouter des catégories de production, de les affecter à des recettes et de définir un minimum de lot avec une unité. Les besoins sont d’abord couverts par le stock ; le manque restant déclenche au moins le minimum configuré. Les ingrédients du lot complet alimentent les courses, et le surplus planifié couvre les menus ultérieurs. L’unité doit être prise en charge par le rendement ou les équivalences explicites de chaque recette concernée. Les lots réellement enregistrés suivent les stocks existants ; si aucun minimum n’est défini, le calcul précédent au besoin exact s’applique.
+
+Validation ciblée : besoin de 4 bagels, lot de 24, ingrédients pour 24, puis 20 unités disponibles pour les menus suivants sans nouvel achat. Vérifier la suite complète et les contrôles GitHub/GHCR après la PR.
+
+## Catégories de repas et quantités individuelles — livré en 0.3.0
 
 Administration configure les catégories complémentaires, leurs types de recette, leurs rôles de calcul et les créneaux où elles sont proposées. Les types personnalisés alimentent les fiches et filtres du répertoire. Le plat principal reste commun ; chaque ajout se choisit et se quantifie séparément par personne, et zéro équivaut à « aucun ». Les repas historiques et leurs quantités sont conservés.
 
-315 tests locaux complets réussis. Vérifier CI et publication GHCR après la PR.
+PR #137 fusionnée au commit `5349f9b407400d44b6a0376ffb8f787a48b6883d`, publication et contrôles réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/40849807550. 315 tests locaux complets réussis à cette version.
 
 ## Publication : versions numérotées et retour arrière
 
-Dernière version publiée : **0.2.99** (la 0.3.0 est en préparation). Le workflow publie les alias numériques et préfixés v depuis package.json, sans réécrire une version déjà publiée. Conservation sans suppression automatique : au minimum les cinq dernières versions publiées restent sélectionnables. Les images 0.2.95 à 0.2.99 ont été retrouvées par tag technique ; digests et révisions vérifiés et enregistrés dans docker/rollback-images.json. Le workflow rétablit leurs alias depuis les digests exacts, sans reconstruire les anciennes images. Voir [ROLLBACK.md](ROLLBACK.md).
+Dernière version publiée vérifiée : **0.3.0**, PR #137, commit `5349f9b407400d44b6a0376ffb8f787a48b6883d`, workflow réussi https://github.com/throlan/Lapinou-Dish/actions/runs/40849807550. Le workflow publie les alias numériques et préfixés v depuis package.json, sans réécrire une version déjà publiée. Conservation sans suppression automatique : au minimum les cinq dernières versions publiées restent sélectionnables. Les images 0.2.95 à 0.2.99 ont été retrouvées par tag technique ; digests et révisions vérifiés et enregistrés dans docker/rollback-images.json. Le workflow rétablit leurs alias depuis les digests exacts, sans reconstruire les anciennes images. Voir [ROLLBACK.md](ROLLBACK.md).
 
 Pour revenir à la 0.2.97 : ghcr.io/throlan/lapinou-dish:0.2.97. La 0.2.98 reste identifiée comme défectueuse au démarrage. Aucun changement de migration entre 0.2.97 et 0.2.99 ; une ancienne image ne restaure pas les données. Ne jamais supprimer les volumes pour changer de version. Aucun accès à Unraid/Nginx.
 

@@ -1,14 +1,22 @@
 # État du projet — 29 octobre 2026
 
-## Catégories dynamiques et ajouts individuels — 0.3.0 (en préparation)
+## Types de production et lots minimums — 0.3.1 en préparation
 
-Administration permet de configurer les catégories complémentaires proposées à chaque créneau, leur type de recette et leur rôle de calcul. Les catégories personnalisées deviennent des types sélectionnables dans les fiches recettes et apparaissent dans les filtres du répertoire. Le plat principal reste commun ; tous les ajouts sont indépendants par personne. Choisir 0 ou « Aucun » est accepté et signifie que la personne ne prend pas cet ajout. Les quantités nulles ne sont pas enregistrées ni comptées dans les courses. Les repas historiques sont conservés ; une migration ajoute les réglages de catégorie et leur identifiant aux lignes de repas existantes.
+Administration peut définir de nouveaux types de production, les attribuer aux recettes et définir pour chacun un lot minimum et son unité. Exemple : un minimum de 24 pièces pour les bagels transforme un besoin de 4 en fabrication de 24 ; les ingrédients des 24 pièces apparaissent dans les courses. Le surplus virtuel couvre les menus suivants, puis le stock réellement enregistré couvre les besoins après fabrication. Les unités configurées doivent exister dans le rendement ou les équivalences de chaque recette concernée ; l’administration refuse un réglage incompatible.
 
-Validation locale : **315 tests complets réussis**. Aucun déploiement Unraid/Nginx effectué. Publication et contrôles GitHub à vérifier après PR.
+Le suivi des productions et les stocks de lots existaient déjà : les nouvelles productions sont créées en ajoutant un type puis en l’affectant à une recette. Les types personnalisés sont affichés dans « Préparations à faire ». La migration ajoute les réglages au foyer et autorise les identifiants de production personnalisés. Le comportement sans minimum conserve les calculs existants.
+
+Le calendrier recharge maintenant aussi les catégories configurées du foyer ; sans cette lecture, les boutons de propositions n’étaient visibles qu’après être passé par l’administration. Le cas est couvert par un test.
+
+Validation : **319 tests complets locaux réussis**, dont le scénario PostgreSQL/PGlite 4 burgers → 24 bagels et 480 g de farine, puis 20 bagels restants et aucun nouvel achat. Un test vérifie aussi le chargement des catégories d’ajouts dès l’ouverture du calendrier. Aucun accès à Unraid/Nginx.
+
+## Catégories configurables et choix individuels — 0.3.0
+
+PR #137 fusionnée au commit `5349f9b407400d44b6a0376ffb8f787a48b6883d`. Les contrôles et la publication GHCR ont réussi : https://github.com/throlan/Lapinou-Dish/actions/runs/40849807550. L’administration définit les catégories d’ajouts, leurs types de recettes, rôles et créneaux. Chaque ajout autre que le plat principal se choisit par personne ; zéro signifie « aucun ». **315 tests complets** passaient avant le chantier courant.
 
 ## Publication : versions numérotées et retour arrière
 
-Dernière version publiée : **0.2.99** (la 0.3.0 est en préparation). Le workflow publie les alias numériques et préfixés v depuis package.json, sans réécrire une version déjà publiée. Conservation sans suppression automatique : au minimum les cinq dernières versions publiées restent sélectionnables. Les images 0.2.95 à 0.2.99 ont été retrouvées par tag technique ; digests et révisions vérifiés et enregistrés dans docker/rollback-images.json. Le workflow rétablit leurs alias depuis les digests exacts, sans reconstruire les anciennes images. Voir [ROLLBACK.md](ROLLBACK.md).
+Dernière version publiée vérifiée : **0.3.0**, PR #137, commit `5349f9b407400d44b6a0376ffb8f787a48b6883d`; tests et publication réussis via le workflow ci-dessus. Le workflow publie les alias numériques et préfixés v depuis package.json, sans réécrire une version déjà publiée. Conservation sans suppression automatique : au minimum les cinq dernières versions publiées restent sélectionnables. Les images 0.2.95 à 0.2.99 ont été retrouvées par tag technique ; digests et révisions vérifiés et enregistrés dans docker/rollback-images.json. Le workflow rétablit leurs alias depuis les digests exacts, sans reconstruire les anciennes images. Voir [ROLLBACK.md](ROLLBACK.md).
 
 Pour revenir à la 0.2.97 : ghcr.io/throlan/lapinou-dish:0.2.97. La 0.2.98 reste identifiée comme défectueuse au démarrage. Aucun changement de migration entre 0.2.97 et 0.2.99 ; une ancienne image ne restaure pas les données. Ne jamais supprimer les volumes pour changer de version. Aucun accès à Unraid/Nginx.
 
