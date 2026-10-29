@@ -1,6 +1,6 @@
 # État du projet — 29 octobre 2026
 
-## Types de production et lots minimums — 0.3.1 en préparation
+## Types de production et lots minimums — 0.3.1 livrée
 
 Administration peut définir de nouveaux types de production, les attribuer aux recettes et définir pour chacun un lot minimum et son unité. Exemple : un minimum de 24 pièces pour les bagels transforme un besoin de 4 en fabrication de 24 ; les ingrédients des 24 pièces apparaissent dans les courses. Le surplus virtuel couvre les menus suivants, puis le stock réellement enregistré couvre les besoins après fabrication. Les unités configurées doivent exister dans le rendement ou les équivalences de chaque recette concernée ; l’administration refuse un réglage incompatible.
 
@@ -9,6 +9,8 @@ Le suivi des productions et les stocks de lots existaient déjà : les nouvelles
 Le calendrier recharge maintenant aussi les catégories configurées du foyer ; sans cette lecture, les boutons de propositions n’étaient visibles qu’après être passé par l’administration. Le cas est couvert par un test.
 
 Validation : **319 tests complets locaux réussis**, dont le scénario PostgreSQL/PGlite 4 burgers → 24 bagels et 480 g de farine, puis 20 bagels restants et aucun nouvel achat. Un test vérifie aussi le chargement des catégories d’ajouts dès l’ouverture du calendrier. Aucun accès à Unraid/Nginx.
+
+PR #138 fusionnée au commit `351de3a47b82328efeb301923bb089c38f8970c9` ; contrôles et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/40856567306. L’image 0.3.1 est publiée avec le digest `sha256:a9c9548561fdfddc3a785fd3857ab6d753d33d60ade91f53318e10ac6285b0bf`.
 
 ## Catégories configurables et choix individuels — 0.3.0
 
