@@ -1,10 +1,10 @@
 # Cahier des améliorations proposées
 
-## Parties liées des recettes au calendrier — correction en cours, 0.3.4
+## Parties liées des recettes au calendrier — livré en 0.3.4
 
 Les parties protéines/légumes/féculents d’une recette sont présentées comme des composants liés, sans les proposer comme accompagnements indépendants. La transition de trois parties à protéines/légumes ensemble et féculents séparés archive la partie retirée pour préserver les menus et stocks existants ; les nouveaux repas utilisent les parties actives. Le calcul de la quantité de viande reste inchangé, conformément à la demande de le laisser en attente.
 
-Retirer un composant d’un repas retire la recette composée entière, pas seulement une partie qui deviendrait orpheline. Validation locale : **328 tests complets réussis**. Version 0.3.4 en préparation, sans publication vérifiée.
+Retirer un composant d’un repas retire la recette composée entière, pas seulement une partie qui deviendrait orpheline. Validation locale : **328 tests complets réussis**. PR #144 fusionnée au commit `79c790dd6f564157410d2020007d5bdcc44c4560` ; contrôles GitHub et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41208298921.
 
 ## Administration et lots minimums propres aux recettes — livré en 0.3.3
 

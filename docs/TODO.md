@@ -1,6 +1,6 @@
 # Prochaines tâches — 31 octobre 2026
 
-0.3.4 en préparation : les composants d’une recette décomposée sont indiqués comme liés dans le calendrier. Le passage de trois parties à protéines/légumes ensemble et féculents séparés conserve les anciennes parties pour les repas et stocks historiques. Retirer un composant retire la recette composée entière du repas. 328 tests locaux réussis ; en attente de PR, contrôles et publication GHCR.
+0.3.4 livrée : les composants d’une recette décomposée sont liés dans le calendrier. La transition vers protéines/légumes ensemble et féculents séparés conserve les anciennes parties pour les repas et stocks historiques. Retirer un composant retire la recette composée entière du repas. 328 tests locaux, contrôles GitHub et publication GHCR réussis. PR #144 fusionnée : https://github.com/throlan/Lapinou-Dish/actions/runs/41208298921.
 
 À la demande de l’utilisateur, ne pas encore modifier le calcul des quantités de viande/poisson pour atteindre une moyenne de 125 g par portion ; la règle souhaitée reste à préciser.
 
