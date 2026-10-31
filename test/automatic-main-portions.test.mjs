@@ -8,6 +8,9 @@ import {roundServingCalories} from '../web/serving-compensation.js';
 const source = await readFile(new URL('../web/app.js', import.meta.url), 'utf8');
 const start = source.indexOf('function applyAutomaticPortions(');
 const end = source.indexOf('function mealProteinSummary(', start);
+const individualStart=source.indexOf('function isIndividualRole(');
+const individualEnd=source.indexOf('function individualDefaultQuantity(',individualStart);
+function addIndividualMealItemRule(context){runInNewContext(source.slice(individualStart,individualEnd),context);}
 
 test('automatic meat and vegetable servings stay within one batch portion for all four profiles', () => {
   const parent = { id: 'parent', yield: { amount: 4, unitId: 'portion' } };
@@ -21,6 +24,7 @@ test('automatic meat and vegetable servings stay within one batch portion for al
     allPlanningRecipes: () => [parent, main, rice], isIndividualRole: () => false,
     latestProfile: person => ({ dailyEnergyKcal: person.energy }), plannedCaloriesForPerson: () => 0,
     document: { createElement: () => ({ append() {} }) } };
+  addIndividualMealItemRule(context);
   runInNewContext(source.slice(start, end) + '\nglobalThis.calculate = applyAutomaticPortions;', context);
   context.calculate(items, people.map(person => person.id));
   for (const person of people) {
@@ -28,6 +32,26 @@ test('automatic meat and vegetable servings stay within one batch portion for al
     assert.ok(Number(items[0].amounts[person.id]) <= 410);
     assert.ok(Number(items[1].amounts[person.id]) > 0);
   }
+});
+
+test('linked rice uses the configured plate proportion instead of a one-gram accompaniment default',()=>{
+  const parent={id:'parent',yield:{amount:4,unitId:'portion'},servingParts:[{servingPart:'main'},{servingPart:'starch'}]};
+  const main={id:'main',parentRecipeId:'parent',servingPart:'main',yield:{amount:1900,unitId:'g'},nutrition:{perYieldUnit:{energyKcal:0.58,proteinG:0.08}}};
+  const rice={id:'rice',parentRecipeId:'parent',servingPart:'starch',yield:{amount:360,unitId:'g'},nutrition:{perYieldUnit:{energyKcal:1.3,proteinG:0.03}}};
+  const people=[{id:'bibinette',displayName:'Bibinette'}];
+  const items={0:{recipeId:'main',role:'main',amounts:{}},1:{recipeId:'rice',role:'accompaniment',categoryId:'accompaniment',amounts:{}}};
+  const root={replaceChildren(){}};
+  const context={...planner,roundServingCalories,state:{recipes:[parent],people,calendarMeals:[],plateRatios:{whole:{main:1},separate:{main:0.66,starch:0.34},three:{main:0.25,starch:0.25,vegetables:0.5}}},
+    $:selector=>selector==='#meal-form'?{elements:{mealDate:{value:'2026-10-31'},slot:{value:'dinner'}}}:root,
+    allPlanningRecipes:()=>[parent,main,rice],latestProfile:()=>({dailyEnergyKcal:1300}),plannedCaloriesForPerson:()=>0,
+    document:{createElement:()=>({append(){}})}};
+  addIndividualMealItemRule(context);
+  runInNewContext(source.slice(start,end)+'\nglobalThis.calculate=applyAutomaticPortions;',context);
+  context.calculate(items,['bibinette']);
+  const mainGrams=Number(items[0].amounts.bibinette),riceGrams=Number(items[1].amounts.bibinette);
+  assert.ok(riceGrams>1,`rice should be a real plate part, received ${riceGrams} g`);
+  assert.ok(Math.abs(mainGrams/(mainGrams+riceGrams)-0.66)<0.001);
+  assert.ok(mainGrams*0.58+riceGrams*1.3<=1300*planner.SLOT_RATIOS.dinner+100.001);
 });
 
 test('protein adjustment cannot bypass the main serving ceiling; piece recipes keep their own portions', () => {
@@ -48,7 +72,7 @@ test('automatic salad servings are capped to one portion per person', () => {
   const root = { replaceChildren(){} };
   const context = { ...planner,roundServingCalories,state:{recipes:[salad],people,calendarMeals:[]},
     $:selector=>selector==='#meal-form'?{elements:{mealDate:{value:'2026-10-19'},slot:{value:'lunch'}}}:root,
-    allPlanningRecipes:()=>[salad],isIndividualRole:()=>false,latestProfile:()=>({dailyEnergyKcal:3000}),
+    allPlanningRecipes:()=>[salad],isIndividualRole:()=>false,isIndividualMealItem:()=>false,latestProfile:()=>({dailyEnergyKcal:3000}),
     plannedCaloriesForPerson:()=>0,document:{createElement:()=>({append(){}})} };
   runInNewContext(source.slice(start,end)+'\nglobalThis.calculate=applyAutomaticPortions;',context);
   context.calculate(items,people.map(person=>person.id));
@@ -70,6 +94,7 @@ test('sauce calories fit within the meal budget without increasing a fixed sauce
     allPlanningRecipes:()=>[salad,sauce],isIndividualRole:role=>role!=='main',latestProfile:()=>({dailyEnergyKcal:1500}),
     plannedCaloriesForPerson:()=>0,document:{createElement:()=>({append(){}})}};
   const helper=source.slice(source.indexOf('function sauceDefaultQuantity('),source.indexOf('function plannedItemRoleOptions('));
+  addIndividualMealItemRule(context);
   runInNewContext(helper+source.slice(start,end)+'\nglobalThis.calculate=applyAutomaticPortions;',context);
   context.calculate(items,people.map(p=>p.id));
   assert.equal(items[1].assignments.a.quantity,'40');

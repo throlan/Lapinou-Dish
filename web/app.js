@@ -2768,6 +2768,9 @@ function renderCalendarSummary(meals, people, weekStart) {
 }
 
 function isIndividualRole(role) { return role !== 'main'; }
+function isIndividualMealItem(item) {
+  return isIndividualRole(item.role) && !allPlanningRecipes().some(recipe=>recipe.id===item.recipeId&&recipe.parentRecipeId);
+}
 function individualDefaultQuantity(recipe, role) {
   if(recipe?.recipeType?.startsWith('custom-'))return 1;
   if(role==='sauce')return sauceDefaultQuantity(recipe);
@@ -2779,7 +2782,7 @@ function currentFormAmounts() {
     const categoryId = $('select[name="role"]', row)?.value ?? 'main';
     const category=typeof mealAdditionById==='function'?mealAdditionById(categoryId):null;
     const role = categoryId==='main'?'main':category?mealAdditionRole(categoryId):(row.dataset?.role??categoryId);
-    if (isIndividualRole(role)) {
+    if (isIndividualRole(role) && !row.dataset.linkedRecipeId) {
       const assignments = {};
       $$('.beverage-person', row).forEach((personRow) => {
         const personId = personRow.dataset.personId;
@@ -2840,10 +2843,10 @@ function applyAutomaticPortions(items, attendeeIds) {
   const date = $('#meal-form').elements.mealDate.value;
   const slot = $('#meal-form').elements.slot.value;
   const roleWeights = { main: 0.7, accompaniment: 0.2 };
-  const selectedItems = Object.values(items).filter((item) => item.recipeId || (isIndividualRole(item.role) && Object.keys(item.assignments ?? {}).length));
+  const selectedItems = Object.values(items).filter((item) => item.recipeId || (isIndividualMealItem(item) && Object.keys(item.assignments ?? {}).length));
   const messages = new Set();
   for (const personId of attendeeIds) {
-    const selectedForPerson = selectedItems.filter((item) => !isIndividualRole(item.role ?? 'main') || item.assignments?.[personId]?.recipeId);
+    const selectedForPerson = selectedItems.filter((item) => !isIndividualMealItem(item) || item.assignments?.[personId]?.recipeId);
     const roleCounts = Object.fromEntries(Object.keys(roleWeights).map((role) => [role, selectedForPerson.filter((item) => (item.role ?? 'main') === role).length]));
     const activeWeight = Object.entries(roleCounts).reduce((sum, [role, count]) => sum + (count ? roleWeights[role] : 0), 0);
     const person = state.people.find((entry) => entry.id === personId);
@@ -2854,15 +2857,16 @@ function applyAutomaticPortions(items, attendeeIds) {
     const proposals = [];
     for (const item of selectedForPerson) {
       const role = item.role ?? 'main';
-      const assignment = isIndividualRole(role) ? item.assignments?.[personId] : null;
-      if(isIndividualRole(role)&&assignment&&Number(assignment.quantity)===0)continue;
-      const recipeId = isIndividualRole(role) ? assignment?.recipeId : item.recipeId;
+      const individual=isIndividualMealItem(item);
+      const assignment = individual ? item.assignments?.[personId] : null;
+      if(individual&&assignment&&Number(assignment.quantity)===0)continue;
+      const recipeId = individual ? assignment?.recipeId : item.recipeId;
       if (!recipeId) continue;
       const recipe = allPlanningRecipes().find((entry) => entry.id === recipeId);
       const kcal = recipe?.nutrition?.perYieldUnit?.energyKcal;
       const recipeUnit = recipe?.yield.unitId ?? 'portion';
       const step = recipeUnit === 'piece' ? 1 : recipeUnit === 'g' ? 10 : 0.5;
-      if (isIndividualRole(role)) {
+      if (individual) {
         const quantity = Number(assignment?.quantity);
         proposals.push({ item, assignment, personId, role, quantity: Number.isFinite(quantity) && quantity >= 0 ? quantity : 0, step, recipeKcal: Number(kcal), proteinG: recipe?.nutrition?.perYieldUnit?.proteinG == null ? null : Number(recipe.nutrition.perYieldUnit.proteinG), maxQuantity: Infinity });
         if (kcal == null) messages.add(`${recipe?.name ?? (role === 'sauce' ? 'Une sauce' : 'Une boisson')} : calories inconnues, le respect du budget ne peut pas être vérifié.`);
@@ -2923,7 +2927,7 @@ function applyAutomaticPortions(items, attendeeIds) {
       result.warnings.forEach(message=>messages.add(message));
       if(result.proportionsApplied)messages.add(proposals.some(row=>row.countStep>0)?'Calcul initial selon les proportions d’Administration. Arrondi des unités au plus proche lorsque la compensation calorique sur la partie en grammes est possible, sans imposer à nouveau les pourcentages.':'Proportions en poids estimé appliquées depuis Administration. Le poids total respecte le budget kcal et les plafonds des parties ; le repère protéique ne modifie pas ces proportions.');
       result.proposals.forEach((proposal) => {
-        if (isIndividualRole(proposal.role)) proposal.assignment.quantity = String(proposal.quantity);
+        if (proposal.assignment) proposal.assignment.quantity = String(proposal.quantity);
         else proposal.item.amounts[personId] = proposal.quantity == null ? '' : String(proposal.quantity);
       });
       if (!result.withinBudget) messages.add(`${person?.displayName ?? 'Une personne'} : le repas dépasse encore l’enveloppe avec les portions minimales; ajuste une boisson, une sauce ou le repas.`);
@@ -2942,7 +2946,7 @@ function applyAutomaticPortions(items, attendeeIds) {
 function mealProteinSummary(items, attendeeIds) {
   const root=document.createElement('div');root.id='meal-protein-summary';root.className='meal-person-summary';root.setAttribute('role','status');
   const meal={items:Object.values(items).flatMap(item=>{
-    if(isIndividualRole(item.role)) return Object.entries(item.assignments??{}).map(([personId,assignment])=>({
+    if(isIndividualMealItem(item)) return Object.entries(item.assignments??{}).map(([personId,assignment])=>({
       recipe:allPlanningRecipes().find(recipe=>recipe.id===assignment.recipeId),amounts:[{personId,quantity:Number(assignment.quantity)}],
     }));
     return [{recipe:allPlanningRecipes().find(recipe=>recipe.id===item.recipeId),amounts:Object.entries(item.amounts??{}).map(([personId,quantity])=>({personId,quantity:Number(quantity)}))}];
@@ -3017,8 +3021,7 @@ function recipesForPlanning(slot, role, selectedIds = [], requiredRecipeType = n
 
 function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
   const root = $('#planned-items');
-  const saved = currentFormAmounts();
-  const source = Object.keys(existing).length ? existing : saved;
+  const source = existing;
   const attendees = $$('#meal-attendees input:checked').map((input) => input.value);
   if (autoSuggest) applyAutomaticPortions(source, attendees);
   const rows = Object.entries(source);
@@ -3056,7 +3059,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     const top = document.createElement('div'); top.className = 'planned-item-top'; top.append(select, role, remove);
     if(linkedRecipe){const linkedLabel=document.createElement('span');linkedLabel.className='muted linked-recipe-part';linkedLabel.textContent=row.dataset.linkedLabel;top.insertBefore(linkedLabel,remove);}
     const quantities = document.createElement('div'); quantities.className = 'planned-amounts';
-    if (isIndividualRole(currentRole)) {
+    if (isIndividualRole(currentRole) && !linkedRecipe) {
       select.hidden = true;
       quantities.classList.add('beverage-amounts');
       for (const personId of attendees) {
@@ -3099,6 +3102,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
       }
       top.classList.add('beverage-item-top');
     } else {
+      if(linkedRecipe && linkedRecipe.servingPart!=='main')select.hidden=true;
       for (const personId of attendees) {
         const person = state.people.find((entry) => entry.id === personId);
         const label = document.createElement('label'); label.textContent = `${person?.displayName ?? 'Personne'} · ${servingUnitLabel(servingUnit(allPlanningRecipes().find((recipe) => recipe.id === item.recipeId)))}`;
@@ -3181,7 +3185,7 @@ async function openMealEditor(date, slot, meal = null) {
   let nextItemIndex = 0;
   const individualRows = {};
   for (const item of meal?.items ?? []) {
-    if (isIndividualRole(item.role)) {
+    if (isIndividualRole(item.role) && !allPlanningRecipes().some(recipe=>recipe.id===item.recipeId&&recipe.parentRecipeId)) {
       const categoryId=item.categoryId??item.role;
       const groups=individualRows[categoryId]??=[];
       let individualRow=groups.find(group=>item.amounts.every(amount=>!group.assignments[amount.personId]));
@@ -3300,10 +3304,10 @@ async function saveMeal(event) {
   const items = isOccasion ? [] : rows.flatMap((row) => {
     const categoryId=$('select[name="role"]',row).value;
     const role=categoryId==='main'?'main':mealAdditionById(categoryId)?mealAdditionRole(categoryId):(row.dataset.role??'accompaniment');
-    if (role==='main') {
+    if (role==='main' || row.dataset.linkedRecipeId) {
       const amounts=$$('input[data-person-id]', row).map(input=>({personId:input.dataset.personId,quantity:Number(servingInputValue(input))}));
       const recipeId=$('select[name="recipeId"]',row).value;
-      return recipeId?[{recipeId,role,categoryId:'main',amounts}]:[];
+      return recipeId?[{recipeId,role,categoryId,amounts}]:[];
     }
     const byRecipe = new Map();
     $$('.beverage-person', row).forEach((personRow) => {

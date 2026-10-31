@@ -17,7 +17,7 @@ test('editor shows current kcal versus the profile meal objective, including ind
   const start=source.indexOf('function mealProteinSummary('),end=source.indexOf('function updateMealProteinSummary(',start);
   const recipes=[{id:'dish',nutrition:{perYieldUnit:{energyKcal:1.5,proteinG:0.1}}},{id:'dessert',nutrition:{perYieldUnit:{energyKcal:120,proteinG:3}}}];
   const element=()=>({children:[],append(...children){this.children.push(...children);},setAttribute(){}});
-  const context={...planner,document:{createElement:element},state:{people:[{id:'p',displayName:'Bibinette'}]},allPlanningRecipes:()=>recipes,isIndividualRole:role=>role==='dessert',
+  const context={...planner,document:{createElement:element},state:{people:[{id:'p',displayName:'Bibinette'}]},allPlanningRecipes:()=>recipes,isIndividualRole:role=>role==='dessert',isIndividualMealItem:item=>item.role==='dessert',
     $:()=>({elements:{mealDate:{value:'2026-10-19'},slot:{value:'lunch'}}}),latestProfile:()=>({dailyEnergyKcal:2000}),format:n=>String(n)};
   runInNewContext(source.slice(start,end)+'\nglobalThis.summary=mealProteinSummary;',context);
   const items={0:{recipeId:'dish',amounts:{p:'200'}},1:{role:'dessert',assignments:{p:{recipeId:'dessert',quantity:'1'}}}};

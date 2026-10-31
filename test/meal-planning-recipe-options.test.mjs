@@ -103,3 +103,17 @@ test('removing one linked component removes that whole recipe from the planned m
   context.removeLinkedGroup(items,'split-parent');
   assert.deepEqual(Object.keys(items),['extra']);
 });
+
+test('linked starch keeps its gram amounts when the meal form is read for recalculation',()=>{
+  const formStart=source.indexOf('function currentFormAmounts('),formEnd=source.indexOf('\nfunction renderOccasionEnergy(',formStart);
+  const inputs=[{value:'160',dataset:{personId:'bibinette'}},{value:'220',dataset:{personId:'lapinou'}}];
+  const row={dataset:{linkedRecipeId:'split-rice',role:'accompaniment'}};
+  const formContext={isIndividualRole:role=>role!=='main',mealAdditionById:()=>null,servingInputValue:input=>input.value,
+    $:(selector)=>selector==='select[name="role"]'?{value:'accompaniment'}:{value:'split-rice'},
+    $$:(selector)=>selector==='.planned-item-editor'?[row]:selector==='input[data-person-id]'?inputs:[]};
+  runInNewContext(source.slice(formStart,formEnd)+'\nglobalThis.readForm=currentFormAmounts;',formContext);
+  const item=formContext.readForm()[0];
+  assert.equal(item.recipeId,'split-rice');
+  assert.equal(item.role,'accompaniment');
+  assert.deepEqual({...item.amounts},{bibinette:'160',lapinou:'220'});
+});
