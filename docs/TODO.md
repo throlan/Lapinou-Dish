@@ -1,4 +1,8 @@
-# Prochaines tâches — 29 octobre 2026
+# Prochaines tâches — 31 octobre 2026
+
+0.3.4 en préparation : les composants d’une recette décomposée sont indiqués comme liés dans le calendrier. Le passage de trois parties à protéines/légumes ensemble et féculents séparés conserve les anciennes parties pour les repas et stocks historiques. Retirer un composant retire la recette composée entière du repas. 328 tests locaux réussis ; en attente de PR, contrôles et publication GHCR.
+
+À la demande de l’utilisateur, ne pas encore modifier le calcul des quantités de viande/poisson pour atteindre une moyenne de 125 g par portion ; la règle souhaitée reste à préciser.
 
 0.3.3 livrée : administration en sept onglets, chargement des types de production à l’ouverture, minimum de lot propre à chaque recette avec conversion par rendement/équivalences. PR #142 fusionnée (`f997a39`), 324 tests et publication GHCR réussis.
 

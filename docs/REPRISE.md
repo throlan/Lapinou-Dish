@@ -1,3 +1,11 @@
+# Travail en cours — parties liées des recettes au calendrier, 0.3.4
+
+Les parties générées d’une recette composée (protéines, légumes, féculents) sont identifiées dans l’éditeur comme des composants liés à la recette. Elles ne sont plus proposées comme des recettes indépendantes. Leurs quantités par personne restent modifiables.
+
+Le mode trois parties peut devenir deux parties en réaffectant les ingrédients : légumes et protéines ensemble, féculents à part. Une partie retirée est archivée au lieu d’être supprimée ; les menus déjà planifiés et références de stock gardent leur recette et leurs ingrédients historiques. Les nouveaux menus n’expansent que les parties actives. Si la partie est réactivée plus tard, une nouvelle identité est créée pour ne pas réécrire l’ancienne partie historique.
+
+L’utilisateur a demandé de laisser en attente la règle qui devrait augmenter la viande/poisson selon un objectif moyen de 125 g par portion : aucun changement du calcul de quantité de viande n’est demandé pour le moment. Retirer un composant lié retire la recette composée entière du repas. Migration `20261031_archived_serving_parts.sql`. **328 tests complets locaux réussis.** Version 0.3.4 en préparation ; non publiée tant que PR, contrôles et publication GHCR ne sont pas vérifiés. Aucun accès à Unraid/Nginx.
+
 # Cahier de reprise — 29 octobre 2026, lots minimums de production
 
 ## Fonction livrée — administration et lots minimums par recette, 0.3.3

@@ -108,7 +108,7 @@ export async function savePlannedMeal(pool, id, data) {
     for (const item of data.items) {
       const recipe = await client.query('SELECT id,yield_amount,separate_starch FROM recipes WHERE id=$1',[item.recipeId]);
       if (recipe.rows[0]?.separate_starch) {
-        const parts = await client.query('SELECT id,serving_part,yield_amount FROM recipes WHERE parent_recipe_id=$1',[item.recipeId]);
+        const parts = await client.query('SELECT id,serving_part,yield_amount FROM recipes WHERE parent_recipe_id=$1 AND serving_part_active',[item.recipeId]);
         if (!parts.rows.length) { await client.query('ROLLBACK'); return {error:'serving-parts-missing'}; }
         for (const part of parts.rows) normalizedItems.push({recipeId:part.id,role:part.serving_part !== 'main' ? 'accompaniment' : item.role,categoryId:part.serving_part !== 'main' ? 'accompaniment' : item.categoryId,amounts:item.amounts.map(amount=>({personId:amount.personId,quantity:amount.quantity/Number(recipe.rows[0].yield_amount)*Number(part.yield_amount)}))});
       } else normalizedItems.push(item);

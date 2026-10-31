@@ -188,5 +188,24 @@ test('gram preparations preserve nutrition, shopping, stock and complete meal du
       assert.deepEqual(Object.fromEntries(meal.items.map(i=>[i.recipe.servingPart,i.amounts[0].quantity])),{main:187.5,starch:187.5,vegetables:200});
       assert.ok(meal.items.filter(i=>i.recipe.servingPart!=='main').every(i=>i.role==='accompaniment'));
     });
+    await t.test('three serving parts can become two while old menus keep their retired part',async()=>{
+      const three=await createRecipe(pool,checked(input({name:'Poulet et légumes avec riz',servingMode:'three',lines:input().lines.map(line=>({...line,servingPart:line.foodId===veg?'vegetables':line.servingPart}))})));
+      const oldVegetables=three.servingParts.find(part=>part.servingPart==='vegetables');
+      const oldMeal=await savePlannedMeal(pool,null,{householdId:h,mealDate:'2026-10-26',slot:'dinner',notes:'Historique',attendeeIds:[person],items:[{recipeId:three.id,role:'main',amounts:[{personId:person,quantity:1}]}]});
+      const two=await updateRecipe(pool,three.id,checked(input({name:'Poulet et légumes avec riz',servingMode:'separate',lines:input().lines.map(line=>({...line,servingPart:line.foodId===rice?'starch':'main'}))})));
+      assert.equal(two.error,undefined);
+      assert.deepEqual(two.servingParts.map(part=>part.servingPart).sort(),['main','starch']);
+      assert.equal(two.archivedServingParts.length,1);
+      assert.equal(two.archivedServingParts[0].id,oldVegetables.id);
+      const savedOld=(await listPlannedMeals(pool,h,'2026-10-26')).find(meal=>meal.id===oldMeal.id);
+      assert.ok(savedOld.items.some(item=>item.recipe.id===oldVegetables.id));
+      const newMeal=await savePlannedMeal(pool,null,{householdId:h,mealDate:'2026-10-27',slot:'dinner',notes:'Nouvelle composition',attendeeIds:[person],items:[{recipeId:three.id,role:'main',amounts:[{personId:person,quantity:1}]}]});
+      assert.equal(newMeal.items.length,2);
+      assert.ok(newMeal.items.every(item=>item.recipe.id!==oldVegetables.id));
+      const threeAgain=await updateRecipe(pool,three.id,checked(input({name:'Poulet et légumes avec riz',servingMode:'three',lines:input().lines.map(line=>({...line,servingPart:line.foodId===veg?'vegetables':line.servingPart}))})));
+      assert.equal(threeAgain.servingParts.length,3);
+      assert.equal(threeAgain.archivedServingParts[0].id,oldVegetables.id);
+      assert.notEqual(threeAgain.servingParts.find(part=>part.servingPart==='vegetables').id,oldVegetables.id);
+    });
   }finally{await db.close();}
 });

@@ -13,6 +13,12 @@ test('planning choices show calories per serving rather than for the whole batch
   assert.equal(recipePlanningLabel({...recipe,name:'Plat complet',yield:{amount:4,unitId:'portion'},servingParts:[{id:'rice'}]}),'Plat complet · 180 kcal/portion · portions en grammes estimés');
 });
 
+test('linked recipe parts are labeled as components of their parent, including retired history',()=>{
+  const part={name:'Poulet tikka — Légumes',parentRecipeId:'parent',parentRecipeName:'Poulet tikka',servingPart:'vegetables',yield:{amount:1200,unitId:'g'},nutrition:{complete:true,perYieldUnit:{energyKcal:0.3}}};
+  assert.match(recipePlanningLabel(part),/^Poulet tikka · Légumes · 30 kcal\/100 g · 1200 g$/);
+  assert.match(recipePlanningLabel({...part,servingPartActive:false}),/ancienne composition/);
+});
+
 test('planning choices express weight and volume recipes per 100 units',()=>{
   const recipe={name:'Skyr',yield:{amount:1000,unitId:'g'},nutrition:{complete:true,perYieldUnit:{energyKcal:0.63}}};
   assert.equal(recipePlanningLabel(recipe),'Skyr · 63 kcal/100 g · 1000 g');

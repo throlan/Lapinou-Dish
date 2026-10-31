@@ -32,6 +32,10 @@ const quantityEnd=source.indexOf('\nfunction currentFormAmounts(',quantityStart)
 assert.ok(quantityStart>=0&&quantityEnd>quantityStart,'individual serving defaults are present');
 context.sauceDefaultQuantity=recipe=>['g','ml'].includes(recipe?.yield?.unitId)?30:1;
 runInNewContext(source.slice(quantityStart,quantityEnd)+'\nglobalThis.defaultQuantity=individualDefaultQuantity;globalThis.sauceDefault=sauceDefaultQuantity;',context);
+const linkedStart=source.indexOf('function linkedParentRecipeId(');
+const linkedEnd=source.indexOf('\nfunction sauceDefaultQuantity(',linkedStart);
+assert.ok(linkedStart>=0&&linkedEnd>linkedStart,'linked recipe group helpers are present');
+runInNewContext(source.slice(linkedStart,linkedEnd)+'\nglobalThis.removeLinkedGroup=removeLinkedRecipeGroup;',context);
 
 test('the configured pastry category makes breakfast desserts selectable as individual choices',()=>{
   assert.deepEqual(Array.from(context.selectRecipes('breakfast','dessert',[],'dessert'),recipe=>recipe.id),['breakfast-dessert']);
@@ -70,4 +74,32 @@ test('custom category roles do not impose built-in sauce or dessert batch quanti
   assert.equal(context.defaultQuantity({recipeType:'custom-assaisonnement',yield:{amount:160,unitId:'g'}},'sauce'),1);
   assert.equal(context.defaultQuantity({recipeType:'sauce',yield:{amount:160,unitId:'g'}},'sauce'),30);
   assert.equal(context.defaultQuantity({recipeType:'custom-patisserie',yield:{amount:12,unitId:'piece'}},'dessert'),1);
+});
+
+test('split recipe parts stay linked and are not offered as independent recipes',()=>{
+  const parent={id:'split-parent',name:'Poulet et légumes avec riz',servingParts:[
+    {id:'split-main',parentRecipeId:'split-parent',parentRecipeName:'Poulet et légumes avec riz',servingPart:'main',recipeType:'dish',yield:{amount:1000,unitId:'g'},name:'Poulet et légumes avec riz — Protéines / plat'},
+    {id:'split-rice',parentRecipeId:'split-parent',parentRecipeName:'Poulet et légumes avec riz',servingPart:'starch',recipeType:'accompaniment',yield:{amount:750,unitId:'g'},name:'Poulet et légumes avec riz — Féculents'},
+  ]};
+  context.state.mealAdditions=categories;
+  context.allPlanningRecipes=()=>[parent,...parent.servingParts];
+  const unselected=Array.from(context.selectRecipes('dinner','accompaniment'),recipe=>recipe.id);
+  assert.ok(!unselected.includes('split-rice'));
+  assert.ok(Array.from(context.selectRecipes('dinner','accompaniment',['split-rice']),recipe=>recipe.id).includes('split-rice'));
+});
+
+test('removing one linked component removes that whole recipe from the planned meal',()=>{
+  context.allPlanningRecipes=()=>[
+    {id:'split-main',parentRecipeId:'split-parent'},
+    {id:'split-rice',parentRecipeId:'split-parent'},
+    {id:'extra-salad'},
+    {id:'salad'},
+  ];
+  const items={
+    main:{recipeId:'split-main',role:'main',amounts:{a:'200'}},
+    starch:{recipeId:'',role:'accompaniment',assignments:{a:{recipeId:'split-rice',quantity:'100'}}},
+    extra:{recipeId:'extra-salad',role:'accompaniment',assignments:{a:{recipeId:'salad',quantity:'50'}}},
+  };
+  context.removeLinkedGroup(items,'split-parent');
+  assert.deepEqual(Object.keys(items),['extra']);
 });
