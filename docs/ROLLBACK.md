@@ -1,6 +1,6 @@
 # Images versionnées et retour arrière
 
-L’application reste en **0.2.99** : cette modification concerne la publication, pas les fonctions ni les données.
+Le mécanisme de publication versionnée a été introduit avec la 0.2.99 ; le code applicatif courant passe en **0.3.6**. Cette version ajoute le regroupement du batch cooking sans nouvelle migration. Les versions 0.3.0 à 0.3.4 ont ajouté des migrations : la compatibilité d’un retour vers 0.2.97 ne doit pas être déduite du seul fait que son image existe.
 
 ## Choisir une version
 

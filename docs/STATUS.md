@@ -1,5 +1,13 @@
 # État du projet — 31 octobre 2026
 
+## Batch cooking sur plusieurs semaines — 0.3.6
+
+Dans « Courses & stocks > Préparations à faire », choisir la semaine de départ puis 1, 2 ou 3 semaines, ou toute la période des courses. Une seule liste regroupe chaque recette et ses quantités sur la plage affichée. Au premier affichage, la première semaine contenant un menu de batch est sélectionnée : une semaine partielle vide du 31 octobre au 1er novembre ne décale donc pas les semaines du 2 au 15 novembre 2026. L’option 1 semaine conserve les limites lundi–dimanche, bornées par les dates des courses. Toute la période ignore la semaine de départ ; les durées fixes sont limitées à la fin des courses.
+
+Le navigateur demande un calcul unique de la plage au moteur existant, dans l’ordre des repas, avec un stock partagé et les minima propres aux recettes. Il n’additionne pas les projections hebdomadaires. Les repas antérieurs réservent toujours le stock en premier ; le surplus d’un lot minimum couvre les repas suivants. Après enregistrement d’une production, les besoins et le stock sont rechargés en conservant la sélection. Les libellés distinguent la couverture par stock et par lots prévus lorsqu’un minimum est configuré.
+
+Les autres productions et la liste de courses gardent leur période actuelle ; cette portée est expliquée dans l’interface. Aucun menu, calcul de portions, règle viande/poisson ou migration n’est modifié. **336 tests complets locaux réussis**, dont une semaine partielle vide, deux semaines répétées, stock initial réservé une seule fois, lot minimum, conservation des menus et coordination des requêtes du navigateur. Parcours Chrome local fictif validé à 1440/900/390/320 px, sélection 1/2/3/période complète, production, stock actualisé, sans erreur JS/HTTP ni débordement horizontal. Contrôles GitHub et publication à vérifier après fusion.
+
 ## Féculents liés au plat et lisibilité de l’éditeur — 0.3.5 livrée
 
 Le correctif fait participer les féculents d’une recette composée au calcul des portions avec la proportion configurée dans Administration. Il maintient leur quantité par personne lors de la lecture du formulaire et de l’enregistrement du repas. Un accompagnement réellement ajouté séparément reste individuel. Les cartes d’ingrédients du thème clair utilisent à nouveau un fond et une couleur de texte cohérents. Les repas déjà enregistrés gardent leurs quantités jusqu’à un recalcul explicite. Le calcul de viande/poisson reste inchangé. PR #146 fusionnée ; contrôles et publication GHCR : https://github.com/throlan/Lapinou-Dish/actions/runs/41210728818.

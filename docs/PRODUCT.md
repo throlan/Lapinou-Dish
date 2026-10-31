@@ -69,6 +69,7 @@ Les règles d’achat sont propres au foyer. Une fiche aliment peut définir l�
 
 ## Production en lots et stocks
 
+- Depuis la 0.3.6, le batch cooking peut être regroupé depuis une semaine choisie sur 1, 2 ou 3 semaines, ou sur toute la période des courses. La liste contient chaque recette une fois avec ses quantités cumulées ; un calcul unique de la plage partage le stock et les surplus de lots entre les repas. Une semaine partielle vide ne décale pas la sélection initiale. Les autres productions et les courses conservent leurs dates ; enregistrer une production actualise les besoins et le stock.
 - Modes dédiés: usine à petits déjeuners, usine à pâtes fraîches, batch de repas.
 - L'utilisateur choisit les recettes/variantes et le rendement visé (ex. 24 muffins ou 1,5 kg de pâte); l'application agrège les besoins d'ingrédients et tient compte du stock confirmé.
 - Dans Administration, les types de production servent au classement et au suivi ; le minimum de lot et son unité se définissent sur chaque recette. Avec des équivalences explicites, le minimum peut être une unité métier différente du rendement : 1 pain entier peut correspondre à 350 g et à 10 tranches. Bagels (24 pièces) et pancakes (36 pièces) gardent leurs lots distincts même s’ils sont du même type. Si le besoin restant est inférieur au minimum, la préparation et les courses couvrent le lot complet ; le surplus est réservé aux menus suivants puis suivi en stock. Sans minimum configuré, la production reste calculée au besoin exact.
