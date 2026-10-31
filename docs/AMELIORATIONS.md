@@ -1,5 +1,13 @@
 # Cahier des améliorations proposées
 
+## Batch cooking sur plusieurs semaines — à développer
+
+Dans « Courses & stocks > Préparations à faire », choisir la semaine de départ et regrouper les menus non préparés sur 1, 2 ou 3 semaines, ou jusqu’à la fin de la période des courses (environ un mois). Le choix doit permettre de réunir les semaines du 2 au 8 et du 9 au 15 novembre 2026, même si la première semaine partielle du 31 octobre au 1er novembre est vide. Afficher une seule liste de recettes à produire, avec les quantités cumulées et la plage de dates explicite, plutôt que deux listes indépendantes.
+
+Calculer les besoins du groupe en une seule fois, dans l’ordre des repas, en déduisant le stock déjà produit et en appliquant les lots minimums propres aux recettes. Une recette répétée sur les deux semaines ne doit apparaître qu’une fois, sans compter deux fois son stock ou ses ingrédients. Après l’enregistrement d’une production, actualiser les quantités et le stock. Les autres types de production et la liste de courses conservent leur période actuelle tant qu’aucun changement distinct n’est demandé ; expliquer dans l’interface la portée du choix de batch cooking. Préserver le découpage hebdomadaire comme option « 1 semaine » et tous les menus existants.
+
+Prévoir un test où une semaine partielle vide précède deux semaines identiques, puis un test d’agrégation avec stock initial et minimum de lot. Le développement n’a pas été commencé ; aucun changement applicatif ni nouveau numéro de version ne fait partie de cette note.
+
 ## Féculents d’une recette composée — livré en 0.3.5
 
 La ligne liée « Féculents » était assimilée à un accompagnement individuel et recevait 1 g. Elle doit être calculée avec le reste de la recette selon les proportions configurées, conservée au recalcul et enregistrée en grammes pour chaque personne. Un véritable accompagnement ajouté à part garde son choix individuel. Restaurer aussi le contraste des cartes d’ingrédients dans le thème clair. Les repas déjà enregistrés demandent un recalcul explicite, sans modification automatique des quantités historiques.

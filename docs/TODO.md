@@ -1,5 +1,7 @@
 # Prochaines tâches — 31 octobre 2026
 
+Priorité demandée : permettre de préparer le batch cooking sur une période choisie (semaine de départ, 1/2/3 semaines ou période complète des courses). Réunir les recettes répétées, cumuler les quantités, tenir compte du stock et des minima de lot sans doublon. Exemple : réunir les semaines du 2 au 8 et du 9 au 15 novembre, sans inclure la semaine partielle vide précédente. Cadrage et critères dans [AMELIORATIONS.md](AMELIORATIONS.md). Aucun développement applicatif commencé pour cette demande.
+
 0.3.5 livrée : le féculent lié ne démarre plus à 1 g ; il participe aux proportions de l’assiette et ses grammes sont conservés jusqu’à l’enregistrement. Le contraste des ingrédients du thème clair est restauré. PR #146 fusionnée ; contrôles et publication GHCR : https://github.com/throlan/Lapinou-Dish/actions/runs/41210728818. Pour un repas déjà enregistré avec 1 g, utiliser « Recalculer les portions » après la mise à jour.
 
 0.3.4 livrée : les composants d’une recette décomposée sont liés dans le calendrier. La transition vers protéines/légumes ensemble et féculents séparés conserve les anciennes parties pour les repas et stocks historiques. Retirer un composant retire la recette composée entière du repas. 328 tests locaux, contrôles GitHub et publication GHCR réussis. PR #144 fusionnée : https://github.com/throlan/Lapinou-Dish/actions/runs/41208298921.
