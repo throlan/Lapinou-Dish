@@ -6,7 +6,7 @@ import {shoppingPreferenceControls,shoppingPreferencesPanel,shoppingPreferenceEr
 import { MEAL_ORDER, MEAL_LABELS, validMealRatios } from './meal-config.js';
 import { suggestPlatePortions } from './portion-planner.js';
 import { PLATE_PARTS, validPlateRatios } from './meal-config.js';
-import { preparationWeeks } from './preparation-weeks.js';
+import { batchCookingWindow } from './preparation-weeks.js';
 import { clampFoodPageOffset } from './food-pagination.js';
 import { groupPreparations, suggestedProductionQuantity, suggestedServingQuantities, scaledIngredients, scaledSourceIngredients, productionRecipe, cookingYield } from './cooking-sheet.js';
 import { ingredientCookingFactor, fillCookingFactorOptions, recipeServiceChoices, recipeServiceMode, recipeDisplayPreferences, filterRecipeDirectory, recipeCardForSource, recipeMissingData, recipeMomentLabel, recipeTypeLabel, recipePlanningLabel } from './recipe-directory.js';
@@ -19,6 +19,9 @@ const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbo
 const selectedStoreFoods=new Map();
 let visibleStoreFoods=[],storeSearchSequence=0,storeSearchTimer;
 let preparationsRequest=0;
+let batchCookingSelection={};
+let batchCookingHouseholdId=null;
+let batchCookingRendered=false;
 
 async function api(path, options = {}) {
   const { timeoutMs, ...requestOptions } = options;
@@ -458,7 +461,7 @@ function preparationRow(group,productionDate) {
   row.append(title);if(nutritionBadge)row.append(nutritionBadge);row.append(dates,amount);
   if(first.minimumProductionQuantity>0){const minimum=document.createElement('small');minimum.className='preparation-minimum';minimum.textContent=`Lot minimum : ${formatQty(first.minimumProductionAmount)} ${productionUnitLabels[first.minimumProductionUnitId]??first.minimumProductionUnitId}`;row.append(minimum);}
   const details=document.createElement('ul');details.className='preparation-parts';
-  for(const part of parts){const line=document.createElement('li');line.textContent=`${part.parentRecipeId?part.name.split(' — ').at(-1):'Recette entière'} : ${part.toMakeQuantity<=0.00001?'couvert':`${formatQty(part.toMakeQuantity)} ${part.unitId} à produire`} · prévu ${formatQty(part.plannedQuantity)} ${part.unitId} · stock couvrant ${formatQty(part.coveredQuantity)} ${part.unitId}`;details.append(line);}
+  for(const part of parts){const line=document.createElement('li');line.textContent=`${part.parentRecipeId?part.name.split(' — ').at(-1):'Recette entière'} : ${part.toMakeQuantity<=0.00001?'couvert':`${formatQty(part.toMakeQuantity)} ${part.unitId} à produire`} · prévu ${formatQty(part.plannedQuantity)} ${part.unitId} · ${part.minimumProductionQuantity>0?'couvert par le stock et les lots prévus':'stock couvrant'} ${formatQty(part.coveredQuantity)} ${part.unitId}`;details.append(line);}
   row.append(details);
   if(recipe){
     const link=document.createElement('button');link.type='button';link.className='secondary';link.textContent='Voir la recette';link.addEventListener('click',()=>showRecipeCard(recipe.id));row.append(link);
@@ -486,29 +489,39 @@ async function refreshPreparations(start,end) {
     const path=(from,to)=>`/api/household-planning/preparations?householdId=${encodeURIComponent(state.household.id)}&startDate=${encodeURIComponent(from)}&endDate=${encodeURIComponent(to)}`;
     const {preparations}=await api(path(start,end));
     if(request!==preparationsRequest)return;
-    const weeks=preparationWeeks(start,end);
-    const batchWeeks=preparations.some(item=>item.productionType==='batch_cooking')
-      ?await Promise.all(weeks.map(async week=>({...week,items:(await api(path(week.start,week.end))).preparations.filter(item=>item.productionType==='batch_cooking')})))
-      :weeks.map(week=>({...week,items:[]}));
+    if(batchCookingHouseholdId!==state.household.id){batchCookingSelection={};batchCookingRendered=false;batchCookingHouseholdId=state.household.id;}
+    const window=batchCookingWindow(start,end,batchCookingSelection,preparations);
+    if(!window)throw new Error('Période invalide');
+    batchCookingSelection={monday:window.monday,duration:window.duration};
+    const startChoice=$('#batch-cooking-start'),durationChoice=$('#batch-cooking-duration');
+    startChoice.replaceChildren(...window.weeks.map(week=>new Option(`Du ${displayDate(week.start)} au ${displayDate(week.end)}`,week.monday)));
+    startChoice.value=window.monday;durationChoice.value=window.duration;
+    startChoice.disabled=window.duration==='all';
+    const range=$('#batch-cooking-range');
+    range.textContent=`Batch cooking : du ${displayDate(window.start)} au ${displayDate(window.end)} · ${window.weekCount} semaine${window.weekCount>1?'s':''}${window.duration!=='all'&&window.weekCount<Number(window.duration)?' (limité à la fin de la période des courses)':''}.`;
+    // Recalculate this range once using the shared stock pool. Never add up
+    // independent weekly projections (their stock and minimum lots overlap).
+    const selected=window.start===start&&window.end===end?preparations:(await api(path(window.start,window.end))).preparations;
     if(request!==preparationsRequest)return;
-    state.preparations=preparations;
-    renderProductionOptions();
-    const batchType=productionTypeLabel('batch_cooking');
+    const batchItems=selected.filter(item=>item.productionType==='batch_cooking');
     const typedGroups=state.productionTypes.filter(type=>type.id!=='batch_cooking').map(type=>({type,items:preparations.filter(item=>item.productionType===type.id)}));
-    const tasks=[...typedGroups.flatMap(group=>groupPreparations(group.items)),...batchWeeks.flatMap(week=>groupPreparations(week.items))];
+    state.preparations=[...typedGroups.flatMap(group=>group.items),...batchItems];
+    renderProductionOptions();
+    const tasks=[...typedGroups.flatMap(group=>groupPreparations(group.items)),...groupPreparations(batchItems)];
     count.textContent=`${tasks.filter(group=>group.parts.some(item=>item.toMakeQuantity>0.00001)).length} à faire · ${tasks.length} suivies`;
-    const batch=document.createElement('details');batch.className='preparation-group';batch.dataset.key='batch';batch.open=openKeys.has('batch');
-    const batchSummary=document.createElement('summary');batchSummary.textContent=`${batchType} · ${batchWeeks.length} semaine${batchWeeks.length>1?'s':''}`;
-    const batchBody=document.createElement('div');batchBody.className='preparation-group-body';
-    batchBody.replaceChildren(...batchWeeks.map((week,index)=>{
-      const label=`Semaine ${index+1} · du ${displayDate(week.start)} au ${displayDate(week.end)}`;
-      const group=preparationGroup(label,`week-${week.monday}`,week.items,openKeys,'Aucune préparation pour cette semaine.',week.monday);
-      const hint=document.createElement('p');hint.className='hint preparation-week-hint';hint.textContent=`Production prévue le lundi ${displayDate(week.monday)}, après les courses de frais.`;
-      group.querySelector('.preparation-group-body').prepend(hint);
-      group.classList.add('preparation-week');return group;
-    }));batch.append(batchSummary,batchBody);
+    const batch=preparationGroup(`${productionTypeLabel('batch_cooking')} · du ${displayDate(window.start)} au ${displayDate(window.end)}`,'batch',batchItems,openKeys,'Aucune préparation pour cette plage.',window.start);
+    // Show the selected list immediately on first entry; preserve later toggles.
+    if(!batchCookingRendered)batch.open=true;
+    batchCookingRendered=true;
     root.replaceChildren(...typedGroups.map(({type,items})=>preparationGroup(type.label,type.id,items,openKeys,`Aucune production « ${type.label} » sur cette période.`)),batch);
   }catch(error){if(request===preparationsRequest){root.replaceChildren(emptyMessage('Préparations indisponibles : '+(error.body?.error??error.message)));count.textContent='';}}
+}
+for(const selector of ['#batch-cooking-start','#batch-cooking-duration']){
+  $(selector).addEventListener('change',()=>{
+    batchCookingSelection={monday:$('#batch-cooking-start').value,duration:$('#batch-cooking-duration').value};
+    const start=$('#shopping-start').value,end=$('#shopping-end').value;
+    if(state.household&&start&&end)void refreshPreparations(start,end);
+  });
 }
 async function refreshShoppingList() {
   const start=$('#shopping-start').value, end=$('#shopping-end').value, root=$('#shopping-list');
@@ -1646,7 +1659,7 @@ function configureCookingMode(){
   }
   $('#cook-unit').textContent=target.unitId;$('#cook-base-yield').textContent=split?'Chaque partie est calculée séparément depuis les menus. Ses ingrédients suivent sa propre quantité à fabriquer.':`Recette de base : ${formatQty(recipe.yield.amount)} ${recipe.yield.unitId}${!free&&productionRecipe(recipe)!==recipe?`, soit ${formatQty(target.amount)} ${target.unitId} estimés`:''}. Les ingrédients ci-dessous suivent la quantité choisie.`;
   const plan=$('#cook-planned');
-  plan.hidden=false;plan.textContent=free?'Préparation hors menus : les proportions de la recette sont conservées, sans ajustement aux objectifs nutritionnels des profils. Les menus ne sont pas modifiés.':planned?.parts.length?`Besoins des menus, toutes les personnes et dates de cette période réunies : ${planned.parts.map(part=>`${part.parentRecipeId?part.name?.split(' — ').at(-1)+' : ':''}${formatQty(part.plannedQuantity)} ${part.unitId} prévus − ${formatQty(part.coveredQuantity)} ${part.unitId} couverts par le stock = ${formatQty(part.toMakeQuantity)} ${part.unitId} à fabriquer`).join(' ; ')}. Quantités modifiables.`:'Aucun besoin de menu sur cette période : aucune quantité de recette complète n’est proposée automatiquement.';
+  plan.hidden=false;plan.textContent=free?'Préparation hors menus : les proportions de la recette sont conservées, sans ajustement aux objectifs nutritionnels des profils. Les menus ne sont pas modifiés.':planned?.parts.length?`Besoins des menus, toutes les personnes et dates de cette période réunies : ${planned.parts.map(part=>`${part.parentRecipeId?part.name?.split(' — ').at(-1)+' : ':''}${part.minimumProductionQuantity>0?`${formatQty(part.plannedQuantity)} ${part.unitId} prévus · ${formatQty(part.coveredQuantity)} ${part.unitId} couverts par le stock et les lots prévus · ${formatQty(part.toMakeQuantity)} ${part.unitId} à fabriquer (lot minimum pris en compte)`:`${formatQty(part.plannedQuantity)} ${part.unitId} prévus − ${formatQty(part.coveredQuantity)} ${part.unitId} couverts par le stock = ${formatQty(part.toMakeQuantity)} ${part.unitId} à fabriquer`}`).join(' ; ')}. Quantités modifiables.`:'Aucun besoin de menu sur cette période : aucune quantité de recette complète n’est proposée automatiquement.';
   renderCookingIngredients();
 }
 function openCookingSheet(recipeId,quantity,productionDate,planned,initialMode='menus'){

@@ -19,3 +19,19 @@ export function preparationWeeks(startDate, endDate) {
   }
   return weeks;
 }
+
+// Calendar weeks are clipped to the shopping period. A blank partial week must
+// not shift a two-week run: default to the first week with a batch menu.
+export function batchCookingWindow(startDate, endDate, selection = {}, preparations = []) {
+  const weeks = preparationWeeks(startDate, endDate);
+  if (!weeks.length) return null;
+  const firstBatchDate = preparations.filter(item => item.productionType === 'batch_cooking')
+    .map(item => item.firstDate).sort()[0];
+  const firstPlanned = weeks.find(week => firstBatchDate >= week.start && firstBatchDate <= week.end);
+  const chosen = weeks.find(week => week.monday === selection.monday) ?? firstPlanned ?? weeks[0];
+  const duration = ['1', '2', '3', 'all'].includes(String(selection.duration)) ? String(selection.duration) : '1';
+  const index = weeks.indexOf(chosen);
+  const selected = duration === 'all' ? weeks : weeks.slice(index, index + Number(duration));
+  return {weeks, monday: chosen.monday, duration, start: selected[0].start,
+    end: selected.at(-1).end, weekCount: selected.length};
+}

@@ -653,3 +653,10 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .shopping-product-form { display: grid; gap: 10px; max-width: 650px; margin: 12px 0; }
 .shopping-product-form label { display: grid; gap: 5px; }
 .shopping-preference-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+
+.batch-cooking-controls { min-width:0; margin:0 0 16px; padding:12px; border:1px solid var(--line); border-radius:12px; }
+.batch-cooking-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:12px; }
+.batch-cooking-fields label { min-width:0; }
+.batch-cooking-fields select { width:100%; min-width:0; }
+.batch-cooking-controls .hint { margin:10px 0 0; }
+#batch-cooking-range { font-weight:600; }

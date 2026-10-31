@@ -1,6 +1,6 @@
 # Prochaines tâches — 31 octobre 2026
 
-Priorité demandée : permettre de préparer le batch cooking sur une période choisie (semaine de départ, 1/2/3 semaines ou période complète des courses). Réunir les recettes répétées, cumuler les quantités, tenir compte du stock et des minima de lot sans doublon. Exemple : réunir les semaines du 2 au 8 et du 9 au 15 novembre, sans inclure la semaine partielle vide précédente. Cadrage et critères dans [AMELIORATIONS.md](AMELIORATIONS.md). Aucun développement applicatif commencé pour cette demande.
+Batch cooking groupé réalisé en 0.3.6 : choix de semaine de départ et de durée (1/2/3 semaines ou toute la période des courses), recette unique avec quantités cumulées calculées sur une plage et un stock partagés. Les autres productions/courses conservent leurs dates. 336 tests complets locaux et parcours Chrome fictif PC/tablette/mobile réussis ; vérifier la livraison GitHub/GHCR. Ce chantier n’est plus à redévelopper. La règle viande/poisson reste en attente.
 
 0.3.5 livrée : le féculent lié ne démarre plus à 1 g ; il participe aux proportions de l’assiette et ses grammes sont conservés jusqu’à l’enregistrement. Le contraste des ingrédients du thème clair est restauré. PR #146 fusionnée ; contrôles et publication GHCR : https://github.com/throlan/Lapinou-Dish/actions/runs/41210728818. Pour un repas déjà enregistré avec 1 g, utiliser « Recalculer les portions » après la mise à jour.
 
