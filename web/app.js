@@ -2972,7 +2972,14 @@ function updateMealProteinSummary() {
   $('#meal-protein-summary')?.replaceWith(mealProteinSummary(currentFormAmounts(),$$('#meal-attendees input:checked').map(input=>input.value)));
 }
 
-function allPlanningRecipes() { return state.recipes.flatMap(recipe => [recipe,...(recipe.servingParts ?? [])]); }
+function allPlanningRecipes() { return state.recipes.flatMap(recipe => [recipe,...(recipe.servingParts ?? []),...(recipe.archivedServingParts??[])]); }
+function linkedParentRecipeId(item) {
+  const ids=[item?.recipeId,...Object.values(item?.assignments??{}).map(assignment=>assignment.recipeId)];
+  return ids.map(id=>allPlanningRecipes().find(recipe=>recipe.id===id)?.parentRecipeId).find(Boolean)??null;
+}
+function removeLinkedRecipeGroup(items,parentRecipeId) {
+  for(const [key,item] of Object.entries(items))if(linkedParentRecipeId(item)===parentRecipeId)delete items[key];
+}
 function sauceDefaultQuantity(recipe) { return ['g','ml'].includes(recipe?.yield?.unitId) ? 30 : 1; }
 function plannedItemRoleOptions(currentCategoryId,slot) {
   const options=[['main','Plat principal · partagé']];
@@ -2995,7 +3002,7 @@ function recipesForPlanning(slot, role, selectedIds = [], requiredRecipeType = n
       if (role === 'main' && ['beverage', 'accompaniment', 'sauce'].includes(planningTypeRole)) return false;
       if (role === 'main' && planningTypeRole === 'dessert' && !['breakfast', 'snack', 'evening_snack'].includes(slot)) return false;
     }
-    if (recipe.parentRecipeId && recipe.servingPart === 'main') return false;
+    if (recipe.parentRecipeId) return false;
     return true;
   });
   const kept = new Set(eligible.map((recipe) => recipe.id));
@@ -3018,6 +3025,8 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
   const suggestionNotice = autoSuggest ? root.firstChild : null;
   const editorRows = rows.map(([index, item], rowIndex) => {
     const row = document.createElement('div'); row.className = 'planned-item-editor'; row.dataset.itemKey=String(rowIndex);
+    const linkedRecipeId=item.recipeId||Object.values(item.assignments??{}).find(assignment=>assignment.recipeId)?.recipeId;
+    const linkedRecipe=allPlanningRecipes().find(recipe=>recipe.id===linkedRecipeId&&recipe.parentRecipeId);
     const select = document.createElement('select'); select.name = 'recipeId'; select.setAttribute('aria-label', 'Recette');
     select.add(new Option('Choisir une recette', ''));
     const slot = $('#meal-form').elements.slot.value;
@@ -3025,6 +3034,13 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     const role = document.createElement('select'); role.name = 'role'; role.setAttribute('aria-label', 'Catégorie de l’ajout');
     plannedItemRoleOptions(categoryId,slot).forEach(([value, label]) => role.add(new Option(label, value)));
     role.value=categoryId;row.dataset.role=categoryId==='main'?'main':(mealAdditionById(categoryId)?mealAdditionRole(categoryId):(item.role??'accompaniment'));
+    if(linkedRecipe){
+      role.hidden=true;
+      const partLabel={main:'Protéines / plat',vegetables:'Légumes',starch:'Féculents'}[linkedRecipe.servingPart]??'Composant';
+      const linkedLabel=document.createElement('span');linkedLabel.className='muted linked-recipe-part';linkedLabel.textContent=`${partLabel} · ${linkedRecipe.parentRecipeName??linkedRecipe.name.split(' — ')[0]}${linkedRecipe.servingPartActive===false?' · ancienne composition conservée':''}`;
+      row.dataset.linkedRecipeId=linkedRecipe.id;
+      row.dataset.linkedLabel=linkedLabel.textContent;
+    }
     const activeCategory=mealAdditionById(categoryId);
     const categoryRecipeType=activeCategory?.recipeType??(row.dataset.role==='accompaniment'?null:row.dataset.role);
     const currentRole=row.dataset.role;
@@ -3036,8 +3052,9 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
       renderPlannedItems(data,{autoSuggest:nextRole!=='dessert'});
     });
     const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-line'; remove.textContent = '×'; remove.setAttribute('aria-label', 'Retirer cette recette');
-    remove.addEventListener('click', () => { const data = currentFormAmounts(); delete data[index]; renderPlannedItems(data); });
+    remove.addEventListener('click', () => { const data = currentFormAmounts();const parentId=linkedParentRecipeId(data[index]);if(parentId)removeLinkedRecipeGroup(data,parentId);else delete data[index];renderPlannedItems(data); });
     const top = document.createElement('div'); top.className = 'planned-item-top'; top.append(select, role, remove);
+    if(linkedRecipe){const linkedLabel=document.createElement('span');linkedLabel.className='muted linked-recipe-part';linkedLabel.textContent=row.dataset.linkedLabel;top.insertBefore(linkedLabel,remove);}
     const quantities = document.createElement('div'); quantities.className = 'planned-amounts';
     if (isIndividualRole(currentRole)) {
       select.hidden = true;
@@ -3050,8 +3067,9 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
         const choiceLabel=activeCategory?.label??mealAdditionLabel(categoryId);
         const personSelect = document.createElement('select'); personSelect.dataset.personRecipe = 'true'; personSelect.setAttribute('aria-label', `${choiceLabel} pour ${person?.displayName ?? 'personne'}`);
         personSelect.add(new Option(`Aucun${choiceLabel.toLowerCase().startsWith('accompagnement')?' accompagnement':` ${choiceLabel.toLowerCase()}`}`, ''));
-        recipesForPlanning(slot,currentRole,[assignment.recipeId],categoryRecipeType).forEach((recipe) => personSelect.add(new Option(recipePlanningLabel(recipe), recipe.id)));
-        personSelect.value = assignment.recipeId ?? '';
+        recipesForPlanning(slot,currentRole,[assignment.recipeId??linkedRecipe?.id],categoryRecipeType).forEach((recipe) => personSelect.add(new Option(recipePlanningLabel(recipe), recipe.id)));
+        personSelect.value = assignment.recipeId ?? (linkedRecipe?.id??'');
+        if(linkedRecipe){personSelect.hidden=true;personSelect.disabled=true;}
         const recipe = allPlanningRecipes().find((entry) => entry.id === personSelect.value);
         const unit = recipe?.yield.unitId ?? 'portion';
         const step = ['g','ml'].includes(unit) ? 'any' : unit === 'piece' ? '1' : '0.5';
@@ -3113,6 +3131,8 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
       select.addEventListener('change', () => {
         const data = currentFormAmounts();
         const recipe = state.recipes.find(recipe => recipe.id === select.value);
+        const previousParentId=linkedParentRecipeId(data[index]);
+        if(previousParentId)removeLinkedRecipeGroup(data,previousParentId);
         if (recipe?.servingParts?.length) {
           const main = recipe.servingParts.find(part => part.servingPart === 'main');
           const starch = recipe.servingParts.find(part => part.servingPart === 'starch');
@@ -3120,7 +3140,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
           if (starch) data[Math.max(-1,...Object.keys(data).map(Number))+1] = {recipeId:starch.id,role:'accompaniment',categoryId:'accompaniment',amounts:{}};
           const vegetables = recipe.servingParts.find(part => part.servingPart === 'vegetables');
           if (vegetables) data[Math.max(-1,...Object.keys(data).map(Number))+1] = {recipeId:vegetables.id,role:'accompaniment',categoryId:'accompaniment',amounts:{}};
-        }
+        }else if(recipe)data[index]={recipeId:recipe.id,role:currentRole,categoryId:'main',amounts:{}};
         renderPlannedItems(data,{autoSuggest:true});
       });
     }

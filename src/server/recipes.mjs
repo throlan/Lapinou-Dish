@@ -138,10 +138,10 @@ export async function updateRecipeSettings(pool, id, data) {
       WHERE household_id=$4 AND (id=$1 OR parent_recipe_id=$1)`, [id, data.productionType??null, data.mealMoments??null, data.householdId]);
     if(data.name!==undefined){
       await client.query('UPDATE recipes SET name=$3 WHERE id=$1 AND household_id=$2',[id,data.householdId,data.name]);
-      const parts=await client.query('SELECT serving_part FROM recipes WHERE parent_recipe_id=$1 AND household_id=$2',[id,data.householdId]);
+      const parts=await client.query('SELECT serving_part FROM recipes WHERE parent_recipe_id=$1 AND household_id=$2 AND serving_part_active',[id,data.householdId]);
       const keys=new Set(parts.rows.map(row=>row.serving_part));
       const labels={main:keys.has('vegetables')?'Viande / protéines':keys.has('starch')?'Viande et légumes':'Préparation entière',vegetables:'Légumes',starch:'Féculents'};
-      for(const [part,label] of Object.entries(labels))await client.query('UPDATE recipes SET name=$3 WHERE parent_recipe_id=$1 AND household_id=$2 AND serving_part=$4',[id,data.householdId,`${data.name} — ${label}`,part]);
+      for(const [part,label] of Object.entries(labels))await client.query('UPDATE recipes SET name=$3 WHERE parent_recipe_id=$1 AND household_id=$2 AND serving_part=$4 AND serving_part_active',[id,data.householdId,`${data.name} — ${label}`,part]);
     }
     const recipe = await readRecipe(client, id);
     await client.query('COMMIT');
@@ -260,9 +260,10 @@ export async function updateRecipe(pool, id, data, expectedVersion=null) {
 export async function readRecipe(client, id, path=[]) {
   if(path.includes(id))throw new Error('recipe-ingredient-cycle');
   const recipeResult = await client.query(
-    `SELECT id, household_id,output_units, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type,minimum_production_amount,minimum_production_unit_id, meal_moments,separate_starch,serving_weights,cooking_factors,parent_recipe_id,serving_part,version,
+    `SELECT id, household_id,output_units, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type,minimum_production_amount,minimum_production_unit_id, meal_moments,separate_starch,serving_weights,cooking_factors,parent_recipe_id,serving_part,serving_part_active,version,
             EXISTS (SELECT 1 FROM recipe_images WHERE recipe_id=recipes.id) AS image_available,
-            (SELECT count(*) FROM recipes siblings WHERE siblings.parent_recipe_id=recipes.parent_recipe_id) AS sibling_count
+            (SELECT count(*) FROM recipes siblings WHERE siblings.parent_recipe_id=recipes.parent_recipe_id AND siblings.serving_part_active) AS sibling_count,
+            (SELECT parent.name FROM recipes parent WHERE parent.id=recipes.parent_recipe_id) AS parent_recipe_name
        FROM recipes WHERE id = $1`, [id],
   );
   const row = recipeResult.rows[0];
@@ -320,17 +321,17 @@ export async function readRecipe(client, id, path=[]) {
   }
   if (row.parent_recipe_id) nutrition.perYieldUnit = Object.fromEntries(Object.entries(nutrition.batch).map(([key,value]) => [key,value == null ? null : value / Number(row.yield_amount)]));
   const foodById = new Map(foods.map((food) => [food.id, food]));
-  const servingParts = [];
+  const servingParts = [], archivedServingParts=[];
   if (row.separate_starch) {
-    const children = await client.query('SELECT id FROM recipes WHERE parent_recipe_id=$1 ORDER BY serving_part', [id]);
-    for (const child of children.rows) servingParts.push(await readRecipe(client,child.id,[...path,id]));
+    const children = await client.query('SELECT id,serving_part_active FROM recipes WHERE parent_recipe_id=$1 ORDER BY serving_part', [id]);
+    for (const child of children.rows) (child.serving_part_active?servingParts:archivedServingParts).push(await readRecipe(client,child.id,[...path,id]));
   }
   const counted=Number(row.sibling_count)>1 && row.yield_unit_id==='g' && lines.length===1 && ['piece','slice'].includes(lines[0].unitId) ? lines[0] : null;
   const servingDisplay=counted?{unitId:counted.unitId,amount:counted.quantity,gramsPerUnit:Number(row.yield_amount)/counted.quantity,
     ingredientName:counted.foodName??foodById.get(counted.foodId)?.name??null}:null;
   return {
     servingDisplay,
-    separateStarch:row.separate_starch ?? false,servingWeights:row.serving_weights ?? {},cookingFactors:row.cooking_factors ?? {main:1,starch:3},parentRecipeId:row.parent_recipe_id ?? null,servingPart:row.serving_part ?? null,servingParts,imageAvailable:Boolean(row.image_available),
+    separateStarch:row.separate_starch ?? false,servingWeights:row.serving_weights ?? {},cookingFactors:row.cooking_factors ?? {main:1,starch:3},parentRecipeId:row.parent_recipe_id ?? null,parentRecipeName:row.parent_recipe_name??null,servingPart:row.serving_part ?? null,servingPartActive:row.serving_part_active??true,servingParts,archivedServingParts,imageAvailable:Boolean(row.image_available),
     id: row.id, version: Number(row.version ?? 0), name: row.name, description: row.description, instructions: row.instructions ?? '', sourceUrl: row.source_url ?? null,
     recipeType: row.recipe_type ?? 'dish', productionType: row.production_type ?? 'none', mealMoments: row.meal_moments ?? [],
     outputUnits:row.output_units??{},minimumProductionAmount:Number(row.minimum_production_amount??0),minimumProductionUnitId:row.minimum_production_unit_id??row.yield_unit_id,

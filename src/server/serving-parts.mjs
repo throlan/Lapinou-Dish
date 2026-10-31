@@ -39,8 +39,9 @@ export async function syncServingParts(client, id, data) {
   }
   if (Object.values(data.servingWeights).some(weight => !(weight > 0) || weight > 100000)) throw new Error('invalid-serving-weight');
   await client.query('UPDATE recipes SET serving_weights=$2::jsonb WHERE id=$1', [id,JSON.stringify(data.servingWeights)]);
-  const old = await client.query('SELECT id, serving_part,yield_amount FROM recipes WHERE parent_recipe_id=$1 FOR UPDATE', [id]);
-  if (old.rows.some(row => !Object.hasOwn(data.servingWeights, row.serving_part))) throw new Error('serving-part-removal-not-supported');
+  const old = await client.query('SELECT id, serving_part,yield_amount FROM recipes WHERE parent_recipe_id=$1 AND serving_part_active FOR UPDATE', [id]);
+  const removed=old.rows.filter(row=>!Object.hasOwn(data.servingWeights,row.serving_part));
+  if(removed.length)await client.query('UPDATE recipes SET serving_part_active=false WHERE id=ANY($1::uuid[])',[removed.map(row=>row.id)]);
   const childParts = [];
   for (const [part, weight] of Object.entries(data.servingWeights)) {
     const childId = old.rows.find(row => row.serving_part === part)?.id ?? randomUUID();
@@ -69,7 +70,7 @@ export async function syncServingParts(client, id, data) {
     await client.query('DELETE FROM planned_meal_items WHERE id=$1',[item.id]);
     for (const child of childParts) {
       const itemId = randomUUID();
-      await client.query('INSERT INTO planned_meal_items(id,meal_id,recipe_id,sort_order,role) VALUES($1,$2,$3,$4,$5)',[itemId,item.meal_id,child.id,item.sort_order,child.part !== 'main' ? 'accompaniment' : item.role]);
+      await client.query('INSERT INTO planned_meal_items(id,meal_id,recipe_id,sort_order,role,category_id) VALUES($1,$2,$3,$4,$5,$6)',[itemId,item.meal_id,child.id,item.sort_order,child.part !== 'main' ? 'accompaniment' : item.role,child.part !== 'main' ? 'accompaniment' : 'main']);
       for (const amount of amounts.rows) await client.query('INSERT INTO planned_amounts(planned_item_id,person_id,quantity) VALUES($1,$2,$3)',[itemId,amount.person_id,Number(amount.quantity)/data.yield.amount*child.weight]);
     }
   }

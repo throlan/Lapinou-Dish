@@ -54,7 +54,10 @@ export function recipePlanningLabel(recipe) {
   const yieldLabel = recipe.servingParts?.length
     ? 'portions en grammes estimés'
     : `${displayServingQuantity(recipe,recipe.yield.amount)} ${{ slice: Number(displayServingQuantity(recipe,recipe.yield.amount)) === 1 ? 'tranche' : 'tranches', piece: Number(displayServingQuantity(recipe,recipe.yield.amount)) === 1 ? 'pièce' : 'pièces', portion: Number(displayServingQuantity(recipe,recipe.yield.amount)) === 1 ? 'portion' : 'portions', g: 'g', ml: 'ml' }[unit] ?? unit}`;
-  return `${recipe.name} · ${calories} · ${yieldLabel}`;
+  const details=`${calories} · ${yieldLabel}`;
+  if(!recipe.parentRecipeId)return `${recipe.name} · ${details}`;
+  const partLabel={main:'Protéines / plat',vegetables:'Légumes',starch:'Féculents'}[recipe.servingPart]??'Composant';
+  return `${recipe.parentRecipeName??recipe.name.split(' — ')[0]} · ${partLabel} · ${details}${recipe.servingPartActive===false?' · ancienne composition':''}`;
 }
 export function recipeMomentLabel(moment) { return MOMENT_LABELS[moment] ?? moment; }
 function normalize(value) { return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr'); }
