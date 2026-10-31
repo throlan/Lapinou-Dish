@@ -1,12 +1,12 @@
 # État du projet — 31 octobre 2026
 
-## Parties liées des recettes au calendrier — 0.3.4 en préparation
+## Parties liées des recettes au calendrier — 0.3.4 livrée
 
 Le calendrier marque les lignes générées depuis une même recette comme ses composants (protéines, légumes ou féculents), plutôt que comme de nouveaux choix d’accompagnement indépendants. Les quantités par personne restent visibles et modifiables. Le catalogue ne propose plus les parties dérivées comme des recettes autonomes.
 
 Le passage du mode trois parties au mode protéines/légumes ensemble et féculents séparés archive la partie retirée. Les repas déjà enregistrés continuent de pointer vers leurs anciennes parties ; les nouveaux repas utilisent uniquement les parties actives. La réactivation ultérieure crée une nouvelle partie afin de préserver l’historique.
 
-La demande de calculer séparément 125 g de viande ou poisson par portion est mise de côté à la demande de l’utilisateur ; le calcul des quantités reste inchangé. Retirer un composant lié retire la recette composée entière du repas. Migration `20261031_archived_serving_parts.sql`. **328 tests complets locaux réussis.** PR, contrôles GitHub et publication GHCR à effectuer avant d’annoncer cette version comme livrée. Aucun accès à Unraid/Nginx.
+La demande de calculer séparément 125 g de viande ou poisson par portion est mise de côté à la demande de l’utilisateur ; le calcul des quantités reste inchangé. Retirer un composant lié retire la recette composée entière du repas. Migration `20261031_archived_serving_parts.sql`. **328 tests complets locaux réussis.** PR #144 fusionnée au commit `79c790dd6f564157410d2020007d5bdcc44c4560`. Contrôles GitHub et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41208298921. Aucun accès à Unraid/Nginx.
 
 ## Administration par rubriques et minimums par recette — 0.3.3 livrée
 
