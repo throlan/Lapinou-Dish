@@ -1,6 +1,6 @@
 # Cahier des améliorations proposées
 
-## Féculents d’une recette composée — correction en cours, 0.3.5
+## Féculents d’une recette composée — livré en 0.3.5
 
 La ligne liée « Féculents » était assimilée à un accompagnement individuel et recevait 1 g. Elle doit être calculée avec le reste de la recette selon les proportions configurées, conservée au recalcul et enregistrée en grammes pour chaque personne. Un véritable accompagnement ajouté à part garde son choix individuel. Restaurer aussi le contraste des cartes d’ingrédients dans le thème clair. Les repas déjà enregistrés demandent un recalcul explicite, sans modification automatique des quantités historiques.
 

@@ -1,6 +1,6 @@
 # Prochaines tâches — 31 octobre 2026
 
-0.3.5 en préparation : corriger le féculent lié qui démarrait à 1 g et n’entrait pas dans les proportions de l’assiette ; préserver les grammes jusqu’à l’enregistrement. Restaurer le contraste des ingrédients dans le thème clair. Tests complets, PR, contrôles et publication GHCR à terminer. Pour un repas déjà enregistré avec 1 g, utiliser « Recalculer les portions » après la mise à jour.
+0.3.5 livrée : le féculent lié ne démarre plus à 1 g ; il participe aux proportions de l’assiette et ses grammes sont conservés jusqu’à l’enregistrement. Le contraste des ingrédients du thème clair est restauré. PR #146 fusionnée ; contrôles et publication GHCR : https://github.com/throlan/Lapinou-Dish/actions/runs/41210728818. Pour un repas déjà enregistré avec 1 g, utiliser « Recalculer les portions » après la mise à jour.
 
 0.3.4 livrée : les composants d’une recette décomposée sont liés dans le calendrier. La transition vers protéines/légumes ensemble et féculents séparés conserve les anciennes parties pour les repas et stocks historiques. Retirer un composant retire la recette composée entière du repas. 328 tests locaux, contrôles GitHub et publication GHCR réussis. PR #144 fusionnée : https://github.com/throlan/Lapinou-Dish/actions/runs/41208298921.
 
