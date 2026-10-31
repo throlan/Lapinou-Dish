@@ -1,8 +1,8 @@
 # État du projet — 31 octobre 2026
 
-## Féculents liés au plat et lisibilité de l’éditeur — 0.3.5 en préparation
+## Féculents liés au plat et lisibilité de l’éditeur — 0.3.5 livrée
 
-Le correctif en cours fait participer les féculents d’une recette composée au calcul des portions avec la proportion configurée dans Administration. Il maintient leur quantité par personne lors de la lecture du formulaire et de l’enregistrement du repas. Un accompagnement réellement ajouté séparément reste individuel. Les cartes d’ingrédients du thème clair utilisent à nouveau un fond et une couleur de texte cohérents. Les repas déjà enregistrés gardent leurs quantités jusqu’à un recalcul explicite. Le calcul de viande/poisson reste inchangé.
+Le correctif fait participer les féculents d’une recette composée au calcul des portions avec la proportion configurée dans Administration. Il maintient leur quantité par personne lors de la lecture du formulaire et de l’enregistrement du repas. Un accompagnement réellement ajouté séparément reste individuel. Les cartes d’ingrédients du thème clair utilisent à nouveau un fond et une couleur de texte cohérents. Les repas déjà enregistrés gardent leurs quantités jusqu’à un recalcul explicite. Le calcul de viande/poisson reste inchangé. PR #146 fusionnée ; contrôles et publication GHCR : https://github.com/throlan/Lapinou-Dish/actions/runs/41210728818.
 
 ## Parties liées des recettes au calendrier — 0.3.4 livrée
 
