@@ -1,4 +1,8 @@
-# Travail en cours — parties liées des recettes au calendrier, 0.3.4
+# Correctif en préparation — féculents des recettes composées, 0.3.5
+
+Après la livraison 0.3.4, la ligne « Féculents » d’une recette composée était encore traitée comme un accompagnement individuel lors de la proposition automatique. Elle recevait 1 g par défaut, restait hors du calcul des proportions de l’assiette et pouvait être perdue au recalcul. Le formulaire 0.3.5 traite les parties liées comme des composants d’un même plat pour leur affichage, leur calcul par personne et leur enregistrement. Les accompagnements ajoutés séparément restent des choix individuels. Un repas déjà enregistré avec 1 g doit être ouvert et recalculé par l’utilisateur ; ses quantités ne sont pas réécrites silencieusement. Les cartes d’ingrédients retrouvent un fond et des libellés lisibles dans le thème clair. Aucun changement du calcul de viande/poisson. Tests, PR et publication à vérifier avant de déclarer cette version livrée.
+
+# Parties liées des recettes au calendrier — 0.3.4 livrée
 
 Les parties générées d’une recette composée (protéines, légumes, féculents) sont identifiées dans l’éditeur comme des composants liés à la recette. Elles ne sont plus proposées comme des recettes indépendantes. Leurs quantités par personne restent modifiables.
 

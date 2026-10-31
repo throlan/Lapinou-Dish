@@ -349,7 +349,8 @@
   .recipe-quick-ingredient>strong { grid-column:1/-1; font-size:13px; font-weight:500; overflow-wrap:anywhere; }
   .recipe-quick-assignments .recipe-quick-ingredient label { margin:0; }
   .recipe-quick-ingredient [hidden] { display:none!important; }
-  .recipe-line { background:var(--panel); border-color:var(--line); }
+  #recipe-lines .recipe-line, #recipe-lines.serving-parts-active .recipe-line { background:var(--panel); border-color:var(--line); color:var(--text); }
+  #recipe-lines .ingredient-actions { border-color:var(--line); }
 }
 @media screen and (max-width:520px) { .recipe-quick-ingredient { grid-template-columns:minmax(0,1fr); } }
 

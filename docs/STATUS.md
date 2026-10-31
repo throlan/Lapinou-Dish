@@ -1,5 +1,9 @@
 # État du projet — 31 octobre 2026
 
+## Féculents liés au plat et lisibilité de l’éditeur — 0.3.5 en préparation
+
+Le correctif en cours fait participer les féculents d’une recette composée au calcul des portions avec la proportion configurée dans Administration. Il maintient leur quantité par personne lors de la lecture du formulaire et de l’enregistrement du repas. Un accompagnement réellement ajouté séparément reste individuel. Les cartes d’ingrédients du thème clair utilisent à nouveau un fond et une couleur de texte cohérents. Les repas déjà enregistrés gardent leurs quantités jusqu’à un recalcul explicite. Le calcul de viande/poisson reste inchangé.
+
 ## Parties liées des recettes au calendrier — 0.3.4 livrée
 
 Le calendrier marque les lignes générées depuis une même recette comme ses composants (protéines, légumes ou féculents), plutôt que comme de nouveaux choix d’accompagnement indépendants. Les quantités par personne restent visibles et modifiables. Le catalogue ne propose plus les parties dérivées comme des recettes autonomes.

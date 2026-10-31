@@ -73,7 +73,7 @@ test('the actual recalculation calls the original planner then calorie compensat
   rs.slice(1).forEach(r=>{r.yield.amount=10000;r.nutrition.perYieldUnit.proteinG=0.01;});
   const people=[{id:'a',displayName:'Adult A'},{id:'b',displayName:'Adult B'}];
   const root={replaceChildren(){}};
-  const context={...planner,roundServingCalories,state:{recipes:rs,people,calendarMeals:[]},allPlanningRecipes:()=>rs,isIndividualRole:()=>false,
+  const context={...planner,roundServingCalories,state:{recipes:rs,people,calendarMeals:[]},allPlanningRecipes:()=>rs,isIndividualRole:()=>false,isIndividualMealItem:()=>false,
     latestProfile:person=>({dailyEnergyKcal:person.id==='a'?1850:2500}),formatQty:String,
     document:{createElement:()=>({append(){}})},$:selector=>selector==='#planned-items'?root:{elements:{mealDate:{value:'2026-10-20'},slot:{value:'dinner'}}}};
   runInNewContext(source.slice(start,end)+'\nglobalThis.apply=applyAutomaticPortions;',context);
@@ -120,4 +120,20 @@ test('the real save path serializes two eggs as 100 g and two slices as 70 g, no
     $$(selector,row){return [inputs[row.index]];}};
   runInNewContext(source.slice(start,end)+'\nglobalThis.saved=items;',context);
   assert.deepEqual(Array.from(context.saved,item=>item.amounts[0].quantity),[100,70]);
+});
+
+test('the save path keeps linked starch as a gram component of the same meal',async()=>{
+  const source=await readFile(new URL('../web/app.js',import.meta.url),'utf8');
+  const start=source.indexOf('  const items = isOccasion ? [] : rows.flatMap((row) => {');
+  const end=source.indexOf('  if (!attendeeIds.length)',start);
+  const inputs=[{value:'160',dataset:{personId:'a'}},{value:'180',dataset:{personId:'b'}}];
+  const row={dataset:{linkedRecipeId:'rice',role:'accompaniment'}};
+  const context={...units,isOccasion:false,rows:[row],mealAdditionById:()=>null,
+    $(selector){return {value:selector==='select[name="role"]'?'accompaniment':'rice'};},
+    $$:()=>inputs};
+  runInNewContext(source.slice(start,end)+'\nglobalThis.saved=items;',context);
+  assert.equal(context.saved[0].recipeId,'rice');
+  assert.equal(context.saved[0].role,'accompaniment');
+  assert.equal(context.saved[0].categoryId,'accompaniment');
+  assert.deepEqual(Array.from(context.saved[0].amounts,amount=>amount.quantity),[160,180]);
 });
