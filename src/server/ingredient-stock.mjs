@@ -171,7 +171,7 @@ export async function listIngredientStock(pool, householdId) {
 
 // Aggregate duplicate ingredient lines and use the same documented conversions
 // as nutrition. Never assume that 1 ml or one piece weighs one gram.
-export function productionDeductions(lines, quantity, yieldAmount) {
+export function productionDeductions(lines, quantity, yieldAmount, {allowNegativeStock=false}={}) {
   const deductions = new Map();
   for (const line of lines) {
     const grams = toGrams(Number(line.quantity) * quantity / yieldAmount, line.unitId, {
@@ -184,5 +184,5 @@ export function productionDeductions(lines, quantity, yieldAmount) {
   }
   const items = [...deductions.values()].map(row => ({...row,usedG: Math.round(row.usedG * 100000)/100000}));
   const insufficient = items.find(row => row.usedG > row.quantityG);
-  return insufficient ? {error:'ingredient-stock-insufficient',name:insufficient.name,requiredG:insufficient.usedG,availableG:insufficient.quantityG} : {items};
+  return insufficient && !allowNegativeStock ? {error:'ingredient-stock-insufficient',name:insufficient.name,requiredG:insufficient.usedG,availableG:insufficient.quantityG} : {items};
 }

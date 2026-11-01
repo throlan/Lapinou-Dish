@@ -1,0 +1,2 @@
+ALTER TABLE household_ingredient_stock
+  DROP CONSTRAINT IF EXISTS household_ingredient_stock_quantity_g_check;

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {readFile,readdir} from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
-import {createRecipe,validateRecipeInput} from '../src/server/recipes.mjs';
+import {createRecipe,updateRecipe,validateRecipeInput} from '../src/server/recipes.mjs';
 import {savePlannedMeal} from '../src/server/planning.mjs';
 import {setMealPrepared} from '../src/server/meal-preparation.mjs';
 import {addStockLot,cancelStockLot,listStock,listPreparationsToMake,validateProductionInput} from '../src/server/household-planning.mjs';
@@ -75,10 +75,11 @@ test('two-part production is atomic, sums shared ingredients and accepts a zero 
     // 300 g of cooked starch needs another 75 g. Each fits separately, not together.
     const request={...input,servingQuantities:[{recipeId:main.id,quantity:1200},{recipeId:starch.id,quantity:300}]};
     const insufficient=await addStockLot(pool,request);
-    assert.equal(insufficient.error,'ingredient-stock-insufficient');assert.equal(insufficient.requiredG,475);
-    assert.equal(Number((await pool.query('SELECT count(*) FROM stock_lots')).rows[0].count),0);
+    assert.equal(insufficient.error,undefined);assert.equal(insufficient.stockWarnings[0].quantity,-25);
+    assert.equal((await listIngredientStock(pool,h)).find(s=>s.foodId===f.meat).quantityG,-25);
+    assert.equal((await cancelStockLot(pool,h,insufficient.id)).cancelled,true);
     assert.equal((await listIngredientStock(pool,h)).find(s=>s.foodId===f.meat).quantityG,450);
-    const zero={...request,servingQuantities:[{recipeId:main.id,quantity:1200},{recipeId:starch.id,quantity:0}]};
+    const zero={...request,requestId:randomUUID(),servingQuantities:[{recipeId:main.id,quantity:1200},{recipeId:starch.id,quantity:0}]};
     const lot=await addStockLot(pool,zero);assert.equal(lot.error,undefined);
     assert.equal((await listStock(pool,h)).find(s=>s.recipeId===main.id).producedQuantity,1200);
     assert.equal((await listStock(pool,h)).some(s=>s.recipeId===starch.id),false);
@@ -99,4 +100,26 @@ test('production part input rejects missing services, duplicate ids, invalid amo
     input.servingQuantities.map(p=>({...p,quantity:0})),input.servingQuantities.map(p=>({...p,quantity:-1})),
     input.servingQuantities.map(p=>({...p,quantity:NaN})),input.servingQuantities.map(p=>({...p,quantity:100001})),
     input.servingQuantities.map(p=>({...p,quantity:1.2345}))])assert.ok(validateProductionInput({...input,servingQuantities}).error);
+});
+
+test('retired recipe parts do not block current production or create phantom lots',async()=>{
+ const f=await fixture('three');const {db,pool,h,recipe,input}=f;
+ try{
+ const oldVegetables=recipe.servingParts.find(p=>p.servingPart==='vegetables');
+ const checked=validateRecipeInput({householdId:h,name:recipe.name,recipeType:'dish',productionType:'batch_cooking',yield:recipe.yield,separateStarch:true,servingMode:'separate',cookingFactors:{main:1,starch:4},lines:recipe.lines.map(line=>({...line,servingPart:line.servingPart==='vegetables'?'main':line.servingPart}))});
+ assert.equal(checked.error,undefined);const two=await updateRecipe(pool,recipe.id,checked.data);
+ assert.equal(two.error,undefined);assert.equal(two.servingParts.length,2);
+ assert.equal((await pool.query('SELECT id FROM recipes WHERE parent_recipe_id=$1',[recipe.id])).rows.length,3);
+ const servingQuantities=two.servingParts.map(part=>({recipeId:part.id,quantity:part.yield.amount}));
+ const first=await addStockLot(pool,{...input,servingQuantities});assert.equal(first.error,undefined);
+ const children=(await pool.query('SELECT recipe_id FROM stock_lots WHERE parent_lot_id=$1',[first.id])).rows;
+ assert.equal(children.length,2);assert.ok(children.every(child=>child.recipe_id!==oldVegetables.id));
+ assert.equal((await addStockLot(pool,{...input,servingQuantities})).replayed,true);
+ assert.equal((await pool.query('SELECT count(*) FROM stock_lots WHERE parent_lot_id=$1',[first.id])).rows[0].count,2);
+ const stale=await addStockLot(pool,{...input,requestId:randomUUID(),servingQuantities:[...servingQuantities,{recipeId:oldVegetables.id,quantity:10}]});
+ assert.equal(stale.error,'invalid-production-parts');
+ await cancelStockLot(pool,h,first.id);
+ const free=await addStockLot(pool,{...input,requestId:randomUUID(),quantity:4});assert.equal(free.error,undefined);
+ assert.equal((await pool.query('SELECT count(*) FROM stock_lots WHERE parent_lot_id=$1',[free.id])).rows[0].count,2);
+ }finally{await db.close();}
 });

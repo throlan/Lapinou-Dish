@@ -43,3 +43,7 @@ PR #149 fusionnée au commit `2359b2d287488e5b429ff5a7f9d3276a9250484a` ; tests 
 ## Livraison 0.3.7 vérifiée
 
 PR #151 fusionnée au commit `cf5f69f18ab9f9aabc0027a2bd12b5dd2cd0fb61` ; tests GitHub et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41285703265. Tags `0.3.7` et `v0.3.7` vérifiés, digest commun `sha256:406f87c2cf3b61bce67e29f2b61b6d8c7b3588a47af62fc7258e330b083bd651`. Migration additive de comptage physique ; les versions antérieures ignorent ces corrections.
+
+## Migration de la 0.3.8
+
+La 0.3.8 permet les soldes d’ingrédients négatifs sans réécrire les données existantes. Les anciennes versions peuvent à nouveau refuser les productions sur ces soldes. Ne pas rétablir la contrainte SQL de quantité positive tant que des soldes négatifs subsistent ; vérifier les migrations avant tout retour arrière.

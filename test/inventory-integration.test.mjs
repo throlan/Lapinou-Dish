@@ -75,9 +75,11 @@ test('ingredient inventory and shopping run against PostgreSQL, with atomic prod
     assert.equal((await listIngredientStock(pool,householdId)).find(row=>row.foodId===whey).quantityG,260);
     assert.equal((await addStockLot(pool,{...production,quantity:25})).error,'production-request-conflict');
   });
-  await t.test('insufficient inventory rolls back both ingredients and finished lot',async()=>{
+  await t.test('insufficient inventory records the production and reversible negative balances',async()=>{
     const result=await addStockLot(pool,{...production,quantity:120,requestId:null});
-    assert.equal(result.error,'ingredient-stock-insufficient');
+    assert.equal(result.error,undefined);assert.ok(result.stockWarnings.some(item=>item.quantity<0));
+    assert.ok((await listIngredientStock(pool,householdId)).some(item=>item.quantityG<0));
+    assert.equal((await cancelStockLot(pool,householdId,result.id)).cancelled,true);
     assert.equal((await listStock(pool,householdId))[0].producedQuantity,24);
     assert.equal((await listIngredientStock(pool,householdId)).find(row=>row.foodId===flour).quantityG,1400);
   });

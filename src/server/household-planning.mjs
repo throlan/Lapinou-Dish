@@ -185,7 +185,7 @@ export async function addStockLot(pool, input) {
     }
     let quantity=input.quantity,parts=null;
     if (requestedParts) {
-      parts=await client.query('SELECT id,yield_amount FROM recipes WHERE parent_recipe_id=$1 AND household_id=$2 FOR SHARE',[input.recipeId,input.householdId]);
+      parts=await client.query('SELECT id,yield_amount FROM recipes WHERE parent_recipe_id=$1 AND household_id=$2 AND serving_part_active FOR SHARE',[input.recipeId,input.householdId]);
       if (!recipe.rows[0].separate_starch || parts.rows.length < 2 || parts.rows.length!==Object.keys(requestedParts).length
         || parts.rows.some(part=>!Object.hasOwn(requestedParts,part.id))) {
         await client.query('ROLLBACK');return {error:'invalid-production-parts'};
@@ -199,9 +199,9 @@ export async function addStockLot(pool, input) {
     const targets=requestedParts
       ? parts.rows.filter(part=>requestedParts[part.id]>0).map(part=>({id:part.id,factor:requestedParts[part.id]/Number(part.yield_amount)}))
       : [{id:input.recipeId,factor:quantity/Number(recipe.rows[0].yield_amount)}];
-    const inputs=await preparationInputs(client,input.householdId,targets);
+    const inputs=await preparationInputs(client,input.householdId,targets,{allowNegativeStock:true});
     if(inputs.error){await client.query('ROLLBACK');return inputs;}
-    const deductions=productionDeductions(inputs.lines,1,1);
+    const deductions=productionDeductions(inputs.lines,1,1,{allowNegativeStock:true});
     if (deductions.error) { await client.query('ROLLBACK'); return deductions; }
     await client.query(
       `INSERT INTO stock_lots (id, household_id, recipe_id, produced_on, quantity, storage, note, request_id,serving_quantities)
@@ -209,7 +209,7 @@ export async function addStockLot(pool, input) {
       [id, input.householdId, input.recipeId, input.producedOn, quantity, input.storage, input.note,input.requestId,requestedParts?JSON.stringify(requestedParts):null],
     );
     if (recipe.rows[0].separate_starch) {
-      parts ??= await client.query('SELECT id,yield_amount FROM recipes WHERE parent_recipe_id=$1 FOR SHARE', [input.recipeId]);
+      parts ??= await client.query('SELECT id,yield_amount FROM recipes WHERE parent_recipe_id=$1 AND serving_part_active FOR SHARE', [input.recipeId]);
       if (!parts.rows.length) throw new Error('serving-parts-missing');
       await client.query('UPDATE stock_lots SET is_serving_bundle=true WHERE id=$1', [id]);
       for (const part of parts.rows) {
@@ -227,6 +227,7 @@ export async function addStockLot(pool, input) {
     }
     await client.query('COMMIT');
     return { id, recipeId: input.recipeId, productionType: recipe.rows[0].production_type, producedOn: input.producedOn, quantity, unitId: recipe.rows[0].yield_unit_id, storage: input.storage, note: input.note, deductions:deductions.items,
+      stockWarnings:[...deductions.items.filter(item=>item.quantityG-item.usedG<0).map(item=>({name:item.name,quantity:Math.round((item.quantityG-item.usedG)*100000)/100000,unitId:'g'})),...inputs.shortages],
       ...(requestedParts?{servingQuantities:input.servingQuantities}:{}) };
   } catch (error) {
     await client.query('ROLLBACK');

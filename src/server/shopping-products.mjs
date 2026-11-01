@@ -50,7 +50,7 @@ export async function saveShoppingPreference(pool,input) {
       if(mappings.some(row=>row.foodId===input.purchaseFoodId||row.purchaseFoodId===input.foodId))return await bad('purchase-product-chain');
       if(mappings.some(row=>row.foodId!==input.foodId&&row.purchaseFoodId===input.purchaseFoodId&&row.targetUnitId!==input.targetUnitId))return await bad('purchase-product-unit-conflict');
       const stock=await client.query('SELECT quantity_g,minimum_g,target_g FROM household_ingredient_stock WHERE household_id=$1 AND food_id=$2',[input.householdId,input.foodId]);
-      if(stock.rows.some(row=>Number(row.quantity_g)>0||Number(row.minimum_g)>0||Number(row.target_g)>0))return await bad('purchase-source-stock-present');
+      if(stock.rows.some(row=>Number(row.quantity_g)!==0||Number(row.minimum_g)>0||Number(row.target_g)>0))return await bad('purchase-source-stock-present');
       const restorable=await client.query(`SELECT 1 FROM ingredient_stock_movements WHERE household_id=$1 AND food_id=$2
         AND reason IN ('production','production-cancelled','meal-preparation','meal-preparation-cancelled')
         GROUP BY stock_lot_id,meal_id HAVING sum(delta_g)<0 LIMIT 1`,[input.householdId,input.foodId]);

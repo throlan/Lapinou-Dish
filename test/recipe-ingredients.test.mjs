@@ -46,11 +46,13 @@ test('bagels by piece feed gram menus, shopping, bread production and assembly w
   const earlier=await f.lot(bagels.id,2);assert.equal(earlier.error,undefined);
   const shopping=await f.shopping();assert.equal(shopping.find(l=>l.foodId===flour).quantity,200);assert.equal(shopping.find(l=>l.foodId===beef).quantity,400);
   const prep=(await f.preparations()).find(p=>p.recipeId===bagels.id);assert.equal(prep.plannedQuantity,4);assert.equal(prep.coveredQuantity,2);assert.equal(prep.toMakeQuantity,2);
-  const failed=await f.lot(part,800);assert.equal(failed.error,'prepared-component-insufficient');assert.equal(await f.stockG(beef),5000);
+  const missingComponent=await f.lot(part,800);assert.equal(missingComponent.error,undefined);assert.equal(missingComponent.stockWarnings[0].quantity,-2);
+  assert.equal((await cancelStockLot(f.pool,f.householdId,missingComponent.id)).cancelled,true);assert.equal(await f.stockG(beef),5000);
   const bread=await f.lot(bagels.id,2);assert.equal(await f.stockG(flour),4600);
   await f.pool.query('UPDATE household_ingredient_stock SET quantity_g=1 WHERE food_id=$1',[beef]);
-  assert.equal((await f.lot(part,800)).error,'ingredient-stock-insufficient');
-  assert.equal((await f.pool.query('SELECT count(*) FROM recipe_stock_uses')).rows[0].count,0);
+  const missingRaw=await f.lot(part,800);assert.equal(missingRaw.error,undefined);assert.equal(await f.stockG(beef),-399);
+  assert.equal((await cancelStockLot(f.pool,f.householdId,missingRaw.id)).cancelled,true);
+  assert.equal((await f.pool.query('SELECT count(*) FROM recipe_stock_uses WHERE cancelled_at IS NULL')).rows[0].count,0);
   await f.pool.query('UPDATE household_ingredient_stock SET quantity_g=5000 WHERE food_id=$1',[beef]);
   const requestId=randomUUID(),production=await f.lot(part,800,{requestId});assert.equal(production.error,undefined);
   assert.equal((await f.lot(part,800,{requestId})).replayed,true);
@@ -150,4 +152,21 @@ test('bread with a gram serving stock is still used by slices and shared with ea
   assert.equal((await cancelStockLot(f.pool,f.householdId,lot.id)).error,'production-already-used');
   await setMealPrepared(f.pool,f.householdId,meal.id,false);
   assert.equal((await listStock(f.pool,f.householdId)).find(r=>r.recipeId===bread.servingParts[0].id).availableQuantity,0);
+});
+
+test('unrecorded tracked components may be consumed into negative stock and then counted without raw deductions',async()=>{
+ const f=await fixture();const {db,pool,householdId}=f;
+ try{
+ const flour=await f.food('Synthetic flour');await f.tracked(flour,1000);
+ const bread=await f.create({name:'Synthetic bread',productionType:'bread',yield:{amount:4,unitId:'piece'},lines:[{foodId:flour,quantity:400,unitId:'g'}]});
+ const dish=await f.create({name:'Synthetic sandwich',productionType:'batch_cooking',yield:{amount:1,unitId:'portion'},lines:[{recipeId:bread.id,quantity:2,unitId:'piece'}]});
+ const requestId=randomUUID(),lot=await f.lot(dish.id,1,{requestId});assert.equal(lot.error,undefined);assert.equal(lot.stockWarnings[0].quantity,-2);
+ assert.equal((await listStock(pool,householdId)).find(r=>r.recipeId===bread.id).physicalQuantity,-2);assert.equal(await f.stockG(flour),1000);
+ assert.equal((await f.lot(dish.id,1,{requestId})).replayed,true);assert.equal((await listStock(pool,householdId)).find(r=>r.recipeId===bread.id).physicalQuantity,-2);
+ const {countPreparationStock}=await import('../src/server/preparation-stock.mjs');
+ assert.equal((await countPreparationStock(pool,{householdId,recipeId:bread.id,expectedQuantity:-2,quantity:0})).physicalQuantity,0);
+ assert.equal(await f.stockG(flour),1000);
+ assert.equal((await cancelStockLot(pool,householdId,lot.id)).cancelled,true);
+ assert.equal((await listStock(pool,householdId)).find(r=>r.recipeId===bread.id).physicalQuantity,2);
+ }finally{await db.close();}
 });
