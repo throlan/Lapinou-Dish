@@ -55,3 +55,7 @@ PR #153 fusionnée au commit `7fcc8ed34d3277c27a6f7c4c479107ebbef755bb` ; tests 
 ## Migration de la 0.3.9
 
 La migration additive ajoute les plages des productions et les sorties automatiques par ligne de repas. Les anciennes versions ignorent les plages, les protections des repas déjà utilisés automatiquement et la correction du cumul manuel/automatique. Un retour à une ancienne image après activation ne doit donc pas être supposé compatible avec ces nouveaux usages ; examiner ces données avant de réactiver d’anciens boutons de préparation. Aucun retrait de colonne ni suppression de données n’est nécessaire. Les versions numérotées restent conservées, sans purge automatique (au moins cinq versions).
+
+## Livraison 0.3.9 vérifiée
+
+PR #155 fusionnée au commit `571d72bab17c4970f838a6799234e95d40495077` ; contrôles et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41302800569. Tags `0.3.9` et `v0.3.9` vérifiés, digest commun `sha256:bf2735d821b157d05562fbc6d9ed28e3ead111e4de5bb12d92640a38b678ea32`. Les cinq versions 0.3.5 à 0.3.9 sont présentes ; les digests antérieurs sont conservés.
