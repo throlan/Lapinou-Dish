@@ -1,6 +1,6 @@
 # Images versionnées et retour arrière
 
-Le mécanisme de publication versionnée a été introduit avec la 0.2.99 ; le code applicatif courant passe en **0.3.6**. Cette version ajoute le regroupement du batch cooking sans nouvelle migration. Les versions 0.3.0 à 0.3.4 ont ajouté des migrations : la compatibilité d’un retour vers 0.2.97 ne doit pas être déduite du seul fait que son image existe.
+Le mécanisme de publication versionnée a été introduit avec la 0.2.99 ; le code applicatif courant passe en **0.3.7**. La 0.3.6 ajoute le regroupement du batch cooking sans migration ; la 0.3.7 ajoute `preparation_stock_counts` pour historiser les comptages physiques. Une ancienne image qui ignore cette table ne tient pas compte des corrections : ne pas considérer un retour vers 0.3.6 comme un retour fonctionnel équivalent après comptage. Les versions 0.3.0 à 0.3.4 ont ajouté des migrations : la compatibilité d’un retour vers 0.2.97 ne doit pas être déduite du seul fait que son image existe.
 
 ## Choisir une version
 

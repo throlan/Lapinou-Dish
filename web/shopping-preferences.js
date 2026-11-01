@@ -16,14 +16,14 @@ function action(label,callback){const b=element('button',label);b.type='button';
 export function shoppingPreferenceControls(item,preferences,actions){
   const root=element('details');root.className='shopping-product-settings';root.append(element('summary','Acheter sous… et exclusions'));
   const message=element('p');message.setAttribute('role','status');
-  const persist=async(data,button)=>{button.disabled=true;try{await actions.save({foodId:item.foodId,...data});}catch(error){message.textContent=shoppingPreferenceError(error);button.disabled=false;}};
+  const persist=async(data,button)=>{button.disabled=true;message.textContent='Enregistrement…';try{await actions.save({foodId:item.foodId,...data});message.textContent='Réglage enregistré.';}catch(error){message.textContent=shoppingPreferenceError(error);message.scrollIntoView?.({block:'nearest'});button.disabled=false;}};
   const exclusions=element('div');exclusions.className='shopping-preference-actions';
   for(const [scope,label] of [['period','Masquer pour ces courses'],['always','Toujours exclure des courses']]){
     const button=action(label,()=>persist({kind:'exclusion',scope,excluded:true,startDate:actions.startDate,endDate:actions.endDate},button));exclusions.append(button);
   }
   root.append(exclusions);
   const mapping=preferences.mappings.find(row=>row.foodId===item.foodId);
-  const form=element('form');form.className='shopping-product-form';
+  const form=element('form');form.className='shopping-product-form';form.noValidate=true;
   const title=element('strong','Produit commun à acheter pour '+item.name);
   const search=element('input');search.type='search';search.placeholder='Rechercher un aliment du catalogue';search.setAttribute('aria-label','Rechercher le produit d’achat pour '+item.name);
   const target=element('select');target.required=true;target.setAttribute('aria-label','Produit à acheter pour '+item.name);
@@ -46,7 +46,7 @@ export function shoppingPreferenceControls(item,preferences,actions){
   const hint=element('p','Pour 1 unité de cet aliment, indique la quantité du produit à acheter. Exemple : 1 pièce d’œuf dur nécessite 1 pièce d’œuf cru. Pour les blancs, choisis explicitement œufs entiers ou blanc en bouteille. Exemple : 250 g de pois chiches cuits égouttés peuvent correspondre à 200 g de pois chiches secs (coefficient 0,8). Le magasin, le format d’achat et le stock seront ceux du produit choisi. Les recettes gardent leurs ingrédients et leurs valeurs nutritionnelles.');
   const save=element('button','Enregistrer le regroupement');save.type='submit';save.className='secondary';
   form.append(title,search,target,hint,field('Pour 1 unité de cet aliment',sourceUnit),field('Quantité du produit à acheter',factor),field('Unité du produit à acheter',targetUnit),save);
-  form.addEventListener('submit',event=>{event.preventDefault();if(form.reportValidity())persist({kind:'product',purchaseFoodId:target.value,sourceUnitId:sourceUnit.value,targetUnitId:targetUnit.value,factor:Number(factor.value)},save);});
+  form.addEventListener('submit',event=>{event.preventDefault();if(!form.reportValidity()){message.textContent='Regroupement non enregistré : choisis le produit à acheter et renseigne une quantité positive.';message.scrollIntoView?.({block:'nearest'});return;}persist({kind:'product',purchaseFoodId:target.value,sourceUnitId:sourceUnit.value,targetUnitId:targetUnit.value,factor:Number(factor.value)},save);});
   if(mapping){const remove=action('Retirer ce regroupement',()=>persist({kind:'product',purchaseFoodId:null},remove));form.append(remove);}
   root.append(form,message);return root;
 }

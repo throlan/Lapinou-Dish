@@ -257,7 +257,8 @@ export async function cancelStockLot(pool, householdId, lotId) {
         FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id JOIN planned_amounts a ON a.planned_item_id=i.id
         WHERE m.household_id=$1 AND m.prepared_at IS NOT NULL AND i.recipe_id=$2`,[householdId,recipe.recipe_id]);
       const used=await client.query('SELECT COALESCE(sum(quantity),0) AS quantity FROM recipe_stock_uses WHERE household_id=$1 AND recipe_id=$2 AND cancelled_at IS NULL AND stock_lot_id IS DISTINCT FROM $3',[householdId,recipe.recipe_id,lotId]);
-      if(Number(remaining.rows[0].quantity)+0.00001<Number(prepared.rows[0].quantity)+Number(used.rows[0].quantity)){
+      const correction=await client.query('SELECT COALESCE(sum(delta),0) AS quantity FROM preparation_stock_counts WHERE household_id=$1 AND recipe_id=$2',[householdId,recipe.recipe_id]);
+      if(Number(remaining.rows[0].quantity)+Number(correction.rows[0].quantity)+0.00001<Number(prepared.rows[0].quantity)+Number(used.rows[0].quantity)){
         await client.query('ROLLBACK');return {error:'production-already-used'};
       }
     }
@@ -315,12 +316,13 @@ export async function listStock(pool, householdId) {
      FROM stock_lots WHERE household_id=$1 AND cancelled_at IS NULL AND NOT is_serving_bundle ORDER BY produced_on DESC, created_at DESC`, [householdId]);
   const needs=await recipeRequirements(pool,householdId,'0001-01-01','9999-12-31');
   const rows=new Map(result.rows.map(row=>[row.recipeId,row]));
-  for(const [id,quantity] of needs.reservations)if(!rows.has(id)){const r=needs.graph.get(id);rows.set(id,{recipeId:id,name:r.name,unitId:r.yield.unitId,productionType:r.productionType,producedQuantity:0,latestProduction:null,storage:[]});}
+  for(const [id,quantity] of new Map([...needs.reservations,...[...needs.initialStock].filter(([,value])=>value!==0)]))if(!rows.has(id)){const r=needs.graph.get(id);rows.set(id,{recipeId:id,name:r.name,unitId:r.yield.unitId,productionType:r.productionType,producedQuantity:0,latestProduction:null,storage:[]});}
   return [...rows.values()].map((row) => ({
     ...row,
     lots: lots.rows.filter(lot=>lot.recipeId===row.recipeId).map(lot=>({...lot,quantity:Number(lot.quantity)})),
     producedQuantity: Number(row.producedQuantity),
-    plannedQuantity: Number(row.producedQuantity)-(needs.initialStock.get(row.recipeId)??0)+(needs.reservations.get(row.recipeId)??0),
+    physicalQuantity: needs.initialStock.get(row.recipeId)??0,
+    plannedQuantity: needs.reservations.get(row.recipeId)??0,
     availableQuantity: (needs.initialStock.get(row.recipeId)??0)-(needs.reservations.get(row.recipeId)??0),
   }));
 }

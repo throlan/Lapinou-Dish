@@ -41,3 +41,11 @@ test('saved mappings can be inspected, edited or removed and conversion errors k
   const remove=dom.find(root,e=>e.textContent==='Retirer ce regroupement');await remove.listeners.click();assert.equal(remove.disabled,false);assert.match(dom.texts(root),/équivalences en grammes/);
   assert.match(shoppingPreferenceError({message:'purchase-source-stock-present'}),/stock.*zéro/);
 });
+
+test('an incomplete product choice always reports why no request was sent',async t=>{
+ const dom=fakeDom(t);let calls=0;
+ const root=shoppingPreferenceControls({foodId:'tomato',name:'Purée',unitId:'g'},{mappings:[],exclusions:[]},{save:async()=>{calls++;}});
+ const form=dom.find(root,e=>e.tag==='form');assert.equal(form.noValidate,true);
+ form.reportValidity=()=>false;form.listeners.submit({preventDefault(){}});
+ assert.equal(calls,0);assert.match(dom.texts(root),/Regroupement non enregistré.*choisis le produit/);
+});

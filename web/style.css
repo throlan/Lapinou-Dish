@@ -660,3 +660,7 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .batch-cooking-fields select { width:100%; min-width:0; }
 .batch-cooking-controls .hint { margin:10px 0 0; }
 #batch-cooking-range { font-weight:600; }
+
+.preparation-stock-count { margin:12px 0; }
+.preparation-stock-count>summary { cursor:pointer; color:var(--accent); }
+.preparation-stock-count .hint { margin:8px 0; }
