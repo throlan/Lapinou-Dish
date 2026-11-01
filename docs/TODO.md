@@ -1,6 +1,6 @@
 # Prochaines tâches — 31 octobre 2026
 
-Production non bloquée par stocks suivis insuffisants et correction des parties archivées réalisées en 0.3.8 ; 342 tests locaux et parcours Chrome fictif réussis. Vérifier la livraison GitHub/GHCR. Aucun changement de la règle viande/poisson.
+Production non bloquée par stocks suivis insuffisants et correction des parties archivées réalisées en 0.3.8 ; 342 tests locaux et parcours Chrome fictif réussis. PR #153 fusionnée au commit `7fcc8ed34d3277c27a6f7c4c479107ebbef755bb` ; tests GitHub et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41293831666. Tags `0.3.8` et `v0.3.8` vérifiés, digest commun `sha256:e7d2a7a5377943b7a3ee38d89ef58d5ffb96b059bb1a35da71de71def2bc7453`. Aucun changement de la règle viande/poisson.
 
 Stock restant des préparations et confirmation des regroupements réalisés en 0.3.7 ; voir REPRISE.md. Les quantités réellement restantes se corrigent sans annuler la fabrication. 340 tests complets locaux et navigateur fictif réussis. PR #151 fusionnée au commit `cf5f69f18ab9f9aabc0027a2bd12b5dd2cd0fb61` ; tests GitHub et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41285703265. Tags `0.3.7` et `v0.3.7` vérifiés, digest commun `sha256:406f87c2cf3b61bce67e29f2b61b6d8c7b3588a47af62fc7258e330b083bd651`.
 
