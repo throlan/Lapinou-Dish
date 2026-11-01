@@ -14,7 +14,8 @@ export async function countPreparationStock(pool,input){
   try{
     await client.query('BEGIN');await lockHouseholdInventory(client,input.householdId);
     const found=await client.query(`SELECT r.id FROM recipes r WHERE r.id=$1 AND r.household_id=$2 AND r.production_type<>'none'
-      AND EXISTS(SELECT 1 FROM stock_lots s WHERE s.recipe_id=r.id AND s.household_id=r.household_id AND NOT s.is_serving_bundle)`,[input.recipeId,input.householdId]);
+      AND (EXISTS(SELECT 1 FROM stock_lots s WHERE s.recipe_id=r.id AND s.household_id=r.household_id AND NOT s.is_serving_bundle)
+        OR EXISTS(SELECT 1 FROM recipe_stock_uses u WHERE u.recipe_id=r.id AND u.household_id=r.household_id))`,[input.recipeId,input.householdId]);
     if(!found.rowCount){await client.query('ROLLBACK');return {error:'preparation-stock-not-found'};}
     const current=clean((await availableRecipeStock(client,input.householdId)).get(input.recipeId)??0);
     if(current===input.quantity){await client.query('ROLLBACK');return {saved:true,physicalQuantity:current,unchanged:true};}

@@ -304,7 +304,7 @@ async function refreshShopping() {
       const details=document.createElement('p'); details.textContent=`Fabriqué : ${formatQty(item.producedQuantity)} ${item.unitId} · restant réel : ${formatQty(item.physicalQuantity)} ${item.unitId} · réservé aux menus : ${formatQty(item.plannedQuantity)} · ${item.availableQuantity<0?'manque':'disponible hors réservations'} : ${formatQty(Math.abs(item.availableQuantity))} ${item.unitId}`;
       const status=document.createElement('span'); status.className='stock-status'; status.textContent=Number(item.availableQuantity)<0?'À produire':item.physicalQuantity>0?'En stock':'Épuisé';
       card.append(title,details,status);
-      if(item.lots?.length||item.physicalQuantity>0)card.append(preparationStockCount(item));
+      if(item.lots?.length||item.physicalQuantity!==0)card.append(preparationStockCount(item));
       for(const lot of item.lots??[]){
         const row=document.createElement('div');row.className='production-lot';
         const label=document.createElement('span');label.textContent=`Lot du ${displayDate(lot.producedOn)} · ${formatQty(lot.quantity)} ${item.unitId}${lot.note?' · '+lot.note:''}`;
@@ -762,7 +762,8 @@ $('#production-form').addEventListener('submit',async event=>{
     const {lot}=await api('/api/household-planning/production',{method:'POST',body:JSON.stringify({...payload,requestId:pendingProduction.requestId})});
     pendingProduction=null;form.reset();form.elements.producedOn.value=localDateValue();
     const deductions=(lot.deductions??[]).map(item=>`${item.name} : −${formatQty(item.usedG)} g`).join(' · ');
-    showMessage($('#production-message'),'Production ajoutée au stock.'+(deductions?' Ingrédients déduits : '+deductions:''),true);
+    const warnings=(lot.stockWarnings??[]).map(item=>`${item.name} : ${formatQty(item.quantity)} ${item.unitId}`).join(' · ');
+    showMessage($('#production-message'),'Production ajoutée au stock.'+(deductions?' Ingrédients déduits : '+deductions:'')+(warnings?' Stocks à régulariser : '+warnings:''),true);
     await refreshShopping();await refreshDashboard();
   } catch(error){
     const body=error.body??{};
@@ -811,7 +812,7 @@ function renderIngredientStock(items) {
     const card=document.createElement('article');card.className='stock-row';
     const name=document.createElement('strong');name.textContent=item.name;
     const tag=document.createElement('span');tag.className=item.alert?'warning-tag':'stock-status';
-    tag.textContent=item.alert?'À commander':'Stock suivi';
+    tag.textContent=item.quantityG<0?'Stock à régulariser':item.alert?'À commander':'Stock suivi';
     const detail=document.createElement('p');detail.textContent=`Stock : ${formatQty(item.quantityG)} g · minimum : ${formatQty(item.minimumG)} g · cible : ${formatQty(item.targetG)} g`;
     const forecast=document.createElement('p');forecast.textContent=`Besoins prévus sous ${item.leadDays} jours : ${formatQty(item.neededG)} g · restant estimé : ${formatQty(item.projectedG)} g`;
     if(!item.complete)forecast.textContent+=' · conversion manquante, estimation incomplète';
@@ -1722,13 +1723,14 @@ $('#cook-form')?.addEventListener('submit',async event=>{
   const fingerprint=JSON.stringify(payload);if(cookingRequest?.fingerprint!==fingerprint)cookingRequest={fingerprint,requestId:newProductionRequestId()};
   button.disabled=true;let saved=false;
   try{
-    await api('/api/household-planning/production',{method:'POST',body:JSON.stringify({...payload,requestId:cookingRequest.requestId})});
-    cookingRequest=null;saved=true;showMessage($('#cook-message'),'Production ajoutée au stock. Ferme la fiche pour revenir à la liste.',true);
+    const {lot}=await api('/api/household-planning/production',{method:'POST',body:JSON.stringify({...payload,requestId:cookingRequest.requestId})});
+    const warnings=(lot?.stockWarnings??[]).map(item=>`${item.name} : ${formatQty(item.quantity)} ${item.unitId}`).join(' · ');
+    cookingRequest=null;saved=true;showMessage($('#cook-message'),'Production ajoutée au stock.'+(warnings?' Stocks à régulariser : '+warnings+'.':'')+' Ferme la fiche pour revenir à la liste.',true);
     await Promise.allSettled([refreshShopping(),refreshDashboard()]);
   }catch(error){const body=error.body??{};
     showMessage($('#cook-message'),body.error==='prepared-component-insufficient'
       ?'Prépare d’abord '+body.name+' : '+formatQty(body.requiredQuantity)+' '+body.unitId+' nécessaires, '+formatQty(body.availableQuantity)+' disponibles.'
-      :'Production non enregistrée : '+(body.error??error.message));}
+      :body.error==='invalid-production-parts'?'La composition de cette recette a changé. Actualise la page et rouvre la fiche Cuisiner avant de réessayer.':'Production non enregistrée : '+(body.error??error.message));}
   finally{button.disabled=saved;}
 });
 try{

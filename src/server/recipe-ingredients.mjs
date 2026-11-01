@@ -16,16 +16,16 @@ export function recipeMinimumInYield(recipe){
 // References stay live: no copied nutrition or duplicated catalogue food.
 export async function loadRecipeGraph(client,householdId) {
   const recipes=await client.query(`SELECT id,name,yield_amount,yield_unit_id,output_units,production_type,minimum_production_amount,minimum_production_unit_id,
-    parent_recipe_id,separate_starch,cooking_factors FROM recipes WHERE household_id=$1`,[householdId]);
+    parent_recipe_id,separate_starch,cooking_factors,serving_part_active FROM recipes WHERE household_id=$1`,[householdId]);
   const lines=await client.query(`SELECT l.recipe_id,l.food_id,l.ingredient_recipe_id,l.quantity,l.unit_id,l.serving_part,l.cooking_factor,
     f.canonical_name,f.grams_per_millilitre,
     COALESCE((SELECT jsonb_object_agg(c.unit_id,c.grams_per_unit) FROM food_unit_conversions c WHERE c.food_id=f.id),'{}'::jsonb) AS grams_per_unit
     FROM recipe_lines l JOIN recipes r ON r.id=l.recipe_id LEFT JOIN foods f ON f.id=l.food_id
     WHERE r.household_id=$1 ORDER BY l.sort_order,l.id`,[householdId]);
   const graph=new Map(recipes.rows.map(r=>[r.id,{id:r.id,name:r.name,yield:{amount:Number(r.yield_amount),unitId:r.yield_unit_id},
-    outputUnits:r.output_units??{},productionType:r.production_type,minimumProductionAmount:Number(r.minimum_production_amount??0),minimumProductionUnitId:r.minimum_production_unit_id??r.yield_unit_id,parentRecipeId:r.parent_recipe_id,
+    outputUnits:r.output_units??{},productionType:r.production_type,minimumProductionAmount:Number(r.minimum_production_amount??0),minimumProductionUnitId:r.minimum_production_unit_id??r.yield_unit_id,parentRecipeId:r.parent_recipe_id,servingPartActive:r.serving_part_active,
     separateStarch:r.separate_starch,cookingFactors:r.cooking_factors??{},lines:[],parts:[]}]));
-  for(const r of graph.values())if(r.parentRecipeId)graph.get(r.parentRecipeId)?.parts.push(r);
+  for(const r of graph.values())if(r.parentRecipeId&&r.servingPartActive!==false)graph.get(r.parentRecipeId)?.parts.push(r);
   for(const l of lines.rows)graph.get(l.recipe_id).lines.push({foodId:l.food_id,recipeId:l.ingredient_recipe_id,
     quantity:Number(l.quantity),unitId:l.unit_id,servingPart:l.serving_part??'main',cookingFactor:l.cooking_factor==null?null:Number(l.cooking_factor),
     name:l.canonical_name,gramsPerMillilitre:l.grams_per_millilitre==null?null:Number(l.grams_per_millilitre),
@@ -153,7 +153,7 @@ export async function recipeRequirements(client,householdId,startDate,endDate) {
 
 // Used inside the caller's inventory transaction. Tracked components must be
 // cooked first; untracked sauces are made as part of the dish from raw foods.
-export async function preparationInputs(client,householdId,targets) {
+export async function preparationInputs(client,householdId,targets,{allowNegativeStock=false}={}) {
   const graph=await loadRecipeGraph(client,householdId),stock=await availableRecipeStock(client,householdId);
   const uses=new Map(),foods=[];
   function ingredients(recipeId,factor,path=[]){
@@ -169,15 +169,18 @@ export async function preparationInputs(client,householdId,targets) {
     }
   }
   for(const target of targets)ingredients(target.id,target.factor);
+  const shortages=[];
   for(const [recipeId,quantity] of uses){
-    if(quantity>(stock.get(recipeId)??0)+0.00000001)return {error:'prepared-component-insufficient',recipeId,name:graph.get(recipeId).name,
+    const available=stock.get(recipeId)??0;
+    if(quantity>available)shortages.push({name:graph.get(recipeId).name,quantity:clean(available-quantity),unitId:graph.get(recipeId).yield.unitId});
+    if(!allowNegativeStock&&quantity>(stock.get(recipeId)??0)+0.00000001)return {error:'prepared-component-insufficient',recipeId,name:graph.get(recipeId).name,
       requiredQuantity:quantity,availableQuantity:Math.max(0,stock.get(recipeId)??0),unitId:graph.get(recipeId).yield.unitId};
   }
   const purchaseFoods=await purchaseProductRequirements(client,householdId,foods);
   if(purchaseFoods.some(row=>row.mappingError))return {error:'ingredient-conversion-missing',name:purchaseFoods.find(row=>row.mappingError).name};
   const tracked=await client.query('SELECT food_id,quantity_g FROM household_ingredient_stock WHERE household_id=$1 ORDER BY food_id FOR UPDATE',[householdId]);
   const byFood=new Map(tracked.rows.map(r=>[r.food_id,Number(r.quantity_g)]));
-  return {uses,lines:purchaseFoods.filter(l=>byFood.has(l.foodId)).map(l=>({...l,quantityG:byFood.get(l.foodId)}))};
+  return {uses,shortages,lines:purchaseFoods.filter(l=>byFood.has(l.foodId)).map(l=>({...l,quantityG:byFood.get(l.foodId)}))};
 }
 
 export async function recordRecipeUses(client,householdId,uses,{lotId=null,mealId=null}) {
