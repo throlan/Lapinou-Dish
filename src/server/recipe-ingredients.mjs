@@ -87,7 +87,8 @@ export async function availableRecipeStock(client,householdId) {
     JOIN planned_amounts a ON a.planned_item_id=i.id JOIN recipes r ON r.id=i.recipe_id
     WHERE m.household_id=$1 AND m.prepared_at IS NOT NULL AND r.production_type<>'none' GROUP BY i.recipe_id
   ), used AS (SELECT recipe_id,sum(quantity) AS quantity FROM recipe_stock_uses WHERE household_id=$1 AND cancelled_at IS NULL GROUP BY recipe_id)
-  SELECT r.id,COALESCE(p.quantity,0)-COALESCE(b.quantity,0)-COALESCE(u.quantity,0) AS quantity
+  SELECT r.id,COALESCE(p.quantity,0)-COALESCE(b.quantity,0)-COALESCE(u.quantity,0)
+    +COALESCE((SELECT sum(c.delta) FROM preparation_stock_counts c WHERE c.household_id=$1 AND c.recipe_id=r.id),0) AS quantity
   FROM recipes r LEFT JOIN produced p ON p.recipe_id=r.id LEFT JOIN prepared b ON b.recipe_id=r.id LEFT JOIN used u ON u.recipe_id=r.id
   WHERE r.household_id=$1`,[householdId]);
   return new Map(result.rows.map(r=>[r.id,Number(r.quantity)]));

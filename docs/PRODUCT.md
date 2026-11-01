@@ -69,6 +69,7 @@ Les règles d’achat sont propres au foyer. Une fiche aliment peut définir l�
 
 ## Production en lots et stocks
 
+- Depuis la 0.3.7, une préparation déjà fabriquée peut être comptée par quantité physiquement restante avant réservations. Les écarts sont historisés, sans réécrire les lots ni rembourser les ingrédients ; besoins et stock prennent ce comptage en compte. Les réservations sont affichées séparément, avec le manque éventuel.
 - Depuis la 0.3.6, le batch cooking peut être regroupé depuis une semaine choisie sur 1, 2 ou 3 semaines, ou sur toute la période des courses. La liste contient chaque recette une fois avec ses quantités cumulées ; un calcul unique de la plage partage le stock et les surplus de lots entre les repas. Une semaine partielle vide ne décale pas la sélection initiale. Les autres productions et les courses conservent leurs dates ; enregistrer une production actualise les besoins et le stock.
 - Modes dédiés: usine à petits déjeuners, usine à pâtes fraîches, batch de repas.
 - L'utilisateur choisit les recettes/variantes et le rendement visé (ex. 24 muffins ou 1,5 kg de pâte); l'application agrège les besoins d'ingrédients et tient compte du stock confirmé.

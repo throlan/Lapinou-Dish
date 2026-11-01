@@ -1,3 +1,4 @@
+import {countPreparationStock,validatePreparationCount} from './preparation-stock.mjs';
 import {listShoppingPreferences,saveShoppingPreference,validateShoppingPreference} from './shopping-products.mjs';
 import { createServer } from 'node:http';
 import { setMealPrepared } from './meal-preparation.mjs';
@@ -362,6 +363,14 @@ export async function handleRequest(request, response, pool, appPassword = null,
         if (lot?.error) return send(response, 404, { error: lot.error });
         return send(response, 201, { lot });
       } catch { return send(response, 500, { error: 'production-stock-save-failed' }); }
+    }
+    if(url.pathname==='/api/household-planning/stock/count'&&request.method==='PUT'){
+      const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
+      const checked=validatePreparationCount(body.value);if(checked.error)return send(response,400,{error:checked.error});
+      try{
+        const result=await countPreparationStock(pool,checked.data);
+        return send(response,result.error?(result.error==='preparation-stock-changed'?409:404):200,result);
+      }catch{return send(response,500,{error:'preparation-stock-count-failed'});}
     }
     const cancelledLotId = url.pathname.match(/^\/api\/household-planning\/production\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i)?.[1];
     if (cancelledLotId && request.method === 'DELETE') {

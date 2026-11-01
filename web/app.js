@@ -266,6 +266,24 @@ function renderRoutines(routines) {
   }));
 }
 function formatQty(value) { return new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2}).format(value); }
+function preparationStockCount(item){
+  const editor=document.createElement('details');editor.className='preparation-stock-count';
+  const summary=document.createElement('summary');summary.textContent='Corriger la quantité restante';
+  const form=document.createElement('form');form.className='shopping-receipt-form';
+  const label=document.createElement('label');label.textContent=`Quantité réellement restante (${item.unitId})`;
+  const input=document.createElement('input');input.type='number';input.min='0';input.max='100000000';input.step='0.001';input.required=true;input.value=String(Math.max(0,item.physicalQuantity));label.append(input);
+  const hint=document.createElement('p');hint.className='hint';hint.textContent='Compte tout ce qu’il reste physiquement, y compris les portions réservées aux menus. Le manque éventuel sera recalculé. Cette correction ne change pas les quantités fabriquées ni les ingrédients.';
+  const save=document.createElement('button');save.type='submit';save.className='secondary';save.textContent='Enregistrer le stock restant';
+  const message=document.createElement('p');message.className='form-message';message.setAttribute('role','status');
+  form.append(label,save);form.addEventListener('submit',async event=>{
+    event.preventDefault();if(save.disabled||!form.reportValidity())return;save.disabled=true;
+    try{
+      await api('/api/household-planning/stock/count',{method:'PUT',body:JSON.stringify({householdId:state.household.id,recipeId:item.recipeId,quantity:Number(input.value),expectedQuantity:item.physicalQuantity})});
+      const y=window.scrollY;await refreshShopping();window.scrollTo(0,y);await refreshDashboard();
+      showMessage($('#production-message'),`${item.name} : stock restant enregistré à ${formatQty(Number(input.value))} ${item.unitId}. Besoins et courses actualisés.`,true);
+    }catch(error){showMessage(message,error.body?.error==='preparation-stock-changed'?'Le stock a changé. Actualise la page avant de recommencer.':'Stock non enregistré : '+(error.body?.error??error.message));save.disabled=false;}
+  });editor.append(summary,hint,form,message);return editor;
+}
 async function refreshShopping() {
   if (!state.household) return;
   const routineMessage = $('#routines-message'); if (routineMessage) routineMessage.textContent = '';
@@ -283,9 +301,10 @@ async function refreshShopping() {
     stockRoot.replaceChildren(...(planning.stock.length ? planning.stock.map((item) => {
       const card=document.createElement('article'); card.className='stock-row';
       const title=document.createElement('strong'); title.textContent=item.name;
-      const details=document.createElement('p'); details.textContent=`Produit : ${formatQty(item.producedQuantity)} ${item.unitId} · réservé aux repas planifiés : ${formatQty(item.plannedQuantity)} · disponible : ${formatQty(item.availableQuantity)} ${item.unitId}`;
-      const status=document.createElement('span'); status.className='stock-status'; status.textContent=Number(item.availableQuantity)<=0?'À produire':'En stock';
+      const details=document.createElement('p'); details.textContent=`Fabriqué : ${formatQty(item.producedQuantity)} ${item.unitId} · restant réel : ${formatQty(item.physicalQuantity)} ${item.unitId} · réservé aux menus : ${formatQty(item.plannedQuantity)} · ${item.availableQuantity<0?'manque':'disponible hors réservations'} : ${formatQty(Math.abs(item.availableQuantity))} ${item.unitId}`;
+      const status=document.createElement('span'); status.className='stock-status'; status.textContent=Number(item.availableQuantity)<0?'À produire':item.physicalQuantity>0?'En stock':'Épuisé';
       card.append(title,details,status);
+      if(item.lots?.length||item.physicalQuantity>0)card.append(preparationStockCount(item));
       for(const lot of item.lots??[]){
         const row=document.createElement('div');row.className='production-lot';
         const label=document.createElement('span');label.textContent=`Lot du ${displayDate(lot.producedOn)} · ${formatQty(lot.quantity)} ${item.unitId}${lot.note?' · '+lot.note:''}`;
@@ -299,7 +318,7 @@ async function refreshShopping() {
             showMessage($('#production-message'),'Lot retiré du stock.'+(restored?' Ingrédients remis : '+restored:''),true);
             await refreshShopping();await refreshDashboard();
           }catch(error){showMessage($('#production-message'),error.body?.error==='production-already-used'
-            ?'Ce batch a déjà été utilisé par un repas marqué « Préparé ». Annule d’abord cette préparation dans le calendrier.'
+            ?'Ce lot a été utilisé ou son stock a été corrigé à la baisse. L’annuler ne laisserait pas assez de stock pour les quantités déjà sorties.'
             :'Annulation impossible : '+(error.body?.error??error.message));}
           finally{cancel.disabled=false;}
         });
@@ -536,7 +555,14 @@ async function refreshShoppingList() {
     const preferenceActions={startDate:start,endDate:end,
       searchFoods:async query=>(await api('/api/foods?q='+encodeURIComponent(query)+'&limit=30')).foods,
       save:async preference=>{await api('/api/shopping-preferences',{method:'PUT',body:JSON.stringify({householdId:state.household.id,...preference})});
-        const y=window.scrollY;await refreshShopping();window.scrollTo(0,y);await refreshDashboard();}};
+        const y=window.scrollY;await refreshShopping();window.scrollTo(0,y);
+        const feedback=$('#shopping-export-message');
+        showMessage(feedback,preference.kind==='product'?(preference.purchaseFoodId?'Regroupement enregistré. Les besoins sont réunis sous le produit à acheter.':'Regroupement retiré.'):'Exclusion mise à jour.',true);
+        if(preference.kind==='product'){
+          const panel=$('.shopping-preferences-panel');if(panel)panel.open=true;
+          feedback.scrollIntoView({block:'nearest',behavior:'smooth'});
+        }
+        await refreshDashboard();}};
     const preferencesPanel=shoppingPreferencesPanel(preferences,preferenceActions);
     if(!items.length){root.replaceChildren(preferencesPanel,emptyMessage('Aucun achat nécessaire sur cette période.'));return;}
     const buckets=new Map();
