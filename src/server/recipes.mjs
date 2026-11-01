@@ -130,7 +130,7 @@ export async function updateRecipeSettings(pool, id, data) {
       const prepared = await client.query(`WITH RECURSIVE parents(id) AS (
         SELECT $2::uuid UNION SELECT r.id FROM parents p JOIN recipe_lines l ON l.ingredient_recipe_id=p.id JOIN recipes r ON r.id=l.recipe_id WHERE r.household_id=$1
       ) SELECT 1 FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
-        JOIN recipes used ON used.id=i.recipe_id WHERE m.household_id=$1 AND m.prepared_at IS NOT NULL
+        JOIN recipes used ON used.id=i.recipe_id WHERE m.household_id=$1 AND (m.prepared_at IS NOT NULL OR EXISTS(SELECT 1 FROM recipe_stock_uses u WHERE u.meal_id=m.id AND u.automatic AND u.cancelled_at IS NULL))
         AND (used.id IN(SELECT id FROM parents) OR used.parent_recipe_id IN(SELECT id FROM parents)) LIMIT 1`,[data.householdId,id]);
       if (prepared.rowCount) { await client.query('ROLLBACK'); return { error: 'recipe-used-in-prepared-meal' }; }
     }
@@ -208,7 +208,7 @@ export async function updateRecipe(pool, id, data, expectedVersion=null) {
     const prepared=await client.query(`WITH RECURSIVE parents(id) AS (
       SELECT $2::uuid UNION SELECT r.id FROM parents p JOIN recipe_lines l ON l.ingredient_recipe_id=p.id JOIN recipes r ON r.id=l.recipe_id WHERE r.household_id=$1
     ) SELECT 1 FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
-      JOIN recipes used ON used.id=i.recipe_id WHERE m.household_id=$1 AND m.prepared_at IS NOT NULL
+      JOIN recipes used ON used.id=i.recipe_id WHERE m.household_id=$1 AND (m.prepared_at IS NOT NULL OR EXISTS(SELECT 1 FROM recipe_stock_uses u WHERE u.meal_id=m.id AND u.automatic AND u.cancelled_at IS NULL))
       AND (used.id IN(SELECT id FROM parents) OR used.parent_recipe_id IN(SELECT id FROM parents)) LIMIT 1`,[data.householdId,id]);
     if(prepared.rowCount){await client.query('ROLLBACK');return {error:'recipe-used-in-prepared-meal'};}
     const previous=await client.query('SELECT yield_unit_id,separate_starch,serving_weights FROM recipes WHERE id=$1 AND household_id=$2',[id,data.householdId]);

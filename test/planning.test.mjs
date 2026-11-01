@@ -50,8 +50,9 @@ test('rejects invalid dates, slots and people outside the attendee set', () => {
 test('planned meals keep their exact calendar date when listed', async () => {
   const mealId = '55555555-5555-4555-8555-555555555555';
   const queries = [];
-  const pool = { query: async (sql, values) => {
+  const pool = { async connect(){return {...this,release(){}};}, query: async (sql, values) => {
     queries.push(sql);
+    if(['BEGIN','COMMIT','ROLLBACK'].includes(sql)||sql.includes('pg_advisory_xact_lock'))return {rows:[]};
     if (sql.includes('FROM planned_meals WHERE household_id')) {
       return { rows: [{ id: mealId, meal_date: '2026-10-12', slot: 'lunch', notes: '' }] };
     }
@@ -60,7 +61,7 @@ test('planned meals keep their exact calendar date when listed', async () => {
     throw new Error('Unexpected query');
   } };
   const meals = await listPlannedMeals(pool, householdId, '2026-10-12');
-  assert.ok(queries[0].includes('meal_date::text AS meal_date'));
+  assert.ok(queries.some(sql=>sql.includes('meal_date::text AS meal_date')));
   assert.equal(meals[0].mealDate, '2026-10-12');
 });
 
@@ -95,8 +96,9 @@ test('rejects invalid dates, slots and people outside the attendee set', () => {
 test('planned meals keep their exact calendar date when listed', async () => {
   const mealId = '55555555-5555-4555-8555-555555555555';
   const queries = [];
-  const pool = { query: async (sql, values) => {
+  const pool = { async connect(){return {...this,release(){}};}, query: async (sql, values) => {
     queries.push(sql);
+    if(['BEGIN','COMMIT','ROLLBACK'].includes(sql)||sql.includes('pg_advisory_xact_lock'))return {rows:[]};
     if (sql.includes('FROM planned_meals WHERE household_id')) {
       return { rows: [{ id: mealId, meal_date: '2026-10-12', slot: 'lunch', notes: '' }] };
     }
@@ -105,7 +107,7 @@ test('planned meals keep their exact calendar date when listed', async () => {
     throw new Error('Unexpected query');
   } };
   const meals = await listPlannedMeals(pool, householdId, '2026-10-12');
-  assert.ok(queries[0].includes('meal_date::text AS meal_date'));
+  assert.ok(queries.some(sql=>sql.includes('meal_date::text AS meal_date')));
   assert.equal(meals[0].mealDate, '2026-10-12');
 });
 

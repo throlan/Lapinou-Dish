@@ -10,7 +10,9 @@ export async function setMealPrepared(pool,householdId,mealId,prepared) {
     await lockHouseholdInventory(client,householdId);
     const meal=await client.query('SELECT id,prepared_at FROM planned_meals WHERE id=$1 AND household_id=$2 FOR UPDATE',[mealId,householdId]);
     if(!meal.rowCount){await client.query('ROLLBACK');return {error:'planned-meal-not-found'};}
-    if(Boolean(meal.rows[0].prepared_at)===prepared){await client.query('ROLLBACK');return {prepared,replayed:true};}
+    const automatic=await client.query('SELECT recipe_id,sum(quantity) AS quantity FROM recipe_stock_uses WHERE meal_id=$1 AND automatic AND cancelled_at IS NULL GROUP BY recipe_id',[mealId]);
+    const autoQuantities=new Map(automatic.rows.map(row=>[row.recipe_id,Number(row.quantity)]));
+    if(Boolean(meal.rows[0].prepared_at)===prepared&&!(automatic.rowCount&&!prepared)){await client.query('ROLLBACK');return {prepared,replayed:true};}
     if(!prepared){
       const movements=await client.query(`SELECT food_id AS "foodId",-sum(delta_g) AS "quantityG"
         FROM ingredient_stock_movements WHERE household_id=$1 AND meal_id=$2
@@ -22,7 +24,7 @@ export async function setMealPrepared(pool,householdId,mealId,prepared) {
           VALUES($1,$2,$3,$4,'meal-preparation-cancelled',$5)`,[randomUUID(),householdId,item.foodId,item.quantityG,mealId]);
       }
       await client.query('UPDATE recipe_stock_uses SET cancelled_at=now() WHERE meal_id=$1 AND cancelled_at IS NULL',[mealId]);
-      await client.query('UPDATE planned_meals SET prepared_at=NULL,updated_at=now() WHERE id=$1',[mealId]);
+      await client.query('UPDATE planned_meals SET prepared_at=NULL,stock_auto_disabled=true,updated_at=now() WHERE id=$1',[mealId]);
       await client.query('COMMIT');return {prepared:false,restored:movements.rows.map(item=>({foodId:item.foodId,quantityG:Number(item.quantityG)}))};
     }
     const items=await client.query(`SELECT i.recipe_id AS "recipeId",r.production_type AS "productionType",
@@ -34,7 +36,7 @@ export async function setMealPrepared(pool,householdId,mealId,prepared) {
     if(inputs.error){await client.query('ROLLBACK');return inputs;}
     const stock=await availableRecipeStock(client,householdId);
     for(const item of items.rows.filter(item=>item.productionType!=='none')){
-      if((stock.get(item.recipeId)??0)-(inputs.uses.get(item.recipeId)??0)+0.00000001<Number(item.quantity)){
+      if((stock.get(item.recipeId)??0)-(inputs.uses.get(item.recipeId)??0)+0.00000001<Math.max(0,Number(item.quantity)-(autoQuantities.get(item.recipeId)??0))){
         await client.query('ROLLBACK');return {error:'prepared-batch-insufficient',recipeId:item.recipeId};
       }
     }

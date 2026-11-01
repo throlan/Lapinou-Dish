@@ -664,3 +664,7 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .preparation-stock-count { margin:12px 0; }
 .preparation-stock-count>summary { cursor:pointer; color:var(--accent); }
 .preparation-stock-count .hint { margin:8px 0; }
+
+.production-period { min-width:0; border:1px solid var(--line); border-radius:12px; margin:12px 0; padding:12px; }
+.production-period label.production-period-choice { display:flex; align-items:center; gap:8px; }
+.production-period-choice input { width:auto; flex:none; margin:0; }

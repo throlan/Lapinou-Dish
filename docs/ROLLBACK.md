@@ -51,3 +51,7 @@ La 0.3.8 permet les soldes d’ingrédients négatifs sans réécrire les donné
 ## Livraison 0.3.8 vérifiée
 
 PR #153 fusionnée au commit `7fcc8ed34d3277c27a6f7c4c479107ebbef755bb` ; tests GitHub et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41293831666. Tags `0.3.8` et `v0.3.8` vérifiés, digest commun `sha256:e7d2a7a5377943b7a3ee38d89ef58d5ffb96b059bb1a35da71de71def2bc7453`.
+
+## Migration de la 0.3.9
+
+La migration additive ajoute les plages des productions et les sorties automatiques par ligne de repas. Les anciennes versions ignorent les plages, les protections des repas déjà utilisés automatiquement et la correction du cumul manuel/automatique. Un retour à une ancienne image après activation ne doit donc pas être supposé compatible avec ces nouveaux usages ; examiner ces données avant de réactiver d’anciens boutons de préparation. Aucun retrait de colonne ni suppression de données n’est nécessaire. Les versions numérotées restent conservées, sans purge automatique (au moins cinq versions).

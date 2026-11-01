@@ -1,3 +1,4 @@
+import {mealStockReadiness} from './meal-stock-readiness.mjs';
 import { randomUUID } from 'node:crypto';
 import { readRecipe } from './recipes.mjs';
 import { lockHouseholdInventory } from './ingredient-stock.mjs';
@@ -55,14 +56,17 @@ export function validatePlannedMeal(input) {
   return { data: { householdId: input.householdId, mealDate: input.mealDate, slot: input.slot, notes, attendeeIds, items, isOccasion, occasionTitle, occasionEnergy } };
 }
 
-export async function listPlannedMeals(pool, householdId, weekStart) {
-  const result = await pool.query(
-    'SELECT id, meal_date::text AS meal_date, slot, notes, is_occasion, occasion_title, prepared_at FROM planned_meals WHERE household_id = $1 AND meal_date >= $2::date AND meal_date < $2::date + 7 ORDER BY meal_date, CASE slot WHEN \'breakfast\' THEN 1 WHEN \'lunch\' THEN 2 WHEN \'snack\' THEN 3 WHEN \'dinner\' THEN 4 ELSE 5 END, created_at',
-    [householdId, weekStart],
-  );
-  const meals = [];
-  for (const row of result.rows) meals.push(await readPlannedMeal(pool, row, householdId));
-  return meals;
+export async function listPlannedMeals(pool,householdId,weekStart){
+ const client=await pool.connect();
+ try{
+  await client.query('BEGIN');await lockHouseholdInventory(client,householdId);
+  const result=await client.query(`SELECT id,meal_date::text AS meal_date,slot,notes,is_occasion,occasion_title,prepared_at
+    FROM planned_meals WHERE household_id=$1 AND meal_date>=$2::date AND meal_date<$2::date+7
+    ORDER BY meal_date,CASE slot WHEN 'breakfast' THEN 1 WHEN 'lunch' THEN 2 WHEN 'snack' THEN 3 WHEN 'dinner' THEN 4 ELSE 5 END,created_at`,[householdId,weekStart]);
+  const meals=[];for(const row of result.rows)meals.push(await readPlannedMeal(client,row,householdId));
+  const readiness=meals.some(m=>!m.preparedAt&&m.items.length)?(await mealStockReadiness(client,householdId)).meals:new Map();
+  await client.query('COMMIT');return meals.map(meal=>({...meal,...(readiness.get(meal.id)??{})}));
+ }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 }
 
 export async function listPlannedRecipeIds(pool, householdId, fromDate) {
@@ -115,8 +119,8 @@ export async function savePlannedMeal(pool, id, data) {
     }
     if (normalizedItems.some(item=>item.amounts.some(amount=>!Number.isFinite(amount.quantity) || amount.quantity > 100000))) { await client.query('ROLLBACK'); return {error:'invalid-planned-quantity'}; }
     if (id) {
-      const existing=await client.query('SELECT prepared_at FROM planned_meals WHERE id=$1 AND household_id=$2 FOR UPDATE',[id,data.householdId]);
-      if(existing.rows[0]?.prepared_at){await client.query('ROLLBACK');return {error:'prepared-meal-locked'};}
+      const existing=await client.query('SELECT prepared_at,EXISTS(SELECT 1 FROM recipe_stock_uses u WHERE u.meal_id=planned_meals.id AND u.automatic AND u.cancelled_at IS NULL) AS stock_used FROM planned_meals WHERE id=$1 AND household_id=$2 FOR UPDATE',[id,data.householdId]);
+      if(existing.rows[0]?.prepared_at||existing.rows[0]?.stock_used){await client.query('ROLLBACK');return {error:'prepared-meal-locked'};}
       const updated = await client.query(
         'UPDATE planned_meals SET meal_date = $3, slot = $4, notes = $5, is_occasion=$6, occasion_title=$7, updated_at = now() WHERE id = $1 AND household_id = $2 RETURNING id',
         [id, data.householdId, data.mealDate, data.slot, data.notes, data.isOccasion ?? false, data.occasionTitle ?? ''],
@@ -154,11 +158,16 @@ export async function savePlannedMeal(pool, id, data) {
   }
 }
 
-export async function deletePlannedMeal(pool, id, householdId) {
-  const result = await pool.query('DELETE FROM planned_meals WHERE id = $1 AND household_id = $2 AND prepared_at IS NULL RETURNING id', [id, householdId]);
-  if(result.rowCount)return true;
-  const existing=await pool.query('SELECT prepared_at FROM planned_meals WHERE id=$1 AND household_id=$2',[id,householdId]);
-  return existing.rows[0]?.prepared_at?{error:'prepared-meal-locked'}:false;
+export async function deletePlannedMeal(pool,id,householdId){
+ const client=await pool.connect();
+ try{
+  await client.query('BEGIN');await lockHouseholdInventory(client,householdId);
+  const existing=await client.query(`SELECT prepared_at,EXISTS(SELECT 1 FROM recipe_stock_uses u WHERE u.meal_id=m.id AND u.automatic AND u.cancelled_at IS NULL) AS stock_used
+    FROM planned_meals m WHERE m.id=$1 AND m.household_id=$2 FOR UPDATE`,[id,householdId]);
+  if(!existing.rowCount){await client.query('ROLLBACK');return false;}
+  if(existing.rows[0].prepared_at||existing.rows[0].stock_used){await client.query('ROLLBACK');return {error:'prepared-meal-locked'};}
+  await client.query('DELETE FROM planned_meals WHERE id=$1 AND household_id=$2',[id,householdId]);await client.query('COMMIT');return true;
+ }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 }
 
 export function validateMealDuplication(input) {

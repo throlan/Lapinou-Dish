@@ -1,3 +1,4 @@
+import {loadStockBuckets,takeStock,addPlannedStock} from './stock-reservations.mjs';
 import {purchaseProductRequirements} from './shopping-products.mjs';
 import {randomUUID} from 'node:crypto';
 import {toGrams} from '../domain/foods.ts';
@@ -83,7 +84,7 @@ export async function availableRecipeStock(client,householdId) {
   const result=await client.query(`WITH produced AS (
     SELECT recipe_id,sum(quantity) AS quantity FROM stock_lots WHERE household_id=$1 AND cancelled_at IS NULL AND NOT is_serving_bundle GROUP BY recipe_id
   ), prepared AS (
-    SELECT i.recipe_id,sum(a.quantity) AS quantity FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
+    SELECT i.recipe_id,sum(a.quantity)-COALESCE((SELECT sum(u.quantity) FROM recipe_stock_uses u WHERE u.household_id=$1 AND u.recipe_id=i.recipe_id AND u.automatic AND u.cancelled_at IS NULL AND u.meal_id IN (SELECT id FROM planned_meals WHERE household_id=$1 AND prepared_at IS NOT NULL)),0) AS quantity FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
     JOIN planned_amounts a ON a.planned_item_id=i.id JOIN recipes r ON r.id=i.recipe_id
     WHERE m.household_id=$1 AND m.prepared_at IS NOT NULL AND r.production_type<>'none' GROUP BY i.recipe_id
   ), used AS (SELECT recipe_id,sum(quantity) AS quantity FROM recipe_stock_uses WHERE household_id=$1 AND cancelled_at IS NULL GROUP BY recipe_id)
@@ -102,10 +103,13 @@ export async function recipeRequirements(client,householdId,startDate,endDate) {
     recipe.minimumProductionQuantity=recipeMinimumInYield(recipe);
   }
   const initialStock=new Map(stock);
-  const events=await client.query(`SELECT m.id,m.meal_date::text AS date,i.recipe_id,sum(a.quantity) AS quantity
+  const buckets=await loadStockBuckets(client,householdId,stock);
+  const events=await client.query(`SELECT m.id,m.meal_date::text AS date,i.recipe_id,
+    sum(a.quantity)-COALESCE((SELECT sum(u.quantity) FROM recipe_stock_uses u WHERE u.planned_item_id=i.id AND u.automatic AND u.cancelled_at IS NULL),0) AS quantity
     FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id JOIN planned_amounts a ON a.planned_item_id=i.id
     WHERE m.household_id=$1 AND m.prepared_at IS NULL AND m.meal_date<=$2::date
-    GROUP BY m.id,m.meal_date,i.recipe_id ORDER BY m.meal_date,m.id,i.recipe_id`,[householdId,endDate]);
+    GROUP BY m.id,m.meal_date,m.slot,m.created_at,i.id,i.recipe_id,i.sort_order
+    ORDER BY m.meal_date,CASE m.slot WHEN 'breakfast' THEN 1 WHEN 'lunch' THEN 2 WHEN 'snack' THEN 3 WHEN 'dinner' THEN 4 ELSE 5 END,m.created_at,m.id,i.sort_order,i.id`,[householdId,endDate]);
   const preparations=new Map(),foods=new Map(),reservations=new Map();
   function demand(recipeId,quantity,event,path=[]){
     if(!(quantity>0))return;
@@ -115,13 +119,13 @@ export async function recipeRequirements(client,householdId,startDate,endDate) {
       for(const part of r.parts)demand(part.id,quantity/r.yield.amount*part.yield.amount,event,[...path,recipeId]);
       return;
     }
-    const covered=r.productionType==='none'?0:Math.min(quantity,Math.max(0,stock.get(recipeId)??0));
+    const covered=r.productionType==='none'?0:takeStock(buckets,recipeId,quantity,event.date).quantity;
     const missing=quantity-covered;
     const inRange=event.date>=startDate;
     const produceQuantity=r.productionType!=='none'&&missing>0
       ?Math.max(missing,inRange?r.minimumProductionQuantity??0:0):0;
     if(r.productionType!=='none'){
-      stock.set(recipeId,(stock.get(recipeId)??0)-covered+produceQuantity-missing);
+      addPlannedStock(buckets,recipeId,produceQuantity-missing,event.date);
       reservations.set(recipeId,(reservations.get(recipeId)??0)+quantity);
     }
     if(inRange && r.productionType!=='none'){
