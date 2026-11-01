@@ -1,3 +1,4 @@
+import {startMealStockClock} from './meal-stock-readiness.mjs';
 import pg from 'pg';
 import { createApp } from './app.mjs';
 import { migrateLegacyRecipeImages } from './recipe-images.mjs';
@@ -14,12 +15,14 @@ try {
 } catch (error) {
   console.warn(`Could not migrate existing recipe images to file storage: ${error?.code ?? error?.message ?? 'storage-unavailable'}`);
 }
+const stopMealClock=startMealStockClock(pool,{onError:error=>console.warn('Automatic meal stock update failed: '+(error?.code??'retrying'))});
 const app = createApp(pool, { appPassword });
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? '127.0.0.1';
 app.listen(port, host, () => console.log(`Lapinou Dish listening on http://${host}:${port}`));
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
   app.close(async (error) => {
+    await stopMealClock();
     await pool.end();
     process.exit(error ? 1 : 0);
   });

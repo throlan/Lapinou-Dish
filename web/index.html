@@ -11,8 +11,8 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.3.8">
-    <link rel="stylesheet" href="/editorial.css?v=0.3.8">
+    <link rel="stylesheet" href="/style.css?v=0.3.9">
+    <link rel="stylesheet" href="/editorial.css?v=0.3.9">
   </head>
   <body>
     <header class="topbar">
@@ -146,6 +146,7 @@
         </div>
       </section>
       <section id="calendar-view" class="view hidden">
+        <p class="hint">« Prêt » signifie que les portions produites sont réservées en stock. Elles seront retirées automatiquement une fois le jour du repas passé (heure de Paris). « Utiliser maintenant » permet un retrait manuel immédiat.</p>
         <div class="section-heading"><div><h2>Calendrier familial</h2><p>Prévisions par personne, reliées aux recettes du catalogue.</p></div><button type="button" class="secondary" id="manage-profiles">Gérer les profils</button></div>
         <div class="calendar-toolbar">
           <div class="calendar-week-nav"><button type="button" class="secondary" id="previous-week" aria-label="Semaine précédente">‹</button><strong id="calendar-week-title"></strong><button type="button" class="secondary" id="next-week" aria-label="Semaine suivante">›</button><button type="button" class="secondary" id="current-week">Aujourd’hui</button></div>
@@ -270,7 +271,7 @@
             <h4>Affectations enregistrées</h4><div id="food-store-assignments"><p class="empty">Chargement…</p></div>
           </details>
         </section>
-        <section class="card production-card"><h3>Enregistrer une production</h3><p class="hint">Choisis une recette à produire pour les menus affichés, ou ajoute une préparation supplémentaire.</p><form id="production-form"><label>Préparation des menus<select name="recipeId" required></select></label><details class="extra-production"><summary>+ Préparation supplémentaire</summary><label>Autre recette à produire<select id="extra-production-recipe"><option value="">Choisir une autre préparation…</option></select></label></details><div class="yield-row"><label>Date<input name="producedOn" type="date" required></label><label>Quantité produite<input name="quantity" type="number" min="0.01" step="any" required></label></div><label>Conservation<select name="storage"><option value="freezer">Congélateur</option><option value="fridge">Réfrigérateur</option><option value="pantry">Placard</option></select></label><label>Note (facultatif)<input name="note" maxlength="500"></label><button class="primary" type="submit">Ajouter au stock</button><p id="production-message" class="form-message" role="status"></p></form><details class="finished-stock"><summary>Stock des préparations déjà produites</summary><p class="hint">Le stock restant réel correspond à ce qui est physiquement présent. Les réservations des menus sont affichées séparément. Corrige le restant si des portions ont été prises en dehors des menus.</p><div id="stock-list"><p class="empty">Chargement…</p></div></details></section>
+        <section class="card production-card"><h3>Enregistrer une production</h3><p class="hint">Choisis une recette à produire pour les menus affichés, ou ajoute une préparation supplémentaire.</p><form id="production-form"><label>Préparation des menus<select name="recipeId" required></select></label><details class="extra-production"><summary>+ Préparation supplémentaire</summary><label>Autre recette à produire<select id="extra-production-recipe"><option value="">Choisir une autre préparation…</option></select></label></details><div class="yield-row"><label>Date<input name="producedOn" type="date" required></label><label>Quantité produite<input name="quantity" type="number" min="0.01" step="any" required></label></div><label>Conservation<select name="storage"><option value="freezer">Congélateur</option><option value="fridge">Réfrigérateur</option><option value="pantry">Placard</option></select></label><fieldset class="production-period"><legend>Menus concernés</legend><label class="production-period-choice"><input type="checkbox" name="reservePeriod"> Réserver pour une plage de menus</label><div class="yield-row"><label>Du<input type="date" name="plannedStart" disabled></label><label>Au<input type="date" name="plannedEnd" disabled></label></div><p class="hint">Les portions sont réservées aux repas de cette plage, dans leur ordre. Le surplus peut couvrir les repas suivants. Sans plage, les premiers repas planifiés sont prioritaires.</p></fieldset><label>Note (facultatif)<input name="note" maxlength="500"></label><button class="primary" type="submit">Ajouter au stock</button><p id="production-message" class="form-message" role="status"></p></form><details class="finished-stock"><summary>Stock des préparations déjà produites</summary><p class="hint">Le stock restant réel correspond à ce qui est physiquement présent. Les réservations des menus sont affichées séparément. Corrige le restant si des portions ont été prises en dehors des menus.</p><div id="stock-list"><p class="empty">Chargement…</p></div></details></section>
         <details class="card ingredient-section">
           <summary>Gestion détaillée du stock des produits</summary>
           <p class="hint">Renseigne les produits déjà présents. Les achats validés augmentent le stock ; les productions et les repas marqués « Préparé » retirent les ingrédients utilisés. Les quantités de stock sont en grammes. Laisse les seuils à zéro si tu ne souhaites pas de surveillance.</p>
@@ -306,7 +307,7 @@
         <h3>Préparation</h3><div id="cook-instructions" class="cook-instructions"></div>
         <section id="cook-video" class="cooking-instagram" hidden aria-label="Publication Instagram de la recette"></section>
         <p id="cook-source"></p>
-        <div id="cook-production-fields"><div class="yield-row"><label>Date de production<input name="producedOn" type="date" required></label><label>Conservation<select name="storage"><option value="freezer">Congélateur</option><option value="fridge">Réfrigérateur</option><option value="pantry">Placard</option></select></label></div><label>Note (facultatif)<input name="note" maxlength="500"></label></div>
+        <div id="cook-production-fields"><div class="yield-row"><label>Date de production<input name="producedOn" type="date" required></label><label>Conservation<select name="storage"><option value="freezer">Congélateur</option><option value="fridge">Réfrigérateur</option><option value="pantry">Placard</option></select></label></div><fieldset class="production-period"><legend>Menus concernés</legend><label class="production-period-choice"><input type="checkbox" name="reservePeriod"> Réserver pour une plage de menus</label><div class="yield-row"><label>Du<input type="date" name="plannedStart" disabled></label><label>Au<input type="date" name="plannedEnd" disabled></label></div><p class="hint">Les portions sont réservées aux repas de cette plage, dans leur ordre. Le surplus peut couvrir les repas suivants. Sans plage, les premiers repas planifiés sont prioritaires.</p></fieldset><label>Note (facultatif)<input name="note" maxlength="500"></label></div>
         <p id="cook-message" class="form-message" role="status"></p>
         <div class="form-actions"><button type="button" class="secondary" id="cancel-cook">Fermer</button><button type="submit" class="primary" id="save-cook">Ajouter la production au stock</button></div>
       </form>
@@ -430,7 +431,7 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/install-app.js?v=0.3.8"></script>
-    <script type="module" src="/app.js?v=0.3.8"></script>
+    <script type="module" src="/install-app.js?v=0.3.9"></script>
+    <script type="module" src="/app.js?v=0.3.9"></script>
   </body>
 </html>

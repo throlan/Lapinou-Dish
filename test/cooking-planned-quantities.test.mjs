@@ -81,7 +81,8 @@ test('free source portions produce the matching gram stock without modifying men
     const lot=await addStockLot(pool,{householdId,recipeId:recipe.id,quantity:6,producedOn:'2026-10-19',storage:'fridge',note:'Guests',requestId:randomUUID()});
     assert.equal(lot.error,undefined);assert.equal(lot.deductions[0].usedG,4990.5);
     assert.equal((await listStock(pool,householdId)).find(s=>s.recipeId===target.id).producedQuantity,4990.5);
-    assert.deepEqual(await listPlannedMeals(pool,householdId,'2026-10-19'),before);
+    const after=await listPlannedMeals(pool,householdId,'2026-10-19');assert.equal(after[0].stockReady,true);
+    const persisted=meals=>meals.map(({stockReady,readyItemIds,...meal})=>meal);assert.deepEqual(persisted(after),persisted(before));
     await cancelStockLot(pool,householdId,lot.id);
     assert.equal((await listIngredientStock(pool,householdId))[0].quantityG,20000);
     assert.deepEqual(await listPlannedMeals(pool,householdId,'2026-10-19'),before);

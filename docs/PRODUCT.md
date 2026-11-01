@@ -2,6 +2,10 @@
 
 Ce document décrit le produit cible. Pour les fonctions effectivement livrées, consulter [l'état actuel](STATUS.md) et [le cahier de reprise](REPRISE.md). Les règles de planification ci-dessous sont complétées par [le fonctionnement kcal actuel](MEAL-ENERGY.md).
 
+## Préparations, réservations et sorties de stock
+
+Une préparation déjà fabriquée peut être réservée aux menus d’une plage de dates. Les repas prêts sont reconnus à partir du stock réel, dans l’ordre des dates et créneaux ; chaque partie d’un service séparé doit être couverte. Le stock réservé reste physiquement présent jusqu’à la fin du jour du repas (Europe/Paris), puis ses portions sont retirées automatiquement, sans nouvelle déduction des ingrédients bruts. Les sorties sont idempotentes et rattrapées après redémarrage ; les menus antérieurs à l’activation restent préservés. Une annulation restitue les sorties et suspend l’automatisme pour ce repas. Ce mécanisme ne constitue pas un journal nutritionnel de consommation réelle.
+
 ## Objectif
 
 Aider un foyer à décider quoi manger, en quelle quantité pour chaque personne, quoi acheter et quoi fabriquer à l'avance. Le logiciel affiche les apports calculés à partir des aliments réellement utilisés sans demander de journal alimentaire après les repas.

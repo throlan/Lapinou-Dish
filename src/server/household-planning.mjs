@@ -138,17 +138,20 @@ export function validateProductionInput(input) {
       || part.quantity < 0 || part.quantity > 100000 || Math.abs(part.quantity * 1000 - Math.round(part.quantity * 1000)) > 0.000001)
     || new Set(input.servingQuantities.map(part => part.recipeId)).size !== input.servingQuantities.length
     || !input.servingQuantities.some(part => part.quantity > 0))) return {error:'invalid-production-parts'};
+  if((input.plannedStart!=null||input.plannedEnd!=null)&&(!isDate(input.plannedStart)||!isDate(input.plannedEnd)
+    ||input.plannedEnd<input.plannedStart||(Date.parse(input.plannedEnd)-Date.parse(input.plannedStart))/86400000>62))return {error:'invalid-production-period'};
   return { data: {
     householdId: input.householdId, recipeId: input.recipeId,
     producedOn: input.producedOn, quantity: input.quantity, storage: input.storage ?? 'freezer',
     note: typeof input.note === 'string' ? input.note.trim() : '',
     requestId: input.requestId ?? null,
+    plannedStart:input.plannedStart??null,plannedEnd:input.plannedEnd??null,
     ...(split ? {servingQuantities:input.servingQuantities.map(part=>({recipeId:part.recipeId,quantity:part.quantity}))} : {}),
   } };
 }
 
 export async function addStockLot(pool, input) {
-  if (input.servingQuantities != null) {
+  if (input.servingQuantities != null || input.plannedStart != null || input.plannedEnd != null) {
     const validation=validateProductionInput(input);
     if(validation.error)return validation;
     input=validation.data;
@@ -161,7 +164,7 @@ export async function addStockLot(pool, input) {
     await client.query('BEGIN');
     await lockHouseholdInventory(client, input.householdId);
     if (input.requestId) {
-      const previous = await client.query('SELECT *, produced_on::text AS produced_on FROM stock_lots WHERE household_id=$1 AND request_id=$2', [input.householdId,input.requestId]);
+      const previous = await client.query('SELECT *, produced_on::text AS produced_on,planned_start::text AS planned_start,planned_end::text AS planned_end FROM stock_lots WHERE household_id=$1 AND request_id=$2', [input.householdId,input.requestId]);
       if (previous.rowCount) {
         const lot = previous.rows[0];
         await client.query('ROLLBACK');
@@ -172,7 +175,7 @@ export async function addStockLot(pool, input) {
             && Object.entries(requestedParts).every(([key,value])=>Number(savedParts[key])===value)
           : !requestedParts && !savedParts;
         if (!sameParts || lot.recipe_id !== input.recipeId || (!requestedParts && Number(lot.quantity) !== input.quantity)
-          || String(lot.produced_on).slice(0,10) !== input.producedOn || lot.storage !== input.storage || lot.note !== input.note) return { error:'production-request-conflict' };
+          || String(lot.produced_on).slice(0,10) !== input.producedOn || (lot.planned_start?String(lot.planned_start).slice(0,10):null)!==(input.plannedStart??null) || (lot.planned_end?String(lot.planned_end).slice(0,10):null)!==(input.plannedEnd??null) || lot.storage !== input.storage || lot.note !== input.note) return { error:'production-request-conflict' };
         return { id:lot.id, recipeId:input.recipeId, quantity:Number(lot.quantity), replayed:true };
       }
     }
@@ -204,9 +207,9 @@ export async function addStockLot(pool, input) {
     const deductions=productionDeductions(inputs.lines,1,1,{allowNegativeStock:true});
     if (deductions.error) { await client.query('ROLLBACK'); return deductions; }
     await client.query(
-      `INSERT INTO stock_lots (id, household_id, recipe_id, produced_on, quantity, storage, note, request_id,serving_quantities)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)`,
-      [id, input.householdId, input.recipeId, input.producedOn, quantity, input.storage, input.note,input.requestId,requestedParts?JSON.stringify(requestedParts):null],
+      `INSERT INTO stock_lots (id, household_id, recipe_id, produced_on, quantity, storage, note, request_id,serving_quantities,planned_start,planned_end)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11)`,
+      [id, input.householdId, input.recipeId, input.producedOn, quantity, input.storage, input.note,input.requestId,requestedParts?JSON.stringify(requestedParts):null,input.plannedStart??null,input.plannedEnd??null],
     );
     if (recipe.rows[0].separate_starch) {
       parts ??= await client.query('SELECT id,yield_amount FROM recipes WHERE parent_recipe_id=$1 AND serving_part_active FOR SHARE', [input.recipeId]);
@@ -254,7 +257,7 @@ export async function cancelStockLot(pool, householdId, lotId) {
       const remaining=await client.query(`SELECT COALESCE(sum(quantity),0) AS quantity FROM stock_lots
         WHERE household_id=$1 AND recipe_id=$2 AND cancelled_at IS NULL AND NOT is_serving_bundle
           AND id<>$3 AND parent_lot_id IS DISTINCT FROM $3`,[householdId,recipe.recipe_id,lotId]);
-      const prepared=await client.query(`SELECT COALESCE(sum(a.quantity),0) AS quantity
+      const prepared=await client.query(`SELECT COALESCE(sum(a.quantity),0)-COALESCE((SELECT sum(u.quantity) FROM recipe_stock_uses u JOIN planned_meals x ON x.id=u.meal_id WHERE u.household_id=$1 AND u.recipe_id=$2 AND u.automatic AND u.cancelled_at IS NULL AND x.prepared_at IS NOT NULL),0) AS quantity
         FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id JOIN planned_amounts a ON a.planned_item_id=i.id
         WHERE m.household_id=$1 AND m.prepared_at IS NOT NULL AND i.recipe_id=$2`,[householdId,recipe.recipe_id]);
       const used=await client.query('SELECT COALESCE(sum(quantity),0) AS quantity FROM recipe_stock_uses WHERE household_id=$1 AND recipe_id=$2 AND cancelled_at IS NULL AND stock_lot_id IS DISTINCT FROM $3',[householdId,recipe.recipe_id,lotId]);
@@ -313,7 +316,9 @@ export async function listStock(pool, householdId) {
     [householdId],
   );
   const lots = await pool.query(
-    `SELECT id, recipe_id AS "recipeId", produced_on::text AS "producedOn", quantity, storage, note,parent_lot_id AS "parentLotId"
+    `SELECT id, recipe_id AS "recipeId", produced_on::text AS "producedOn", quantity, storage, note,parent_lot_id AS "parentLotId",
+       COALESCE(planned_start,(SELECT p.planned_start FROM stock_lots p WHERE p.id=stock_lots.parent_lot_id))::text AS "plannedStart",
+       COALESCE(planned_end,(SELECT p.planned_end FROM stock_lots p WHERE p.id=stock_lots.parent_lot_id))::text AS "plannedEnd"
      FROM stock_lots WHERE household_id=$1 AND cancelled_at IS NULL AND NOT is_serving_bundle ORDER BY produced_on DESC, created_at DESC`, [householdId]);
   const needs=await recipeRequirements(pool,householdId,'0001-01-01','9999-12-31');
   const rows=new Map(result.rows.map(row=>[row.recipeId,row]));

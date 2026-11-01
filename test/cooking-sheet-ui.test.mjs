@@ -25,7 +25,7 @@ function cookingUI(){
     mountCookingInstagram,productionRecipe,scaledIngredients,scaledSourceIngredients,cookingYield,suggestedServingQuantities,formatQty:q=>String(q),localDateValue:()=> '2026-10-19',
     showMessage:(target,text)=>{target.textContent=text;},newProductionRequestId:()=> 'request',
     api:async(path,options)=>{requests.push({path,payload:JSON.parse(options.body)});return {};},
-    refreshShopping:async()=>{},refreshDashboard:async()=>{}};
+    refreshShopping:async()=>{},refreshDashboard:async()=>{},refreshCalendar:async()=>{}};
   runInNewContext(source.slice(start,end)+'\nglobalThis.openSheet=openCookingSheet;',context);
   return {form,$,recipe,requests,open:(...args)=>context.openSheet(recipe.id,...args),submit:()=>form.handlers.submit({currentTarget:form,preventDefault(){}})};
 }
