@@ -1,8 +1,10 @@
 # État du projet — 4 novembre 2026
 
-## 0.3.11 — Courses & stocks en onglets
+## 0.3.11 livrée — Courses & stocks en onglets
 
 La liste de courses, les préparations, les stocks, les magasins et les routines sont accessibles dans cinq onglets. La période des courses reste commune et visible en haut. Les saisies en cours sont conservées entre les onglets. Aucun changement de calcul ni de données.
+
+353 tests locaux réussis. PR #159 fusionnée au commit `36dc404a107b658c3bf0c89297f9e7e2abab5ee3` ; contrôles et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41821597464. Tags `0.3.11` et `v0.3.11` vérifiés, digest commun `sha256:36534f81dc4e4648789f2c7e42104559f4499e59a3fa7cc7edeb02df718b7089`.
 
 ## 0.3.10 livrée
 
