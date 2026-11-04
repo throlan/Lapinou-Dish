@@ -4,38 +4,38 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Lapinou Dish</title>
-    <meta name="theme-color" content="#29243e">
+    <meta name="theme-color" content="#382146">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Lapinou Dish">
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.3.11">
-    <link rel="stylesheet" href="/editorial.css?v=0.3.11">
+    <link rel="stylesheet" href="/style.css?v=0.3.12">
+    <link rel="stylesheet" href="/editorial.css?v=0.3.12">
   </head>
   <body>
     <header class="topbar">
       <a class="brand" href="/" aria-label="Lapinou Dish accueil"><img class="brand-mark" src="/icons/app-192.png" width="37" height="37" alt=""><span>Lapinou <b>Dish</b></span></a>
       <button type="button" class="secondary app-back" id="app-back" disabled aria-label="Revenir à la page précédente dans Lapinou Dish">← Retour</button>
       <nav aria-label="Navigation principale">
-        <button class="nav-button active" data-view="home">Accueil</button>
-        <button class="nav-button" data-view="foods">Aliments</button>
-        <button class="nav-button" data-view="recipes">Recettes</button>
-        <button class="nav-button" data-view="import">Importer</button>
-        <button class="nav-button" data-view="calendar">Calendrier</button>
-        <button class="nav-button" data-view="shopping">Courses & stocks</button>
-        <button class="nav-button" data-view="admin">Administration</button>
+        <button class="nav-button active" data-view="home"><span class="nav-icon" aria-hidden="true">⌂</span><span>Accueil</span></button>
+        <button class="nav-button" data-view="calendar"><span class="nav-icon" aria-hidden="true">▦</span><span>Calendrier</span></button>
+        <button class="nav-button" data-view="recipes"><span class="nav-icon" aria-hidden="true">◫</span><span>Recettes</span></button>
+        <button class="nav-button" data-view="foods"><span class="nav-icon" aria-hidden="true">◩</span><span>Aliments</span></button>
+        <button class="nav-button" data-view="import"><span class="nav-icon" aria-hidden="true">↥</span><span>Importer</span></button>
+        <button class="nav-button" data-view="shopping"><span class="nav-icon" aria-hidden="true">▤</span><span>Courses & stocks</span></button>
+        <button class="nav-button" data-view="admin"><span class="nav-icon" aria-hidden="true">⚙</span><span>Administration</span></button>
       </nav>
       <span class="connection" id="connection">Connexion…</span>
       <button type="button" class="secondary app-install-trigger" data-install-app>Installer l’app</button>
     </header>
     <nav class="mobile-nav" aria-label="Navigation mobile">
-      <button type="button" class="nav-button active" data-view="home">Accueil</button>
-      <button type="button" class="nav-button" data-view="recipes">Recettes</button>
-      <button type="button" class="nav-button" data-view="calendar">Calendrier</button>
-      <button type="button" class="nav-button" data-view="shopping">Courses</button>
-      <details><summary>Plus</summary><div>
+      <button type="button" class="nav-button active" data-view="home"><span class="nav-icon" aria-hidden="true">⌂</span><span>Accueil</span></button>
+      <button type="button" class="nav-button" data-view="calendar"><span class="nav-icon" aria-hidden="true">▦</span><span>Calendrier</span></button>
+      <button type="button" class="nav-button" data-view="recipes"><span class="nav-icon" aria-hidden="true">◫</span><span>Recettes</span></button>
+      <button type="button" class="nav-button" data-view="shopping"><span class="nav-icon" aria-hidden="true">▤</span><span>Courses</span></button>
+      <details><summary><span class="nav-icon" aria-hidden="true">☰</span><span>Plus</span></summary><div>
         <button type="button" class="nav-button" data-view="foods">Aliments</button>
         <button type="button" class="nav-button" data-view="import">Importer</button>
         <button type="button" class="nav-button" data-view="admin">Administration</button>
@@ -153,6 +153,7 @@
           <button type="button" class="secondary calendar-print-button" id="print-calendar">Imprimer la semaine</button>
           <span class="muted">Prévu · les consommations réelles seront journalisées séparément</span>
         </div>
+        <nav id="calendar-day-picker" class="calendar-day-picker" aria-label="Jour du calendrier sur téléphone"></nav>
         <div class="calendar-layout">
           <div id="calendar-grid" class="calendar-grid"><p class="empty">Chargement de la semaine…</p></div>
           <aside id="calendar-summary" class="calendar-summary"><h3>Prévisions par personne</h3><p class="muted">Aucune donnée à afficher.</p></aside>
@@ -445,7 +446,7 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/install-app.js?v=0.3.11"></script>
-    <script type="module" src="/app.js?v=0.3.11"></script>
+    <script type="module" src="/install-app.js?v=0.3.12"></script>
+    <script type="module" src="/app.js?v=0.3.12"></script>
   </body>
 </html>

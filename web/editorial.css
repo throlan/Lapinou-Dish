@@ -362,6 +362,184 @@
   .recipe-quick-factors { grid-template-columns:1fr; }
 }
 
+/* App-first shell: the rabbit icon supplies the identity; quiet surfaces carry the data. */
+@media screen {
+  :root {
+    --night:#f7f5f9; --panel:#fffefd; --panel-raised:#f1edf5;
+    --line:#e4ddea; --muted:#6d6573; --text:#302638;
+    --accent:#982b68; --cyan:#287397; --purple:#6e51a0; --pink:#982b68;
+    --yellow:#865717; --positive:#2d705b;
+    --surface:var(--panel); --surface-raised:var(--panel-raised);
+    --app-ink:#382146; --app-rail:#f0edf5; --app-accent-soft:#f7eaf2;
+    --editorial-shadow:0 3px 14px #38214608;
+  }
+  body { background:var(--night); color:var(--text); padding-left:198px; }
+  main { max-width:1650px; padding:26px 30px 64px; }
+  .topbar { width:198px; background:var(--app-rail); border-color:var(--line); padding:25px 13px 18px; gap:16px; }
+  .topbar nav { gap:3px; }
+  .brand { color:var(--app-ink); font-size:20px; }
+  .brand b { color:var(--accent); }
+  .brand-mark { width:44px; height:44px; padding:0; object-fit:cover; background:var(--app-ink); border-radius:13px; }
+  .nav-button { display:flex; align-items:center; gap:10px; min-height:45px; color:var(--muted); }
+  .nav-icon { display:inline-grid; place-items:center; flex:none; width:20px; font-size:19px; font-weight:400; line-height:1; }
+  .nav-button.active { background:var(--panel); color:var(--accent); }
+  .nav-button:hover { background:var(--panel); color:var(--accent); }
+  .app-back { min-height:42px; }
+  .intro { margin:0 0 17px; justify-content:flex-end; }
+  .intro>div:first-child { display:none; }
+  .household-box { font-size:12px; padding:8px 12px; background:var(--panel); color:var(--muted); }
+  .view { padding:0; }
+  .section-heading { margin-bottom:17px; }
+  .section-heading h2,.dashboard-panel h2,.dashboard-welcome h1 { color:var(--app-ink); }
+  .card,.profile-card,.dashboard-panel,.shopping-store-card,.preparation-group { border-color:var(--line); border-radius:14px; background:var(--panel); box-shadow:none; }
+  .card { padding:18px; }
+  .primary { background:var(--accent); border-color:var(--accent); }
+  .primary:hover { background:#7d2052; }
+  .secondary { background:var(--panel); color:var(--app-ink); border-color:var(--line); }
+  .secondary:hover { background:var(--panel-raised); border-color:#c8b8cb; }
+  :focus-visible { outline-color:var(--purple); }
+  input:not([type="checkbox"]),select,textarea { border-color:#d7cddb; background:var(--panel); color:var(--text); }
+  input:not([type="checkbox"]):focus,select:focus,textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px #982b681b; }
+  .admin-tabs,.shopping-tabs { background:var(--night); border-color:var(--line); gap:7px; }
+  .admin-tabs [role="tab"] { background:var(--panel); color:var(--muted); border-color:var(--line); min-height:43px; }
+  .admin-tabs [role="tab"][aria-selected="true"] { background:var(--app-ink); border-color:var(--app-ink); color:#fff; }
+  .shopping-period { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; max-width:760px; }
+  .table-wrap { background:var(--panel); border-color:var(--line); border-radius:12px; }
+  th { background:var(--panel-raised); color:var(--muted); }
+  .food-catalogue-table td { border-color:var(--line); }
+  .food-bulk-toolbar { border-color:var(--line); }
+  .import-card,.nutrition-completion,.food-yield-form { background:var(--panel); border-color:var(--line); }
+  dialog { background:var(--panel); border-color:var(--line); }
+  dialog::backdrop { background:#38214666; }
+  .dashboard-welcome { margin:0 0 15px; }
+  .dashboard-welcome h1 { font-size:31px; }
+  .dashboard-stats { gap:10px; padding:0 0 19px; }
+  .dashboard-stat { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:11px 14px; }
+  .dashboard-stat strong { color:var(--app-ink); font-size:22px; }
+  .dashboard-layout { gap:20px; }
+  .dashboard-menu>h2 { margin-bottom:12px; font-size:23px; }
+  .dashboard-day-picker,.calendar-day-picker { display:none; }
+  .dashboard-day { grid-template-columns:80px repeat(4,minmax(0,1fr)); gap:7px; padding:8px 0; }
+  .dashboard-day>h3 { color:var(--app-ink); font-size:12px; }
+  .dashboard-meal-slot h4 { color:var(--muted); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; }
+  .dashboard-meal { display:grid; grid-template-columns:42px minmax(0,1fr); gap:2px 8px; padding:7px; min-height:59px; box-shadow:none; border-color:var(--line); }
+  .dashboard-meal-photo { grid-column:1; grid-row:1 / span 3; width:42px; height:42px; aspect-ratio:1; max-height:none; margin:0; border-radius:7px; object-fit:cover; }
+  .dashboard-meal strong,.dashboard-meal small { grid-column:2; margin:0; }
+  .dashboard-meal strong { font-size:11px; }
+  .dashboard-meal small { font-size:10px; }
+  .dashboard-meal .stock-status { color:var(--positive); }
+  .dashboard-add { min-height:57px; background:transparent; border:1px dashed #cdb9cd; }
+  .dashboard-sidebar { grid-template-columns:repeat(3,minmax(0,1fr)); gap:11px; }
+  .dashboard-sidebar .dashboard-panel { padding:16px; }
+  .recipe-directory { gap:18px; }
+  .recipe-filters { background:var(--panel); border:1px solid var(--line); border-radius:12px; }
+  .recipe-grid { gap:15px; }
+  .recipe-card { border:1px solid var(--line); box-shadow:none; }
+  .recipe-card-visual { background:var(--panel-raised); }
+  .recipe-card-visual img { object-fit:cover; }
+  .recipe-card-visual img.image-fallback,.dashboard-meal-photo.image-fallback,.planned-meal-photo.image-fallback,.preparation-photo.image-fallback { object-fit:cover; background:var(--app-ink); }
+  .recipe-row-identity h3 { color:var(--app-ink); }
+  .calendar-grid { gap:9px; }
+  .calendar-day { border-color:var(--line); box-shadow:none; }
+  .calendar-day.today { border-color:#a78da9; box-shadow:0 0 0 1px #a78da9; }
+  .calendar-slot[data-slot="breakfast"] { --slot-border:#61a87b; --slot-background:#eaf5ee; }
+  .calendar-slot[data-slot="lunch"],.calendar-slot[data-slot="dinner"] { --slot-border:#66b8c6; --slot-background:#e9f6f8; }
+  .calendar-slot[data-slot="snack"],.calendar-slot[data-slot="evening_snack"] { --slot-border:#e4a15a; --slot-background:#fff2e4; }
+  .calendar-slot[data-slot] { border:1px solid var(--slot-border); background:var(--slot-background); }
+  .calendar-slot[data-slot] .planned-meal-card { background:var(--panel); border:1px solid var(--line); }
+  .calendar-slot-heading { color:var(--app-ink); }
+  .planned-meal-heading { display:flex; align-items:flex-start; gap:7px; }
+  .planned-meal-photo { width:38px; height:38px; flex:none; border-radius:7px; object-fit:cover; }
+  .planned-meal-heading button { flex:1; min-width:0; width:auto; }
+  .preparation-identity { display:flex; align-items:center; gap:10px; min-width:0; }
+  .preparation-identity strong { min-width:0; }
+  .preparation-photo { width:46px; height:46px; flex:none; object-fit:cover; border-radius:8px; }
+  .preparation-row { background:var(--panel); border-color:var(--line); }
+  .preparation-row .preparation-amount { color:var(--accent); }
+  .preparation-row.is-covered .preparation-amount { color:var(--positive); }
+  .shopping-store-header,.shopping-group h4 { background:var(--panel-raised); color:var(--app-ink); }
+  .shopping-item-head { padding:12px 14px; }
+  .shopping-item-main { background:var(--panel); border-color:var(--line); }
+  .shopping-quantity { color:var(--accent); }
+  .admin-panel>.card,.shopping-panel>.card { border-color:var(--line); }
+  @media(max-width:1399px) and (min-width:768px) {
+    .calendar-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  }
+  @media(max-width:1199px) and (min-width:768px) {
+    body { padding-left:86px; }
+    main { padding:23px 22px 52px; }
+    .topbar { position:fixed; inset:0 auto 0 0; width:86px; height:100dvh; overflow-y:auto; padding:15px 7px; display:flex; flex-direction:column; gap:9px; border:0; border-right:1px solid var(--line); }
+    .topbar .brand { justify-content:center; }
+    .topbar .brand span { display:none; }
+    .topbar .brand-mark { width:47px; height:47px; }
+    .topbar nav { display:flex; flex-direction:column; gap:2px; }
+    .topbar .nav-button { display:flex; flex-direction:column; justify-content:center; gap:1px; min-height:55px; padding:6px 2px; text-align:center; font-size:10px; }
+    .topbar .nav-icon { font-size:20px; }
+    .topbar .app-back { align-self:center; width:50px; font-size:0; padding:0; }
+    .topbar .app-back::before { content:'←'; font-size:19px; }
+    .topbar .connection { display:none; }
+    .topbar .app-install-trigger { align-self:stretch; font-size:10px; padding:5px; }
+    .dashboard-day { grid-template-columns:68px repeat(4,minmax(0,1fr)); }
+    .dashboard-meal { grid-template-columns:34px minmax(0,1fr); gap:2px 5px; }
+    .dashboard-meal-photo { width:34px; height:34px; }
+    .dashboard-sidebar { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .recipe-directory { grid-template-columns:180px minmax(0,1fr); }
+  }
+  @media(max-width:767px) {
+    body { padding-left:0; padding-bottom:calc(84px + env(safe-area-inset-bottom,0px)); }
+    main { padding:16px 13px 32px; }
+    .topbar { position:relative; inset:auto; width:100%; height:auto; padding:12px 14px; display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; gap:9px; border:0; border-bottom:1px solid var(--line); }
+    .topbar .brand { font-size:19px; margin-right:auto; }
+    .topbar .brand-mark { width:39px; height:39px; }
+    .topbar nav,.topbar .app-install-trigger,.topbar .connection { display:none; }
+    .topbar .app-back { align-self:center; }
+    .intro { margin-bottom:13px; }
+    .mobile-nav { background:var(--panel); box-shadow:0 -4px 18px #3821460d; }
+    .mobile-nav .nav-button,.mobile-nav summary { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; padding:5px 2px; font-size:10px; min-height:55px; }
+    .mobile-nav .nav-icon { width:auto; font-size:20px; }
+    .mobile-nav .nav-button.active,.mobile-nav details.active>summary { background:var(--app-accent-soft); color:var(--accent); }
+    .mobile-nav details>div .nav-button { display:block; text-align:left; font-size:13px; }
+    .section-heading h2 { font-size:26px; }
+    .dashboard-welcome { gap:9px; }
+    .dashboard-welcome h1 { font-size:27px; }
+    .dashboard-stats { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+    .dashboard-stat { padding:9px 11px; }
+    .dashboard-stat strong { font-size:20px; }
+    .dashboard-menu,.dashboard-sidebar { grid-template-columns:1fr; }
+    .dashboard-day-picker,.calendar-day-picker { display:flex; gap:4px; margin:10px 0 13px; }
+    .dashboard-day-picker button,.calendar-day-picker button { flex:1; min-width:0; min-height:43px; border:1px solid var(--line); border-radius:9px; background:var(--panel); color:var(--muted); padding:4px 2px; font-size:10px; font-weight:700; }
+    .dashboard-day-picker button[aria-pressed="true"],.calendar-day-picker button[aria-pressed="true"] { background:var(--app-ink); border-color:var(--app-ink); color:#fff; }
+    .dashboard-day:not(.is-active),.calendar-day:not(.is-active) { display:none; }
+    .dashboard-day { grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; padding:8px 0; }
+    .dashboard-day>h3 { grid-column:1/-1; font-size:15px; }
+    .dashboard-meal { display:block; min-height:140px; padding:0 0 9px; overflow:hidden; }
+    .dashboard-meal-photo { display:block; width:100%; height:74px; max-height:none; aspect-ratio:auto; border-radius:10px 10px 0 0; margin:0 0 7px; }
+    .dashboard-meal strong,.dashboard-meal small { display:block; padding:0 9px; }
+    .dashboard-meal strong { font-size:12px; }
+    .dashboard-meal small { font-size:10px; }
+    .dashboard-meal-slot h4 { font-size:10px; }
+    .dashboard-sidebar { gap:10px; }
+    .calendar-grid { grid-template-columns:1fr; }
+    .calendar-day { padding:13px; }
+    .planned-meal-photo { width:48px; height:48px; }
+    .recipe-grid { grid-template-columns:1fr!important; }
+    .recipe-card-visual { aspect-ratio:16/9; }
+    .shopping-period { max-width:none; }
+    .shopping-tabs,.admin-tabs { margin-bottom:12px; }
+    .shopping-item-head { padding:12px; }
+    .preparation-photo { width:43px; height:43px; }
+  }
+  @media(max-width:380px) {
+    .dashboard-day-picker button,.calendar-day-picker button { font-size:9px; }
+    .dashboard-meal strong { font-size:11px; }
+    .household-box { max-width:100%; }
+  }
+}
+@media print {
+  .dashboard-day-picker,.calendar-day-picker,.planned-meal-heading,.preparation-photo { display:none!important; }
+  .calendar-day { display:flex!important; }
+}
+
 @media screen {
   .recipe-quick-ingredient { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px 12px; padding:12px 0; border-top:1px solid var(--line); }
   .recipe-quick-ingredient>strong { grid-column:1/-1; font-size:13px; font-weight:500; overflow-wrap:anywhere; }

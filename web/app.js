@@ -54,6 +54,7 @@ function setView(name, { recordHistory=true }={}) {
   $('#shopping-view').classList.toggle('hidden', name !== 'shopping');
   $('#admin-view').classList.toggle('hidden', name !== 'admin');
   $$('.nav-button').forEach((button) => button.classList.toggle('active', button.dataset.view === name));
+  $('.mobile-nav details').classList.toggle('active',['foods','import','admin'].includes(name));
   if (name === 'home') refreshDashboard();
   if (name === 'foods') return refreshFoods();
   if (name === 'recipes') return refreshFoodYieldConversions().then(refreshRecipes);
@@ -123,6 +124,17 @@ setupShoppingTabs();
 
 const dashboardSlots = MEAL_ORDER.filter(slot=>slot!=='evening_snack');
 const dashboardSlotLabels = MEAL_LABELS;
+let dashboardSelectedDate=null;
+function recipeImageElement(recipe,className){
+  const image=document.createElement('img');image.className=className;image.alt='';image.loading='lazy';
+  const fallback=()=>{image.onerror=null;image.src='/icons/app-192.png';image.classList.add('image-fallback');};
+  if(recipe?.imageAvailable){image.src=`/api/recipes/${recipe.id}/image?householdId=${encodeURIComponent(state.household.id)}&v=${recipe.version??0}`;image.onerror=fallback;}
+  else fallback();
+  return image;
+}
+function mealPhotoRecipe(meal){
+  return meal.items?.map(item=>item.recipe?.imageAvailable?item.recipe:state.recipes.find(recipe=>recipe.id===item.recipe?.parentRecipeId&&recipe.imageAvailable)).find(Boolean);
+}
 function dashboardPanel(title, className='dashboard-panel') {
   const panel=document.createElement('section'); panel.className=className;
   const heading=document.createElement('h2'); heading.textContent=title; panel.append(heading); return panel;
@@ -179,10 +191,24 @@ async function refreshDashboard() {
     for(const [value,label] of statData){const card=document.createElement('article');card.className='dashboard-stat';const strong=document.createElement('strong');strong.textContent=value;const small=document.createElement('span');small.textContent=label;card.append(strong,small);stats.append(card);}root.append(stats);
     const layout=document.createElement('div');layout.className='dashboard-layout';
     const menu=dashboardPanel('Menus de la semaine');menu.classList.add('dashboard-menu');
+    const weekStart=mondayOf(today),dashboardWeekEnd=addDays(weekStart,6);
+    if(!dashboardSelectedDate||dashboardSelectedDate<weekStart||dashboardSelectedDate>dashboardWeekEnd)dashboardSelectedDate=today;
+    const dayPicker=document.createElement('nav');dayPicker.className='dashboard-day-picker';dayPicker.setAttribute('aria-label','Jour à afficher sur téléphone');
+    for(let index=0;index<7;index++){
+      const date=addDays(weekStart,index),button=document.createElement('button');button.type='button';button.textContent=displayDate(date,{weekday:'short',day:'numeric'});
+      button.setAttribute('aria-pressed',String(date===dashboardSelectedDate));
+      button.addEventListener('click',()=>{
+        dashboardSelectedDate=date;
+        dayPicker.querySelectorAll('button').forEach((choice,choiceIndex)=>choice.setAttribute('aria-pressed',String(choiceIndex===index)));
+        menu.querySelectorAll('.dashboard-day').forEach((day,dayIndex)=>day.classList.toggle('is-active',dayIndex===index));
+      });dayPicker.append(button);
+    }
+    menu.append(dayPicker);
     for(let dayIndex=0;dayIndex<7;dayIndex++){
       const date=addDays(mondayOf(today),dayIndex);
       const day=document.createElement('section');day.className='dashboard-day';
       if(date===today)day.classList.add('today');
+      if(date===dashboardSelectedDate)day.classList.add('is-active');
       const dayLabel=document.createElement('h3');dayLabel.textContent=displayDate(date,{weekday:'short',day:'numeric',month:'short'});day.append(dayLabel);
       for(const slot of dashboardSlots){
         const section=document.createElement('div');section.className='dashboard-meal-slot';
@@ -190,10 +216,8 @@ async function refreshDashboard() {
         const slotMeals=meals.filter(meal=>meal.mealDate===date&&meal.slot===slot);
         for(const meal of slotMeals){
           const mealCard=document.createElement('button');mealCard.type='button';mealCard.className='dashboard-meal';
-          const photoRecipe=meal.items?.map(item=>item.recipe).find(recipe=>recipe?.imageAvailable);
-          if(photoRecipe){const photo=document.createElement('img');photo.className='dashboard-meal-photo';photo.alt='';photo.loading='lazy';
-            photo.src=`/api/recipes/${photoRecipe.id}/image?householdId=${encodeURIComponent(state.household.id)}&v=${photoRecipe.version??0}`;
-            photo.addEventListener('error',()=>{photo.hidden=true;});mealCard.append(photo);}
+          const photoRecipe=mealPhotoRecipe(meal);
+          mealCard.append(recipeImageElement(photoRecipe,'dashboard-meal-photo'));
           const name=document.createElement('strong');name.textContent=meal.isOccasion?meal.occasionTitle||'Repas exceptionnel':
             [...new Set(meal.items?.map(item=>item.recipe?.parentRecipeId?item.recipe.name.split(' — ')[0]:item.recipe?.name??'Recette supprimée'))].join(' + ')||'Repas';
           const preview=document.createElement('small');preview.textContent=meal.isOccasion?'Hors quotas':
@@ -511,7 +535,9 @@ function renderExtraProductionPlans(plans){
     const row=document.createElement('article');row.className='preparation-row extra-production-plan';
     const title=document.createElement('strong');title.textContent=plan.name;
     const detail=document.createElement('span');detail.textContent=`${displayDate(plan.plannedOn)} · ${formatQty(plan.quantity)} ${plan.unitId} · ${plan.completed?'Produit et ajouté au stock':'À produire'}`;
-    row.append(title,detail);
+    const identity=document.createElement('div');identity.className='preparation-identity';
+    identity.append(recipeImageElement(state.recipes.find(recipe=>recipe.id===plan.recipeId),'preparation-photo'),title);
+    row.append(identity,detail);
     if(!plan.completed){
       const confirm=document.createElement('button');confirm.type='button';confirm.className='secondary';confirm.textContent='Confirmer la production';
       const requestId=newProductionRequestId();
@@ -545,13 +571,15 @@ function preparationRow(group,productionDate) {
   const first=parts[0],covered=parts.every(item=>item.toMakeQuantity<=0.00001);
   const row=document.createElement('article');row.className='preparation-row'+(covered?' is-covered':'');
   const title=document.createElement('strong');title.textContent=recipe?.name??first.name;
+  const identity=document.createElement('div');identity.className='preparation-identity';
+  identity.append(recipeImageElement(recipe,'preparation-photo'),title);
   const nutritionBadge=recipe && !recipe.nutrition?.complete?document.createElement('span'):null;
   if(nutritionBadge){nutritionBadge.className='incomplete-tag preparation-incomplete-tag';nutritionBadge.textContent='Données incomplètes';nutritionBadge.setAttribute('aria-label','Données nutritionnelles incomplètes');}
   const dates=document.createElement('small');dates.textContent=`${Math.max(...parts.map(item=>item.mealCount))} repas · ${displayDate(first.firstDate)}${first.lastDate!==first.firstDate?' au '+displayDate(first.lastDate):''}`;
   const amount=document.createElement('span');amount.className='preparation-amount';
   const suggested=suggestedProductionQuantity(group,recipe);
   amount.textContent=covered?'Couvert par le stock':recipe?`${formatQty(suggested)} ${cookingYield(recipe).unitId} à produire`:'À produire';
-  row.append(title);if(nutritionBadge)row.append(nutritionBadge);row.append(dates,amount);
+  row.append(identity);if(nutritionBadge)row.append(nutritionBadge);row.append(dates,amount);
   if(first.minimumProductionQuantity>0){const minimum=document.createElement('small');minimum.className='preparation-minimum';minimum.textContent=`Lot minimum : ${formatQty(first.minimumProductionAmount)} ${productionUnitLabels[first.minimumProductionUnitId]??first.minimumProductionUnitId}`;row.append(minimum);}
   const details=document.createElement('ul');details.className='preparation-parts';
   for(const part of parts){const line=document.createElement('li');line.textContent=`${part.parentRecipeId?part.name.split(' — ').at(-1):'Recette entière'} : ${part.toMakeQuantity<=0.00001?'couvert':`${formatQty(part.toMakeQuantity)} ${part.unitId} à produire`} · prévu ${formatQty(part.plannedQuantity)} ${part.unitId} · ${part.minimumProductionQuantity>0?'couvert par le stock et les lots prévus':'stock couvrant'} ${formatQty(part.coveredQuantity)} ${part.unitId}`;details.append(line);}
@@ -2163,8 +2191,7 @@ function recipeCard(recipe) {
   const card = document.createElement('article'); card.className = 'recipe-card';card.dataset.recipeId=recipe.id;
   const header=document.createElement('div');header.className='recipe-row-header';
   const visual=document.createElement('div');visual.className='recipe-card-visual';
-  if(recipe.imageAvailable){const image=document.createElement('img');image.src=`/api/recipes/${recipe.id}/image?householdId=${encodeURIComponent(state.household.id)}&v=${recipe.version}`;image.alt='';image.loading='lazy';visual.append(image);}
-  else {const placeholder=document.createElement('span');placeholder.textContent='Photo';visual.append(placeholder);}
+  visual.append(recipeImageElement(recipe,'recipe-list-photo'));
   const identity=document.createElement('div');identity.className='recipe-row-identity';
   const title=document.createElement('h3');title.textContent=recipe.name;
   const categoryLabel=typeof state!=='undefined'?state.mealAdditions?.find(item=>item.recipeType===recipe.recipeType)?.label:null;
@@ -2664,6 +2691,7 @@ init();
 
 
 const slotLabels = MEAL_LABELS;
+let calendarSelectedDate=null;
 const activityLabels = { sedentary: 'Sédentaire', light: 'Légère', moderate: 'Modérée', active: 'Importante', very_active: 'Très importante' };
 
 function dateOnly(date) {
@@ -2718,6 +2746,17 @@ async function refreshCalendar() {
     state.calendarReserveOverview=reserve;
     state.calendarMeals = plan.meals ?? [];
     $('#calendar-week-title').textContent = `${displayDate(state.calendarWeekStart, { day: '2-digit', month: 'long' })} – ${displayDate(end, { day: '2-digit', month: 'long', year: 'numeric' })}`;
+    if(!calendarSelectedDate||calendarSelectedDate<state.calendarWeekStart||calendarSelectedDate>end)calendarSelectedDate=today>=state.calendarWeekStart&&today<=end?today:state.calendarWeekStart;
+    const picker=$('#calendar-day-picker');picker.replaceChildren();
+    for(let index=0;index<7;index++){
+      const date=addDays(state.calendarWeekStart,index),button=document.createElement('button');button.type='button';button.textContent=displayDate(date,{weekday:'short',day:'numeric'});
+      button.setAttribute('aria-pressed',String(date===calendarSelectedDate));
+      button.addEventListener('click',()=>{
+        calendarSelectedDate=date;
+        picker.querySelectorAll('button').forEach((choice,choiceIndex)=>choice.setAttribute('aria-pressed',String(choiceIndex===index)));
+        grid.querySelectorAll('.calendar-day').forEach((day,dayIndex)=>day.classList.toggle('is-active',dayIndex===index));
+      });picker.append(button);
+    }
     grid.replaceChildren(...Array.from({ length: 7 }, (_, index) => renderCalendarDay(addDays(state.calendarWeekStart, index), plan.meals ?? [], today)));
     renderCalendarSummary(plan.meals ?? [], state.people, state.calendarWeekStart);
   } catch (error) {
@@ -2728,6 +2767,7 @@ async function refreshCalendar() {
 function renderCalendarDay(date, meals, today) {
   const day = document.createElement('article');
   day.className = `calendar-day${date === today ? ' today' : ''}`;
+  if(date===calendarSelectedDate)day.classList.add('is-active');
   const heading = document.createElement('div'); heading.className = 'calendar-day-heading';
   heading.innerHTML = `<span>${displayDate(date, { weekday: 'short' })}</span><strong>${displayDate(date, { day: '2-digit', month: 'short' })}</strong>`;
   if (date === today) { const badge = document.createElement('small'); badge.className = 'today-badge'; badge.textContent = 'AUJ.'; heading.append(badge); }
@@ -2916,10 +2956,13 @@ $('#close-meal-details').addEventListener('click',()=>$('#meal-details-dialog').
 
 function renderMealCard(meal) {
   const card = document.createElement('article'); card.className = 'planned-meal-card';
+  const heading=document.createElement('div');heading.className='planned-meal-heading';
+  const photoRecipe=mealPhotoRecipe(meal);
+  heading.append(recipeImageElement(photoRecipe,'planned-meal-photo'));
   const details = document.createElement('button'); details.type = 'button';
   details.textContent = meal.isOccasion ? `✨ ${meal.occasionTitle || 'Repas exceptionnel'} · hors quotas` : [...new Set(meal.items?.filter(item => ['main','accompaniment'].includes(item.role ?? 'main')).map(item => item.recipe?.parentRecipeId ? item.recipe.name.split(' — ')[0] : item.recipe?.name ?? 'Recette supprimée'))].join(' + ') || 'Repas';
   details.setAttribute('aria-label',`Voir les portions du repas : ${details.textContent}`);
-  details.addEventListener('click',()=>openMealDetails(meal)); card.append(details);
+  details.addEventListener('click',()=>openMealDetails(meal));heading.append(details);card.append(heading);
   const printItems = document.createElement('div'); printItems.className = 'print-meal-items';
   if (meal.isOccasion) {
     const line = document.createElement('p'); line.textContent = meal.occasionTitle || 'Repas exceptionnel'; printItems.append(line);

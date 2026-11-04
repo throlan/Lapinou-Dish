@@ -1,8 +1,10 @@
 # Prochaines tâches — 4 novembre 2026
 
+Présentation adaptative validée et implémentée en 0.3.12 : charte fondée sur le logo, photos dans les cartes, navigation téléphone/tablette/PC et choix du jour sur petit écran. Vérifier les retours d’usage après publication avant d’ajuster la densité des écrans.
+
 0.3.11 livrée : Courses & stocks répartis en cinq onglets, période commune visible, saisies conservées. 353 tests locaux ; PR #159 fusionnée au commit `36dc404a107b658c3bf0c89297f9e7e2abab5ee3`. Contrôles et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41821597464. Tags `0.3.11` et `v0.3.11` vérifiés, digest `sha256:36534f81dc4e4648789f2c7e42104559f4499e59a3fa7cc7edeb02df718b7089`.
 
-Proposition visuelle demandée : rendre Courses & stocks plus reposant pour les yeux, en allégeant les surfaces teintées et la densité d’informations. Attendre le retour de l’utilisateur sur la proposition avant de modifier le thème ou les autres pages.
+
 
 0.3.10 livrée : accueil hebdomadaire, fiche de repas préparé, quatre créneaux actifs, fiche aliment commune et préparations supplémentaires planifiées. Pourcentages kcal toujours modifiables dans Administration ; 20/40/10/30 est le choix actuel, pas une valeur codée en dur pour le foyer. 353 tests locaux, PR #157 fusionnée au commit `0db84ae2cb12d0922c9e59ecb11d4662e5af12ad`, contrôles et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41811943655. Tags `0.3.10` et `v0.3.10` vérifiés, digest `sha256:b46eaf9e3f60e68c5ca35bb06ee1322a1db9176ccf3ddcaa2c92ff2aa4c5314a`. Le calcul viande/poisson reste en attente de règle utilisateur.
 
