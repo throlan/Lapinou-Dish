@@ -22,7 +22,7 @@ test('editor shows current kcal versus the profile meal objective, including ind
   runInNewContext(source.slice(start,end)+'\nglobalThis.summary=mealProteinSummary;',context);
   const items={0:{recipeId:'dish',amounts:{p:'200'}},1:{role:'dessert',assignments:{p:{recipeId:'dessert',quantity:'1'}}}};
   assert.equal(context.summary(items,['p']).children[0].children[1].textContent,'Kcal : 420 / 800');
-  assert.equal(context.summary(items,['p']).children[0].children[2].textContent,'Prot : 23 / 40 g');
+  assert.equal(context.summary(items,['p']).children[0].children[2].textContent,'Prot : 23 g (information)');
   items[0].amounts.p='300';
   assert.equal(context.summary(items,['p']).children[0].children[1].textContent,'Kcal : 570 / 800');
   context.state.mealRatios={lunch:0.35};

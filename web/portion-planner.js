@@ -38,7 +38,7 @@ export function calculateWeeklyEnergyTarget(person, weekStart, latestProfile, ad
   return { kcal: daysWithTarget === 7 ? kcal : null, partialKcal: kcal, daysWithTarget };
 }
 
-export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, recipeKcal, recipeUnit = 'portion', recipeCount = 1, budgetShare = 1, slotRatios = SLOT_RATIOS }) {
+export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, recipeKcal, recipeUnit = 'portion', recipeCount = 1, budgetShare = 1, slotRatios = SLOT_RATIOS, preserveWholePiece=false }) {
   const target = Number(dailyTargetKcal);
   const recipeEnergy = Number(recipeKcal);
   if (!Number.isFinite(target) || target <= 0) return { quantity: null, reason: 'daily-target-missing' };
@@ -46,6 +46,7 @@ export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, r
   if (!Object.hasOwn(slotRatios, slot)) return { quantity: null, reason: 'invalid-slot' };
   if (!(slotRatios[slot]>0)) return {quantity:null,reason:'no-slot-budget',slotBudgetKcal:0};
   const remaining = Math.max(0, target - Math.max(0, Number(plannedOtherKcal) || 0));
+  if (!remaining && preserveWholePiece && recipeUnit==='piece')return {quantity:1,reason:'whole-piece-exceeds-budget',slotBudgetKcal:0,estimatedKcal:recipeEnergy};
   if (!remaining) return { quantity: null, reason: 'daily-budget-used' };
   const slotBudget = Math.min(target * slotRatios[slot] + 100, remaining);
   const count = Math.max(1, Math.floor(Number(recipeCount) || 1));
@@ -54,6 +55,7 @@ export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, r
   const step = NATURAL_STEPS[recipeUnit] ?? 0.5;
   const raw = energyPerRecipe / recipeEnergy;
   const quantity = Math.floor((raw + 1e-9) / step) * step;
+  if (quantity < step && preserveWholePiece && recipeUnit==='piece')return {quantity:1,reason:'whole-piece-exceeds-budget',slotBudgetKcal:slotBudget,estimatedKcal:recipeEnergy};
   if (quantity < step) return { quantity: null, reason: 'no-natural-portion-fits', slotBudgetKcal: slotBudget };
   return { quantity: Number(quantity.toFixed(4)), slotBudgetKcal: slotBudget, estimatedKcal: quantity * recipeEnergy };
 }
@@ -191,7 +193,7 @@ export function rebalanceNaturalPortions(proposals, slotBudgetKcal, { minProtein
 
 // Linked parts form one adjustable plate: protein adjustments change its total
 // weight, never the relative weights of meat, starch and vegetables.
-export function suggestPlatePortions(proposals, budget, plateRatios=DEFAULT_PLATE_RATIOS) {
+export function suggestPlatePortions(proposals, budget, plateRatios=DEFAULT_PLATE_RATIOS, options={}) {
   const ratios=validPlateRatios(plateRatios)?plateRatios:DEFAULT_PLATE_RATIOS;
   const groups=new Map(), grouped=new Set(), plates=[], warnings=[];
   for(const row of proposals) {
@@ -219,6 +221,30 @@ export function suggestPlatePortions(proposals, budget, plateRatios=DEFAULT_PLAT
     const quantity=Math.max(0,Math.min(maxQuantity,Math.floor((budget*allocation/energy+1e-9)/10)*10));
     plates.push({members,shares,role:'main',step:10,quantity,maxQuantity,recipeKcal:energy,proteinG:protein});
     members.forEach(row=>grouped.add(row));
+  }
+  if(options.proteinInformational){
+    const expanded=new Map();
+    for(const plate of plates){
+      if(!plate.quantity)warnings.push('Aucune assiette complète ne tient dans le budget : quantités à ajuster manuellement.');
+      for(const member of plate.members)expanded.set(member,{...member,quantity:plate.quantity?Number((plate.quantity*plate.shares[member.servingPart]).toFixed(4)):null});
+    }
+    const output=proposals.map(row=>expanded.get(row)??{...row});
+    const total=()=>output.reduce((sum,row)=>sum+Math.max(0,Number(row.quantity)||0)*(Number(row.recipeKcal)||0),0);
+    const desserts=output.filter(row=>row.role==='dessert' && !row.parentRecipeId && row.quantity>0 && row.recipeKcal>0);
+    while(total()>budget+1e-6 && desserts.length){
+      desserts.sort((a,b)=>Math.abs(a.quantity*a.recipeKcal-(total()-budget))-Math.abs(b.quantity*b.recipeKcal-(total()-budget)));
+      desserts.shift().quantity=0;
+    }
+    let iterations=0;
+    while(total()>budget+1e-6 && iterations++<10000){
+      const starch=output.filter(row=>row.parentRecipeId && row.servingPart==='starch' && row.recipeUnit==='g' && row.quantity>=20 && row.recipeKcal>0)
+        .sort((a,b)=>Math.abs(10*a.recipeKcal-(total()-budget))-Math.abs(10*b.recipeKcal-(total()-budget)))[0];
+      if(!starch)break;
+      starch.quantity=Number((starch.quantity-10).toFixed(4));
+    }
+    const proteinKnown=output.every(row=>!row.quantity || Number.isFinite(Number(row.proteinG)) && row.proteinG!=null);
+    if(total()>budget+1e-6)warnings.push('Dépassement conservé : le plat principal et les portions indivisibles ne sont pas réduits.');
+    return {proposals:output,warnings,proportionsApplied:plates.length>0,withinBudget:total()<=budget+1e-6,estimatedKcal:total(),proteinKnown,estimatedProteinG:proteinKnown?output.reduce((sum,row)=>sum+(Number(row.quantity)||0)*Number(row.proteinG),0):null,proteinTargetMet:null};
   }
   const result=rebalanceNaturalPortions([...proposals.filter(row=>!grouped.has(row)).map(row=>({...row,sourceRow:row})),...plates],budget);
   const expanded=new Map();

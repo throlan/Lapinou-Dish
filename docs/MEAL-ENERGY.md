@@ -4,47 +4,49 @@
 
 Les profils se trouvent dans **Administration**, sous forme de fiches à déplier. Le besoin quotidien est saisi avec une date d'effet et une origine ; l'application ne le déduit pas automatiquement de la taille, de l'activité ou du poids.
 
-La répartition commune au foyer est modifiable dans la même vue. Le total doit faire 100 %. Valeurs par défaut :
+La répartition commune au foyer est modifiable dans la même vue. Le total doit faire 100 %. Valeurs par défaut pour un nouveau foyer :
 
 | Créneau | Part du besoin quotidien |
 | --- | ---: |
-| Petit-déjeuner | 15 % |
+| Petit-déjeuner | 20 % |
 | Déjeuner | 40 % |
 | Collation après-midi | 10 % |
-| Dîner | 25 % |
-| Collation du soir | 10 % |
+| Dîner | 30 % |
+| Collation du soir, historique seulement | 0 % |
 
-L'objectif d'un repas vaut `besoin quotidien × part du créneau`. Les recettes marquées Collation sont éligibles aux deux collations. Modifier la répartition actualise les objectifs et les prochaines suggestions ; les quantités sauvegardées ne sont pas remplacées automatiquement.
+L'objectif d'un repas vaut `besoin quotidien × part du créneau`. Modifier la répartition actualise les objectifs et les prochaines suggestions ; les quantités sauvegardées ne sont pas remplacées automatiquement. La collation du soir n'est plus proposée pour les nouveaux repas ; les menus historiques restent consultables.
 
 ## Affichage
 
-Dans l'éditeur, chaque personne a une ligne avec kcal prévues / objectif du repas et protéines prévues / repère de 40 g. Les choix de boissons et desserts individuels entrent dans les totaux. Les valeurs inconnues restent visibles.
+Dans l'éditeur, chaque personne a une ligne avec kcal prévues / objectif du repas et protéines prévues à titre d'information. Aucun minimum de 40 g par repas n'est imposé. Les choix individuels entrent dans les totaux. Les valeurs inconnues restent visibles.
 
-Le calendrier affiche en bas de chaque jour les kcal prévues / objectif quotidien de chaque personne. Les cinq créneaux sont cumulés, avec la version du profil applicable à cette date. Un total incomplet est indiqué comme tel ; il ne représente pas une consommation réelle.
+Le calendrier affiche en bas de chaque jour les kcal prévues / objectif quotidien de chaque personne. Les quatre créneaux actifs et les éventuels anciens repas du soir sont cumulés, avec la version du profil applicable à cette date. Un total incomplet est indiqué comme tel ; il ne représente pas une consommation réelle.
 
 ## Propositions de portions
 
 Le calcul réserve au créneau sa part du budget, avec une marge de 100 kcal et la limite du budget quotidien restant. Le badge conserve l'objectif strict, ce qui peut donner un dépassement de créneau même lorsque la journée reste sous son objectif.
 
-Les suggestions respectent les unités naturelles et les plafonds de portions. Le plat en grammes et les légumes séparés sont plafonnés à une portion moyenne du batch, arrondie vers le bas à 10 g. Au petit-déjeuner principal : deux pièces, une portion, ou poids estimé correspondant à deux pièces pour une préparation dérivée d'un rendement en pièces. La recherche des 40 g de protéines ne peut pas dépasser ces plafonds.
+Les suggestions respectent les unités naturelles et les plafonds de portions. Pour une recette en deux ou trois parties, le point de départ suit les proportions en poids réglées dans Administration. Le plat en grammes et les légumes séparés restent plafonnés à une portion moyenne du batch. Une pièce entière de plat principal, comme un burrito, peut dépasser le budget du repas ; elle n'est pas coupée automatiquement. Les protéines restent une information.
+
+Si le repas dépasse son budget, la proposition retire d'abord un dessert entier par personne (par exemple un skyr), puis réduit les féculents séparés par pas de 10 g jusqu'à un minimum de 10 g. Le plat principal et sa part viande/poisson ne sont pas réduits par cet ajustement. Un dépassement résiduel est autorisé et visible ; l'objectif quotidien est prioritaire sur le strict plafond de chaque repas.
 
 La saisie manuelle reste libre. Pour un repas existant, **Recalculer les portions** relance explicitement les suggestions ; la réouverture et la duplication conservent les quantités enregistrées.
 
 ## Rééquilibrer une journée
 
-Le bouton **Rééquilibrer** apparaît lorsque le total dépasse l'objectif ou lorsqu'un petit-déjeuner dépasse son plafond de proposition. Il ouvre un aperçu avant toute modification.
+Le bouton **Rééquilibrer la journée** apparaît lorsque le total quotidien dépasse l'objectif. Il ouvre un aperçu avant toute modification.
 
 Pour un profil adulte, actif, avec date de naissance, objectif et nutrition connus :
 
-1. Le plat principal du petit-déjeuner est ramené à son plafond si nécessaire.
-2. Si le total quotidien dépasse encore l'objectif, le calcul répartit les réductions sur les portions ajustables du déjeuner et du dîner.
-3. Les réductions préservent 40 g de protéines à chacun de ces repas, ou l'apport initial si celui-ci était déjà inférieur. Les quantités restent positives et respectent les pas d'unité.
+1. Retirer un dessert entier d'un repas ajustable si cela aide à réduire le dépassement.
+2. Réduire ensuite les féculents des recettes séparées par pas de 10 g, sans passer sous 10 g.
+3. Conserver le plat principal, la part viande/poisson et les préparations déjà consommées ou réservées sur stock. Afficher le dépassement restant et l'effet estimé sur le compte épargne.
 
-Les boissons, desserts et collations ne sont pas réduits. Les profils mineurs, inactifs, sans âge ou sans objectif ne sont pas ajustés. Les données inconnues empêchent une réduction automatique fondée sur un total partiel. Les limites rencontrées et le dépassement restant sont affichés ; le calcul ne garantit pas toujours de rejoindre exactement l'objectif.
+Les profils mineurs, inactifs, sans âge ou sans objectif ne sont pas ajustés. Les données inconnues empêchent une réduction automatique fondée sur un total partiel. Les limites rencontrées et le dépassement restant sont affichés ; le calcul ne garantit pas toujours de rejoindre exactement l'objectif. Il n'y a pas de rééquilibrage automatique sur la semaine.
 
 **Appliquer ces quantités** sauvegarde les propositions dans une transaction. Un changement de planning, recette, nutrition ou profil depuis l'aperçu impose un nouveau calcul. Réappliquer un ancien aperçu ne réduit pas une deuxième fois les portions.
 
-Le rééquilibrage change les prévisions et les réservations liées aux repas, pas les stocks physiques ni les mouvements d'ingrédients déjà enregistrés. Les parties liées d'une assiette sont réduites ensemble pour conserver leurs proportions saisies. La composition des nouvelles propositions se règle séparément dans Administration : voir [les proportions en grammes](SERVING-GRAMS.md). Aucun journal de consommation réelle n'est souhaité.
+Le rééquilibrage change les prévisions et les réservations liées aux repas, pas les stocks physiques ni les mouvements d'ingrédients déjà enregistrés. Les proportions d'Administration servent au calcul initial ; le retrait de féculents peut ensuite les modifier. Voir [les proportions en grammes](SERVING-GRAMS.md). Aucun journal de consommation réelle n'est souhaité.
 
 ## Repères techniques
 

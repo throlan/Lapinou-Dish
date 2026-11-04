@@ -1,5 +1,9 @@
 # Cahier des améliorations proposées
 
+## 0.3.13 — poids cuit, catégories et priorité calorique
+
+Coefficient cru/cuit par aliment dans la fiche unique ; liste des conflits historiques sans décision automatique. Catégories configurées par créneau et mode commun/individuel ; entrée et laitage ajoutés. Les anciennes catégories facultatives restent proposées. Le calcul initial des services séparés suit les proportions d'assiette d'Administration. En cas de dépassement, dessert retiré entier puis féculents réduits sans toucher au plat principal ; protéines affichées à titre informatif. Rééquilibrage sur la journée après aperçu, sans action automatique sur la semaine. Les menus existants sont conservés jusqu'à recalcul demandé. Voir `docs/MEAL-ENERGY.md` et `docs/SERVING-GRAMS.md`.
+
 ## Présentation adaptative — 0.3.12
 
 Direction visuelle validée par l’utilisateur pour toute l’application : couleurs tirées du logo, surfaces adoucies, navigation et cartes adaptées au téléphone, à la tablette et au PC. Photos des recettes dans les cartes, logo en repli. L’accueil garde sa semaine du lundi au dimanche et ses quatre créneaux ; le téléphone sélectionne le jour à afficher. Aucun changement métier.

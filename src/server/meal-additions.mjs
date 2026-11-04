@@ -12,11 +12,12 @@ export function validateMealAdditions(input) {
       || typeof item.recipeType !== 'string' || !ID_PATTERN.test(item.recipeType)
       || (!RECIPE_TYPES.has(item.recipeType) && !/^custom-[a-z0-9_-]{1,33}$/.test(item.recipeType))
       || !Array.isArray(item.slots) || !item.slots.length
-      || item.slots.some(slot=>!SLOTS.has(slot)) || new Set(item.slots).size!==item.slots.length) return { error:'invalid-meal-addition' };
+      || item.slots.some(slot=>!SLOTS.has(slot)) || new Set(item.slots).size!==item.slots.length
+      || (item.sharedSlots != null && (!Array.isArray(item.sharedSlots) || item.sharedSlots.some(slot=>!item.slots.includes(slot)) || new Set(item.sharedSlots).size!==item.sharedSlots.length))) return { error:'invalid-meal-addition' };
     ids.add(item.id);
     const role=item.role == null ? (['beverage','sauce','dessert'].includes(item.recipeType)?item.recipeType:'accompaniment') : item.role;
     if(!['accompaniment','beverage','sauce','dessert'].includes(role))return {error:'invalid-meal-addition'};
-    additions.push({id:item.id,label:item.label.trim(),recipeType:item.recipeType,role,slots:[...item.slots]});
+    additions.push({id:item.id,label:item.label.trim(),recipeType:item.recipeType,role,slots:[...item.slots],sharedSlots:[...(item.sharedSlots??[])]});
   }
   return {data:additions};
 }

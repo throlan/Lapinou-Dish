@@ -26,16 +26,16 @@ export function validateServingParts(input, recipeType) {
 export async function syncServingParts(client, id, data) {
   if (!data.separateStarch) return;
   const foods = await client.query(
-    `SELECT f.id, f.grams_per_millilitre, COALESCE((SELECT jsonb_object_agg(unit_id,grams_per_unit) FROM food_unit_conversions WHERE food_id=f.id),'{}'::jsonb) AS grams_per_unit
+    `SELECT f.id, f.grams_per_millilitre,f.cooking_factor, COALESCE((SELECT jsonb_object_agg(unit_id,grams_per_unit) FROM food_unit_conversions WHERE food_id=f.id),'{}'::jsonb) AS grams_per_unit
      FROM foods f WHERE f.id=ANY($1::uuid[])`, [[...new Set(data.lines.map(line => line.foodId))]]);
-  const foodById = new Map(foods.rows.map(row => [row.id, { gramsPerMillilitre: row.grams_per_millilitre == null ? null : Number(row.grams_per_millilitre), gramsPerUnit: Object.fromEntries(Object.entries(row.grams_per_unit).map(([key,value]) => [key,Number(value)])) }]));
+  const foodById = new Map(foods.rows.map(row => [row.id, { gramsPerMillilitre: row.grams_per_millilitre == null ? null : Number(row.grams_per_millilitre), cookingFactor:row.cooking_factor==null?null:Number(row.cooking_factor), gramsPerUnit: Object.fromEntries(Object.entries(row.grams_per_unit).map(([key,value]) => [key,Number(value)])) }]));
   const graph=data.lines.some(line=>line.recipeId)?await loadRecipeGraph(client,data.householdId):null;
   data.servingWeights = {};
   for (const line of data.lines) {
     const food = foodById.get(line.foodId);
     const grams = line.recipeId ? recipeWeight(graph,line.recipeId)*recipeFraction(graph,line.recipeId,line.quantity,line.unitId) : food ? toGrams(line.quantity,line.unitId,food) : null;
     if (grams == null || !(grams>0)) throw new Error('serving-weight-conversion-required');
-    data.servingWeights[line.servingPart] = (data.servingWeights[line.servingPart] ?? 0) + grams * (line.recipeId ? 1 : line.cookingFactor ?? data.cookingFactors[line.servingPart]);
+    data.servingWeights[line.servingPart] = (data.servingWeights[line.servingPart] ?? 0) + grams * (line.recipeId ? 1 : food?.cookingFactor ?? line.cookingFactor ?? data.cookingFactors[line.servingPart]);
   }
   if (Object.values(data.servingWeights).some(weight => !(weight > 0) || weight > 100000)) throw new Error('invalid-serving-weight');
   await client.query('UPDATE recipes SET serving_weights=$2::jsonb WHERE id=$1', [id,JSON.stringify(data.servingWeights)]);

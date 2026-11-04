@@ -269,12 +269,13 @@ export async function readRecipe(client, id, path=[]) {
   const row = recipeResult.rows[0];
   if (!row) return null;
   const linesResult = await client.query(
-    `SELECT id, food_id, ingredient_recipe_id, quantity, unit_id, sort_order,serving_part,cooking_factor FROM recipe_lines
-      WHERE recipe_id = $1 ORDER BY sort_order`, [id],
+    `SELECT l.id,l.food_id,l.ingredient_recipe_id,l.quantity,l.unit_id,l.sort_order,l.serving_part,l.cooking_factor,f.cooking_factor AS food_cooking_factor
+      FROM recipe_lines l LEFT JOIN foods f ON f.id=l.food_id
+      WHERE l.recipe_id = $1 ORDER BY l.sort_order`, [id],
   );
   const lines = linesResult.rows.map((line) => ({
     id: line.id, foodId: line.food_id, recipeId:line.ingredient_recipe_id??null, quantity: Number(line.quantity), unitId: line.unit_id,
-    componentId: null, variantId: null, servingPart: line.serving_part ?? 'main', cookingFactor: line.cooking_factor == null ? null : Number(line.cooking_factor),
+    componentId: null, variantId: null, servingPart: line.serving_part ?? 'main', cookingFactor: line.cooking_factor == null ? null : Number(line.cooking_factor),foodCookingFactor:line.food_cooking_factor==null?null:Number(line.food_cooking_factor),
   }));
   const foodIds = [...new Set(lines.map((line) => line.foodId))];
   const foodsResult = foodIds.length ? await client.query(

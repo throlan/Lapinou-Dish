@@ -43,6 +43,13 @@ test('the configured pastry category makes breakfast desserts selectable as indi
   assert.deepEqual(Array.from(context.selectRecipes('lunch','dessert',[],'dessert'),recipe=>recipe.id),['lunch-dessert']);
   assert.deepEqual(Array.from(context.options('patisserie','breakfast'),([id])=>id),['main','beverage','patisserie','assaisonnement']);
 });
+test('pastry can be common at breakfast and individual at snack without a second recipe type',()=>{
+  const pastry={...categories.find(category=>category.id==='patisserie'),sharedSlots:['breakfast']};
+  context.state.mealAdditions=[...categories.filter(category=>category.id!=='patisserie'),pastry];
+  assert.deepEqual(Array.from(context.options('patisserie','breakfast'),([id,label])=>[id,label]).find(([id])=>id==='patisserie'),['patisserie','Pâtisserie · commun']);
+  assert.deepEqual(Array.from(context.options('patisserie','snack'),([id,label])=>[id,label]).find(([id])=>id==='patisserie'),['patisserie','Pâtisserie · choix individuel']);
+  context.state.mealAdditions=categories;
+});
 
 test('all configured additions are optional per-person categories while the main remains shared',()=>{
   assert.equal(context.isIndividualRole('main'),false);
