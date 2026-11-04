@@ -4,6 +4,8 @@
 
 La longue page est découpée en cinq rubriques sans déplacer les fonctions hors de Courses & stocks. Dates communes en haut, onglets accessibles au clavier et conservation des formulaires ouverts. Aucun changement métier.
 
+353 tests locaux, PR #159 fusionnée au commit `36dc404a107b658c3bf0c89297f9e7e2abab5ee3`, contrôles et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41821597464. Tags `0.3.11` et `v0.3.11` vérifiés.
+
 ## Refonte ciblée du 4 novembre 2026 — livrée en 0.3.10
 
 Accueil sur la semaine civile, quatre cartes compactes par jour, détails au clic. Fiche de portions et actions pour les repas préparés ; cases du calendrier simplifiées. Collation du soir absente des nouveaux menus, archives conservées. Pourcentages kcal toujours configurables dans Administration, actuellement 20/40/10/30. Fiche aliment unique enrichie des réglages de courses ; préparations hors menus planifiables, avec courses immédiates et stock confirmé plus tard. Voir REPRISE.md pour les règles de stock et les migrations.

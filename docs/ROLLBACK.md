@@ -1,10 +1,14 @@
 # Images versionnées et retour arrière
 
+## Version 0.3.11
+
+Réorganisation visuelle de Courses & stocks en onglets, sans migration ni changement de calcul ou de stock. PR #159 fusionnée au commit `36dc404a107b658c3bf0c89297f9e7e2abab5ee3`. Publication réussie : https://github.com/throlan/Lapinou-Dish/actions/runs/41821597464. Tags `0.3.11` et `v0.3.11` vérifiés sur GHCR, digest commun `sha256:36534f81dc4e4648789f2c7e42104559f4499e59a3fa7cc7edeb02df718b7089`.
+
 ## Migration de la 0.3.10
 
 `20261104_four_meal_defaults.sql` change seulement le réglage par défaut des nouveaux foyers ; les pourcentages déjà enregistrés restent intacts. `20261104_planned_extra_productions.sql` ajoute les préparations planifiées hors menus et leur lien facultatif avec un lot produit. Une image antérieure à la 0.3.10 ignore ces plans ; elle ne les supprime pas, mais ses courses et ses prévisions ne comptent plus leurs ingrédients ou leur couverture. Vérifier cette différence avant un retour arrière après avoir créé des plans. PR #157 fusionnée ; tags 0.3.10 et v0.3.10 vérifiés sur GHCR après réussite du workflow 41811943655. Digest commun : sha256:b46eaf9e3f60e68c5ca35bb06ee1322a1db9176ccf3ddcaa2c92ff2aa4c5314a.
 
-Le mécanisme de publication versionnée a été introduit avec la 0.2.99 ; le code applicatif courant est en **0.3.10**. La 0.3.6 ajoute le regroupement du batch cooking sans migration ; la 0.3.7 ajoute `preparation_stock_counts` pour historiser les comptages physiques. Une ancienne image qui ignore cette table ne tient pas compte des corrections : ne pas considérer un retour vers 0.3.6 comme un retour fonctionnel équivalent après comptage. Les versions 0.3.0 à 0.3.4 ont ajouté des migrations : la compatibilité d’un retour vers 0.2.97 ne doit pas être déduite du seul fait que son image existe.
+Le mécanisme de publication versionnée a été introduit avec la 0.2.99 ; le code applicatif courant est en **0.3.11**. La 0.3.6 ajoute le regroupement du batch cooking sans migration ; la 0.3.7 ajoute `preparation_stock_counts` pour historiser les comptages physiques. Une ancienne image qui ignore cette table ne tient pas compte des corrections : ne pas considérer un retour vers 0.3.6 comme un retour fonctionnel équivalent après comptage. Les versions 0.3.0 à 0.3.4 ont ajouté des migrations : la compatibilité d’un retour vers 0.2.97 ne doit pas être déduite du seul fait que son image existe.
 
 ## Choisir une version
 

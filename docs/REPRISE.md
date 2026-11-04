@@ -4,6 +4,8 @@
 
 La page Courses & stocks est répartie en cinq onglets : liste de courses, préparations, stocks, magasins et routines. La période des courses reste visible au-dessus des onglets et pilote également les préparations. Les formulaires et listes restent montés dans la page : changer d’onglet conserve les saisies, les sélections et les rubriques ouvertes. Navigation au clavier par flèches, Début et Fin. Aucun calcul, stock ou schéma de données modifié.
 
+**353 tests locaux réussis.** PR #159 fusionnée au commit `36dc404a107b658c3bf0c89297f9e7e2abab5ee3`. Contrôles et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41821597464. Tags `0.3.11` et `v0.3.11` vérifiés, digest commun `sha256:36534f81dc4e4648789f2c7e42104559f4499e59a3fa7cc7edeb02df718b7089`.
+
 ## Semaine d’accueil, fiche aliment commune et préparations hors menus — 0.3.10 livrée
 
 L’accueil présente la semaine civile en cours, du lundi au dimanche : sept lignes et quatre créneaux par ligne (petit-déjeuner, déjeuner, collation de l’après-midi, dîner). Les cartes compactes ouvrent les portions par personne. Dans le calendrier, la fiche du repas reste accessible une fois préparé ; elle contient les quantités en lecture seule et les actions de préparation. Les cases du calendrier conservent le titre, l’état et « Dupliquer », sans participants ni total kcal.
