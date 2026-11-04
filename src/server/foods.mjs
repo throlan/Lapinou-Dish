@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import {readRecipe} from './recipes.mjs';
+import {syncServingParts} from './serving-parts.mjs';
 
 const nutrientIds = {
   energyKcal: 'energy_kcal',
@@ -23,6 +25,24 @@ export async function listFoodRecipeUsage(pool, householdId, foodIds) {
   const recipesByFood = new Map(foodIds.map(id => [id, []]));
   for (const { food_id, id, name } of result.rows) recipesByFood.get(food_id).push({ id, name });
   return [...recipesByFood].map(([foodId, recipes]) => ({ foodId, recipes }));
+}
+
+export async function listCookingFactorConflicts(pool, householdId) {
+  const result=await pool.query(`SELECT f.id AS food_id,f.canonical_name AS food_name,
+      r.id AS recipe_id,r.name AS recipe_name,
+      COALESCE(l.cooking_factor,(r.cooking_factors ->> COALESCE(l.serving_part,'main'))::numeric,1) AS factor
+    FROM recipe_lines l JOIN recipes r ON r.id=l.recipe_id
+    JOIN foods f ON f.id=l.food_id
+    WHERE r.household_id=$1 AND r.parent_recipe_id IS NULL AND r.separate_starch
+      AND f.cooking_factor IS NULL
+    ORDER BY f.canonical_name,r.name,r.id`,[householdId]);
+  const groups=new Map();
+  for(const row of result.rows){
+    if(!groups.has(row.food_id))groups.set(row.food_id,{foodId:row.food_id,foodName:row.food_name,recipes:[],factors:new Set()});
+    const group=groups.get(row.food_id),factor=Number(row.factor);
+    group.factors.add(factor);group.recipes.push({id:row.recipe_id,name:row.recipe_name,factor});
+  }
+  return [...groups.values()].filter(group=>group.factors.size>1).map(({factors,...group})=>({...group,factors:[...factors].sort((a,b)=>a-b)}));
 }
 
 export function validateFoodInput(input, { creating = false } = {}) {
@@ -58,6 +78,11 @@ export function validateFoodInput(input, { creating = false } = {}) {
     if (value !== null && (typeof value !== 'number' || !Number.isFinite(value) || value <= 0 || value > 100)) return { error: 'invalid-density' };
     data.gramsPerMillilitre = value;
   }
+  if (creating || Object.hasOwn(input, 'cookingFactor')) {
+    const value=input.cookingFactor??null;
+    if(value!==null && (typeof value!=='number'||!Number.isFinite(value)||value<=0||value>10))return {error:'invalid-cooking-factor'};
+    data.cookingFactor=value;
+  }
   if (creating || Object.hasOwn(input, 'gramsPerUnit')) {
     const units = input.gramsPerUnit ?? {};
     if (!units || typeof units !== 'object' || Array.isArray(units)) return { error: 'invalid-unit-conversions' };
@@ -87,9 +112,9 @@ export async function createFood(pool, data) {
       return { error: 'possible-duplicate', matches: duplicate };
     }
     await client.query(
-      `INSERT INTO foods (id, canonical_name, brand, source, source_note, grams_per_millilitre)
-       VALUES ($1, $2, $3, 'manual', $4, $5)`,
-      [id, data.name, data.brand, data.sourceNote, data.gramsPerMillilitre],
+      `INSERT INTO foods (id, canonical_name, brand, source, source_note, grams_per_millilitre,cooking_factor)
+       VALUES ($1, $2, $3, 'manual', $4, $5,$6)`,
+      [id, data.name, data.brand, data.sourceNote, data.gramsPerMillilitre,data.cookingFactor],
     );
     await writeNutrients(client, id, data.nutrients, data.nutrientSourceNote ?? 'Saisie manuelle');
     for (const [unit, grams] of Object.entries(data.gramsPerUnit)) {
@@ -127,6 +152,7 @@ export async function updateFood(pool, id, data) {
       ...(data.brand !== undefined ? { brand: data.brand } : {}),
       ...(data.sourceNote !== undefined ? { sourceNote: data.sourceNote } : {}),
       ...(data.gramsPerMillilitre !== undefined ? { gramsPerMillilitre: data.gramsPerMillilitre } : {}),
+      ...(data.cookingFactor !== undefined ? { cookingFactor: data.cookingFactor } : {}),
       ...(data.nutrients !== undefined ? { nutrientsPer100g: data.nutrients } : {}),
     };
     const duplicate = await findDuplicate(client, afterState.name, afterState.brand, id);
@@ -136,10 +162,10 @@ export async function updateFood(pool, id, data) {
     }
     await client.query(
       `UPDATE foods SET canonical_name = $2, brand = $3, source_note = $4,
-              grams_per_millilitre = $5, manual_override = true,
+              grams_per_millilitre = $5, cooking_factor=$6, manual_override = true,
               version = version + 1, updated_at = now()
         WHERE id = $1`,
-      [id, afterState.name, afterState.brand, afterState.sourceNote, afterState.gramsPerMillilitre],
+      [id, afterState.name, afterState.brand, afterState.sourceNote, afterState.gramsPerMillilitre,afterState.cookingFactor],
     );
     if (data.nutrients !== undefined) await writeNutrients(client, id, data.nutrients, 'Correction manuelle');
     if (data.gramsPerUnit !== undefined) {
@@ -153,6 +179,21 @@ export async function updateFood(pool, id, data) {
     }
     if (data.name !== undefined || data.aliases !== undefined) {
       await writeAliases(client, id, afterState.name, data.aliases ?? []);
+    }
+    if(data.cookingFactor!==undefined && data.cookingFactor!==before.cookingFactor){
+      const affected=await client.query(`WITH RECURSIVE affected(id,depth) AS (
+        SELECT DISTINCT r.id,0 FROM recipe_lines l JOIN recipes r ON r.id=l.recipe_id
+          WHERE l.food_id=$1 AND r.parent_recipe_id IS NULL
+        UNION ALL
+        SELECT r.id,a.depth+1 FROM affected a JOIN recipe_lines l ON l.ingredient_recipe_id=a.id
+          JOIN recipes r ON r.id=l.recipe_id WHERE r.parent_recipe_id IS NULL
+      ) SELECT id FROM affected GROUP BY id ORDER BY max(depth),id`,[id]);
+      for(const row of affected.rows){
+        const recipe=await readRecipe(client,row.id);
+        if(!recipe?.separateStarch)continue;
+        await syncServingParts(client,row.id,{...recipe,householdId:recipe.householdId??(await client.query('SELECT household_id FROM recipes WHERE id=$1',[row.id])).rows[0].household_id});
+        await client.query('UPDATE recipes SET version=version+1,updated_at=now() WHERE id=$1',[row.id]);
+      }
     }
     const after = await getFood(client, id);
     await client.query(
@@ -339,7 +380,7 @@ async function writeAliases(client, foodId, name, aliases) {
 export async function getFood(client, id) {
   const result = await client.query(
     `SELECT f.id, f.canonical_name AS name, f.brand, f.source, f.source_reference,
-            f.source_note, f.grams_per_millilitre,
+            f.source_note, f.grams_per_millilitre,f.cooking_factor,
             jsonb_object_agg(n.id, fn.value_per_100g ORDER BY n.sort_order)
               FILTER (WHERE n.id IS NOT NULL) AS nutrient_values,
             COALESCE((SELECT jsonb_object_agg(u.unit_id, u.grams_per_unit)
@@ -361,6 +402,7 @@ export async function getFood(client, id) {
     id: row.id, name: row.name, brand: row.brand, source: row.source,
     sourceReference: row.source_reference, sourceNote: row.source_note,
     gramsPerMillilitre: row.grams_per_millilitre === null ? null : Number(row.grams_per_millilitre),
+    cookingFactor: row.cooking_factor == null ? null : Number(row.cooking_factor),
     gramsPerUnit: Object.fromEntries(Object.entries(row.grams_per_unit ?? {}).map(([key, value]) => [key, Number(value)])),
     aliases: row.aliases ?? [], nutrientsPer100g: names,
   };

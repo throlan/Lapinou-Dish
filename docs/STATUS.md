@@ -1,5 +1,13 @@
 # État du projet — 4 novembre 2026
 
+## 0.3.13 — coefficients alimentaires et propositions de repas
+
+Le rapport cru/cuit se saisit dans la fiche aliment. Les anciens coefficients identiques sont repris ; les valeurs contradictoires sont listées dans Administration pour décision manuelle. Les anciennes quantités cuites des menus et les stocks restent enregistrés tels quels. L'éditeur de recette ne propose plus de coefficient de cuisson par ligne. Les conversions entre deux aliments pour les courses restent distinctes.
+
+Les catégories de repas sont configurables par créneau et peuvent être communes ou individuelles selon le créneau ; pâtisserie commune au petit-déjeuner, individuelle à la collation. Entrée et laitage sont proposés, accompagnement, sauce et assaisonnement restent possibles. Le « rôle » technique n'est plus affiché dans Administration. Le calcul initial des recettes séparées suit les proportions d'assiette d'Administration ; il n'impose pas 40 g de protéines par repas. Un dessert se retire entier, puis les féculents séparés diminuent par 10 g si nécessaire, en conservant le plat principal. Un dépassement peut rester visible. Le rééquilibrage de la journée requiert un aperçu et une validation ; la semaine ne change pas automatiquement. Les anciennes quantités de menus ne sont recalculées que sur demande explicite.
+
+356 tests complets locaux réussis, puis contrôle ciblé du plat indivisible et des catégories réussi. Vérification de syntaxe et des différences réussie. PR et publication à consigner après fusion.
+
 ## 0.3.12 — présentation adaptative
 
 Navigation téléphone, tablette et PC harmonisée avec le logo ; couleurs plus reposantes, cartes avec photos et repli sur le logo. Accueil hebdomadaire conservé, avec choix du jour sur téléphone ; calendrier également navigable par jour sur petit écran. Les fonctionnalités et calculs existants sont conservés.

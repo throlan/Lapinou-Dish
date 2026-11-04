@@ -1,4 +1,4 @@
-import { breakfastServingLimit, calculateDailyEnergy, calculateDailyProtein, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, dailyProteinTarget, capAccompanimentQuantity, mainServingLimit, MIN_PROTEIN_G_PER_MEAL, rebalanceNaturalPortions, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';
+import { breakfastServingLimit, calculateDailyEnergy, calculateDailyProtein, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, dailyProteinTarget, capAccompanimentQuantity, mainServingLimit, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';
 import {mountCookingInstagram} from './cooking-instagram.js';
 import {servingUnit,servingUnitLabel,displayServingQuantity,setServingInput,servingInputValue} from './serving-quantities.js';
 import {roundServingCalories,compensateManualServing} from './serving-compensation.js';
@@ -9,7 +9,7 @@ import { PLATE_PARTS, validPlateRatios } from './meal-config.js';
 import { batchCookingWindow } from './preparation-weeks.js';
 import { clampFoodPageOffset } from './food-pagination.js';
 import { groupPreparations, suggestedProductionQuantity, suggestedServingQuantities, scaledIngredients, scaledSourceIngredients, productionRecipe, cookingYield } from './cooking-sheet.js';
-import { ingredientCookingFactor, fillCookingFactorOptions, recipeServiceChoices, recipeServiceMode, recipeDisplayPreferences, filterRecipeDirectory, recipeCardForSource, recipeMissingData, recipeMomentLabel, recipeTypeLabel, recipePlanningLabel } from './recipe-directory.js';
+import { ingredientCookingFactor, recipeServiceChoices, recipeServiceMode, recipeDisplayPreferences, filterRecipeDirectory, recipeCardForSource, recipeMissingData, recipeMomentLabel, recipeTypeLabel, recipePlanningLabel } from './recipe-directory.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -1233,6 +1233,7 @@ async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = 
       form.elements.aliases.value = duplicate ? '' : (food.aliases ?? []).filter((alias) => alias !== food.name).join(', ');
       for (const key of ['energyKcal', 'proteinG', 'carbohydrateG', 'fatG', 'fibreG']) form.elements[key].value = food.nutrientsPer100g?.[key] ?? '';
       form.elements.gramsPerMillilitre.value = food.gramsPerMillilitre ?? '';
+      form.elements.cookingFactor.value = food.cookingFactor ?? '';
       form.elements.tspGrams.value = food.gramsPerUnit?.tsp ?? '';
       form.elements.tbspGrams.value = food.gramsPerUnit?.tbsp ?? '';
       form.elements.pinchGrams.value = food.gramsPerUnit?.pinch ?? '';
@@ -1367,6 +1368,7 @@ $('#food-form').addEventListener('submit', async (event) => {
     aliases: form.elements.aliases.value.split(',').map((value) => value.trim()).filter(Boolean),
     nutrientsPer100g: Object.fromEntries(['energyKcal', 'proteinG', 'carbohydrateG', 'fatG', 'fibreG'].map((key) => [key, numeric(key)])),
     gramsPerMillilitre: numeric('gramsPerMillilitre'),
+    cookingFactor: numeric('cookingFactor'),
     gramsPerUnit: Object.fromEntries([['tsp', numeric('tspGrams')], ['tbsp', numeric('tbspGrams')], ['pinch', numeric('pinchGrams')], ['scoop', numeric('scoopGrams')], ['piece', numeric('pieceGrams')]].filter(([, grams]) => grams !== null)),
   };
   if (form.dataset.duplicateSource) {
@@ -1403,6 +1405,7 @@ $('#food-form').addEventListener('submit', async (event) => {
     }
     $('#food-dialog').close();
     await refreshFoods();
+    if(state.household)await refreshFoodCookingConflicts();
     if (state.editingFoodFromShopping) { state.editingFoodFromShopping = false; await refreshShoppingList(); }
     await refreshFoodStores();
     if (state.editingFoodFromRecipe) showMessage($('#recipe-message'), 'Fiche mise à jour. Les valeurs seront recalculées à l’enregistrement de la recette.', true);
@@ -1516,16 +1519,13 @@ function addRecipeLine(initial = null) {
   serving.options[2].disabled = serving.options[2].hidden;
   if(!serving.options[2].hidden) serving.options[0].textContent='Viande / protéines et sauce';
   serving.addEventListener('change',updateServingConfiguration);
-  const cooking = document.createElement('select'); cooking.name='cookingFactor'; cooking.className='ingredient-cooking-choice'; cooking.setAttribute('aria-label','Coefficient de cuisson de cet ingrédient');
-  fillCookingFactorOptions(cooking,initial?.cookingFactor??1,document,state.foodYieldConversions.filter(item=>item.sourceFoodId===initial?.foodId));
-  select.addEventListener('change',()=>{const value=Number(cooking.value||initial?.cookingFactor||1);cooking.replaceChildren();fillCookingFactorOptions(cooking,value,document,state.foodYieldConversions.filter(item=>item.sourceFoodId===select.value));});
+  const cooking = document.createElement('input'); cooking.type='hidden';cooking.name='cookingFactor';cooking.value=String(initial?.cookingFactor??1);
   const controls=document.createElement('div');controls.className='recipe-line-controls';
   const field=(text,input,className)=>{const label=document.createElement('label');label.className=className;label.append(document.createTextNode(text),input);return label;};
   const quantityField=field('Quantité',quantity,'ingredient-quantity-field'),unitField=field('Unité',unit,'ingredient-unit-field');
-  const servingField=field(servingMode === 'whole'?'Type d’ingrédient':'Partie servie',serving,'ingredient-serving-field'),cookingField=field('Coefficient de cuisson',cooking,'ingredient-cooking-field');
+  const servingField=field(servingMode === 'whole'?'Type d’ingrédient':'Partie servie',serving,'ingredient-serving-field');
   servingField.hidden=serving.hidden;
-  cooking.hidden=false;cookingField.hidden=false;
-  controls.append(quantityField,unitField,servingField,cookingField,remove);
+  controls.append(quantityField,unitField,servingField,cooking,remove);
   const actions=document.createElement('div');actions.className='ingredient-actions';actions.append(changeMatch,editFood);
   foodBox.append(search,select,incompleteTag);row.append(foodBox,controls,hint,actions);$('#recipe-lines').append(row);
   if (initial?.foodId) changeMatch.classList.remove('hidden');
@@ -1594,15 +1594,11 @@ function updateServingConfiguration() {
     select.options[2].disabled = mode !== 'three';
     if(mode !== 'three' && select.value === 'vegetables') select.value = 'main';
   });
-  $$('.ingredient-cooking-choice').forEach(select=>{
-    select.hidden=false;
-    select.closest('label').hidden=select.hidden;
-  });
   const status=$('#serving-assignment-status');
   status.classList.toggle('hidden',!split);
   const starchLines=$$('.serving-part-choice').filter(select=>select.value==='starch').length;
   status.textContent=starchLines ? `${starchLines} ingrédient(s) affecté(s) aux féculents. Les autres restent dans le plat.` : 'Choisis « Féculents » sur la ligne du riz, des pâtes ou des autres féculents dans les ingrédients ci-dessous. Cette affectation est nécessaire pour enregistrer deux parties.';
-  if(mode === 'three') status.textContent='Affecte chaque ingrédient à « Viande / protéines et sauce », « Légumes » ou « Féculents ». Les trois parties auront des quantités indépendantes dans le calendrier. Chaque ingrédient possède son propre coefficient de cuisson, indépendant de son affectation.';
+  if(mode === 'three') status.textContent='Affecte chaque ingrédient à « Viande / protéines et sauce », « Légumes » ou « Féculents ». Les trois parties auront des quantités indépendantes dans le calendrier. Le poids cuit se règle dans la fiche aliment.';
 }
 $('#recipe-form').elements.servingMode.addEventListener('change',updateServingConfiguration);
 $('#recipe-form').elements.recipeType.addEventListener('change', () => {
@@ -1648,7 +1644,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
   const form = event.currentTarget;
   const servingMode = form.elements.servingMode.value;
   const servingOptions = { servingMode, separateStarch: servingMode !== 'original', cookingFactors: { main:1, starch:1, vegetables:1 } };
-  $$('.recipe-line').forEach((row,index) => { lines[index].servingPart = ['separate','three'].includes(servingMode) ? $('select[name="servingPart"]',row).value : 'main'; const factor=$('select[name="cookingFactor"]',row).value; lines[index].cookingFactor=factor === '' ? null : Number(factor); });
+  $$('.recipe-line').forEach((row,index) => { lines[index].servingPart = ['separate','three'].includes(servingMode) ? $('select[name="servingPart"]',row).value : 'main'; const factor=$('[name="cookingFactor"]',row).value; lines[index].cookingFactor=factor === '' ? null : Number(factor); });
   if (['separate','three'].includes(servingMode) && !lines.some(line=>line.servingPart === 'starch')) {
     showMessage(message,'Affecte le riz ou les autres féculents à « Féculents » sur leurs lignes d’ingrédients avant d’enregistrer. Le service séparé est conservé dans le formulaire.');
     message.scrollIntoView({behavior:'smooth',block:'center'});
@@ -2276,16 +2272,13 @@ function recipeCard(recipe) {
   for(const [value,label] of [['portion','portions'],['piece','pièces'],['slice','tranches'],['g','grammes'],['ml','millilitres']]){const option=document.createElement('option');option.value=value;option.textContent=label;unit.append(option);}
   unit.value=recipe.yield.unitId;
   const assignments=document.createElement('details');assignments.className='recipe-quick-assignments';const assignmentTitle=document.createElement('summary');assignmentTitle.textContent='Affectation des ingrédients et cuisson';assignments.append(assignmentTitle);config.append(assignments);
-  const factorSelects=[];
+  const factorInputs=[];
   const partSelects=recipe.lines.map(line=>{
     const row=document.createElement('div');row.className='recipe-quick-ingredient';
     const name=document.createElement('strong');name.textContent=line.foodName??'Préparation maison';
     const label=document.createElement('label'),input=document.createElement('select');input.className='recipe-quick-part';label.append(document.createTextNode('Partie servie'),input);
-    const factorLabel=document.createElement('label'),factor=document.createElement('select');factor.className='recipe-quick-factor';factor.setAttribute('aria-label',`Coefficient de cuisson de ${name.textContent}`);
-    if(line.recipeId){const option=document.createElement('option');option.value='1';option.textContent='Déjà préparé — ×1';factor.append(option);factor.value='1';factor.disabled=true;}
-    else fillCookingFactorOptions(factor,ingredientCookingFactor(recipe,line),document,state.foodYieldConversions.filter(item=>item.sourceFoodId===line.foodId));
-    factorLabel.append(document.createTextNode('Coefficient de cuisson'),factor);factorSelects.push(factor);
-    row.append(name,label,factorLabel);assignments.append(row);return input;
+    const factor=document.createElement('input');factor.type='hidden';factor.value=String(ingredientCookingFactor(recipe,line));factorInputs.push(factor);
+    row.append(name,label,factor);assignments.append(row);return input;
   });
   let previousMode=mode.value;
   const configureParts=()=>{
@@ -2293,7 +2286,7 @@ function recipeCard(recipe) {
     partSelects.forEach((input,index)=>{const previous=input.value||recipe.lines[index].servingPart||'main';input.replaceChildren();for(const [value,text] of [['main',mode.value==='three'?'Viande / protéines et sauce':'Viande et légumes'],['vegetables','Légumes'],['starch','Féculents']]){if(value==='vegetables'&&mode.value!=='three')continue;const option=document.createElement('option');option.value=value;option.textContent=text;input.append(option);}input.value=[...input.options].some(option=>option.value===previous)?previous:'main';});
     if(split&&mode.value!==previousMode)assignments.open=true;previousMode=mode.value;
   };configureParts();
-  const configuration=()=>({servingMode:mode.value,yield:{amount:Number(amount.value),unitId:unit.value},lineCookingFactors:factorSelects.map(input=>Number(input.value)),lineParts:partSelects.map(input=>['separate','three'].includes(mode.value)?input.value:'main')});
+  const configuration=()=>({servingMode:mode.value,yield:{amount:Number(amount.value),unitId:unit.value},lineCookingFactors:factorInputs.map(input=>Number(input.value)),lineParts:partSelects.map(input=>['separate','three'].includes(mode.value)?input.value:'main')});
   let savedConfiguration=JSON.stringify(configuration());
   const currentMoments=()=>[...moments.querySelectorAll('input:checked')].map(input=>input.value);
   const isDirty=()=>select.value!==(recipe.productionType??'none')||JSON.stringify(currentMoments().sort())!==JSON.stringify([...(recipe.mealMoments??[])].sort())||JSON.stringify(configuration())!==savedConfiguration;
@@ -2396,6 +2389,22 @@ function updateMealRatiosPreview() {
   }
 }
 function resetFoodYieldForm(){const form=$('#food-yield-form');form.reset();form.elements.id.value='';form.elements.sourceFoodId.value='';form.elements.targetFoodId.value='';$('button[type="submit"]',form).textContent='Ajouter la conversion';$('#cancel-food-yield-edit').classList.add('hidden');}
+async function refreshFoodCookingConflicts(){
+  const root=$('#food-cooking-conflicts');if(!root)return;
+  if(!state.household){root.replaceChildren(emptyMessage('Crée un foyer pour consulter les coefficients à vérifier.'));return;}
+  try{
+    const {conflicts}=await api(`/api/foods/cooking-factor-conflicts?householdId=${encodeURIComponent(state.household.id)}`);
+    root.replaceChildren();
+    if(!conflicts.length){root.append(emptyMessage('Aucun conflit de coefficient de cuisson.'));return;}
+    for(const conflict of conflicts){
+      const row=document.createElement('article');row.className='food-cooking-conflict';
+      const title=document.createElement('strong');title.textContent=conflict.foodName;
+      const detail=document.createElement('p');detail.textContent=conflict.recipes.map(recipe=>`${recipe.name} ×${format(recipe.factor)}`).join(' · ');
+      const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='Fixer dans la fiche aliment';edit.addEventListener('click',()=>openFoodEditor(conflict.foodId));
+      row.append(title,detail,edit);root.append(row);
+    }
+  }catch(error){root.replaceChildren(emptyMessage(`Conflits indisponibles : ${error.body?.error??error.message}`));}
+}
 function selectYieldFood(form,key,id,name){form.elements[`${key}FoodId`].value=id;form.elements[`${key}FoodName`].value=name;}
 async function searchYieldFoods(key){
   const form=$('#food-yield-form'),input=form.elements[`${key}FoodName`],idField=form.elements[`${key}FoodId`],list=$(`#yield-${key}-options`),query=input.value.trim();
@@ -2418,7 +2427,7 @@ function renderFoodYieldConversions(){
 async function refreshFoodYieldConversions(){
   const form=$('#food-yield-form'),root=$('#food-yield-conversions');if(!state.household){state.foodYieldConversions=[];form.querySelectorAll('input,button').forEach(control=>control.disabled=true);root.replaceChildren(emptyMessage('Crée un foyer pour gérer ses conversions alimentaires.'));return;}
   form.querySelectorAll('input,button').forEach(control=>control.disabled=false);
-  try{const result=await api(`/api/household-food-yields?householdId=${encodeURIComponent(state.household.id)}`);state.foodYieldConversions=result.conversions;renderFoodYieldConversions();}catch(error){root.replaceChildren(emptyMessage(`Conversions indisponibles : ${error.body?.error??error.message}`));}
+  try{const result=await api(`/api/household-food-yields?householdId=${encodeURIComponent(state.household.id)}`);state.foodYieldConversions=result.conversions;renderFoodYieldConversions();await refreshFoodCookingConflicts();}catch(error){root.replaceChildren(emptyMessage(`Conversions indisponibles : ${error.body?.error??error.message}`));}
 }
 $('#cancel-food-yield-edit').addEventListener('click',resetFoodYieldForm);
 $('#food-yield-form').addEventListener('submit',async event=>{
@@ -2433,7 +2442,7 @@ const ADDITION_RECIPE_TYPES=[['accompaniment','Accompagnement'],['salad','Salade
 const ADDITION_ROLE_LABELS={main:'Plat principal',accompaniment:'Accompagnement',beverage:'Boisson',dessert:'Dessert',sauce:'Sauce'};
 function roleForRecipeType(type){return type==='salad'?'accompaniment':type;}
 function mealAdditionById(id){return state.mealAdditions.find(item=>item.id===id)??null;}
-function mealAdditionRole(id){return mealAdditionById(id)?.role??roleForRecipeType(mealAdditionById(id)?.recipeType??id);}
+function mealAdditionRole(id,slot=$('#meal-form')?.elements.slot.value){const category=mealAdditionById(id);return category?.sharedSlots?.includes(slot)?'main':category?.role??roleForRecipeType(category?.recipeType??id);}
 function mealAdditionLabel(id){return mealAdditionById(id)?.label??ADDITION_ROLE_LABELS[id]??id;}
 function renderMealAdditionCategories(additions=state.mealAdditions){
   const root=$('#meal-addition-categories');root.replaceChildren();
@@ -2443,24 +2452,30 @@ function renderMealAdditionCategories(additions=state.mealAdditions){
     const head=document.createElement('div');head.className='meal-addition-fields';
     const label=document.createElement('label');label.textContent='Nom de la catégorie';const name=document.createElement('input');name.required=true;name.maxLength=60;name.value=addition.label;name.dataset.categoryName='true';label.append(name);
     const typeLabel=document.createElement('label');typeLabel.textContent='Type de recettes';const type=document.createElement('select');type.dataset.recipeType='true';for(const [value,text] of ADDITION_RECIPE_TYPES)type.add(new Option(text,value));if(!ADDITION_RECIPE_TYPES.some(([value])=>value===addition.recipeType))type.add(new Option(addition.label,addition.recipeType));type.value=addition.recipeType;typeLabel.append(type);
-    const roleLabel=document.createElement('label');roleLabel.textContent='Rôle dans le repas';const role=document.createElement('select');role.dataset.categoryRole='true';for(const [value,text] of Object.entries(ADDITION_ROLE_LABELS).filter(([value])=>value!=='main'))role.add(new Option(text,value));role.value=addition.role??roleForRecipeType(addition.recipeType);roleLabel.append(role);
+    const role=document.createElement('input');role.type='hidden';role.dataset.categoryRole='true';role.value=addition.role??roleForRecipeType(addition.recipeType);
     const remove=document.createElement('button');remove.type='button';remove.className='secondary danger-button';remove.textContent='Supprimer';remove.addEventListener('click',()=>row.remove());
-    head.append(label,typeLabel,roleLabel,remove);row.append(head);
-    const slots=document.createElement('div');slots.className='meal-addition-slots';const caption=document.createElement('strong');caption.textContent='Créneaux proposés';slots.append(caption);
+    head.append(label,typeLabel,role,remove);row.append(head);
+    const slots=document.createElement('div');slots.className='meal-addition-slots meal-addition-available-slots';const caption=document.createElement('strong');caption.textContent='Créneaux proposés';slots.append(caption);
     for(const slot of dashboardSlots){const choice=document.createElement('label');const check=document.createElement('input');check.type='checkbox';check.value=slot;check.checked=addition.slots.includes(slot);choice.append(check,document.createTextNode(MEAL_LABELS[slot]));slots.append(choice);}
-    row.append(slots);name.addEventListener('input',()=>{legend.textContent=name.value.trim()||'Nouvelle catégorie';});root.append(row);
+    row.append(slots);
+    const shared=document.createElement('div');shared.className='meal-addition-slots meal-addition-shared-slots';const sharedCaption=document.createElement('strong');sharedCaption.textContent='Commun au repas';shared.append(sharedCaption);
+    for(const slot of dashboardSlots){const choice=document.createElement('label');const check=document.createElement('input');check.type='checkbox';check.value=slot;check.checked=(addition.sharedSlots??[]).includes(slot);choice.append(check,document.createTextNode(MEAL_LABELS[slot]));shared.append(choice);}
+    row.append(shared);
+    $$('.meal-addition-available-slots input',row).forEach(check=>check.addEventListener('change',()=>{if(!check.checked){const sharedCheck=$$('.meal-addition-shared-slots input',row).find(input=>input.value===check.value);if(sharedCheck)sharedCheck.checked=false;}}));
+    name.addEventListener('input',()=>{legend.textContent=name.value.trim()||'Nouvelle catégorie';});root.append(row);
   }
 }
 function mealAdditionsFromForm(){return $$('.meal-addition-row',$('#meal-addition-categories')).map(row=>({
   id:row.dataset.id,label:$('[data-category-name]',row).value.trim(),recipeType:$('[data-recipe-type]',row).value,role:$('[data-category-role]',row).value,
-  slots:$$('input[type="checkbox"]',row).filter(input=>input.checked).map(input=>input.value),
+  slots:$$('.meal-addition-available-slots input[type="checkbox"]',row).filter(input=>input.checked).map(input=>input.value),
+  sharedSlots:$$('.meal-addition-shared-slots input[type="checkbox"]',row).filter(input=>input.checked).map(input=>input.value),
 }));}
 function renderPlannedAdditionActions(){
   const root=$('#planned-addition-actions');if(!root)return;root.replaceChildren();
   const slot=$('#meal-form').elements.slot.value;
   for(const category of state.mealAdditions.filter(item=>item.slots.includes(slot))){
     const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=`+ ${category.label}`;button.dataset.categoryId=category.id;
-    button.addEventListener('click',()=>{const items=currentFormAmounts();items[Math.max(-1,...Object.keys(items).map(Number))+1]={recipeId:'',role:mealAdditionRole(category.id),categoryId:category.id,assignments:{}};renderPlannedItems(items);});root.append(button);
+    button.addEventListener('click',()=>{const items=currentFormAmounts(),role=mealAdditionRole(category.id,slot);items[Math.max(-1,...Object.keys(items).map(Number))+1]={recipeId:'',role,categoryId:category.id,...(role==='main'?{amounts:{}}:{assignments:{}})};renderPlannedItems(items);});root.append(button);
   }
 }
 async function refreshMealAdditions(){
@@ -2469,7 +2484,7 @@ async function refreshMealAdditions(){
 }
 $('#add-meal-category').addEventListener('click',()=>{
   const existing=mealAdditionsFromForm();let index=1;while(existing.some(item=>item.id===`custom-${index}`))index++;
-  renderMealAdditionCategories([...existing,{id:`custom-${index}`,label:'Nouvelle catégorie',recipeType:`custom-${index}`,role:'dessert',slots:dashboardSlots}]);
+  renderMealAdditionCategories([...existing,{id:`custom-${index}`,label:'Nouvelle catégorie',recipeType:`custom-${index}`,role:'dessert',slots:dashboardSlots,sharedSlots:[]}]);
   $('#meal-addition-categories .meal-addition-row:last-child [data-category-name]')?.focus();
 });
 $('#meal-additions-form').addEventListener('submit',async event=>{
@@ -2819,10 +2834,9 @@ function renderDailyEnergySummary(date,meals) {
     footer.append(proteinLine);
   }
   if(meals.some(meal=>meal.mealDate===date&&meal.isOccasion)){const note=document.createElement('small');note.className='muted';note.textContent='Les repas exceptionnels sont inclus dans les kcal prévues, sans limite de créneau, et débités de l’épargne.';footer.append(note);}
-  const needsBreakfast=meals.some(meal=>meal.mealDate===date && meal.slot==='breakfast' && meal.items.some(item=>item.role==='main' && item.amounts.some(amount=>amount.quantity>breakfastServingLimit(item.recipe,state.recipes.find(parent=>parent.id===item.recipe?.parentRecipeId)))));
-  const needsSavingRebalance=state.people.some(person=>{const target=latestProfile(person,date)?.dailyEnergyKcal;const saving=state.calendarReserveOverview?.accounts?.find(account=>account.personId===person.id)?.savingsPlans?.find(plan=>plan.startsOn<=date&&plan.endsOn>=date)?.dailyKcal??0;const daily=calculateDailyEnergy(meals.filter(meal=>!meal.isOccasion),person.id,date).kcal;return target>saving&&daily>target-saving;});
-  if(needsBreakfast || needsSavingRebalance || state.people.some(person=>calculateDailyEnergy(meals.filter(meal=>!meal.isOccasion),person.id,date).kcal>latestProfile(person,date)?.dailyEnergyKcal)) {
-    const button=document.createElement('button');button.type='button';button.className='secondary daily-rebalance-button';button.textContent=needsSavingRebalance?'Rééquilibrer pour l’épargne':'Rééquilibrer';button.addEventListener('click',()=>openDailyRebalance(date));footer.append(button);
+  const needsRebalance=state.people.some(person=>{const target=latestProfile(person,date)?.dailyEnergyKcal;const saving=state.calendarReserveOverview?.accounts?.find(account=>account.personId===person.id)?.savingsPlans?.find(plan=>plan.startsOn<=date&&plan.endsOn>=date)?.dailyKcal??0;const daily=calculateDailyEnergy(meals,person.id,date).kcal;return target>saving&&daily>target-saving;});
+  if(needsRebalance){
+    const button=document.createElement('button');button.type='button';button.className='secondary daily-rebalance-button';button.textContent='Rééquilibrer la journée';button.addEventListener('click',()=>openDailyRebalance(date));footer.append(button);
   }
   return footer;
 }
@@ -2835,7 +2849,7 @@ const rebalanceReasons={
   'target-missing':'Objectif quotidien manquant.',
   'inactive-profile':'Profil inactif.',
   'incomplete-nutrition':'Données nutritionnelles incomplètes : quantités conservées.',
-  'cannot-fully-rebalance':'Une partie du dépassement reste à ajuster : les portions minimales ou le repère protéique limitent les réductions.',
+  'cannot-fully-rebalance':'Le dépassement reste possible : dessert retiré et féculents ajustés si possible, sans réduire le plat principal. Le compte épargne affiche son effet.',
 };
 async function openDailyRebalance(date) {
   const request=++dailyRebalanceRequest;
@@ -2850,6 +2864,7 @@ async function openDailyRebalance(date) {
     for(const person of [...preview.results].sort((a,b)=>Number(Boolean(a.reason))-Number(Boolean(b.reason)) || a.name.localeCompare(b.name,'fr'))) {
       const section=document.createElement('section');section.className='rebalance-person';
       const heading=document.createElement('strong');heading.textContent=`${person.name} : ${format(person.beforeKcal)} → ${format(person.afterKcal)} / ${person.targetKcal==null?'—':format(person.targetKcal)} kcal`;section.append(heading);
+      if(person.targetKcal!=null){const impact=document.createElement('p');impact.className='muted';impact.textContent=`Dépassement journalier : ${format(Math.max(0,person.beforeKcal-person.targetKcal))} → ${format(Math.max(0,person.afterKcal-person.targetKcal))} kcal · effet estimé sur l’épargne : +${format(person.beforeKcal-person.afterKcal)} kcal`;section.append(impact);}
       for(const change of preview.changes.filter(change=>change.personId===person.personId).sort((a,b)=>MEAL_ORDER.indexOf(a.slot)-MEAL_ORDER.indexOf(b.slot))) {
         const line=document.createElement('p');line.textContent=`${slotLabels[change.slot]} · ${change.recipeName} : ${formatQty(change.before)} → ${formatQty(change.after)} ${change.unitId}`;section.append(line);
       }
@@ -3049,7 +3064,7 @@ function currentFormAmounts() {
   $$('.planned-item-editor', $('#planned-items')).forEach((row, index) => {
     const categoryId = $('select[name="role"]', row)?.value ?? 'main';
     const category=typeof mealAdditionById==='function'?mealAdditionById(categoryId):null;
-    const role = categoryId==='main'?'main':category?mealAdditionRole(categoryId):(row.dataset?.role??categoryId);
+    const role = row.dataset?.role??(categoryId==='main'?'main':category?mealAdditionRole(categoryId):(categoryId));
     if (isIndividualRole(role) && !row.dataset.linkedRecipeId) {
       const assignments = {};
       $$('.beverage-person', row).forEach((personRow) => {
@@ -3088,6 +3103,8 @@ function renderOccasionEnergy() {
 function updateMealType() {
   const isOccasion=$('#meal-form').elements.isOccasion.checked;
   renderPlannedAdditionActions();
+  const slot=$('#meal-form').elements.slot.value;
+  $('#add-planned-item').classList.toggle('hidden',['breakfast','snack'].includes(slot)&&state.mealAdditions.some(category=>category.slots.includes(slot)));
   $('#planned-addition-actions').classList.toggle('hidden',isOccasion);
   $('#occasion-fields').classList.toggle('hidden',!isOccasion);
   $('#regular-meal-fields').classList.toggle('hidden',isOccasion);
@@ -3110,13 +3127,11 @@ function plannedCaloriesForPerson(meal, personId) {
 function applyAutomaticPortions(items, attendeeIds) {
   const date = $('#meal-form').elements.mealDate.value;
   const slot = $('#meal-form').elements.slot.value;
-  const roleWeights = { main: 0.7, accompaniment: 0.2 };
   const selectedItems = Object.values(items).filter((item) => item.recipeId || (isIndividualMealItem(item) && Object.keys(item.assignments ?? {}).length));
   const messages = new Set();
   for (const personId of attendeeIds) {
     const selectedForPerson = selectedItems.filter((item) => !isIndividualMealItem(item) || item.assignments?.[personId]?.recipeId);
-    const roleCounts = Object.fromEntries(Object.keys(roleWeights).map((role) => [role, selectedForPerson.filter((item) => (item.role ?? 'main') === role).length]));
-    const activeWeight = Object.entries(roleCounts).reduce((sum, [role, count]) => sum + (count ? roleWeights[role] : 0), 0);
+    const commonCount=selectedForPerson.filter(item=>!isIndividualMealItem(item)).length||1;
     const person = state.people.find((entry) => entry.id === personId);
     const profile = person && latestProfile(person, date);
     const plannedOtherKcal = state.calendarMeals
@@ -3148,9 +3163,10 @@ function applyAutomaticPortions(items, attendeeIds) {
         plannedOtherKcal,
         recipeKcal: kcal,
         recipeUnit,
-        recipeCount: roleCounts[role] || 1,
-        budgetShare: activeWeight ? roleWeights[role] / activeWeight : 1,
+        recipeCount:commonCount,
+        budgetShare:1,
         slotRatios: state.mealRatios ?? SLOT_RATIOS,
+        preserveWholePiece:role==='main',
       });
       item.amounts ??= {};
       const fallbackQuantity = suggestion.quantity == null && ['daily-target-missing', 'recipe-energy-missing'].includes(suggestion.reason)
@@ -3177,36 +3193,36 @@ function applyAutomaticPortions(items, attendeeIds) {
       else if (suggestion.reason === 'recipe-energy-missing') messages.add(`${recipe?.name ?? 'Une recette'} : calories inconnues, la quantité par défaut ne peut pas garantir le budget.`);
       else if (suggestion.reason === 'daily-budget-used') messages.add(`${person?.displayName ?? 'Une personne'} : enveloppe quotidienne déjà atteinte.`);
       else if (suggestion.reason === 'no-natural-portion-fits') messages.add(`${recipe?.name ?? 'Une recette'} : aucune portion entière ou demi-portion ne tient dans le budget restant.`);
+      else if (suggestion.reason === 'whole-piece-exceeds-budget')messages.add(`${recipe?.name ?? 'Une recette'} : la pièce entière est conservée malgré le dépassement du créneau.`);
       else if (suggestion.reason === 'no-slot-budget') messages.add('Ce créneau est réglé à 0 % du budget. Tu peux ajuster la répartition dans Administration.');
       const parent=state.recipes.find(parent=>parent.id===recipe?.parentRecipeId);
       proposals.push({ item, personId, role, quantity, reason: suggestion.reason, step, recipeKcal: Number(kcal), proteinG: recipe?.nutrition?.perYieldUnit?.proteinG == null ? null : Number(recipe.nutrition.perYieldUnit.proteinG), maxQuantity, slotBudgetKcal: suggestion.slotBudgetKcal, assignment,
         parentRecipeId:recipe?.parentRecipeId,servingPart:recipe?.servingPart,recipeUnit,
-        countStep:recipe?.servingDisplay?.gramsPerUnit,plateParts:parent?.servingParts?.map(part=>part.servingPart),budgetFraction:activeWeight?roleWeights[role]/activeWeight/(roleCounts[role]||1):1 });
+        countStep:recipe?.servingDisplay?.gramsPerUnit,plateParts:parent?.servingParts?.map(part=>part.servingPart),budgetFraction:1/commonCount });
     }
     const budget = proposals.find((proposal) => Number.isFinite(proposal.slotBudgetKcal))?.slotBudgetKcal;
     if (Number.isFinite(budget) && proposals.length && proposals.every((proposal) => Number.isFinite(proposal.recipeKcal) && proposal.recipeKcal > 0)) {
-      const initial = suggestPlatePortions(proposals, budget, state.plateRatios);
+      const initial = suggestPlatePortions(proposals, budget, state.plateRatios,{proteinInformational:true});
       const rounded = roundServingCalories(initial.proposals);
       const result = {...initial,proposals:rounded.proposals,warnings:[...initial.warnings,...rounded.warnings]};
       result.estimatedKcal=result.proposals.reduce((sum,row)=>sum+(row.quantity??0)*row.recipeKcal,0);
       result.estimatedProteinG=result.proteinKnown?result.proposals.reduce((sum,row)=>sum+(row.quantity??0)*row.proteinG,0):null;
-      result.proteinTargetMet=result.proteinKnown && result.estimatedProteinG>=MIN_PROTEIN_G_PER_MEAL-1e-8;
+      result.proteinTargetMet=null;
       result.withinBudget=result.estimatedKcal<=budget+1e-4;
       result.warnings.forEach(message=>messages.add(message));
-      if(result.proportionsApplied)messages.add(proposals.some(row=>row.countStep>0)?'Calcul initial selon les proportions d’Administration. Arrondi des unités au plus proche lorsque la compensation calorique sur la partie en grammes est possible, sans imposer à nouveau les pourcentages.':'Proportions en poids estimé appliquées depuis Administration. Le poids total respecte le budget kcal et les plafonds des parties ; le repère protéique ne modifie pas ces proportions.');
+      if(result.proportionsApplied)messages.add(proposals.some(row=>row.countStep>0)?'Calcul initial selon les proportions d’Administration. Arrondi des unités au plus proche lorsque la compensation calorique sur la partie en grammes est possible.':'Proportions en poids estimé appliquées depuis Administration. Le poids total suit le budget kcal et les plafonds des parties.');
       result.proposals.forEach((proposal) => {
         if (proposal.assignment) proposal.assignment.quantity = String(proposal.quantity);
         else proposal.item.amounts[personId] = proposal.quantity == null ? '' : String(proposal.quantity);
       });
-      if (!result.withinBudget) messages.add(`${person?.displayName ?? 'Une personne'} : le repas dépasse encore l’enveloppe avec les portions minimales; ajuste une boisson, une sauce ou le repas.`);
-      if (!result.proteinKnown) messages.add(`${person?.displayName ?? 'Une personne'} : données protéiques incomplètes, le seuil de ${MIN_PROTEIN_G_PER_MEAL} g ne peut pas être vérifié.`);
-      else if (!result.proteinTargetMet) messages.add(`${person?.displayName ?? 'Une personne'} : impossible d’atteindre ${MIN_PROTEIN_G_PER_MEAL} g de protéines sans dépasser l’enveloppe ou les portions maximales.`);
+      if (!result.withinBudget) messages.add(`${person?.displayName ?? 'Une personne'} : dépassement conservé ; le plat principal n’est pas réduit. Vérifie le total de la journée et le compte épargne.`);
+      if (!result.proteinKnown) messages.add(`${person?.displayName ?? 'Une personne'} : données protéiques incomplètes ; l’apport reste informatif.`);
     }
   }
   const notice = document.createElement('details');
   const title = document.createElement('summary');title.textContent = 'Détails du calcul des portions';
   const explanation = document.createElement('p');explanation.className = 'form-message';
-  explanation.textContent = messages.size ? [...messages].join(' ') : `Portions proposées avec un repère de ${MIN_PROTEIN_G_PER_MEAL} g de protéines par personne. Les quantités restent ajustables.`;
+  explanation.textContent = messages.size ? [...messages].join(' ') : 'Portions proposées selon les kcal du créneau. Les protéines sont affichées à titre informatif et les quantités restent ajustables.';
   notice.append(title,explanation);
   $('#planned-items').replaceChildren(notice);
 }
@@ -3225,8 +3241,8 @@ function mealProteinSummary(items, attendeeIds) {
     const person=state.people.find(person=>person.id===personId),result=calculatePersonProtein(meal,personId);
     const row=document.createElement('div');row.className='meal-person-row';
     const name=document.createElement('strong');name.textContent=`${person?.displayName??'Personne'} :`;
-    const tag=document.createElement('span');tag.className=`protein-tag ${!result.known?'protein-unknown':result.grams>=MIN_PROTEIN_G_PER_MEAL?'protein-sufficient':'protein-low'}`;
-    tag.textContent=`Prot : ${result.known?format(result.grams):'—'} / ${MIN_PROTEIN_G_PER_MEAL} g`;
+    const tag=document.createElement('span');tag.className=`protein-tag ${!result.known?'protein-unknown':''}`;
+    tag.textContent=`Prot : ${result.known?format(result.grams)+' g':'—'} (information)`;
     if(!result.known)tag.title='Quantités ou données protéiques à compléter';
     const energy=calculatePersonEnergy(meal,personId);
     const form=$('#meal-form'),profile=person && latestProfile(person,form.elements.mealDate.value);
@@ -3255,7 +3271,7 @@ function removeLinkedRecipeGroup(items,parentRecipeId) {
 function sauceDefaultQuantity(recipe) { return ['g','ml'].includes(recipe?.yield?.unitId) ? 30 : 1; }
 function plannedItemRoleOptions(currentCategoryId,slot) {
   const options=[['main','Plat principal · partagé']];
-  for(const category of state.mealAdditions.filter(item=>item.slots.includes(slot)||item.id===currentCategoryId))options.push([category.id,`${category.label} · choix individuel`]);
+  for(const category of state.mealAdditions.filter(item=>item.slots.includes(slot)||item.id===currentCategoryId))options.push([category.id,`${category.label} · ${category.sharedSlots?.includes(slot)?'commun':'choix individuel'}`]);
   if(currentCategoryId&&!options.some(([id])=>id===currentCategoryId))options.push([currentCategoryId,`${mealAdditionLabel(currentCategoryId)} · choix individuel`]);
   return options;
 }
@@ -3304,7 +3320,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     const categoryId=item.categoryId??item.role??'main';
     const role = document.createElement('select'); role.name = 'role'; role.setAttribute('aria-label', 'Catégorie de l’ajout');
     plannedItemRoleOptions(categoryId,slot).forEach(([value, label]) => role.add(new Option(label, value)));
-    role.value=categoryId;row.dataset.role=categoryId==='main'?'main':(mealAdditionById(categoryId)?mealAdditionRole(categoryId):(item.role??'accompaniment'));
+    role.value=categoryId;row.dataset.role=item.role??(categoryId==='main'?'main':(mealAdditionById(categoryId)?mealAdditionRole(categoryId,slot):'accompaniment'));
     if(linkedRecipe){
       role.hidden=true;
       const partLabel={main:'Protéines / plat',vegetables:'Légumes',starch:'Féculents'}[linkedRecipe.servingPart]??'Composant';
@@ -3315,10 +3331,10 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     const activeCategory=mealAdditionById(categoryId);
     const categoryRecipeType=activeCategory?.recipeType??(row.dataset.role==='accompaniment'?null:row.dataset.role);
     const currentRole=row.dataset.role;
-    recipesForPlanning(slot,currentRole,[item.recipeId],currentRole==='main'?null:categoryRecipeType).forEach((recipe) => select.add(new Option(recipePlanningLabel(recipe), recipe.id)));
+    recipesForPlanning(slot,currentRole,[item.recipeId],activeCategory?categoryRecipeType:null).forEach((recipe) => select.add(new Option(recipePlanningLabel(recipe), recipe.id)));
     select.value = item.recipeId ?? '';
     role.addEventListener('change', () => {
-      const data=currentFormAmounts();const selectedId=role.value;const nextRole=selectedId==='main'?'main':mealAdditionById(selectedId)?mealAdditionRole(selectedId):(item.role??'accompaniment');
+      const data=currentFormAmounts();const selectedId=role.value;const nextRole=selectedId==='main'?'main':mealAdditionById(selectedId)?mealAdditionRole(selectedId,slot):(item.role??'accompaniment');
       data[index]={recipeId:'',role:nextRole,categoryId:selectedId,...(isIndividualRole(nextRole)?{assignments:{}}:{amounts:{}})};
       renderPlannedItems(data,{autoSuggest:nextRole!=='dessert'});
     });
@@ -3474,7 +3490,7 @@ async function openMealEditor(date, slot, meal = null) {
     }
   }
   for(const groups of Object.values(individualRows))for(const row of groups)items[nextItemIndex++]=row;
-  if (!Object.keys(items).length) items[0] = { recipeId: '', role:'main', categoryId:'main', amounts: {} };
+  if (!Object.keys(items).length && (['lunch','dinner','evening_snack'].includes(slot)||!state.mealAdditions.some(category=>category.slots.includes(slot)))) items[0] = { recipeId: '', role:'main', categoryId:'main', amounts: {} };
   renderPlannedItems(items, { autoSuggest: !meal });
   updateMealType();
   $('#meal-dialog').showModal();
@@ -3573,7 +3589,7 @@ async function saveMeal(event) {
   const rows = $$('.planned-item-editor', $('#planned-items'));
   const items = isOccasion ? [] : rows.flatMap((row) => {
     const categoryId=$('select[name="role"]',row).value;
-    const role=categoryId==='main'?'main':mealAdditionById(categoryId)?mealAdditionRole(categoryId):(row.dataset.role??'accompaniment');
+    const role=row.dataset?.role??(categoryId==='main'?'main':mealAdditionById(categoryId)?mealAdditionRole(categoryId):'accompaniment');
     if (role==='main' || row.dataset.linkedRecipeId) {
       const amounts=$$('input[data-person-id]', row).map(input=>({personId:input.dataset.personId,quantity:Number(servingInputValue(input))}));
       const recipeId=$('select[name="recipeId"]',row).value;

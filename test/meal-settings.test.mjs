@@ -41,9 +41,15 @@ test('protein minimum settings validate household person IDs and bounded gram ta
   for(const targets of [null,[],{invalid:90},{[p]:'90'},{[p]:-1},{[p]:501},{[p]:Infinity}])assert.equal(validateProteinTargets(targets).error,'invalid-protein-targets');
 });
 test('meal addition categories validate labels, recipe types, identifiers and configured moments',()=>{
-  assert.deepEqual(validateMealAdditions([{id:'patisserie',label:'Pâtisserie',recipeType:'custom-patisserie',role:'dessert',slots:['breakfast','snack']}]),{data:[{id:'patisserie',label:'Pâtisserie',recipeType:'custom-patisserie',role:'dessert',slots:['breakfast','snack']}]});
+  assert.deepEqual(validateMealAdditions([{id:'patisserie',label:'Pâtisserie',recipeType:'custom-patisserie',role:'dessert',slots:['breakfast','snack'],sharedSlots:['breakfast']}]),{data:[{id:'patisserie',label:'Pâtisserie',recipeType:'custom-patisserie',role:'dessert',slots:['breakfast','snack'],sharedSlots:['breakfast']}]});
   assert.deepEqual(validateMealAdditions([]),{data:[]});
   for(const invalid of [null,[{id:'Main',label:'Plat',recipeType:'dish',slots:['lunch']}],[{id:'fruit',label:'Fruit',recipeType:'unknown',slots:['breakfast']}],[{id:'fruit',label:'Fruit',recipeType:'dessert',slots:[]}],[{id:'fruit',label:'Fruit',recipeType:'dessert',slots:['midnight']}],[{id:'fruit',label:'Fruit',recipeType:'dessert',slots:['breakfast','breakfast']}],[{id:'fruit',label:'Fruit',recipeType:'dessert',slots:['breakfast']},{id:'fruit',label:'Fruit 2',recipeType:'dessert',slots:['snack']}],[{id:'fruit',label:'  ',recipeType:'dessert',slots:['breakfast']}]] )assert.ok(validateMealAdditions(invalid).error);
+  assert.ok(validateMealAdditions([{id:'pastry',label:'Pâtisserie',recipeType:'dessert',slots:['snack'],sharedSlots:['breakfast']}]).error);
+});
+test('shared pastry and optional categories keep their category without forcing a visible role',()=>{
+  const input={householdId:h,mealDate:'2026-11-05',slot:'breakfast',attendeeIds:[p],items:[{recipeId:food,role:'main',categoryId:'pastry',amounts:[{personId:p,quantity:1}]}]};
+  assert.equal(validatePlannedMeal(input).error,undefined);
+  assert.equal(validatePlannedMeal({...input,items:[{recipeId:food,role:'dessert',categoryId:'dairy',amounts:[{personId:p,quantity:1}]}]}).error,undefined);
 });
 test('saved household ratios, evening meals, copies and shopping persist against PostgreSQL',async()=>{
   const db=new PGlite();
@@ -55,9 +61,12 @@ test('saved household ratios, evening meals, copies and shopping persist against
     const additionsPath='/api/meal-additions?householdId='+h;
     const defaults=(await request(pool,'GET',additionsPath)).body.additions;
     assert.ok(defaults.some(item=>item.id==='pastry'&&item.slots.includes('breakfast')));
+    assert.deepEqual(defaults.find(item=>item.id==='pastry').sharedSlots,['breakfast']);
+    assert.ok(defaults.some(item=>item.id==='starter'&&item.slots.includes('lunch')));
+    assert.ok(defaults.some(item=>item.id==='dairy'&&item.slots.includes('breakfast')));
     const customAdditions=[...defaults,{id:'fruit',label:'Fruit',recipeType:'custom-fruit',role:'dessert',slots:['breakfast','snack']}];
     assert.equal((await request(pool,'PUT',additionsPath,{householdId:h,additions:customAdditions})).status,200);
-    assert.deepEqual((await request(pool,'GET',additionsPath)).body.additions,customAdditions.map(item=>({...item,role:item.role??(['beverage','sauce','dessert'].includes(item.recipeType)?item.recipeType:'accompaniment')})));
+    assert.deepEqual((await request(pool,'GET',additionsPath)).body.additions,customAdditions.map(item=>({...item,role:item.role??(['beverage','sauce','dessert'].includes(item.recipeType)?item.recipeType:'accompaniment'),sharedSlots:item.sharedSlots??[]})));
     assert.equal((await request(pool,'PUT',additionsPath,{householdId:h,additions:[{id:'bad',label:'Mauvaise catégorie',recipeType:'dessert',slots:[]}]})).status,400);
     const path='/api/meal-settings?householdId='+h;
     assert.deepEqual((await request(pool,'GET',path)).body.ratios,DEFAULT_MEAL_RATIOS);

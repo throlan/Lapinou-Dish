@@ -57,13 +57,14 @@ test('a tiny remaining budget or binding weight cap leaves manual quantities ins
     assert.equal(result.estimatedKcal,0);assert.equal(result.proteinTargetMet,false);
   }
 });
-test('daily rebalance reduces linked plates proportionally and keeps the protein floor',()=>{
+test('daily rebalance preserves the protein plate and reduces starch in 10 g steps',()=>{
   const rows=plate().map((row,i)=>({...row,itemId:String(i),mealId:'meal',personId:'adult',slot:'lunch',unitId:'g',quantity:[200,200,400][i],energyKcal:row.recipeKcal,complete:true}));
   const result=rebalanceDailyEnergy(rows,[{id:'adult',targetKcal:600}]);
-  assert.equal(result.changes.length,3);
+  assert.equal(result.changes.length,1);
   const after=rows.map(row=>result.changes.find(change=>change.itemId===row.itemId)?.after??row.quantity);
-  assert.ok(Math.abs(after[0]-after[1])<1e-5);assert.ok(Math.abs(after[2]-2*after[0])<1e-5);
-  assert.ok(after.reduce((sum,q,i)=>sum+q*rows[i].proteinG,0)>=40-1e-6);
+  assert.equal(after[0],200);assert.equal(after[2],400);
+  assert.ok(after[1]>=10 && after[1]<200);
+  assert.equal((200-after[1])%10,0);
 });
 async function request(pool,method,body,password,url='/api/plate-settings?householdId='+h) {
   const response={setHeader(){},writeHead(status){this.status=status;},end(body){this.body=JSON.parse(body);}};

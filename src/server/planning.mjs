@@ -38,7 +38,6 @@ export function validatePlannedMeal(input) {
     const storedRole=role;
     const optional = storedRole !== 'main';
     if (typeof categoryId !== 'string' || !/^[a-z][a-z0-9_-]{0,39}$/.test(categoryId)) return { error:'invalid-planned-item-category' };
-    if (storedRole === 'main' && categoryId !== 'main') return { error:'invalid-planned-item-category' };
     if (!optional && item.amounts.length !== attendeeIds.length) return { error: 'amounts-must-match-attendees' };
     if (optional && (item.amounts.length < 1 || item.amounts.length > attendeeIds.length)) return { error: `invalid-${role}-amounts` };
     const seen = new Set();

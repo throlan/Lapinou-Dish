@@ -22,6 +22,13 @@ test('returns an explicit reason instead of inventing a portion when data or bud
   assert.equal(suggestQuantity({ dailyTargetKcal: 2000, slot: 'breakfast', recipeKcal: 1000, recipeUnit: 'piece' }).reason, 'no-natural-portion-fits');
 });
 
+test('an indivisible main stays whole even when the daily allowance is exhausted',()=>{
+  const proposal=suggestQuantity({dailyTargetKcal:1800,slot:'dinner',plannedOtherKcal:1800,recipeKcal:480,recipeUnit:'piece',preserveWholePiece:true});
+  assert.equal(proposal.quantity,1);
+  assert.equal(proposal.reason,'whole-piece-exceeds-budget');
+  assert.equal(proposal.slotBudgetKcal,0);
+});
+
 
 test('allocates the slot budget between main recipe and accompaniment without reserving a drink share', () => {
   const base = { dailyTargetKcal: 2000, slot: 'breakfast', recipeKcal: 100, recipeUnit: 'portion' };

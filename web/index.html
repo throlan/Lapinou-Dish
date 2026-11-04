@@ -11,8 +11,8 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.3.12">
-    <link rel="stylesheet" href="/editorial.css?v=0.3.12">
+    <link rel="stylesheet" href="/style.css?v=0.3.13">
+    <link rel="stylesheet" href="/editorial.css?v=0.3.13">
   </head>
   <body>
     <header class="topbar">
@@ -129,9 +129,12 @@
         </form>
         </section>
         <section id="admin-panel-yields" class="admin-panel" role="tabpanel" tabindex="0" data-admin-panel="yields" hidden>
+        <h3>Coefficients de cuisson à vérifier</h3>
+        <p class="muted">Un aliment utilisé avec plusieurs coefficients reste inchangé tant que tu n’as pas choisi sa valeur dans sa fiche. Les quantités déjà enregistrées dans les menus et les stocks restent identiques.</p>
+        <div id="food-cooking-conflicts" class="card"><p class="empty">Chargement…</p></div>
         <h3>Conversions de rendement des aliments</h3>
         <form id="food-yield-form" class="card food-yield-form">
-          <p class="muted">Relie un aliment de départ à l’aliment obtenu après cuisson ou préparation. Le coefficient indique le poids obtenu pour 1 g de l’aliment de départ. Il sera proposé dans les recettes et sa conversion inverse pourra servir aux courses. Une règle « Acheter sous… » explicite reste prioritaire.</p>
+          <p class="muted">Relie deux fiches alimentaires distinctes, par exemple des pois chiches cuits égouttés aux pois chiches secs à acheter. Ce réglage sert aux courses ; le poids cuit d’un même aliment se renseigne dans sa fiche. Une règle « Acheter sous… » explicite reste prioritaire.</p>
           <input type="hidden" name="id">
           <div class="form-grid">
             <label>Aliment de départ<input name="sourceFoodName" list="yield-source-options" autocomplete="off" required placeholder="Rechercher un aliment…"><datalist id="yield-source-options"></datalist><input name="sourceFoodId" type="hidden"></label>
@@ -221,7 +224,7 @@
             <legend>Portions dans le calendrier</legend>
             <label>Service<select name="servingMode"><option value="original">Proportions du rendement de la recette (pièces / portions)</option><option value="whole">Préparation servie ensemble — grammes estimés</option><option value="separate">Viande et légumes ensemble, féculents à part — grammes estimés</option><option value="three">Viande, légumes et féculents séparés — grammes estimés</option></select></label>
             <p id="serving-assignment-status" class="hint hidden" role="status"></p>
-            <p class="hint">Chaque ingrédient possède son propre coefficient de cuisson : par exemple riz ×3, semoule ×2 ou poids inchangé ×1. Ces coefficients estiment le poids préparé ; les calories restent calculées depuis les ingrédients. Une préparation maison est déjà préparée et ne reçoit pas un second coefficient.</p>
+            <p class="hint">Le poids cuit estimé se règle dans la fiche de chaque aliment. Les quantités de la recette restent crues ; une préparation maison déjà cuite ne reçoit pas de second coefficient.</p>
           </fieldset>
           <div class="line-heading"><h3>Ingrédients</h3><div class="form-actions"><button type="button" class="secondary" id="add-line">+ Aliment</button><button type="button" class="secondary" id="add-recipe-line">+ Préparation maison</button></div></div>
           <div id="recipe-lines"></div>
@@ -323,7 +326,7 @@
 
     <dialog id="rebalance-dialog">
       <div class="dialog-heading"><h2>Rééquilibrer la journée</h2><button type="button" class="icon-button" id="close-rebalance" aria-label="Fermer">×</button></div>
-      <p>Pour les adultes : le petit-déjeuner est ramené à deux unités maximum pour les préparations à la pièce, puis le dépassement éventuel est réparti sur le déjeuner et le dîner. Les boissons et desserts restent inchangés. Les réductions du déjeuner et du dîner conservent leur repère de 40 g de protéines, ou leur apport actuel s’il est déjà inférieur.</p>
+      <p>Pour les adultes, l’aperçu retire d’abord un dessert entier, puis réduit les féculents séparés par pas de 10 g. Le plat principal, les préparations déjà utilisées et les repas des mineurs restent inchangés. Un dépassement résiduel est affiché ; les protéines sont indiquées sans seuil imposé.</p>
       <div id="rebalance-preview"></div>
       <p id="rebalance-message" class="form-message" role="status"></p>
       <button type="button" class="primary" id="apply-rebalance">Appliquer ces quantités</button>
@@ -386,7 +389,8 @@
           <button type="button" class="secondary" id="find-external-nutrition">Chercher hors Ciqual</button>
           <div id="nutrition-matches" class="nutrition-matches" aria-live="polite"></div>
         </section>
-        <div class="food-conversion-row"><label>Densité (g/ml)<input name="gramsPerMillilitre" type="number" min="0.001" step="any" placeholder="Si connue"></label><label>Poids d'une c. à café (g)<input name="tspGrams" type="number" min="0.001" step="any" placeholder="Si connu"></label><label>Poids d'une c. à soupe (g)<input name="tbspGrams" type="number" min="0.001" step="any" placeholder="Si connu"></label><label>Poids d'une pincée (g)<input name="pinchGrams" type="number" min="0.001" step="any" placeholder="Si connu"></label><label>Poids d'un scoop (g)<input name="scoopGrams" type="number" min="0.001" step="any" placeholder="Selon le doseur"></label><label>Poids d'une pièce (g)<input name="pieceGrams" type="number" min="0.001" step="any" placeholder="Si applicable"></label></div>
+        <div class="food-conversion-row"><label>Poids cuit pour 1 g cru (coefficient)<input name="cookingFactor" type="number" min="0.000001" max="10" step="any" placeholder="Ex. 2,5 pour le riz ; 0,587 pour les crevettes"></label><label>Densité (g/ml)<input name="gramsPerMillilitre" type="number" min="0.001" step="any" placeholder="Si connue"></label><label>Poids d'une c. à café (g)<input name="tspGrams" type="number" min="0.001" step="any" placeholder="Si connu"></label><label>Poids d'une c. à soupe (g)<input name="tbspGrams" type="number" min="0.001" step="any" placeholder="Si connu"></label><label>Poids d'une pincée (g)<input name="pinchGrams" type="number" min="0.001" step="any" placeholder="Si connu"></label><label>Poids d'un scoop (g)<input name="scoopGrams" type="number" min="0.001" step="any" placeholder="Selon le doseur"></label><label>Poids d'une pièce (g)<input name="pieceGrams" type="number" min="0.001" step="any" placeholder="Si applicable"></label></div>
+        <p class="hint">Le coefficient estime seulement le poids servi après cuisson : 300 g crus × 0,587 ≈ 176 g cuits. Les valeurs nutritionnelles et la liste de courses restent fondées sur la quantité crue. Les menus existants ne sont recalculés que sur demande explicite.</p>
         <p class="hint">Renseigne le poids des mesures utilisées dans tes recettes pour convertir les courses et les stocks en grammes. Une pincée ne rend pas le calcul nutritionnel incomplet ; sans son poids, elle reste toutefois affichée en pincées dans les courses.</p>
         <fieldset id="food-purchase-unit-settings">
           <legend>Unité d’achat habituelle du foyer</legend>
@@ -446,7 +450,7 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/install-app.js?v=0.3.12"></script>
-    <script type="module" src="/app.js?v=0.3.12"></script>
+    <script type="module" src="/install-app.js?v=0.3.13"></script>
+    <script type="module" src="/app.js?v=0.3.13"></script>
   </body>
 </html>

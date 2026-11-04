@@ -1,5 +1,13 @@
 # Cahier produit Lapinou Dish
 
+## Règles courantes depuis 0.3.13
+
+Le coefficient poids cuit / poids cru appartient à la fiche aliment. Il est prioritaire sur les anciens coefficients des lignes de recettes ; une valeur absente conserve le calcul historique. Les contradictions anciennes sont listées dans Administration et demandent une décision de l'utilisateur. Les grammes cuits des menus déjà enregistrés et les stocks historiques ne sont pas réécrits ; les ingrédients et courses restent en quantités crues. Les conversions entre deux aliments distincts servent séparément aux achats.
+
+Les catégories de repas sont configurables par créneau et peuvent être communes ou individuelles selon le créneau. Pâtisserie commune au petit-déjeuner et individuelle à la collation ; entrée et laitage facultatifs ; accompagnement, sauce et assaisonnement conservés. Le rôle technique reste un champ de compatibilité des repas historiques et n'est plus présenté comme un choix métier. Les proportions d'assiette d'Administration servent à la proposition initiale des recettes séparées. L'ajustement calorique retire un dessert entier avant de réduire les féculents séparés par pas de 10 g ; il conserve le plat principal et la part viande/poisson. Un plat indivisible reste entier et peut dépasser le plafond du repas. Les protéines sont une indication, sans seuil automatique de 40 g par repas. Le rééquilibrage quotidien donne un aperçu à valider ; aucun rééquilibrage hebdomadaire automatique. Le compte épargne montre le dépassement résiduel. Les menus enregistrés ne sont recalculés que sur demande explicite.
+
+Les sections historiques ci-dessous documentent aussi les règles des versions antérieures ; les règles courantes ci-dessus priment lorsqu'elles diffèrent.
+
 La présentation utilise les couleurs du logo lapin sur des fonds doux. La navigation s’adapte au téléphone, à la tablette et au PC. Les cartes de recettes, repas et préparations montrent la photo disponible, ou le logo en repli. L’accueil conserve la semaine civile de sept jours et quatre créneaux ; sur téléphone, le jour se choisit dans la semaine.
 
 Ce document décrit le produit cible. Pour les fonctions effectivement livrées, consulter [l'état actuel](STATUS.md) et [le cahier de reprise](REPRISE.md). Les règles de planification ci-dessous sont complétées par [le fonctionnement kcal actuel](MEAL-ENERGY.md).
