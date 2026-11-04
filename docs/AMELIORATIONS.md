@@ -1,5 +1,9 @@
 # Cahier des améliorations proposées
 
+## Courses & stocks en onglets — 0.3.11
+
+La longue page est découpée en cinq rubriques sans déplacer les fonctions hors de Courses & stocks. Dates communes en haut, onglets accessibles au clavier et conservation des formulaires ouverts. Aucun changement métier.
+
 ## Refonte ciblée du 4 novembre 2026 — livrée en 0.3.10
 
 Accueil sur la semaine civile, quatre cartes compactes par jour, détails au clic. Fiche de portions et actions pour les repas préparés ; cases du calendrier simplifiées. Collation du soir absente des nouveaux menus, archives conservées. Pourcentages kcal toujours configurables dans Administration, actuellement 20/40/10/30. Fiche aliment unique enrichie des réglages de courses ; préparations hors menus planifiables, avec courses immédiates et stock confirmé plus tard. Voir REPRISE.md pour les règles de stock et les migrations.

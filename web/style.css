@@ -472,10 +472,14 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
 .admin-tabs { display:flex; gap:8px; overflow-x:auto; padding:8px 2px 12px; margin:0 0 14px; border-bottom:1px solid var(--line); scrollbar-width:thin; }
 .admin-tabs [role="tab"] { flex:0 0 auto; border:1px solid var(--line); border-radius:999px; padding:10px 15px; background:var(--surface); color:var(--text); font-weight:650; }
 .admin-tabs [role="tab"][aria-selected="true"] { background:var(--accent); border-color:var(--accent); color:white; }
+.shopping-tabs { position:sticky; top:0; z-index:5; background:var(--night); }
+.shopping-period { max-width:720px; margin:12px 0 18px; }
 .admin-panel[hidden] { display:none !important; }
 .admin-panel { min-height:260px; scroll-margin-top:18px; }
 .admin-panel > h3:first-child { margin-top:8px; }
 .admin-panel .card { margin-top:12px; }
+.shopping-panel > .card { margin-top:0; }
+.shopping-panel > .card + .card { margin-top:18px; }
 .recipe-production-minimum { margin:14px 0; padding:14px; border:1px solid var(--line); border-radius:14px; }
 .recipe-production-minimum .hint { margin-top:0; }
 @media(max-width:600px){.admin-tabs{position:sticky;top:0;z-index:5;background:var(--night);}.admin-tabs [role="tab"]{padding:9px 12px;font-size:13px}}
