@@ -126,7 +126,7 @@ Chaque jalon aura des scénarios d'acceptation exécutables et une validation na
 ## Décisions de la session du 13 octobre 2026
 
 - Les modes de service distinguent préparation entière, viande-légumes + féculents, et viande/protéines + légumes + féculents. Les grammes sont estimés depuis les ingrédients et coefficients explicites ; aucune pesée systématique après cuisson n'est demandée.
-- Le calendrier a cinq créneaux. La répartition kcal est modifiable dans Administration, total validé à 100 %, avec valeurs initiales 15/40/10/25/10 %.
+- Les nouveaux menus utilisent quatre créneaux : petit-déjeuner, déjeuner, collation de l’après-midi et dîner. Les anciennes collations du soir restent consultables. La répartition kcal reste modifiable dans Administration avec un total de 100 % ; le choix actuel est 20/40/10/30 %, sans figer ces valeurs pour le foyer.
 - Les profils sont compacts et repliables dans Administration. Le calendrier garde les détails dans l'éditeur et affiche le cumul quotidien personnel en pied de journée.
 - Les boissons et desserts peuvent être choisis individuellement. La duplication conserve les recettes, personnes, quantités et notes, sans recalcul implicite.
 - Le calcul ne remplit pas les budgets à tout prix : plafonds de portions du batch et du petit-déjeuner, saisie manuelle possible et limites protéiques visibles.

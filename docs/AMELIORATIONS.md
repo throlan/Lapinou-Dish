@@ -1,8 +1,10 @@
 # Cahier des améliorations proposées
 
-## Refonte ciblée du 4 novembre 2026 — en cours
+## Refonte ciblée du 4 novembre 2026 — livrée en 0.3.10
 
 Accueil sur la semaine civile, quatre cartes compactes par jour, détails au clic. Fiche de portions et actions pour les repas préparés ; cases du calendrier simplifiées. Collation du soir absente des nouveaux menus, archives conservées. Pourcentages kcal toujours configurables dans Administration, actuellement 20/40/10/30. Fiche aliment unique enrichie des réglages de courses ; préparations hors menus planifiables, avec courses immédiates et stock confirmé plus tard. Voir REPRISE.md pour les règles de stock et les migrations.
+
+353 tests locaux, contrôles et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41811943655. PR #157 fusionnée au commit `0db84ae2cb12d0922c9e59ecb11d4662e5af12ad`. Tags `0.3.10` et `v0.3.10` vérifiés, digest `sha256:b46eaf9e3f60e68c5ca35bb06ee1322a1db9176ccf3ddcaa2c92ff2aa4c5314a`.
 
 ## Repas prêts et retrait après le jour du repas — 0.3.9 livrée
 
@@ -74,7 +76,7 @@ PR #137 fusionnée au commit `5349f9b407400d44b6a0376ffb8f787a48b6883d`, publica
 
 ## Publication : versions numérotées et retour arrière
 
-Dernière version publiée vérifiée : **0.3.0**, PR #137, commit `5349f9b407400d44b6a0376ffb8f787a48b6883d`, workflow réussi https://github.com/throlan/Lapinou-Dish/actions/runs/40849807550. Le workflow publie les alias numériques et préfixés v depuis package.json, sans réécrire une version déjà publiée. Conservation sans suppression automatique : au minimum les cinq dernières versions publiées restent sélectionnables. Les images 0.2.95 à 0.2.99 ont été retrouvées par tag technique ; digests et révisions vérifiés et enregistrés dans docker/rollback-images.json. Le workflow rétablit leurs alias depuis les digests exacts, sans reconstruire les anciennes images. Voir [ROLLBACK.md](ROLLBACK.md).
+Publication précédente vérifiée : **0.3.0**, PR #137, commit `5349f9b407400d44b6a0376ffb8f787a48b6883d`, workflow réussi https://github.com/throlan/Lapinou-Dish/actions/runs/40849807550. Le workflow publie les alias numériques et préfixés v depuis package.json, sans réécrire une version déjà publiée. Conservation sans suppression automatique : au minimum les cinq dernières versions publiées restent sélectionnables. Les images 0.2.95 à 0.2.99 ont été retrouvées par tag technique ; digests et révisions vérifiés et enregistrés dans docker/rollback-images.json. Le workflow rétablit leurs alias depuis les digests exacts, sans reconstruire les anciennes images. Voir [ROLLBACK.md](ROLLBACK.md).
 
 Pour revenir à la 0.2.97 : ghcr.io/throlan/lapinou-dish:0.2.97. La 0.2.98 reste identifiée comme défectueuse au démarrage. Aucun changement de migration entre 0.2.97 et 0.2.99 ; une ancienne image ne restaure pas les données. Ne jamais supprimer les volumes pour changer de version. Aucun accès à Unraid/Nginx.
 

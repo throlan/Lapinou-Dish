@@ -1,10 +1,10 @@
 # Images versionnées et retour arrière
 
-## Migration prévue pour la 0.3.10
+## Migration de la 0.3.10
 
-`20261104_four_meal_defaults.sql` change seulement le réglage par défaut des nouveaux foyers ; les pourcentages déjà enregistrés restent intacts. `20261104_planned_extra_productions.sql` ajoute les préparations planifiées hors menus et leur lien facultatif avec un lot produit. Une image antérieure à la 0.3.10 ignore ces plans ; elle ne les supprime pas, mais ses courses et ses prévisions ne comptent plus leurs ingrédients ou leur couverture. Vérifier cette différence avant un retour arrière après avoir créé des plans. Aucune image 0.3.10 ne doit être annoncée comme publiée avant vérification de GitHub et GHCR.
+`20261104_four_meal_defaults.sql` change seulement le réglage par défaut des nouveaux foyers ; les pourcentages déjà enregistrés restent intacts. `20261104_planned_extra_productions.sql` ajoute les préparations planifiées hors menus et leur lien facultatif avec un lot produit. Une image antérieure à la 0.3.10 ignore ces plans ; elle ne les supprime pas, mais ses courses et ses prévisions ne comptent plus leurs ingrédients ou leur couverture. Vérifier cette différence avant un retour arrière après avoir créé des plans. PR #157 fusionnée ; tags 0.3.10 et v0.3.10 vérifiés sur GHCR après réussite du workflow 41811943655. Digest commun : sha256:b46eaf9e3f60e68c5ca35bb06ee1322a1db9176ccf3ddcaa2c92ff2aa4c5314a.
 
-Le mécanisme de publication versionnée a été introduit avec la 0.2.99 ; le code applicatif courant est en **0.3.8**. La 0.3.6 ajoute le regroupement du batch cooking sans migration ; la 0.3.7 ajoute `preparation_stock_counts` pour historiser les comptages physiques. Une ancienne image qui ignore cette table ne tient pas compte des corrections : ne pas considérer un retour vers 0.3.6 comme un retour fonctionnel équivalent après comptage. Les versions 0.3.0 à 0.3.4 ont ajouté des migrations : la compatibilité d’un retour vers 0.2.97 ne doit pas être déduite du seul fait que son image existe.
+Le mécanisme de publication versionnée a été introduit avec la 0.2.99 ; le code applicatif courant est en **0.3.10**. La 0.3.6 ajoute le regroupement du batch cooking sans migration ; la 0.3.7 ajoute `preparation_stock_counts` pour historiser les comptages physiques. Une ancienne image qui ignore cette table ne tient pas compte des corrections : ne pas considérer un retour vers 0.3.6 comme un retour fonctionnel équivalent après comptage. Les versions 0.3.0 à 0.3.4 ont ajouté des migrations : la compatibilité d’un retour vers 0.2.97 ne doit pas être déduite du seul fait que son image existe.
 
 ## Choisir une version
 
