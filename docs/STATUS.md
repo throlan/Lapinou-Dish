@@ -1,8 +1,10 @@
 # État du projet — 4 novembre 2026
 
-## 0.3.10 en cours
+## 0.3.10 livrée
 
 Accueil hebdomadaire lundi–dimanche en sept lignes de quatre cartes compactes ; fiche de consultation des portions et actions pour les repas préparés ; cases du calendrier allégées. La collation du soir disparaît des nouveaux menus, mais les repas historiques restent consultables. Les pourcentages kcal demeurent modifiables dans Administration (actuellement 20/40/10/30, total 100 %). Fiche aliment commune depuis courses, catalogue et recettes avec ses réglages d’achat. Préparations hors menus planifiées : ingrédients dans les courses dès la planification, stock réel seulement après confirmation, annulation restitutive.
+
+353 tests locaux réussis. PR #157 fusionnée au commit `0db84ae2cb12d0922c9e59ecb11d4662e5af12ad` ; contrôles et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41811943655. Tags `0.3.10` et `v0.3.10` vérifiés, digest commun `sha256:b46eaf9e3f60e68c5ca35bb06ee1322a1db9176ccf3ddcaa2c92ff2aa4c5314a`.
 
 ## Repas prêts et retrait après le jour du repas — 0.3.9 livrée
 
@@ -80,7 +82,7 @@ PR #137 fusionnée au commit `5349f9b407400d44b6a0376ffb8f787a48b6883d`. Les con
 
 ## Publication : versions numérotées et retour arrière
 
-Dernière version publiée vérifiée : **0.3.8**. PR #153 fusionnée au commit `7fcc8ed34d3277c27a6f7c4c479107ebbef755bb` ; tests GitHub et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41293831666. Tags `0.3.8` et `v0.3.8` vérifiés, digest commun `sha256:e7d2a7a5377943b7a3ee38d89ef58d5ffb96b059bb1a35da71de71def2bc7453`. Conservation des versions numérotées sans purge automatique, au minimum les cinq dernières ; une republication documentaire ne remplace pas l’image numérotée. Voir [ROLLBACK.md](ROLLBACK.md).
+Publication précédente vérifiée : **0.3.8**. PR #153 fusionnée au commit `7fcc8ed34d3277c27a6f7c4c479107ebbef755bb` ; tests GitHub et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41293831666. Tags `0.3.8` et `v0.3.8` vérifiés, digest commun `sha256:e7d2a7a5377943b7a3ee38d89ef58d5ffb96b059bb1a35da71de71def2bc7453`. Conservation des versions numérotées sans purge automatique, au minimum les cinq dernières ; une republication documentaire ne remplace pas l’image numérotée. Voir [ROLLBACK.md](ROLLBACK.md).
 
 Pour revenir à la 0.2.97 : ghcr.io/throlan/lapinou-dish:0.2.97. La 0.2.98 reste identifiée comme défectueuse au démarrage. Aucun changement de migration entre 0.2.97 et 0.2.99 ; une ancienne image ne restaure pas les données. Ne jamais supprimer les volumes pour changer de version. Aucun accès à Unraid/Nginx.
 
@@ -159,7 +161,7 @@ Les tâches réellement restantes et les fonctions déjà livrées sont séparé
 
 ## Décisions de suite
 
-Gestion des comptes individuels explicitement reportée : modèle communautaire/hébergé et droits non validés, aucun code ajouté. Une seule collation l’après-midi est souhaitée mais sa transition depuis les cinq créneaux n’est pas implémentée. La recherche sur la répartition des repas n’a changé ni réglages ni quotas selon l’âge. Aucun autre chantier ne démarre automatiquement.
+Gestion des comptes individuels explicitement reportée : modèle communautaire/hébergé et droits non validés, aucun code ajouté. Depuis la 0.3.10, une seule collation l’après-midi est proposée pour les nouveaux menus et les anciens repas du soir restent consultables. Aucun quota selon l’âge n’a été appliqué. Aucun autre chantier ne démarre automatiquement.
 
 ## Implémenté
 
@@ -180,11 +182,11 @@ Gestion des comptes individuels explicitement reportée : modèle communautaire/
 - Suppression explicite et confirmée des recettes inutilisées, depuis une vignette ou l’éditeur ; les parties et photos associées sont retirées. Refus si un menu ou un historique de production utilise la recette ou une partie ; contrôle du foyer et de la version courante. Les fichiers photo sont nettoyés après commit, avec avertissement si ce nettoyage échoue.
 - Création/édition de recettes, calcul par batch et rendement, types et moments distincts, filtres et recherche. Grille de vignettes paginée (12 recettes), photos, filtres latéraux, détails repliés et réglages de production/moments enregistrables directement sur chaque ligne sans modifier les ingrédients.
 - Page Importer distincte ; import de texte/archives en brouillons, OpenAI optionnel et tentative de récupération de description Instagram avec repli texte.
-- Calendrier à cinq créneaux, participants explicites, repas multi-recettes, boissons/desserts individuels et duplication complète sur plusieurs dates. Au petit-déjeuner et aux deux collations, les desserts adaptés peuvent aussi être ajoutés comme recette commune et bénéficier du calcul de portions ; au déjeuner et au dîner, le dessert individuel s’ajoute avec « + Dessert ».
+- Calendrier à quatre créneaux actifs, anciens repas du soir conservés, repas multi-recettes, boissons/desserts individuels et duplication complète sur plusieurs dates. Au petit-déjeuner et à la collation après-midi, les desserts adaptés peuvent aussi être ajoutés comme recette commune et bénéficier du calcul de portions ; au déjeuner et au dîner, le dessert individuel s’ajoute avec « + Dessert ».
 - Calendrier imprimable en A4 paysage sur sept colonnes ; l’impression affiche seulement les menus et les quantités pour chaque personne.
 - Préparation entière en grammes estimés, deux ou trois parties indépendantes, coefficients de cuisson, conversions des repas/lots existants et conservation des ingrédients crus.
 - Ingrédients en blocs lisibles ; liens en bas ; coefficient individuel affiché pour les féculents sélectionnés.
-- Administration : profils compacts et datés, relevés de poids et historiques ; répartition des kcal à 100 %, par défaut 15/40/10/25/10 %.
+- Administration : profils compacts et datés, relevés de poids et historiques ; répartition des kcal à 100 %, modifiable par foyer. Choix actuel : 20/40/10/30 % sur les quatre créneaux actifs.
 - Minima quotidiens de protéines configurables par personne dans Administration et affichés sous les prévisions kcal de chaque jour ; le récapitulatif par personne utilise le repère hebdomadaire daté.
 - Lignes kcal/protéines par personne dans l'éditeur ; calendrier allégé et bilan kcal prévu/objectif en bas de chaque journée.
 - Propositions plafonnées et recalcul explicite ; petit-déjeuner limité automatiquement à deux pièces, une portion ou poids correspondant selon le rendement.

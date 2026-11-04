@@ -1,6 +1,6 @@
 # Cahier de reprise — 4 novembre 2026
 
-## Semaine d’accueil, fiche aliment commune et préparations hors menus — 0.3.10 en cours
+## Semaine d’accueil, fiche aliment commune et préparations hors menus — 0.3.10 livrée
 
 L’accueil présente la semaine civile en cours, du lundi au dimanche : sept lignes et quatre créneaux par ligne (petit-déjeuner, déjeuner, collation de l’après-midi, dîner). Les cartes compactes ouvrent les portions par personne. Dans le calendrier, la fiche du repas reste accessible une fois préparé ; elle contient les quantités en lecture seule et les actions de préparation. Les cases du calendrier conservent le titre, l’état et « Dupliquer », sans participants ni total kcal.
 
@@ -9,6 +9,8 @@ La collation du soir n’est plus proposée pour les nouveaux menus. Ses repas h
 Une même fiche aliment s’ouvre depuis les courses, le catalogue et les recettes ; elle réunit valeurs nutritionnelles, conversions, unité d’achat, magasin, catégorie et format de paquet. Les préférences de regroupement et d’exclusion liées à la période restent dans la liste de courses.
 
 Une préparation supplémentaire peut être planifiée hors menus. Son lot minimum reste propre à la recette ; ses ingrédients entrent dans les courses à la date prévue. La production virtuelle couvre les menus postérieurs dans la projection, mais ne devient du stock physique qu’à la confirmation explicite. Annuler le lot remet cette préparation en attente et rétablit les ingrédients dans les courses. Migrations additives `20261104_four_meal_defaults.sql` et `20261104_planned_extra_productions.sql`. Les historiques et le calcul de viande/poisson restent inchangés. Aucun accès à Unraid/Nginx.
+
+**353 tests locaux réussis**. PR #157 fusionnée au commit `0db84ae2cb12d0922c9e59ecb11d4662e5af12ad`. Contrôles et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41811943655. Tags `0.3.10` et `v0.3.10` vérifiés directement sur GHCR, digest commun `sha256:b46eaf9e3f60e68c5ca35bb06ee1322a1db9176ccf3ddcaa2c92ff2aa4c5314a`.
 
 ## Repas prêts et retrait après le jour du repas — 0.3.9 livrée
 
@@ -96,7 +98,7 @@ Version précédente : **0.3.0**. Administration configure les ajouts complémen
 
 ## Publication : versions numérotées et retour arrière
 
-Dernière version publiée vérifiée : **0.3.9**. PR #155 fusionnée au commit `571d72bab17c4970f838a6799234e95d40495077` ; contrôles et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41302800569. Tags `0.3.9` et `v0.3.9` vérifiés, digest commun `sha256:bf2735d821b157d05562fbc6d9ed28e3ead111e4de5bb12d92640a38b678ea32`. Les cinq versions 0.3.5 à 0.3.9 sont présentes ; les digests antérieurs sont conservés. Conservation des versions numérotées sans purge automatique, au minimum les cinq dernières ; une republication documentaire ne remplace pas l’image numérotée. Voir [ROLLBACK.md](ROLLBACK.md).
+Livraison précédente vérifiée : **0.3.9**. PR #155 fusionnée au commit `571d72bab17c4970f838a6799234e95d40495077` ; contrôles et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41302800569. Tags `0.3.9` et `v0.3.9` vérifiés, digest commun `sha256:bf2735d821b157d05562fbc6d9ed28e3ead111e4de5bb12d92640a38b678ea32`. Les cinq versions 0.3.5 à 0.3.9 sont présentes ; les digests antérieurs sont conservés. Conservation des versions numérotées sans purge automatique, au minimum les cinq dernières ; une republication documentaire ne remplace pas l’image numérotée. Voir [ROLLBACK.md](ROLLBACK.md).
 
 Pour revenir à la 0.2.97 : ghcr.io/throlan/lapinou-dish:0.2.97. La 0.2.98 reste identifiée comme défectueuse au démarrage. Aucun changement de migration entre 0.2.97 et 0.2.99 ; une ancienne image ne restaure pas les données. Ne jamais supprimer les volumes pour changer de version. Aucun accès à Unraid/Nginx.
 
@@ -111,7 +113,7 @@ Correction minimale : servir explicitement /food-pagination.js avec le type Java
 
 Un nouveau test parcourt les points d’entrée module du HTML et leurs dépendances locales via le vrai gestionnaire HTTP, avant connexion, avec contrôle du statut et du type MIME. Il échoue sur la 0.2.98 avec /food-pagination.js : 404, puis passe après correction. **311 tests complets locaux réussis**. Validation Chrome locale sur base fictive : connexion initiale et rechargement connecté, tableau de bord rempli, navigation sur les sept pages à 1440/1280/900/390/320 px, pagination haute/basse (25 puis 250 sélectionnés, 87 aliments fictifs), ouverture de la fiche aliment. Aucune erreur JS/HTTP ou ressource manquante ni débordement horizontal. Aucun appareil physique ou accès à l’installation. Dernière version publiée vérifiée avant ce correctif : 0.2.98, documentation PR #133, commit 6547d6a, workflow réussi https://github.com/throlan/Lapinou-Dish/actions/runs/39978043811 . Vérifier la publication du commit fusionné 0.2.99 avant d’annoncer la livraison. Aucun accès à Unraid/Nginx ; l’utilisateur déploie lui-même.
 
-Les chapitres suivants archivent les livraisons précédentes ; la référence courante est **0.3.9**, décrite en tête de document.
+Les chapitres suivants archivent les livraisons précédentes ; la référence courante est **0.3.10**, décrite en tête de document.
 
 ## Dernière version livrée — 0.2.98
 
@@ -186,7 +188,7 @@ Les sections ci-dessous conservent le contexte des versions précédentes ; la r
 ## Décisions de périmètre récentes
 
 - Comptes individuels reportés explicitement après discussion du projet communautaire/hébergé ; aucune implémentation commencée et aucun modèle de droits validé.
-- Une seule collation souhaitée, l’après-midi : évolution à planifier, pas encore implémentée. Les cinq créneaux et menus existants doivent être préservés tant que la transition n’est pas développée.
+- Une seule collation proposée pour les nouveaux menus, l’après-midi ; transition de l’interface livrée en 0.3.10. Les anciennes collations du soir et leurs quantités restent consultables.
 - La recherche nutritionnelle n’a pas changé les pourcentages ni ajouté de quotas selon l’âge. Ne pas prendre un repère de discussion pour un réglage validé.
 
 ## Dernières fonctions à ne pas refaire
@@ -219,10 +221,10 @@ Les sections ci-dessous conservent le contexte des versions précédentes ; la r
 ## Règles métier à préserver
 
 - Catalogue canonique et conversions documentées : inconnu ne signifie jamais zéro. Les besoins kcal des profils sont saisis et datés, sans calcul automatique depuis poids/taille/activité.
-- Cinq créneaux ; répartition modifiable par foyer, défaut **15/40/10/25/10 %**. Prévisions au calendrier, aucune saisie de consommation après repas.
+- Quatre créneaux actifs et anciennes collations du soir consultables ; répartition modifiable par foyer dans Administration, choix actuel **20/40/10/30 %**, total 100 %. Prévisions au calendrier, aucune saisie de consommation après repas.
 - Rendement original, préparation entière en grammes estimés, deux ou trois parties ; aucune pesée obligatoire après cuisson. Proportions en poids indépendantes de la répartition kcal.
 - Suggestions plafonnées et modifiables, petit-déjeuner limité automatiquement à deux pièces selon le rendement. Réouverture et duplication préservent les quantités ; recalcul explicite.
-- Boissons individuelles fixes, quantité initiale 1 au choix, zéro possible ; desserts communs autorisés au petit-déjeuner et aux deux collations. « + Dessert » ouvre le choix individuel dans les repas.
+- Boissons individuelles fixes, quantité initiale 1 au choix, zéro possible ; desserts communs autorisés au petit-déjeuner et à la collation de l’après-midi. « + Dessert » ouvre le choix individuel dans les repas.
 - Rééquilibrage adulte avec aperçu puis application explicite ; mineurs exclus, aperçu périmé refusé. Boissons, desserts individuels et sauces conservés.
 - Réserve kcal adulte livrée en 0.2.42 : fenêtre glissante de 30 jours, écarts calculés depuis les menus planifiés, épargne supplémentaire sans double crédit, occasions avec estimation globale hors quotas ordinaires. Le [brouillon de réserve](drafts/ENERGY-RESERVE.md) est une archive, pas une tâche à réappliquer.
 - Planifier réserve les stocks sans les consommer physiquement. Productions et repas marqués « Préparé » produisent les mouvements explicites, sans double déduction des ingrédients d'un batch.
@@ -246,9 +248,9 @@ Après une modification autorisée : branche, tests adaptés, commit/push, PR, c
 ```text
 Reprends Lapinou Dish depuis https://github.com/throlan/Lapinou-Dish. Retrouve le dépôt local par son remote, préserve modifications, branches et stashes puis récupère origin/main sans écrasement, reset destructif ni clean. Lis AGENTS.md s’il existe, docs/REPRISE.md, STATUS.md, PRODUCT.md, AMELIORATIONS.md, TODO.md, ROLLBACK.md et le journal le plus récent.
 
-Référence livrée : application 0.3.9. Repas prêts automatiquement selon le stock réel, réservations chronologiques ou ciblées sur la plage de fabrication. Décision utilisateur : retirer les portions après le jour du repas (Europe/Paris), une seule fois, même après redémarrage ; aucun retrait rétroactif avant activation. Annulation restitutive avec suspension pour ce repas, couverture partielle explicite, actions manuelles conservées. Migration 20261101_automatic_meal_stock.sql. 351 tests complets locaux et Chrome fictif PC/tablette/mobile réussis. PR #155 fusionnée au commit 571d72bab17c4970f838a6799234e95d40495077 ; contrôles et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41302800569. Tags 0.3.9 et v0.3.9 vérifiés, digest commun sha256:bf2735d821b157d05562fbc6d9ed28e3ead111e4de5bb12d92640a38b678ea32. Les cinq versions 0.3.5 à 0.3.9 sont présentes ; les digests antérieurs sont conservés. Vérifie GitHub, package.json et la publication avant de poursuivre. Soldes négatifs de production 0.3.8, stocks physiques et regroupements 0.3.7 et batch multi-semaines 0.3.6 restent livrés ; ne pas les refaire.
+Référence actuelle : application 0.3.10, PR #157 fusionnée au commit 0db84ae2cb12d0922c9e59ecb11d4662e5af12ad ; 353 tests, contrôles et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41811943655 ; tags 0.3.10 et v0.3.10 vérifiés. La 0.3.9 livrait les repas prêts automatiquement selon le stock réel, réservations chronologiques ou ciblées sur la plage de fabrication. Décision utilisateur : retirer les portions après le jour du repas (Europe/Paris), une seule fois, même après redémarrage ; aucun retrait rétroactif avant activation. Annulation restitutive avec suspension pour ce repas, couverture partielle explicite, actions manuelles conservées. Migration 20261101_automatic_meal_stock.sql. 351 tests complets locaux et Chrome fictif PC/tablette/mobile réussis. PR #155 fusionnée au commit 571d72bab17c4970f838a6799234e95d40495077 ; contrôles et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41302800569. Tags 0.3.9 et v0.3.9 vérifiés, digest commun sha256:bf2735d821b157d05562fbc6d9ed28e3ead111e4de5bb12d92640a38b678ea32. Les cinq versions 0.3.5 à 0.3.9 sont présentes ; les digests antérieurs sont conservés. Vérifie GitHub, package.json et la publication avant de poursuivre. Soldes négatifs de production 0.3.8, stocks physiques et regroupements 0.3.7 et batch multi-semaines 0.3.6 restent livrés ; ne pas les refaire.
 
-Préserver les calculs 0.2.83/0.2.86 (pas ceux des 0.2.84/85), compensation calorique après conversion en unités entières, coefficients individuels, recettes comme ingrédients, unités d’achat, charte Encre framboise et webapp. Les catégories configurables, lots minimums propres aux recettes, composants liés au calendrier et correctif féculent 1 g sont déjà livrés. Ne pas modifier la quantité de viande/poisson : règle en attente. Comptes reportés, correction nutritionnelle à confirmer, nettoyage catalogue en dernier ; une seule collation souhaitée mais non développée. Aucun quota par âge ni ratio 20/40/10/30 appliqué.
+Préserver les calculs 0.2.83/0.2.86 (pas ceux des 0.2.84/85), compensation calorique après conversion en unités entières, coefficients individuels, recettes comme ingrédients, unités d’achat, charte Encre framboise et webapp. Les catégories configurables, lots minimums propres aux recettes, composants liés au calendrier et correctif féculent 1 g sont déjà livrés. Ne pas modifier la quantité de viande/poisson : règle en attente. Comptes reportés, correction nutritionnelle à confirmer, nettoyage catalogue en dernier ; une seule collation après-midi pour les nouveaux menus, anciens repas du soir consultables. Répartition kcal réglable dans Administration (choix actuel 20/40/10/30) ; aucun quota par âge appliqué.
 
 Images : tags numériques et v depuis package.json, sans écraser une version publiée ; conservation sans purge automatique, au minimum cinq versions. Ne pas modifier les digests historiques de docker/rollback-images.json. Une republication documentaire conserve l’image numérotée. La 0.2.98 est défectueuse ; 0.2.97 reste disponible, mais les versions 0.3.x ont ajouté des migrations : un retour aussi ancien ne doit pas être supposé compatible. Une image ne restaure pas les données ; vérifier les migrations avant tout retour arrière, sans supprimer de volumes.
 
