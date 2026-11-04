@@ -1,6 +1,6 @@
 # Prochaines tâches — 4 novembre 2026
 
-0.3.13 : 356 tests complets locaux réussis et contrôle ciblé supplémentaire ; revoir l'affichage réel des catégories communes/individuelles, des conflits de coefficients et de l'aperçu de rééquilibrage après publication. L'utilisateur résout au cas par cas les éventuels coefficients contradictoires depuis la fiche aliment. Aucun réglage nutritionnel individuel ni quota selon l'âge n'est inventé. La règle visant 125 g de viande/poisson par portion demeure en attente.
+0.3.13 livrée par la PR [#162](https://github.com/throlan/Lapinou-Dish/pull/162) : 356 tests complets locaux et contrôle ciblé supplémentaire réussis ; [publication GHCR vérifiée](https://github.com/throlan/Lapinou-Dish/actions/runs/41855028940). Après déploiement par l'utilisateur, recueillir son retour sur les catégories communes/individuelles, les conflits de coefficients et l'aperçu de rééquilibrage. Il résout au cas par cas les éventuels coefficients contradictoires depuis la fiche aliment. Aucun réglage nutritionnel individuel ni quota selon l'âge n'est inventé. La règle visant 125 g de viande/poisson par portion demeure en attente.
 
 Présentation adaptative validée et implémentée en 0.3.12 : charte fondée sur le logo, photos dans les cartes, navigation téléphone/tablette/PC et choix du jour sur petit écran. Vérifier les retours d’usage après publication avant d’ajuster la densité des écrans.
 
