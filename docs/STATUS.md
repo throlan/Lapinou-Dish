@@ -6,7 +6,7 @@ Le rapport cru/cuit se saisit dans la fiche aliment. Les anciens coefficients id
 
 Les catégories de repas sont configurables par créneau et peuvent être communes ou individuelles selon le créneau ; pâtisserie commune au petit-déjeuner, individuelle à la collation. Entrée et laitage sont proposés, accompagnement, sauce et assaisonnement restent possibles. Le « rôle » technique n'est plus affiché dans Administration. Le calcul initial des recettes séparées suit les proportions d'assiette d'Administration ; il n'impose pas 40 g de protéines par repas. Un dessert se retire entier, puis les féculents séparés diminuent par 10 g si nécessaire, en conservant le plat principal. Un dépassement peut rester visible. Le rééquilibrage de la journée requiert un aperçu et une validation ; la semaine ne change pas automatiquement. Les anciennes quantités de menus ne sont recalculées que sur demande explicite.
 
-356 tests complets locaux réussis, puis contrôle ciblé du plat indivisible et des catégories réussi. Vérification de syntaxe et des différences réussie. PR et publication à consigner après fusion.
+356 tests complets locaux réussis, puis contrôle ciblé du plat indivisible et des catégories réussi. Vérification de syntaxe et des différences réussie. PR [#162](https://github.com/throlan/Lapinou-Dish/pull/162) fusionnée au commit `e5ab07d643b17762c129d6cf019fb6699000ce65`. [Contrôles et publication GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/41855028940). Tags `0.3.13` et `v0.3.13` vérifiés, digest commun `sha256:08b1eb241df9d726949143720f8fe96374ce513ee9210cf100b46382abb417d7`. Aucun accès à Unraid/Nginx ; le rendu réel sur l'installation reste à vérifier par l'utilisateur.
 
 ## 0.3.12 — présentation adaptative
 
