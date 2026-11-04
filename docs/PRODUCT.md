@@ -4,6 +4,8 @@ Ce document décrit le produit cible. Pour les fonctions effectivement livrées,
 
 ## Préparations, réservations et sorties de stock
 
+Une préparation supplémentaire se planifie hors menus avec une date et une quantité respectant le minimum propre à la recette. Ses ingrédients sont à acheter dès la planification et son surplus prévu peut couvrir les menus suivants. Elle ne devient du stock physique qu’après confirmation de la fabrication ; l’annulation du lot remet la préparation à faire.
+
 Une préparation déjà fabriquée peut être réservée aux menus d’une plage de dates. Les repas prêts sont reconnus à partir du stock réel, dans l’ordre des dates et créneaux ; chaque partie d’un service séparé doit être couverte. Le stock réservé reste physiquement présent jusqu’à la fin du jour du repas (Europe/Paris), puis ses portions sont retirées automatiquement, sans nouvelle déduction des ingrédients bruts. Les sorties sont idempotentes et rattrapées après redémarrage ; les menus antérieurs à l’activation restent préservés. Une annulation restitue les sorties et suspend l’automatisme pour ce repas. Ce mécanisme ne constitue pas un journal nutritionnel de consommation réelle.
 
 ## Objectif

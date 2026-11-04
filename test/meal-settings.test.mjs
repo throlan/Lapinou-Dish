@@ -13,9 +13,9 @@ import { rawShoppingRequirements } from '../src/server/shopping-requirements.mjs
 const h='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',other='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',p='cccccccc-cccc-4ccc-8ccc-cccccccccccc',food='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const custom={breakfast:0.1,lunch:0.4,snack:0.15,dinner:0.2,evening_snack:0.15};
 
-test('five daily shares total 100 percent and match the requested Lapinou objectives',()=>{
+test('four active daily shares total 100 percent while the historical evening slot stays at zero by default',()=>{
   assert.equal(validMealRatios(DEFAULT_MEAL_RATIOS),true);
-  assert.deepEqual(MEAL_ORDER.map(slot=>1850*DEFAULT_MEAL_RATIOS[slot]),[277.5,740,185,462.5,185]);
+  assert.deepEqual(MEAL_ORDER.map(slot=>1850*DEFAULT_MEAL_RATIOS[slot]),[370,740,185,555,0]);
   for(const value of [null,[],{...custom,lunch:0.5},{...custom,breakfast:-0.1},{...custom,snack:'0.15'},{...custom,extra:0},Object.fromEntries(Object.entries(custom).filter(([key])=>key!=='evening_snack'))]) assert.equal(validMealRatios(value),false);
   assert.equal(validMealRatios({breakfast:0,lunch:0.5,snack:0,dinner:0.5,evening_snack:0}),true);
 });

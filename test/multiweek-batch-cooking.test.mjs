@@ -112,9 +112,9 @@ test('batch selectors request one combined range and leave other production peri
     preparationsRequest:0,batchCookingSelection:{},batchCookingHouseholdId:null,batchCookingRendered:false,
     batchCookingWindow,groupPreparations,displayDate:d=>d,encodeURIComponent,
     Option:function(text,value){this.textContent=text;this.value=value;},
-    refreshProductionTypes:async()=>{},renderProductionOptions(){},productionTypeLabel:()=> 'Batch cooking',emptyMessage:t=>({textContent:t}),
+    refreshProductionTypes:async()=>{},renderProductionOptions(){},renderExtraProductionPlans(){},productionTypeLabel:()=> 'Batch cooking',emptyMessage:t=>({textContent:t}),
     preparationGroup:(label,key,items,openKeys,emptyText,date)=>({label,key,items,date}),
-    api:async path=>{const url=new URL(path,'http://synthetic.test');calls.push([url.searchParams.get('startDate'),url.searchParams.get('endDate')]);return {preparations:url.searchParams.get('startDate')===start?full:[batch]};}};
+    api:async path=>{const url=new URL(path,'http://synthetic.test');if(url.pathname.endsWith('/extra-productions'))return {productions:[]};calls.push([url.searchParams.get('startDate'),url.searchParams.get('endDate')]);return {preparations:url.searchParams.get('startDate')===start?full:[batch]};}};
   runInNewContext(source.slice(a,b)+'\nglobalThis.refresh=refreshPreparations;',context);
   await context.refresh(start,end);
   assert.deepEqual(calls,[[start,end],['2026-11-02','2026-11-08']]);

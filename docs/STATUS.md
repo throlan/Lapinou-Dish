@@ -1,4 +1,8 @@
-# État du projet — 1er novembre 2026
+# État du projet — 4 novembre 2026
+
+## 0.3.10 en cours
+
+Accueil hebdomadaire lundi–dimanche en sept lignes de quatre cartes compactes ; fiche de consultation des portions et actions pour les repas préparés ; cases du calendrier allégées. La collation du soir disparaît des nouveaux menus, mais les repas historiques restent consultables. Les pourcentages kcal demeurent modifiables dans Administration (actuellement 20/40/10/30, total 100 %). Fiche aliment commune depuis courses, catalogue et recettes avec ses réglages d’achat. Préparations hors menus planifiées : ingrédients dans les courses dès la planification, stock réel seulement après confirmation, annulation restitutive.
 
 ## Repas prêts et retrait après le jour du repas — 0.3.9 livrée
 

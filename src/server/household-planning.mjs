@@ -132,7 +132,8 @@ export function validateProductionInput(input) {
     || (!split && (!Number.isFinite(input.quantity) || input.quantity <= 0 || input.quantity > 100000))
     || !storageTypes.has(input.storage ?? 'freezer')
     || (input.note != null && (typeof input.note !== 'string' || input.note.length > 500))
-    || (input.requestId != null && !isUuid(input.requestId))) return { error: 'invalid-production' };
+    || (input.requestId != null && !isUuid(input.requestId))
+    || (input.extraProductionId != null && !isUuid(input.extraProductionId))) return { error: 'invalid-production' };
   if (split && (!Array.isArray(input.servingQuantities) || input.servingQuantities.length < 2 || input.servingQuantities.length > 3
     || input.servingQuantities.some(part => !part || !isUuid(part.recipeId) || !Number.isFinite(part.quantity)
       || part.quantity < 0 || part.quantity > 100000 || Math.abs(part.quantity * 1000 - Math.round(part.quantity * 1000)) > 0.000001)
@@ -145,6 +146,7 @@ export function validateProductionInput(input) {
     producedOn: input.producedOn, quantity: input.quantity, storage: input.storage ?? 'freezer',
     note: typeof input.note === 'string' ? input.note.trim() : '',
     requestId: input.requestId ?? null,
+    extraProductionId:input.extraProductionId??null,
     plannedStart:input.plannedStart??null,plannedEnd:input.plannedEnd??null,
     ...(split ? {servingQuantities:input.servingQuantities.map(part=>({recipeId:part.recipeId,quantity:part.quantity}))} : {}),
   } };
@@ -163,6 +165,17 @@ export async function addStockLot(pool, input) {
   try {
     await client.query('BEGIN');
     await lockHouseholdInventory(client, input.householdId);
+    if(input.extraProductionId){
+      const plan=await client.query('SELECT recipe_id,quantity,stock_lot_id FROM planned_extra_productions WHERE id=$1 AND household_id=$2 FOR UPDATE',[input.extraProductionId,input.householdId]);
+      if(!plan.rowCount){await client.query('ROLLBACK');return {error:'extra-production-not-pending'};}
+      if(plan.rows[0].stock_lot_id){
+        const existing=await client.query('SELECT id,request_id,cancelled_at FROM stock_lots WHERE id=$1',[plan.rows[0].stock_lot_id]);
+        await client.query('ROLLBACK');
+        if(existing.rows[0]?.request_id===input.requestId&&!existing.rows[0]?.cancelled_at)return {id:existing.rows[0].id,recipeId:input.recipeId,quantity:input.quantity,replayed:true};
+        return {error:'extra-production-not-pending'};
+      }
+      if(plan.rows[0].recipe_id!==input.recipeId||Math.abs(Number(plan.rows[0].quantity)-Number(input.quantity))>0.00001){await client.query('ROLLBACK');return {error:'extra-production-mismatch'};}
+    }
     if (input.requestId) {
       const previous = await client.query('SELECT *, produced_on::text AS produced_on,planned_start::text AS planned_start,planned_end::text AS planned_end FROM stock_lots WHERE household_id=$1 AND request_id=$2', [input.householdId,input.requestId]);
       if (previous.rowCount) {
@@ -228,6 +241,7 @@ export async function addStockLot(pool, input) {
       await client.query('UPDATE household_ingredient_stock SET quantity_g=quantity_g-$3,version=version+1,updated_at=now() WHERE household_id=$1 AND food_id=$2', [input.householdId,item.foodId,item.usedG]);
       await client.query("INSERT INTO ingredient_stock_movements(id,household_id,food_id,delta_g,reason,stock_lot_id) VALUES ($1,$2,$3,$4,'production',$5)", [randomUUID(),input.householdId,item.foodId,-item.usedG,id]);
     }
+    if(input.extraProductionId)await client.query('UPDATE planned_extra_productions SET stock_lot_id=$3,updated_at=now() WHERE id=$1 AND household_id=$2',[input.extraProductionId,input.householdId,id]);
     await client.query('COMMIT');
     return { id, recipeId: input.recipeId, productionType: recipe.rows[0].production_type, producedOn: input.producedOn, quantity, unitId: recipe.rows[0].yield_unit_id, storage: input.storage, note: input.note, deductions:deductions.items,
       stockWarnings:[...deductions.items.filter(item=>item.quantityG-item.usedG<0).map(item=>({name:item.name,quantity:Math.round((item.quantityG-item.usedG)*100000)/100000,unitId:'g'})),...inputs.shortages],
@@ -279,6 +293,7 @@ export async function cancelStockLot(pool, householdId, lotId) {
     }
     await client.query('UPDATE recipe_stock_uses SET cancelled_at=now() WHERE stock_lot_id=$1 AND cancelled_at IS NULL',[lotId]);
     await client.query('UPDATE stock_lots SET cancelled_at=now() WHERE id=$1 OR parent_lot_id=$1', [lotId]);
+    await client.query('UPDATE planned_extra_productions SET stock_lot_id=NULL,updated_at=now() WHERE household_id=$1 AND stock_lot_id=$2',[householdId,lotId]);
     await client.query('COMMIT');
     return { cancelled:true,restored:movements.rows.map(row=>({...row,quantityG:Number(row.quantityG)})) };
   } catch (error) { await client.query('ROLLBACK'); throw error; }

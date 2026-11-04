@@ -82,7 +82,7 @@ $$('.admin-tabs [data-admin-tab]').forEach(button=>{
   });
 });
 
-const dashboardSlots = MEAL_ORDER;
+const dashboardSlots = MEAL_ORDER.filter(slot=>slot!=='evening_snack');
 const dashboardSlotLabels = MEAL_LABELS;
 function dashboardPanel(title, className='dashboard-panel') {
   const panel=document.createElement('section'); panel.className=className;
@@ -101,7 +101,8 @@ function mealNutritionForPerson(meal,personId) {
     if(energy==null||prot==null||!item.recipe?.nutrition?.complete) missing=true;
     if(energy!=null)kcal+=energy*amount.quantity;
     if(prot!=null)protein+=prot*amount.quantity;
-    items.push({name:item.recipe?.name??'Recette',quantity:displayServingQuantity(item.recipe,amount.quantity),unit:servingUnitLabel(servingUnit(item.recipe))});
+    items.push({name:item.recipe?.name??'Recette supprimée',quantity:item.recipe?displayServingQuantity(item.recipe,amount.quantity):amount.quantity,
+      unit:item.recipe?servingUnitLabel(servingUnit(item.recipe)):'portion'});
   }
   return {kcal,protein,missing,items};
 }
@@ -117,65 +118,61 @@ async function refreshDashboard() {
       api(`/api/energy-reserve?householdId=${encodeURIComponent(state.household.id)}&asOf=${today}`)
     ]);
     state.reserveOverview=reserve;
-    const meals=(plan.meals??[]).filter(meal=>meal.mealDate===today);
+    const meals=plan.meals??[];
+    const todayMeals=meals.filter(meal=>meal.mealDate===today);
     const people=peopleResult.people??[]; state.people=people; state.routines=planning.routines??[];
     const intro=document.createElement('div');intro.className='dashboard-welcome';
     const copy=document.createElement('div');const eyebrow=document.createElement('p');eyebrow.className='eyebrow';eyebrow.textContent=displayDate(today,{weekday:'long',day:'numeric',month:'long'});
-    const title=document.createElement('h1');title.textContent='Aujourd’hui à la maison';
-    const subtitle=document.createElement('p');subtitle.textContent='Tes repas, les repères du foyer et ce qui mérite ton attention.';
+    const title=document.createElement('h1');title.textContent='Cette semaine à la maison';
+    const subtitle=document.createElement('p');subtitle.textContent=`Du ${displayDate(mondayOf(today))} au ${displayDate(addDays(mondayOf(today),6))} · menus et repères du foyer.`;
     copy.append(eyebrow,title,subtitle);intro.append(copy,dashboardAction('Ouvrir le calendrier','calendar'));root.replaceChildren(intro);
     const stats=document.createElement('div');stats.className='dashboard-stats';
-    const plannedCount=meals.length;
-    const plannedRecipes=new Set(meals.flatMap(meal=>meal.items.map(item=>item.recipeId))).size;
+    const plannedCount=meals.filter(meal=>meal.slot!=='evening_snack').length;
+    const plannedRecipes=new Set(meals.filter(meal=>meal.slot!=='evening_snack').flatMap(meal=>(meal.items??[]).map(item=>item.recipeId))).size;
     const lowStock=(planning.stock??[]).filter(item=>Number(item.availableQuantity)<=0);
     const nextRoutine=(planning.routines??[]).slice().sort((x,y)=>x.nextDate.localeCompare(y.nextDate))[0];
     const statData=[
-      [`${plannedCount}`,'repas planifié'+(plannedCount===1?'':'s')],
+      [`${plannedCount}`,'repas cette semaine'],
       [`${plannedRecipes}`,'préparation'+(plannedRecipes===1?'':'s')+' au menu'],
       [`${lowStock.length}`,'stock'+(lowStock.length===1?'':'s')+' à refaire'],
       [nextRoutine?displayDate(nextRoutine.nextDate,{day:'numeric',month:'short'}):'—',nextRoutine?routineLabels[nextRoutine.routineId]:'Prochaine routine']
     ];
     for(const [value,label] of statData){const card=document.createElement('article');card.className='dashboard-stat';const strong=document.createElement('strong');strong.textContent=value;const small=document.createElement('span');small.textContent=label;card.append(strong,small);stats.append(card);}root.append(stats);
     const layout=document.createElement('div');layout.className='dashboard-layout';
-    const menu=dashboardPanel('Menus du jour');menu.classList.add('dashboard-menu');
-    for(const slot of dashboardSlots){
-      const section=document.createElement('section');section.className='dashboard-meal-slot';
-      const heading=document.createElement('h3');heading.textContent=dashboardSlotLabels[slot];section.append(heading);
-      const slotMeals=meals.filter(meal=>meal.slot===slot);
-      if(!slotMeals.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='Rien de planifié';section.append(empty);}
-      for(const meal of slotMeals){
-        const mealCard=document.createElement('article');mealCard.className='dashboard-meal';
-        const photoRecipe=meal.items.map(item=>item.recipe).find(recipe=>recipe?.imageAvailable);
-        if(photoRecipe){const photo=document.createElement('img');photo.className='dashboard-meal-photo';photo.alt='';photo.loading='lazy';
-          photo.src=`/api/recipes/${photoRecipe.id}/image?householdId=${encodeURIComponent(state.household.id)}&v=${photoRecipe.version??0}`;
-          photo.addEventListener('error',()=>{photo.hidden=true;});mealCard.append(photo);}
-
-        const mealHead=document.createElement('div');mealHead.className='dashboard-meal-heading';
-        const note=document.createElement('span');note.textContent=meal.notes||'Repas familial';
-        const edit=document.createElement('button');edit.type='button';edit.className='text-button';edit.textContent='Modifier';
-        if(meal.preparedAt||meal.stockUsedAt){edit.disabled=true;edit.title='Annule la préparation depuis le calendrier avant de modifier ce repas.';}
-        edit.addEventListener('click',()=>openMealEditor(meal.mealDate,meal.slot,meal));mealHead.append(note,edit);mealCard.append(mealHead);
-        const roster=people.filter(person=>meal.attendees.some(att=>att.id===person.id));
-        if(!roster.length){mealCard.append(emptyMessage('Aucune personne associée.'));}
-        for(const person of roster){
-          const info=mealNutritionForPerson(meal,person.id);
-          const row=document.createElement('div');row.className='dashboard-person-meal';
-          const personName=document.createElement('strong');personName.textContent=person.displayName;
-          const recipeText=document.createElement('span');recipeText.textContent=info.items.map(item=>`${item.name} × ${formatQty(item.quantity)} ${item.unit}`).join(' · ')||'Recette à préciser';
-          const nutrition=document.createElement('small');nutrition.textContent=meal.isOccasion?`${format(info.kcal)} kcal estimées · hors quotas, épargne utilisée`:`${format(info.kcal)} kcal · ${format(info.protein)} g protéines${info.missing?' · calcul incomplet':''}`;
-          row.append(personName,recipeText,nutrition);mealCard.append(row);
+    const menu=dashboardPanel('Menus de la semaine');menu.classList.add('dashboard-menu');
+    for(let dayIndex=0;dayIndex<7;dayIndex++){
+      const date=addDays(mondayOf(today),dayIndex);
+      const day=document.createElement('section');day.className='dashboard-day';
+      if(date===today)day.classList.add('today');
+      const dayLabel=document.createElement('h3');dayLabel.textContent=displayDate(date,{weekday:'short',day:'numeric',month:'short'});day.append(dayLabel);
+      for(const slot of dashboardSlots){
+        const section=document.createElement('div');section.className='dashboard-meal-slot';
+        const heading=document.createElement('h4');heading.textContent=dashboardSlotLabels[slot];section.append(heading);
+        const slotMeals=meals.filter(meal=>meal.mealDate===date&&meal.slot===slot);
+        for(const meal of slotMeals){
+          const mealCard=document.createElement('button');mealCard.type='button';mealCard.className='dashboard-meal';
+          const photoRecipe=meal.items?.map(item=>item.recipe).find(recipe=>recipe?.imageAvailable);
+          if(photoRecipe){const photo=document.createElement('img');photo.className='dashboard-meal-photo';photo.alt='';photo.loading='lazy';
+            photo.src=`/api/recipes/${photoRecipe.id}/image?householdId=${encodeURIComponent(state.household.id)}&v=${photoRecipe.version??0}`;
+            photo.addEventListener('error',()=>{photo.hidden=true;});mealCard.append(photo);}
+          const name=document.createElement('strong');name.textContent=meal.isOccasion?meal.occasionTitle||'Repas exceptionnel':
+            [...new Set(meal.items?.map(item=>item.recipe?.parentRecipeId?item.recipe.name.split(' — ')[0]:item.recipe?.name??'Recette supprimée'))].join(' + ')||'Repas';
+          const preview=document.createElement('small');preview.textContent=meal.isOccasion?'Hors quotas':
+            meal.items?.slice(0,2).map(item=>item.recipe?`${formatQty(item.amounts.reduce((sum,amount)=>sum+displayServingQuantity(item.recipe,amount.quantity),0))} ${servingUnitLabel(servingUnit(item.recipe))}`:'Recette supprimée').join(' · ')||'Portions à préciser';
+          const status=document.createElement('small');status.className='stock-status';status.textContent=mealStatusLabel(meal);
+          mealCard.append(name,preview,status);mealCard.addEventListener('click',()=>openMealDetails(meal));section.append(mealCard);
         }
-        section.append(mealCard);
+        if(!slotMeals.length){const add=document.createElement('button');add.type='button';add.className='dashboard-add';add.textContent='+ Ajouter';add.addEventListener('click',()=>openMealEditor(date,slot));section.append(add);}
+        day.append(section);
       }
-      const add=document.createElement('button');add.type='button';add.className='dashboard-add';add.textContent='+ Ajouter un repas';
-      add.addEventListener('click',()=>openMealEditor(today,slot));section.append(add);menu.append(section);
+      menu.append(day);
     }
     const sidebar=document.createElement('div');sidebar.className='dashboard-sidebar';
     const profiles=dashboardPanel('Repères personnels');
     if(!people.length)profiles.append(emptyMessage('Ajoute les membres du foyer dans Profils.'));
     for(const person of people){
       const profile=latestProfile(person,today);const weight=person.weightHistory?.[0];
-      const dailyMeals=meals.filter(meal=>meal.attendees.some(att=>att.id===person.id));
+      const dailyMeals=todayMeals.filter(meal=>meal.attendees.some(att=>att.id===person.id));
       const statsForDay=dailyMeals.flatMap(meal=>{const info=mealNutritionForPerson(meal,person.id);return [{meal,info}];});
       const kcal=statsForDay.reduce((sum,row)=>sum+row.info.kcal,0), protein=statsForDay.reduce((sum,row)=>sum+row.info.protein,0);
       const card=document.createElement('article');card.className='dashboard-profile';
@@ -465,7 +462,45 @@ function renderProductionOptions() {
   for(const recipe of available.filter(item=>plannedIds.has(item.id)))select.add(new Option(`${recipe.name} · ${formatQty(recipe.yield.amount)} ${recipe.yield.unitId}`,recipe.id));
   if(previous&&[...select.options].some(option=>option.value===previous))select.value=previous;
   extra.replaceChildren(new Option('Choisir une autre préparation…',''),...available.map(recipe=>new Option(recipe.name,recipe.id)));
+  const planSelect=$('#extra-production-plan-form')?.elements.recipeId;
+  if(planSelect){const selected=planSelect.value;planSelect.replaceChildren(new Option('Choisir une recette…',''),...available.map(recipe=>new Option(`${recipe.name} · ${formatQty(recipe.yield.amount)} ${recipe.yield.unitId}`,recipe.id)));planSelect.value=selected;}
 }
+function renderExtraProductionPlans(plans){
+  const root=$('#extra-production-plans-list');root.replaceChildren();
+  if(!plans.length){root.append(emptyMessage('Aucune préparation hors menus prévue sur cette période.'));return;}
+  for(const plan of plans){
+    const row=document.createElement('article');row.className='preparation-row extra-production-plan';
+    const title=document.createElement('strong');title.textContent=plan.name;
+    const detail=document.createElement('span');detail.textContent=`${displayDate(plan.plannedOn)} · ${formatQty(plan.quantity)} ${plan.unitId} · ${plan.completed?'Produit et ajouté au stock':'À produire'}`;
+    row.append(title,detail);
+    if(!plan.completed){
+      const confirm=document.createElement('button');confirm.type='button';confirm.className='secondary';confirm.textContent='Confirmer la production';
+      const requestId=newProductionRequestId();
+      confirm.addEventListener('click',async()=>{confirm.disabled=true;try{
+        await api('/api/household-planning/production',{method:'POST',body:JSON.stringify({householdId:state.household.id,recipeId:plan.recipeId,extraProductionId:plan.id,producedOn:localDateValue(),quantity:plan.quantity,storage:plan.storage,note:plan.note,requestId})});
+        await refreshShopping();await refreshDashboard();
+      }catch(error){showMessage($('#extra-production-plan-message'),'Production non confirmée : '+(error.body?.error??error.message));confirm.disabled=false;}});
+      const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='Retirer du planning';
+      remove.addEventListener('click',async()=>{remove.disabled=true;try{await api(`/api/household-planning/extra-productions/${plan.id}?householdId=${encodeURIComponent(state.household.id)}`,{method:'DELETE'});await refreshShopping();}catch(error){showMessage($('#extra-production-plan-message'),'Suppression impossible : '+(error.body?.error??error.message));remove.disabled=false;}});
+      row.append(confirm,remove);
+    }
+    root.append(row);
+  }
+}
+$('#extra-production-plan-form').elements.plannedOn.value=localDateValue();
+$('#extra-production-plan-form').elements.recipeId.addEventListener('change',event=>{
+  const recipe=state.recipes.find(item=>item.id===event.target.value);
+  if(recipe)$('#extra-production-plan-form').elements.quantity.value=recipe.minimumProductionAmount&&recipe.minimumProductionUnitId===recipe.yield.unitId
+    ?Math.max(recipe.yield.amount,recipe.minimumProductionAmount):recipe.yield.amount;
+});
+$('#extra-production-plan-form').addEventListener('submit',async event=>{
+  event.preventDefault();const form=event.currentTarget,button=$('button[type="submit"]',form);if(!form.reportValidity()||!state.household)return;
+  button.disabled=true;
+  try{await api('/api/household-planning/extra-productions',{method:'POST',body:JSON.stringify({householdId:state.household.id,recipeId:form.elements.recipeId.value,plannedOn:form.elements.plannedOn.value,quantity:Number(form.elements.quantity.value),storage:form.elements.storage.value,note:form.elements.note.value})});
+    form.reset();form.elements.plannedOn.value=localDateValue();showMessage($('#extra-production-plan-message'),'Préparation planifiée : ingrédients ajoutés aux courses, stock inchangé.',true);await refreshShopping();}
+  catch(error){showMessage($('#extra-production-plan-message'),'Planification impossible : '+(error.body?.error??error.message));}
+  finally{button.disabled=false;}
+});
 function preparationRow(group,productionDate) {
   const recipe=state.recipes.find(entry=>entry.id===group.recipeId),parts=group.parts;
   const first=parts[0],covered=parts.every(item=>item.toMakeQuantity<=0.00001);
@@ -506,8 +541,9 @@ async function refreshPreparations(start,end) {
   try {
     await refreshProductionTypes();
     const path=(from,to)=>`/api/household-planning/preparations?householdId=${encodeURIComponent(state.household.id)}&startDate=${encodeURIComponent(from)}&endDate=${encodeURIComponent(to)}`;
-    const {preparations}=await api(path(start,end));
+    const [{preparations},{productions:extraPlans}]=await Promise.all([api(path(start,end)),api(`/api/household-planning/extra-productions?householdId=${encodeURIComponent(state.household.id)}&startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`)]);
     if(request!==preparationsRequest)return;
+    renderExtraProductionPlans(extraPlans);
     if(batchCookingHouseholdId!==state.household.id){batchCookingSelection={};batchCookingRendered=false;batchCookingHouseholdId=state.household.id;}
     const window=batchCookingWindow(start,end,batchCookingSelection,preparations);
     if(!window)throw new Error('Période invalide');
@@ -623,7 +659,7 @@ async function refreshShoppingList() {
           itemHeader.append(checkbox,itemToggle,qty,stock);
           const foodConfig=document.createElement('button');foodConfig.type='button';foodConfig.className='secondary shopping-food-config';foodConfig.textContent='Mesures';
           foodConfig.title='Configurer les équivalences en grammes de cet aliment';foodConfig.setAttribute('aria-label',`Configurer les conversions en grammes de ${item.name}`);
-          foodConfig.addEventListener('click',()=>openFoodEditor(item.foodId,{fromShopping:true}));itemHeader.append(foodConfig);
+          foodConfig.addEventListener('click',()=>openFoodEditor(item.foodId,{fromShopping:true,shoppingUnitId:item.unitId}));itemHeader.append(foodConfig);
           if(item.recipes?.length){
             const recipeDetails=document.createElement('details');recipeDetails.className='shopping-recipes';
             const recipeSummary=document.createElement('summary');recipeSummary.textContent=`Dans ${item.recipes.length} recette${item.recipes.length===1?'':'s'}`;
@@ -683,7 +719,7 @@ async function refreshShoppingList() {
           });inventoryActions.append(receipt);main.append(inventoryActions);
           const options=document.createElement('details');options.className='shopping-item-options';
           options.open=openDetails.has(row.dataset.key);
-          const summary=document.createElement('summary');summary.textContent='Détails et réglages';options.append(summary);
+          const summary=document.createElement('summary');summary.textContent='Options de cette liste';options.append(summary);
           if(item.warning){const warning=document.createElement('p');warning.textContent=item.warning;options.append(warning);}
           const packLabel=document.createElement('label');packLabel.textContent=`Format de paquet existant (${item.unitId}, prioritaire)`;
           const pack=document.createElement('input');pack.type='number';pack.min='0.001';pack.step='any';pack.value=item.packageQuantity??'';pack.placeholder=`Ex. 500 ${item.unitId}`;pack.setAttribute('aria-label',`Format d’achat pour ${item.name}`);packLabel.append(pack);
@@ -722,7 +758,9 @@ async function refreshShoppingList() {
             try{await api('/api/household-purchase-units',{method:'PUT',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,singularLabel:singular.value,pluralLabel:plural.value,coveredQuantity:Number(covered.value),coveredUnitId:coveredUnit.value,estimateNote:note.value})});const y=window.scrollY;await refreshShoppingList();window.scrollTo(0,y);showMessage($('#shopping-export-message'),`Unité d’achat enregistrée pour ${item.name}.`,true);}
             catch(error){showMessage($('#shopping-export-message'),'Réglage non enregistré : '+(error.body?.error??error.message));saveRule.disabled=false;}
           });
-          options.append(shoppingPreferenceControls(item,preferences,preferenceActions),packLabel,purchaseForm,groupLabel,storeLabel);
+          const editProduct=document.createElement('button');editProduct.type='button';editProduct.className='secondary';editProduct.textContent='Ouvrir la fiche produit complète';
+          editProduct.addEventListener('click',()=>openFoodEditor(item.foodId,{fromShopping:true,shoppingUnitId:item.unitId}));
+          options.append(shoppingPreferenceControls(item,preferences,preferenceActions),editProduct);
           const save=async()=>{
             try{await api('/api/shopping-list/state',{method:'POST',body:JSON.stringify({householdId:state.household.id,foodId:item.foodId,unitId:item.unitId,startDate:start,endDate:end,groupId:group.value,checked:checkbox.checked,packageQuantity:pack.value===''?null:Number(pack.value)})});row.classList.toggle('checked',checkbox.checked);return true;}
             catch(error){showMessage($('#shopping-export-message'),'Liste non enregistrée : '+(error.body?.error??error.message));return false;}
@@ -1101,12 +1139,15 @@ $('#confirm-bulk-food-delete').addEventListener('click',async event=>{
 
 function format(value) { return value == null ? '—' : new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(Number(value)); }
 
-async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = false, fromShopping = false, duplicate = false } = {}) {
+async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = false, fromShopping = false, duplicate = false, shoppingUnitId = null } = {}) {
   state.editingFoodFromRecipe = fromRecipe;
   state.editingFoodFromShopping = fromShopping;
   const form = $('#food-form'); form.reset(); form.elements.id.value = '';
   form.dataset.purchaseUnitReady = String(Boolean(state.household));
   form.dataset.purchaseUnitExists = 'false';
+  form.dataset.shoppingSettingsReady='false';form.dataset.shoppingSettingsDirty='false';
+  const shoppingSettings=$('#food-shopping-settings');shoppingSettings.disabled=!state.household;
+  $('#food-shopping-settings-status').textContent=state.household?'Magasin, catégorie et format partagés par toutes les vues.':'Crée un foyer pour régler les courses.';
   const purchaseSettings = $('#food-purchase-unit-settings');
   purchaseSettings.classList.toggle('hidden', !state.household);
   purchaseSettings.disabled = !state.household;
@@ -1165,9 +1206,27 @@ async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = 
       $('#food-purchase-unit-status').textContent = 'Réglage d’achat indisponible. Les autres champs de la fiche restent modifiables.';
     }
   }
+  if(state.household){
+    try{
+      const settings=id&&!duplicate?(await api(`/api/food-shopping-settings?householdId=${encodeURIComponent(state.household.id)}&foodId=${encodeURIComponent(id)}`)).settings:
+        {groups:[],packs:[],orderLinkId:null,links:(await api(`/api/household-order-links?householdId=${encodeURIComponent(state.household.id)}`)).links};
+      form.dataset.shoppingSettingsJson=JSON.stringify(settings);form.dataset.shoppingSettingsReady='true';shoppingSettings.disabled=false;
+      const store=form.elements.shoppingOrderLinkId;store.replaceChildren(new Option('Sans magasin',''),...settings.links.map(link=>new Option(link.label,link.id)));
+      store.value=settings.orderLinkId??'';
+      form.elements.shoppingUnitId.value=shoppingUnitId??settings.packs[0]?.unitId??settings.groups[0]?.unitId??'g';
+      showFoodShoppingUnit(form);
+    }catch{shoppingSettings.disabled=true;$('#food-shopping-settings-status').textContent='Réglages des courses indisponibles. Les autres champs restent modifiables.';}
+  }
   $('#food-dialog').showModal();
   if (id && searchExternal) $('#find-external-nutrition').click();
 }
+function showFoodShoppingUnit(form){
+  const settings=JSON.parse(form.dataset.shoppingSettingsJson||'{"groups":[],"packs":[]}'),unit=form.elements.shoppingUnitId.value;
+  form.elements.shoppingGroupId.value=settings.groups.find(item=>item.unitId===unit)?.groupId??'bulk';
+  form.elements.shoppingPackageQuantity.value=settings.packs.find(item=>item.unitId===unit)?.packageQuantity??'';
+}
+$('#food-form').elements.shoppingUnitId.addEventListener('change',event=>{showFoodShoppingUnit(event.currentTarget.form);event.currentTarget.form.dataset.shoppingSettingsDirty='true';});
+for(const name of ['shoppingGroupId','shoppingPackageQuantity','shoppingOrderLinkId'])$('#food-form').elements[name].addEventListener('change',event=>{event.currentTarget.form.dataset.shoppingSettingsDirty='true';});
 
 $('#food-search').addEventListener('input', (event) => {
   clearTimeout(state.debounce);
@@ -1269,9 +1328,16 @@ $('#food-form').addEventListener('submit', async (event) => {
         form.dataset.purchaseUnitExists = 'false';
       }
     }
+    if(state.household&&form.dataset.shoppingSettingsReady==='true'&&form.dataset.shoppingSettingsDirty==='true'){
+      await api('/api/food-shopping-settings',{method:'PUT',body:JSON.stringify({householdId:state.household.id,foodId:result.food.id,
+        unitId:form.elements.shoppingUnitId.value,groupId:form.elements.shoppingGroupId.value,
+        packageQuantity:form.elements.shoppingPackageQuantity.value===''?null:Number(form.elements.shoppingPackageQuantity.value),
+        orderLinkId:form.elements.shoppingOrderLinkId.value||null})});
+    }
     $('#food-dialog').close();
     await refreshFoods();
     if (state.editingFoodFromShopping) { state.editingFoodFromShopping = false; await refreshShoppingList(); }
+    await refreshFoodStores();
     if (state.editingFoodFromRecipe) showMessage($('#recipe-message'), 'Fiche mise à jour. Les valeurs seront recalculées à l’enregistrement de la recette.', true);
   } catch (error) {
     if (savedFood) {
@@ -2251,7 +2317,7 @@ function mealRatiosFromForm() {
 }
 function updateMealRatiosPreview() {
   const ratios=mealRatiosFromForm(),total=MEAL_ORDER.reduce((sum,slot)=>sum+ratios[slot],0)*100;
-  $('#meal-ratios-total').textContent=Number.isFinite(total)?`Total : ${format(total)} %${validMealRatios(ratios)?' ✓':' — ajuste les valeurs pour atteindre 100 %'}`:'Renseigne les cinq pourcentages.';
+  $('#meal-ratios-total').textContent=Number.isFinite(total)?`Total : ${format(total)} %${validMealRatios(ratios)?' ✓':' — ajuste les valeurs pour atteindre 100 %'}`:'Renseigne les quatre pourcentages.';
   $('#meal-ratios-form button[type="submit"]').disabled=!validMealRatios(ratios);
   const root=$('#meal-ratios-preview');root.replaceChildren();
   if(!validMealRatios(ratios))return;
@@ -2259,7 +2325,7 @@ function updateMealRatiosPreview() {
   for(const person of state.people){
     const daily=latestProfile(person,localDateValue())?.dailyEnergyKcal;
     const line=document.createElement('p');
-    line.textContent=daily?`${person.displayName} · ${format(daily)} kcal/j : `+MEAL_ORDER.map(slot=>`${MEAL_LABELS[slot]} ${format(daily*ratios[slot])} kcal`).join(' · '):`${person.displayName} : besoin quotidien à renseigner dans le profil.`;
+    line.textContent=daily?`${person.displayName} · ${format(daily)} kcal/j : `+dashboardSlots.map(slot=>`${MEAL_LABELS[slot]} ${format(daily*ratios[slot])} kcal`).join(' · '):`${person.displayName} : besoin quotidien à renseigner dans le profil.`;
     root.append(line);
   }
 }
@@ -2315,7 +2381,7 @@ function renderMealAdditionCategories(additions=state.mealAdditions){
     const remove=document.createElement('button');remove.type='button';remove.className='secondary danger-button';remove.textContent='Supprimer';remove.addEventListener('click',()=>row.remove());
     head.append(label,typeLabel,roleLabel,remove);row.append(head);
     const slots=document.createElement('div');slots.className='meal-addition-slots';const caption=document.createElement('strong');caption.textContent='Créneaux proposés';slots.append(caption);
-    for(const slot of MEAL_ORDER){const choice=document.createElement('label');const check=document.createElement('input');check.type='checkbox';check.value=slot;check.checked=addition.slots.includes(slot);choice.append(check,document.createTextNode(MEAL_LABELS[slot]));slots.append(choice);}
+    for(const slot of dashboardSlots){const choice=document.createElement('label');const check=document.createElement('input');check.type='checkbox';check.value=slot;check.checked=addition.slots.includes(slot);choice.append(check,document.createTextNode(MEAL_LABELS[slot]));slots.append(choice);}
     row.append(slots);name.addEventListener('input',()=>{legend.textContent=name.value.trim()||'Nouvelle catégorie';});root.append(row);
   }
 }
@@ -2337,7 +2403,7 @@ async function refreshMealAdditions(){
 }
 $('#add-meal-category').addEventListener('click',()=>{
   const existing=mealAdditionsFromForm();let index=1;while(existing.some(item=>item.id===`custom-${index}`))index++;
-  renderMealAdditionCategories([...existing,{id:`custom-${index}`,label:'Nouvelle catégorie',recipeType:`custom-${index}`,role:'dessert',slots:MEAL_ORDER}]);
+  renderMealAdditionCategories([...existing,{id:`custom-${index}`,label:'Nouvelle catégorie',recipeType:`custom-${index}`,role:'dessert',slots:dashboardSlots}]);
   $('#meal-addition-categories .meal-addition-row:last-child [data-category-name]')?.focus();
 });
 $('#meal-additions-form').addEventListener('submit',async event=>{
@@ -2400,7 +2466,8 @@ async function refreshMealSettings() {
   try {
     const settings=await api(`/api/meal-settings?householdId=${encodeURIComponent(state.household.id)}`);
     state.mealRatios=settings.ratios;
-    for(const slot of MEAL_ORDER)form.elements[slot].value=Number((settings.ratios[slot]*100).toFixed(4));
+    for(const slot of dashboardSlots)form.elements[slot].value=Number((settings.ratios[slot]*100).toFixed(4));
+    form.elements.evening_snack.value='0';
     await Promise.all([refreshPeople(),refreshProductionTypes(),refreshProteinSettings()]);updateMealRatiosPreview();
     await refreshPlateSettings();await refreshFoodYieldConversions();await refreshMealAdditions();
     showMessage($('#meal-ratios-message'),'');
@@ -2626,7 +2693,7 @@ function renderCalendarDay(date, meals, today) {
   heading.innerHTML = `<span>${displayDate(date, { weekday: 'short' })}</span><strong>${displayDate(date, { day: '2-digit', month: 'short' })}</strong>`;
   if (date === today) { const badge = document.createElement('small'); badge.className = 'today-badge'; badge.textContent = 'AUJ.'; heading.append(badge); }
   day.append(heading);
-  for (const slot of MEAL_ORDER) {
+  for (const slot of MEAL_ORDER.filter(slot=>slot!=='evening_snack'||meals.some(meal=>meal.mealDate===date&&meal.slot===slot))) {
     const section = document.createElement('section'); section.className = 'calendar-slot';
     section.dataset.slot = slot;
     const slotHeading = document.createElement('div'); slotHeading.className = 'calendar-slot-heading';
@@ -2736,15 +2803,84 @@ function mealCalories(meal) {
   }, 0);
 }
 
+function mealStatusLabel(meal) {
+  if (meal.preparedAt) return 'Préparé ✓';
+  if (meal.stockUsedAt) return meal.usedItemIds?.length === meal.items?.length
+    ? 'Portions utilisées ✓' : `Stock utilisé pour ${meal.usedItemIds?.length ?? 0} préparation(s) sur ${meal.items?.length ?? 0}`;
+  if (meal.stockReady) return 'Prêt ✓ — portions réservées';
+  if (meal.readyItemIds?.length) return `${meal.readyItemIds.length} préparation(s) prête(s) sur ${meal.items?.length ?? 0}`;
+  return meal.isOccasion ? 'Repas exceptionnel' : 'À préparer';
+}
+
+async function changeMealPreparation(meal, value, button, status) {
+  button.disabled = true;
+  try {
+    await api(`/api/planning/meals/${meal.id}/prepared`, {method:'PUT',body:JSON.stringify({householdId:state.household.id,prepared:value})});
+    await Promise.all([refreshCalendar(),refreshShopping(),refreshDashboard()]);
+    $('#meal-details-dialog').close();
+  } catch (error) {
+    const body = error.body ?? {};
+    const explanations = {
+      'prepared-batch-insufficient':'Cette recette de batch n’a pas assez de portions produites. Enregistre d’abord sa production dans Courses & stocks.',
+      'prepared-component-insufficient':`Prépare d’abord ${body.name} : ${formatQty(body.requiredQuantity)} ${body.unitId} nécessaires, ${formatQty(body.availableQuantity)} disponibles.`,
+      'ingredient-stock-insufficient':`Stock insuffisant pour ${body.name} : ${formatQty(body.requiredG)} g nécessaires, ${formatQty(body.availableG)} g disponibles.`,
+      'ingredient-conversion-missing':`Conversion en grammes manquante pour ${body.name}. Complète la fiche de cet aliment.`,
+    };
+    status.textContent = explanations[body.error] ?? `Préparation non enregistrée : ${body.error ?? error.message}`;
+    button.disabled = false;
+  }
+}
+
+function openMealDetails(meal) {
+  const dialog = $('#meal-details-dialog'), body = $('#meal-details-body'), actions = $('#meal-details-actions');
+  $('#meal-details-title').textContent = `${slotLabels[meal.slot]} · ${displayDate(meal.mealDate)}`;
+  $('#meal-details-message').textContent = '';
+  body.replaceChildren(); actions.replaceChildren();
+  const status = document.createElement('p'); status.className = 'meal-details-status'; status.textContent = mealStatusLabel(meal); body.append(status);
+  for (const person of meal.attendees ?? []) {
+    const section = document.createElement('section'); section.className = 'meal-details-person';
+    const title = document.createElement('h3'); title.textContent = person.displayName; section.append(title);
+    if (meal.isOccasion) {
+      const energy = meal.occasionEnergy?.find(entry => entry.personId === person.id)?.kcal;
+      const line = document.createElement('p'); line.textContent = `${meal.occasionTitle || 'Repas exceptionnel'}${energy == null ? '' : ` · ${format(energy)} kcal estimées`}`; section.append(line);
+    } else {
+      const portions = document.createElement('ul');
+      for (const item of mealNutritionForPerson(meal,person.id).items) {
+        const line = document.createElement('li'); line.textContent = `${item.name} : ${formatQty(item.quantity)} ${item.unit}`; portions.append(line);
+      }
+      if (!portions.childElementCount) { const empty = document.createElement('p'); empty.textContent = 'Aucune portion prévue.'; section.append(empty); }
+      else section.append(portions);
+    }
+    body.append(section);
+  }
+  if (meal.notes) { const note = document.createElement('p'); note.className = 'meal-details-note'; note.textContent = meal.notes; body.append(note); }
+  if (meal.autoStockDisabled && !meal.preparedAt && !meal.stockUsedAt) {
+    const note = document.createElement('p'); note.className = 'muted'; note.textContent = 'Retrait automatique annulé pour ce repas.'; body.append(note);
+  }
+  if (!meal.preparedAt && !meal.stockUsedAt) {
+    const edit = document.createElement('button'); edit.type='button'; edit.className='secondary'; edit.textContent='Modifier le repas';
+    edit.addEventListener('click',()=>{dialog.close();openMealEditor(meal.mealDate,meal.slot,meal);}); actions.append(edit);
+  }
+  if (!meal.isOccasion) {
+    const prepared = document.createElement('button'); prepared.type='button'; prepared.className='primary';
+    prepared.textContent = meal.preparedAt ? 'Annuler la préparation' : meal.stockUsedAt ? 'Annuler l’utilisation du stock' : meal.stockReady ? 'Utiliser les portions maintenant' : 'Marquer préparé';
+    prepared.addEventListener('click',()=>changeMealPreparation(meal,!(meal.preparedAt||meal.stockUsedAt),prepared,$('#meal-details-message'))); actions.append(prepared);
+    if (meal.stockUsedAt && !meal.preparedAt && meal.usedItemIds?.length < meal.items?.length) {
+      const finish = document.createElement('button'); finish.type='button'; finish.className='secondary'; finish.textContent='Marquer le reste préparé';
+      finish.addEventListener('click',()=>changeMealPreparation(meal,true,finish,$('#meal-details-message'))); actions.append(finish);
+    }
+  }
+  dialog.showModal();
+}
+
+$('#close-meal-details').addEventListener('click',()=>$('#meal-details-dialog').close());
+
 function renderMealCard(meal) {
   const card = document.createElement('article'); card.className = 'planned-meal-card';
-  const edit = document.createElement('button'); edit.type = 'button';
-  edit.textContent = meal.isOccasion ? `✨ ${meal.occasionTitle || 'Repas exceptionnel'} · hors quotas` : [...new Set(meal.items?.filter(item => ['main','accompaniment'].includes(item.role ?? 'main')).map(item => item.recipe?.parentRecipeId ? item.recipe.name.split(' — ')[0] : item.recipe?.name ?? 'Recette supprimée'))].join(' + ') || 'Repas';
-  const attendee = document.createElement('small'); attendee.textContent = meal.attendees?.map((person) => person.displayName).join(', ') || 'Aucune personne sélectionnée';
-  const kcal = meal.isOccasion ? (meal.occasionEnergy??[]).reduce((sum,entry)=>sum+Number(entry.kcal||0),0) : mealCalories(meal);
-  const partial = meal.isOccasion ? false : meal.items?.some((item) => !item.recipe?.nutrition?.complete) ?? false;
-  const total = document.createElement('small'); total.className = 'meal-kcal'; total.textContent = meal.isOccasion ? `${format(kcal)} kcal estimées · déduites de l’épargne` : kcal ? `${partial ? 'Sous-total partiel' : 'Total'} · ${format(kcal)} kcal` : 'Valeurs inconnues ou incomplètes';
-  card.append(edit, attendee, total);
+  const details = document.createElement('button'); details.type = 'button';
+  details.textContent = meal.isOccasion ? `✨ ${meal.occasionTitle || 'Repas exceptionnel'} · hors quotas` : [...new Set(meal.items?.filter(item => ['main','accompaniment'].includes(item.role ?? 'main')).map(item => item.recipe?.parentRecipeId ? item.recipe.name.split(' — ')[0] : item.recipe?.name ?? 'Recette supprimée'))].join(' + ') || 'Repas';
+  details.setAttribute('aria-label',`Voir les portions du repas : ${details.textContent}`);
+  details.addEventListener('click',()=>openMealDetails(meal)); card.append(details);
   const printItems = document.createElement('div'); printItems.className = 'print-meal-items';
   if (meal.isOccasion) {
     const line = document.createElement('p'); line.textContent = meal.occasionTitle || 'Repas exceptionnel'; printItems.append(line);
@@ -2765,31 +2901,10 @@ function renderMealCard(meal) {
     }
   }
   card.append(printItems);
-  if(meal.preparedAt||meal.stockUsedAt){const done=document.createElement('small');done.className='stock-status';done.textContent=meal.preparedAt?'Préparé ✓':meal.usedItemIds?.length===meal.items.length?'Portions utilisées ✓':`Stock utilisé pour ${meal.usedItemIds?.length??0} préparation(s) sur ${meal.items.length}`;card.append(done);edit.disabled=true;edit.title='Annule la préparation avant de modifier ce repas.';}
-  if(!meal.preparedAt&&(meal.stockReady||meal.readyItemIds?.length)&&meal.readyItemIds?.length){
-    const ready=document.createElement('small');ready.className='stock-status';
-    ready.textContent=meal.stockReady?'Prêt ✓ — portions réservées':`${meal.readyItemIds.length} préparation(s) prête(s) sur ${meal.items.length}`;
-    ready.title='Ces portions restent en stock pendant le jour du repas et seront retirées après la fin de cette journée (heure de Paris).';card.append(ready);
-  }
-  if(!meal.isOccasion){const prepared=document.createElement('button');prepared.type='button';prepared.className='text-button';prepared.textContent=meal.preparedAt?'Annuler la préparation':meal.stockUsedAt?'Annuler l’utilisation du stock':meal.stockReady?'Utiliser les portions maintenant':'Marquer préparé';
-    const status=document.createElement('small');status.setAttribute('role','status');
-    const changePreparation=async(value,button)=>{
-      button.disabled=true;
-      try{await api(`/api/planning/meals/${meal.id}/prepared`,{method:'PUT',body:JSON.stringify({householdId:state.household.id,prepared:value})});
-        await Promise.all([refreshCalendar(),refreshShopping(),refreshDashboard()]);}
-      catch(error){const body=error.body??{};const explanations={
-        'prepared-batch-insufficient':'Cette recette de batch n’a pas assez de portions produites. Enregistre d’abord sa production dans Courses & stocks.',
-        'prepared-component-insufficient':'Prépare d’abord '+body.name+' : '+formatQty(body.requiredQuantity)+' '+body.unitId+' nécessaires, '+formatQty(body.availableQuantity)+' disponibles.',
-      'ingredient-stock-insufficient':`Stock insuffisant pour ${body.name} : ${formatQty(body.requiredG)} g nécessaires, ${formatQty(body.availableG)} g disponibles.`,
-        'ingredient-conversion-missing':`Conversion en grammes manquante pour ${body.name}. Complète la fiche de cet aliment.`};
-        status.textContent=explanations[body.error]??`Préparation non enregistrée : ${body.error??error.message}`;button.disabled=false;}
-    };
-    prepared.addEventListener('click',()=>changePreparation(!(meal.preparedAt||meal.stockUsedAt),prepared));card.append(prepared,status);
-    if(meal.stockUsedAt&&!meal.preparedAt&&meal.usedItemIds?.length<meal.items.length){const finish=document.createElement('button');finish.type='button';finish.className='text-button';finish.textContent='Marquer le reste préparé';finish.addEventListener('click',()=>changePreparation(true,finish));card.append(finish);}
-    if(meal.autoStockDisabled&&!meal.preparedAt&&!meal.stockUsedAt){const paused=document.createElement('small');paused.textContent='Retrait automatique annulé pour ce repas.';card.append(paused);}
-  }
+  const status=document.createElement('small');status.className='stock-status';status.textContent=mealStatusLabel(meal);
+  if(meal.stockReady&&!meal.preparedAt)status.title='Les portions restent en stock pendant le jour du repas et seront retirées après cette journée (heure de Paris).';
+  card.append(status);
   const duplicate=document.createElement('button');duplicate.type='button';duplicate.className='text-button';duplicate.textContent='Dupliquer';duplicate.addEventListener('click',()=>openMealDuplication(meal));card.append(duplicate);
-  edit.addEventListener('click', () => openMealEditor(meal.mealDate, meal.slot, meal));
   return card;
 }
 
@@ -3239,6 +3354,8 @@ async function openMealEditor(date, slot, meal = null) {
   $('#meal-message').textContent = '';
   $('#meal-dialog-title').textContent = meal ? 'Modifier le repas' : 'Planifier un repas';
   form.elements.mealDate.value = date;
+  const eveningOption=form.elements.slot.querySelector('option[value="evening_snack"]');
+  eveningOption.disabled=eveningOption.hidden=meal?.slot!=='evening_snack';
   form.elements.slot.value = slot;
   form.elements.notes.value = meal?.notes ?? '';
   form.elements.isOccasion.checked=Boolean(meal?.isOccasion);
@@ -3285,7 +3402,7 @@ let duplicationSource=null, pendingDuplication=null;
 function openMealDuplication(meal){
   duplicationSource=meal;pendingDuplication=null;
   const form=$('#duplicate-meal-form');form.reset();
-  form.elements.startDate.value=addDays(meal.mealDate,1);form.elements.endDate.value=form.elements.startDate.value;form.elements.slot.value=meal.slot;
+  form.elements.startDate.value=addDays(meal.mealDate,1);form.elements.endDate.value=form.elements.startDate.value;form.elements.slot.value=meal.slot==='evening_snack'?'snack':meal.slot;
   $('#duplicate-source').textContent=`Repas du ${displayDate(meal.mealDate)} · ${slotLabels[meal.slot]}`;
   $('#duplicate-message').textContent='';$('#meal-dialog').close();updateDuplicationPreview();$('#duplicate-meal-dialog').showModal();
 }

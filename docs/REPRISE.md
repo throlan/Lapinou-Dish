@@ -1,4 +1,14 @@
-# Cahier de reprise — 1er novembre 2026
+# Cahier de reprise — 4 novembre 2026
+
+## Semaine d’accueil, fiche aliment commune et préparations hors menus — 0.3.10 en cours
+
+L’accueil présente la semaine civile en cours, du lundi au dimanche : sept lignes et quatre créneaux par ligne (petit-déjeuner, déjeuner, collation de l’après-midi, dîner). Les cartes compactes ouvrent les portions par personne. Dans le calendrier, la fiche du repas reste accessible une fois préparé ; elle contient les quantités en lecture seule et les actions de préparation. Les cases du calendrier conservent le titre, l’état et « Dupliquer », sans participants ni total kcal.
+
+La collation du soir n’est plus proposée pour les nouveaux menus. Ses repas historiques restent consultables. La répartition des kcal reste **réglable dans Administration**, sur les quatre créneaux actifs, et doit totaliser 100 %. Réglage choisi actuellement : 20/40/10/30 ; il n’est pas figé dans le calcul. Les données des foyers existants ne sont pas réécrites par la migration des valeurs par défaut.
+
+Une même fiche aliment s’ouvre depuis les courses, le catalogue et les recettes ; elle réunit valeurs nutritionnelles, conversions, unité d’achat, magasin, catégorie et format de paquet. Les préférences de regroupement et d’exclusion liées à la période restent dans la liste de courses.
+
+Une préparation supplémentaire peut être planifiée hors menus. Son lot minimum reste propre à la recette ; ses ingrédients entrent dans les courses à la date prévue. La production virtuelle couvre les menus postérieurs dans la projection, mais ne devient du stock physique qu’à la confirmation explicite. Annuler le lot remet cette préparation en attente et rétablit les ingrédients dans les courses. Migrations additives `20261104_four_meal_defaults.sql` et `20261104_planned_extra_productions.sql`. Les historiques et le calcul de viande/poisson restent inchangés. Aucun accès à Unraid/Nginx.
 
 ## Repas prêts et retrait après le jour du repas — 0.3.9 livrée
 

@@ -1,5 +1,9 @@
 # Cahier des améliorations proposées
 
+## Refonte ciblée du 4 novembre 2026 — en cours
+
+Accueil sur la semaine civile, quatre cartes compactes par jour, détails au clic. Fiche de portions et actions pour les repas préparés ; cases du calendrier simplifiées. Collation du soir absente des nouveaux menus, archives conservées. Pourcentages kcal toujours configurables dans Administration, actuellement 20/40/10/30. Fiche aliment unique enrichie des réglages de courses ; préparations hors menus planifiables, avec courses immédiates et stock confirmé plus tard. Voir REPRISE.md pour les règles de stock et les migrations.
+
 ## Repas prêts et retrait après le jour du repas — 0.3.9 livrée
 
 Le calendrier affiche « Prêt ✓ — portions réservées » quand toutes les préparations suivies du repas sont réellement produites en quantité suffisante. Les réservations suivent les dates et créneaux des repas, sans retirer le stock physique. Une couverture partielle reste indiquée comme telle ; du pain déjà fabriqué ne fait pas passer un hamburger non cuisiné à l’état prêt.

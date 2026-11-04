@@ -102,26 +102,33 @@
   .meal-person-summary .protein-unknown,.meal-protein-tags .protein-unknown { color:var(--muted); border-color:var(--line); }
   .person-forecast b,.stock-status { color:var(--accent); }
   .person-forecast .reserve-negative,.dashboard-profile .reserve-negative { color:#a82046; }
-  /* Editorial home: all existing figures, people, five slots and actions remain. */
+  /* Weekly home: one compact card per meal slot, with details on demand. */
   .dashboard-welcome { margin:4px 0 24px; }
   .dashboard-welcome h1 { font-size:36px; line-height:1.15; }
   .dashboard-stats { gap:20px; padding:0 0 24px; border-bottom:1px solid var(--line); }
   .dashboard-stat { padding:0; border:0; background:transparent; box-shadow:none; border-radius:0; }
   .dashboard-stat strong { color:var(--text); font-size:25px; font-weight:550; }
-  .dashboard-layout { grid-template-columns:minmax(0,1fr) 300px; gap:28px; }
+  .dashboard-layout { grid-template-columns:1fr; gap:28px; }
   .dashboard-panel { padding:20px; }
-  .dashboard-menu { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:22px; background:transparent; padding:0; border:0; }
-  .dashboard-menu>h2 { grid-column:1/-1; margin:0; font-size:26px; }
+  .dashboard-menu { display:grid; gap:0; background:transparent; padding:0; border:0; }
+  .dashboard-menu>h2 { margin:0 0 16px; font-size:26px; }
+  .dashboard-day { display:grid; grid-template-columns:105px repeat(4,minmax(0,1fr)); gap:10px; padding:10px 0; border-top:1px solid var(--line); align-items:stretch; }
+  .dashboard-day>h3 { margin:4px 0; font-size:14px; text-transform:capitalize; }
+  .dashboard-day.today>h3 { color:var(--accent); }
   .dashboard-meal-slot { border:0; padding:0; min-width:0; }
-  .dashboard-meal-slot h3 { color:var(--accent); font-size:13px; font-weight:600; }
-  .dashboard-meal { border:0; background:var(--panel); border-radius:12px; padding:16px; box-shadow:var(--editorial-shadow); }
-  .dashboard-meal-photo { display:block; width:calc(100% + 32px); max-height:210px; aspect-ratio:16/10; object-fit:cover; margin:-16px -16px 14px; border-radius:12px 12px 0 0; }
+  .dashboard-meal-slot h4 { margin:0 0 6px; color:var(--accent); font-size:11px; font-weight:600; }
+  .dashboard-meal { display:block; width:100%; border:1px solid var(--line); background:var(--panel); border-radius:12px; padding:9px; box-shadow:var(--editorial-shadow); text-align:left; cursor:pointer; }
+  .dashboard-meal strong,.dashboard-meal small { display:block; overflow-wrap:anywhere; }
+  .dashboard-meal strong { font-size:13px; line-height:1.25; }
+  .dashboard-meal small { margin-top:5px; font-size:11px; }
+  .dashboard-meal-photo { display:block; width:calc(100% + 18px); max-height:95px; aspect-ratio:16/8; object-fit:cover; margin:-9px -9px 8px; border-radius:12px 12px 0 0; }
   .dashboard-meal-photo[hidden] { display:none; }
   .dashboard-meal-heading { gap:10px; align-items:flex-start; }
   .dashboard-person-meal { display:block; padding-top:12px; margin-top:12px; }
   .dashboard-person-meal strong,.dashboard-person-meal span,.dashboard-person-meal small { display:block; overflow-wrap:anywhere; }
   .dashboard-person-meal span { margin:3px 0; }
   .dashboard-add { border-color:#d0b2c3; padding:10px; border-radius:10px; }
+  .dashboard-sidebar { grid-template-columns:repeat(3,minmax(0,1fr)); }
   .dashboard-stock,.dashboard-profile,.dashboard-person-meal,.dashboard-routine { border-color:var(--line); }
   .dashboard-profile-heading { flex-wrap:wrap; }
   /* Recipe photography has real space, with every action/setting retained. */
@@ -165,6 +172,15 @@
   .planned-meal-card button { color:var(--text); font-size:12px; }
   .planned-meal-card small { color:var(--muted); font-size:11px; }
   .planned-meal-card .meal-kcal { color:#24604a; font-weight:600; }
+  #meal-details-dialog { width:min(650px,calc(100vw - 28px)); max-height:90vh; overflow:auto; }
+  .meal-details-body { display:grid; gap:12px; }
+  .meal-details-status { margin:0; color:var(--positive); font-weight:700; }
+  .meal-details-person { padding:12px 14px; border:1px solid var(--line); border-radius:12px; background:var(--panel-raised); }
+  .meal-details-person h3 { margin:0 0 8px; font-size:16px; }
+  .meal-details-person ul { margin:0; padding-left:20px; }
+  .meal-details-person li+li { margin-top:5px; }
+  .meal-details-person p,.meal-details-note { margin:0; }
+  .meal-details-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
   .calendar-add { font-size:12px; color:var(--accent); border-color:#d2b5c5; min-height:38px; }
   .calendar-add:hover { color:#7d1d4e; border-color:var(--accent); }
   .daily-energy-summary,.daily-protein-summary { color:var(--text); border-color:var(--line); }
@@ -245,8 +261,10 @@
     .dashboard-stats { grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
     .dashboard-stat strong { font-size:23px; }
     .dashboard-menu,.dashboard-sidebar { grid-template-columns:1fr; }
+    .dashboard-day { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .dashboard-day>h3 { grid-column:1/-1; }
     .dashboard-panel { padding:16px; }
-    .dashboard-meal-photo { max-height:240px; }
+    .dashboard-meal-photo { max-height:95px; }
     .recipe-directory { grid-template-columns:1fr; }
     .recipe-filters { padding:14px; margin-bottom:0; }
     .recipe-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
