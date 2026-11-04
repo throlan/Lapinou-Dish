@@ -1,5 +1,9 @@
 # État du projet — 4 novembre 2026
 
+## 0.3.11 — Courses & stocks en onglets
+
+La liste de courses, les préparations, les stocks, les magasins et les routines sont accessibles dans cinq onglets. La période des courses reste commune et visible en haut. Les saisies en cours sont conservées entre les onglets. Aucun changement de calcul ni de données.
+
 ## 0.3.10 livrée
 
 Accueil hebdomadaire lundi–dimanche en sept lignes de quatre cartes compactes ; fiche de consultation des portions et actions pour les repas préparés ; cases du calendrier allégées. La collation du soir disparaît des nouveaux menus, mais les repas historiques restent consultables. Les pourcentages kcal demeurent modifiables dans Administration (actuellement 20/40/10/30, total 100 %). Fiche aliment commune depuis courses, catalogue et recettes avec ses réglages d’achat. Préparations hors menus planifiées : ingrédients dans les courses dès la planification, stock réel seulement après confirmation, annulation restitutive.

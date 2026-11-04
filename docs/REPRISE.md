@@ -1,5 +1,9 @@
 # Cahier de reprise — 4 novembre 2026
 
+## Courses & stocks en onglets — 0.3.11
+
+La page Courses & stocks est répartie en cinq onglets : liste de courses, préparations, stocks, magasins et routines. La période des courses reste visible au-dessus des onglets et pilote également les préparations. Les formulaires et listes restent montés dans la page : changer d’onglet conserve les saisies, les sélections et les rubriques ouvertes. Navigation au clavier par flèches, Début et Fin. Aucun calcul, stock ou schéma de données modifié.
+
 ## Semaine d’accueil, fiche aliment commune et préparations hors menus — 0.3.10 livrée
 
 L’accueil présente la semaine civile en cours, du lundi au dimanche : sept lignes et quatre créneaux par ligne (petit-déjeuner, déjeuner, collation de l’après-midi, dîner). Les cartes compactes ouvrent les portions par personne. Dans le calendrier, la fiche du repas reste accessible une fois préparé ; elle contient les quantités en lecture seule et les actions de préparation. Les cases du calendrier conservent le titre, l’état et « Dupliquer », sans participants ni total kcal.

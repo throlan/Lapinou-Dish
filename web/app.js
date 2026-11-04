@@ -82,6 +82,45 @@ $$('.admin-tabs [data-admin-tab]').forEach(button=>{
   });
 });
 
+function setupShoppingTabs(){
+  const view=$('#shopping-view'),tabs=$$('.shopping-tabs [data-shopping-tab]',view);
+  const tabBar=$('.shopping-tabs',view),overview=$('.shopping-overview',view);
+  const range=$('.shopping-range',view);
+  range.classList.add('shopping-period');
+  tabBar.before(range);
+  const panels=document.createElement('div');panels.className='shopping-panels';
+  const content={
+    list:[$('.shopping-list-card',view)],
+    preparations:[$('.preparations-card',view)],
+    stock:[$('.production-card',view),$('.ingredient-section',view)],
+    stores:[$('.order-links-card',view)],
+    routines:[overview.firstElementChild],
+  };
+  for(const tab of tabs){
+    const name=tab.dataset.shoppingTab,panel=document.createElement('section');
+    panel.id=`shopping-panel-${name}`;panel.className='shopping-panel admin-panel';
+    panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby',tab.id);
+    panel.dataset.shoppingPanel=name;panel.tabIndex=0;
+    panel.append(...content[name]);panels.append(panel);
+  }
+  overview.remove();tabBar.after(panels);
+  function select(name){
+    for(const tab of tabs){const selected=tab.dataset.shoppingTab===name;tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected?0:-1;}
+    for(const panel of panels.children)panel.hidden=panel.dataset.shoppingPanel!==name;
+  }
+  for(const tab of tabs){
+    tab.addEventListener('click',()=>select(tab.dataset.shoppingTab));
+    tab.addEventListener('keydown',event=>{
+      const index=tabs.indexOf(tab);
+      const next=event.key==='ArrowRight'?(index+1)%tabs.length:event.key==='ArrowLeft'?(index-1+tabs.length)%tabs.length:event.key==='Home'?0:event.key==='End'?tabs.length-1:-1;
+      if(next<0)return;
+      event.preventDefault();tabs[next].focus();select(tabs[next].dataset.shoppingTab);
+    });
+  }
+  select('list');
+}
+setupShoppingTabs();
+
 const dashboardSlots = MEAL_ORDER.filter(slot=>slot!=='evening_snack');
 const dashboardSlotLabels = MEAL_LABELS;
 function dashboardPanel(title, className='dashboard-panel') {
