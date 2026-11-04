@@ -52,12 +52,13 @@ test('protected recipes, conflicts and connection failures keep the card and sho
 
 test('rendered recipe cards visibly expose a named delete action bound to that recipe',()=>{
   const a=source.indexOf('function recipeCard('),b=source.indexOf('\nfunction renderRecipe(',a);
-  const element=tag=>({tag,options:[],replaceChildren(){this.options=[];},children:[],attributes:{},handlers:{},append(...items){this.children.push(...items);for(const item of items)if(item&&typeof item==='object')item.parentElement=this;if(tag==='select')this.options.push(...items);},
+  const element=tag=>({tag,options:[],replaceChildren(){this.options=[];},children:[],attributes:{},handlers:{},classList:{add(){}},append(...items){this.children.push(...items);for(const item of items)if(item&&typeof item==='object')item.parentElement=this;if(tag==='select')this.options.push(...items);},
     dataset:{},setAttribute(key,value){this.attributes[key]=value;},addEventListener(name,fn){this.handlers[name]=fn;}});
   const removed=[];const recipe={id:'card-id',name:'Visible recipe',lines:[],yield:{amount:4,unitId:'portion'},nutrition:{complete:true,perYieldUnit:{}}};
   const context={recipeServiceChoices,recipeServiceMode,document:{createElement:element,createTextNode:text=>({textContent:text})},recipeTypeLabel:()=> 'Plat',productionTypeLabel:id=>id,populateProductionTypeSelect:(select,value)=>{select.replaceChildren({value,textContent:'none'});select.value=value;},format:String,
     recipeMissingData:()=>[],requestRecipeDeletion:(...args)=>removed.push(args)};
-  runInNewContext(source.slice(a,b)+'\nglobalThis.render=recipeCard;',context);
+  const imageStart=source.indexOf('function recipeImageElement('),imageEnd=source.indexOf('\nfunction dashboardPanel(',imageStart);
+  runInNewContext(source.slice(imageStart,imageEnd)+'\n'+source.slice(a,b)+'\nglobalThis.render=recipeCard;',context);
   const card=context.render(recipe);
   const all=node=>[node,...(node.children??[]).flatMap(all)];
   const button=all(card).find(node=>node.tag==='button'&&node.textContent==='Supprimer');

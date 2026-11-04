@@ -1,5 +1,9 @@
 # Cahier des améliorations proposées
 
+## Présentation adaptative — 0.3.12
+
+Direction visuelle validée par l’utilisateur pour toute l’application : couleurs tirées du logo, surfaces adoucies, navigation et cartes adaptées au téléphone, à la tablette et au PC. Photos des recettes dans les cartes, logo en repli. L’accueil garde sa semaine du lundi au dimanche et ses quatre créneaux ; le téléphone sélectionne le jour à afficher. Aucun changement métier.
+
 ## Courses & stocks en onglets — 0.3.11
 
 La longue page est découpée en cinq rubriques sans déplacer les fonctions hors de Courses & stocks. Dates communes en haut, onglets accessibles au clavier et conservation des formulaires ouverts. Aucun changement métier.

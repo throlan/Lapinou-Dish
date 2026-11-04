@@ -1,5 +1,7 @@
 # Cahier produit Lapinou Dish
 
+La présentation utilise les couleurs du logo lapin sur des fonds doux. La navigation s’adapte au téléphone, à la tablette et au PC. Les cartes de recettes, repas et préparations montrent la photo disponible, ou le logo en repli. L’accueil conserve la semaine civile de sept jours et quatre créneaux ; sur téléphone, le jour se choisit dans la semaine.
+
 Ce document décrit le produit cible. Pour les fonctions effectivement livrées, consulter [l'état actuel](STATUS.md) et [le cahier de reprise](REPRISE.md). Les règles de planification ci-dessous sont complétées par [le fonctionnement kcal actuel](MEAL-ENERGY.md).
 
 ## Préparations, réservations et sorties de stock

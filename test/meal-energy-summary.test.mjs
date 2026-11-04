@@ -116,11 +116,11 @@ test('calendar days tag each slot for its category color',async()=>{
   const source=await readFile(new URL('../web/app.js',import.meta.url),'utf8');
   const styles=await readFile(new URL('../web/style.css',import.meta.url),'utf8');
   const start=source.indexOf('function renderCalendarDay('),end=source.indexOf('function renderDailyEnergySummary(',start);
-  const element=()=>({children:[],dataset:{},append(...children){this.children.push(...children);},addEventListener(){}});
+  const element=()=>({children:[],dataset:{},classList:{add(){}},append(...children){this.children.push(...children);},addEventListener(){}});
   const context={document:{createElement:element},MEAL_ORDER:['breakfast','lunch','snack','dinner','evening_snack'],
     slotLabels:{breakfast:'Petit-déjeuner',lunch:'Déjeuner',snack:'Collation',dinner:'Dîner',evening_snack:'Collation du soir'},
     displayDate:value=>value,renderMealCard:()=>element(),renderDailyEnergySummary:()=>element(),
-    openMealEditor(){},state:{}};
+    openMealEditor(){},calendarSelectedDate:null,state:{}};
   runInNewContext(source.slice(start,end)+'\nglobalThis.render=renderCalendarDay;',context);
   const day=context.render('2026-10-19',[],'2026-10-19');
   const slotSections=day.children.filter(child=>child.className==='calendar-slot');

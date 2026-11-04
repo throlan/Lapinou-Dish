@@ -1,5 +1,9 @@
 # État du projet — 4 novembre 2026
 
+## 0.3.12 — présentation adaptative
+
+Navigation téléphone, tablette et PC harmonisée avec le logo ; couleurs plus reposantes, cartes avec photos et repli sur le logo. Accueil hebdomadaire conservé, avec choix du jour sur téléphone ; calendrier également navigable par jour sur petit écran. Les fonctionnalités et calculs existants sont conservés.
+
 ## 0.3.11 livrée — Courses & stocks en onglets
 
 La liste de courses, les préparations, les stocks, les magasins et les routines sont accessibles dans cinq onglets. La période des courses reste commune et visible en haut. Les saisies en cours sont conservées entre les onglets. Aucun changement de calcul ni de données.

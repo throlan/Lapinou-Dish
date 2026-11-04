@@ -1,5 +1,11 @@
 # Cahier de reprise — 4 novembre 2026
 
+## Présentation application téléphone, tablette et PC — 0.3.12
+
+Charte harmonisée avec le logo lapin (aubergine, framboise, violet et bleu), avec fonds plus doux et navigation adaptée : barre latérale sur PC, rail sur tablette, barre basse sur téléphone. L’accueil conserve sept jours et quatre créneaux ; sur téléphone, un sélecteur de jour montre les quatre cartes du jour. Le calendrier propose le même accès par jour sur petit écran. Les cartes des repas, recettes et préparations affichent la photo disponible ou le logo en repli. Les pages Courses & stocks, aliments, recettes, calendrier et administration partagent les mêmes surfaces, champs et accents. Aucun calcul, donnée ni migration modifié.
+
+**353 tests locaux réussis.** Vérification syntaxique du navigateur et contrôle des différences réussis. Le navigateur de contrôle n’a pas pu joindre le serveur local de test dans cet environnement ; vérifier le rendu réel après publication.
+
 ## Courses & stocks en onglets — 0.3.11
 
 La page Courses & stocks est répartie en cinq onglets : liste de courses, préparations, stocks, magasins et routines. La période des courses reste visible au-dessus des onglets et pilote également les préparations. Les formulaires et listes restent montés dans la page : changer d’onglet conserve les saisies, les sélections et les rubriques ouvertes. Navigation au clavier par flèches, Début et Fin. Aucun calcul, stock ou schéma de données modifié.
