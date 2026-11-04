@@ -124,6 +124,8 @@ test('calendar days tag each slot for its category color',async()=>{
   runInNewContext(source.slice(start,end)+'\nglobalThis.render=renderCalendarDay;',context);
   const day=context.render('2026-10-19',[],'2026-10-19');
   const slotSections=day.children.filter(child=>child.className==='calendar-slot');
-  assert.deepEqual(Array.from(slotSections,section=>section.dataset.slot),context.MEAL_ORDER);
+  assert.deepEqual(Array.from(slotSections,section=>section.dataset.slot),context.MEAL_ORDER.filter(slot=>slot!=='evening_snack'));
+  const historic=context.render('2026-10-19',[{mealDate:'2026-10-19',slot:'evening_snack'}],'2026-10-19');
+  assert.deepEqual(Array.from(historic.children.filter(child=>child.className==='calendar-slot'),section=>section.dataset.slot),context.MEAL_ORDER);
   for(const slot of ['breakfast','snack','evening_snack','lunch','dinner'])assert.match(styles,new RegExp(`\\.calendar-slot\\[data-slot="${slot}"\\]`));
 });

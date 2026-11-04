@@ -1,8 +1,10 @@
 import {countPreparationStock,validatePreparationCount} from './preparation-stock.mjs';
+import {deleteExtraProduction,listExtraProductions,saveExtraProduction,validateExtraProduction} from './extra-productions.mjs';
 import {listShoppingPreferences,saveShoppingPreference,validateShoppingPreference} from './shopping-products.mjs';
 import { createServer } from 'node:http';
 import { setMealPrepared } from './meal-preparation.mjs';
 import { listFoodStores, saveFoodStores, validateFoodStores } from './food-stores.mjs';
+import {readFoodShoppingSettings,saveFoodShoppingSettings,validateFoodShoppingSettings} from './food-shopping-settings.mjs';
 import { exportToHomeAssistant } from './home-assistant-shopping.mjs';
 import { deletePurchaseUnit,listPurchaseUnits,savePurchaseUnit,validatePurchaseUnit } from './purchase-units.mjs';
 import { previewDailyRebalance, applyDailyRebalance } from './daily-rebalance.mjs';
@@ -288,6 +290,18 @@ export async function handleRequest(request, response, pool, appPassword = null,
       try{const result=await saveFoodStores(pool,validation.data);return send(response,result.error?404:200,result);}
       catch{return send(response,500,{error:'food-stores-save-failed'});}
     }
+    if(url.pathname==='/api/food-shopping-settings'&&request.method==='GET'){
+      const householdId=url.searchParams.get('householdId'),foodId=url.searchParams.get('foodId');
+      if(!isUuid(householdId)||!isUuid(foodId))return send(response,400,{error:'invalid-food-shopping-settings'});
+      try{return send(response,200,{settings:await readFoodShoppingSettings(pool,householdId,foodId)});}
+      catch{return send(response,500,{error:'food-shopping-settings-read-failed'});}
+    }
+    if(url.pathname==='/api/food-shopping-settings'&&request.method==='PUT'){
+      const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
+      const validation=validateFoodShoppingSettings(body.value);if(validation.error)return send(response,400,{error:validation.error});
+      try{const result=await saveFoodShoppingSettings(pool,validation.data);return send(response,result.error?404:200,result);}
+      catch{return send(response,500,{error:'food-shopping-settings-save-failed'});}
+    }
     if (url.pathname === '/api/household-order-links' && request.method === 'GET') {
       const householdId=url.searchParams.get('householdId');
       if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});
@@ -363,6 +377,24 @@ export async function handleRequest(request, response, pool, appPassword = null,
         if (lot?.error) return send(response, 404, { error: lot.error });
         return send(response, 201, { lot });
       } catch { return send(response, 500, { error: 'production-stock-save-failed' }); }
+    }
+    if(url.pathname==='/api/household-planning/extra-productions'&&request.method==='GET'){
+      const householdId=url.searchParams.get('householdId'),startDate=url.searchParams.get('startDate'),endDate=url.searchParams.get('endDate');
+      if(!isUuid(householdId)||!isValidDate(startDate)||!isValidDate(endDate)||endDate<startDate)return send(response,400,{error:'invalid-extra-production-period'});
+      try{return send(response,200,{productions:await listExtraProductions(pool,householdId,startDate,endDate)});}
+      catch{return send(response,500,{error:'extra-productions-read-failed'});}
+    }
+    if(url.pathname==='/api/household-planning/extra-productions'&&request.method==='POST'){
+      const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
+      const validation=validateExtraProduction(body.value);if(validation.error)return send(response,400,{error:validation.error});
+      try{const production=await saveExtraProduction(pool,validation.data);return production?send(response,201,{production}):send(response,404,{error:'recipe-not-for-production'});}
+      catch{return send(response,500,{error:'extra-production-save-failed'});}
+    }
+    const extraProductionId=url.pathname.match(/^\/api\/household-planning\/extra-productions\/([0-9a-f-]{36})$/i)?.[1];
+    if(extraProductionId&&request.method==='DELETE'){
+      const householdId=url.searchParams.get('householdId');if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});
+      try{return await deleteExtraProduction(pool,householdId,extraProductionId)?send(response,200,{deleted:true}):send(response,409,{error:'extra-production-not-pending'});}
+      catch{return send(response,500,{error:'extra-production-delete-failed'});}
     }
     if(url.pathname==='/api/household-planning/stock/count'&&request.method==='PUT'){
       const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});

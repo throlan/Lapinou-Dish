@@ -15,7 +15,7 @@ test('opening administration loads and renders production categories before edit
   const form={elements:Object.fromEntries(slots.map(slot=>[slot,{value:''}]))};
   const message={},state={household:{id:'household'}};let loadedTypes=0,renderedRows=[];
   const context={
-    state,MEAL_ORDER:slots,
+    state,MEAL_ORDER:slots,dashboardSlots:slots.filter(slot=>slot!=='evening_snack'),
     $:selector=>selector==='#meal-ratios-form'?form:selector==='button[type="submit"]'?{disabled:false}:message,
     api:async path=>path.startsWith('/api/meal-settings')?{ratios}:({productionTypes:[]}),
     refreshPeople:async()=>{},refreshProductionTypes:async()=>{loadedTypes++;state.productionTypes=[{id:'bread',label:'Pain'},{id:'pasta',label:'Pâtes'}];context.renderProductionTypeRows();},

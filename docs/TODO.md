@@ -1,4 +1,6 @@
-# Prochaines tâches — 1er novembre 2026
+# Prochaines tâches — 4 novembre 2026
+
+0.3.10 en cours : vérifier et publier la refonte ciblée décrite dans REPRISE.md (accueil hebdomadaire, fiche de repas préparé, quatre créneaux actifs, fiche aliment commune et préparations supplémentaires planifiées). Conserver les pourcentages kcal modifiables dans Administration ; 20/40/10/30 est le choix actuel, pas une valeur codée en dur pour le foyer. Valider les tests, la migration, puis la publication GitHub/GHCR. Le calcul viande/poisson reste en attente de règle utilisateur.
 
 Repas prêts et sorties de stock après la journée réalisés en 0.3.9 : réservations chronologiques ou ciblées sur une plage, retrait une fois après minuit (Paris), rattrapage au redémarrage, annulation possible et couverture partielle explicite. Voir REPRISE.md. 351 tests locaux complets et Chrome fictif réussis. PR #155 fusionnée au commit `571d72bab17c4970f838a6799234e95d40495077` ; contrôles et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41302800569. Tags `0.3.9` et `v0.3.9` vérifiés, digest commun `sha256:bf2735d821b157d05562fbc6d9ed28e3ead111e4de5bb12d92640a38b678ea32`. Les cinq versions 0.3.5 à 0.3.9 sont présentes ; les digests antérieurs sont conservés. Ce suivi ne modifie ni les menus ni le calcul des portions.
 

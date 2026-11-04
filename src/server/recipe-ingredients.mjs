@@ -110,6 +110,9 @@ export async function recipeRequirements(client,householdId,startDate,endDate) {
     WHERE m.household_id=$1 AND m.prepared_at IS NULL AND m.meal_date<=$2::date
     GROUP BY m.id,m.meal_date,m.slot,m.created_at,i.id,i.recipe_id,i.sort_order
     ORDER BY m.meal_date,CASE m.slot WHEN 'breakfast' THEN 1 WHEN 'lunch' THEN 2 WHEN 'snack' THEN 3 WHEN 'dinner' THEN 4 ELSE 5 END,m.created_at,m.id,i.sort_order,i.id`,[householdId,endDate]);
+  const extra=await client.query(`SELECT p.id,p.planned_on::text AS date,p.recipe_id,p.quantity::float8 AS quantity
+    FROM planned_extra_productions p WHERE p.household_id=$1 AND p.stock_lot_id IS NULL AND p.planned_on<=$2::date
+    ORDER BY p.planned_on,p.created_at,p.id`,[householdId,endDate]);
   const preparations=new Map(),foods=new Map(),reservations=new Map();
   function demand(recipeId,quantity,event,path=[]){
     if(!(quantity>0))return;
@@ -119,16 +122,16 @@ export async function recipeRequirements(client,householdId,startDate,endDate) {
       for(const part of r.parts)demand(part.id,quantity/r.yield.amount*part.yield.amount,event,[...path,recipeId]);
       return;
     }
-    const covered=r.productionType==='none'?0:takeStock(buckets,recipeId,quantity,event.date).quantity;
+    const covered=event.extra||r.productionType==='none'?0:takeStock(buckets,recipeId,quantity,event.date).quantity;
     const missing=quantity-covered;
     const inRange=event.date>=startDate;
     const produceQuantity=r.productionType!=='none'&&missing>0
       ?Math.max(missing,inRange?r.minimumProductionQuantity??0:0):0;
     if(r.productionType!=='none'){
-      addPlannedStock(buckets,recipeId,produceQuantity-missing,event.date);
-      reservations.set(recipeId,(reservations.get(recipeId)??0)+quantity);
+      addPlannedStock(buckets,recipeId,event.extra?produceQuantity:produceQuantity-missing,event.date);
+      if(!event.extra)reservations.set(recipeId,(reservations.get(recipeId)??0)+quantity);
     }
-    if(inRange && r.productionType!=='none'){
+    if(inRange && r.productionType!=='none'&&!event.extra){
       const p=preparations.get(recipeId)??{recipeId,parentRecipeId:r.parentRecipeId,name:r.name,productionType:r.productionType,
         unitId:r.yield.unitId,yieldAmount:r.yield.amount,plannedQuantity:0,coveredQuantity:0,toMakeQuantity:0,
         minimumProductionQuantity:r.minimumProductionQuantity??0,minimumProductionAmount:r.minimumProductionAmount??0,
@@ -140,7 +143,7 @@ export async function recipeRequirements(client,householdId,startDate,endDate) {
       const scaled=line.quantity*ingredientQuantity/r.yield.amount;if(!(scaled>0))continue;
       if(line.recipeId){
         const child=graph.get(line.recipeId);
-        demand(child.id,recipeFraction(graph,child.id,scaled,line.unitId)*child.yield.amount,event,[...path,recipeId]);
+        demand(child.id,recipeFraction(graph,child.id,scaled,line.unitId)*child.yield.amount,event.extra?{...event,extra:false}:event,[...path,recipeId]);
       }else if(inRange){
         const key=`${line.foodId}:${line.unitId}`,f=foods.get(key)??{foodId:line.foodId,name:line.name,unitId:line.unitId,quantity:0,
           gramsPerMillilitre:line.gramsPerMillilitre,gramsPerUnit:line.gramsPerUnit,sources:new Map()};
@@ -149,7 +152,10 @@ export async function recipeRequirements(client,householdId,startDate,endDate) {
       }
     }
   }
-  for(const event of events.rows)demand(event.recipe_id,Number(event.quantity),event);
+  const ordered=[...events.rows.map((event,index)=>({...event,order:index,extra:false})),
+    ...extra.rows.map((event,index)=>({...event,order:index,extra:true}))]
+    .sort((a,b)=>a.date.localeCompare(b.date)||Number(b.extra)-Number(a.extra)||a.order-b.order);
+  for(const event of ordered)demand(event.recipe_id,Number(event.quantity),event);
   return {graph,initialStock,reservations,
     preparations:[...preparations.values()].map(({meals,...p})=>({...p,plannedQuantity:clean(p.plannedQuantity),coveredQuantity:clean(p.coveredQuantity),toMakeQuantity:clean(p.toMakeQuantity),mealCount:meals.size})).sort((a,b)=>a.firstDate.localeCompare(b.firstDate)||a.name.localeCompare(b.name,'fr')),
     foods:[...foods.values()].map(({sources,...f})=>({...f,quantity:clean(f.quantity),recipes:[...sources.values()].map(r=>({...r,quantity:clean(r.quantity)})).sort((a,b)=>a.name.localeCompare(b.name,'fr'))})).sort((a,b)=>a.name.localeCompare(b.name,'fr')||a.unitId.localeCompare(b.unitId))};
