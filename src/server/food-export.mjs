@@ -1,5 +1,5 @@
 const columns = [
-  'id', 'nom', 'marque', 'autres_noms', 'source', 'reference_source', 'note_source',
+  'id', 'nom', 'marque', 'autres_noms', 'source', 'reference_source', 'note_source', 'categorie_alimentaire',
   'kcal_100g', 'proteines_100g', 'glucides_100g', 'lipides_100g', 'fibres_100g',
   'poids_cuit_pour_1g_cru', 'densite_g_ml', 'poids_cac_g', 'poids_cas_g',
   'poids_pincee_g', 'poids_scoop_g', 'poids_piece_g',
@@ -20,7 +20,7 @@ export async function exportFoodCatalog(pool, householdId) {
   if (!household.rows.length) return null;
   const [foods, aliases, nutrients, conversions, purchases] = await Promise.all([
     pool.query(`SELECT id,canonical_name,brand,source,source_reference,source_note,
-      cooking_factor,grams_per_millilitre,version,updated_at
+      cooking_factor,grams_per_millilitre,food_category,version,updated_at
       FROM foods ORDER BY lower(canonical_name),id`),
     pool.query('SELECT food_id,alias FROM food_aliases ORDER BY food_id,alias'),
     pool.query(`SELECT food_id,nutrient_id,value_per_100g FROM food_nutrients
@@ -48,7 +48,7 @@ export async function exportFoodCatalog(pool, householdId) {
     const purchase = purchaseMap.get(food.id);
     const row = [
       food.id, food.canonical_name, food.brand, (aliasMap.get(food.id) ?? []).map(item => item.alias).join(' | '),
-      food.source, food.source_reference, food.source_note,
+      food.source, food.source_reference, food.source_note, food.food_category,
       values.get('energy_kcal'), values.get('protein_g'), values.get('carbohydrate_g'),
       values.get('fat_g'), values.get('fibre_g'), food.cooking_factor, food.grams_per_millilitre,
       units.get('tsp'), units.get('tbsp'), units.get('pinch'), units.get('scoop'), units.get('piece'),
@@ -56,7 +56,7 @@ export async function exportFoodCatalog(pool, householdId) {
       purchase?.covered_unit_id, purchase?.estimate_note, food.version,
       food.updated_at instanceof Date ? food.updated_at.toISOString() : food.updated_at,
     ];
-    lines.push(row.map((value, index) => csvCell(value, { text: [1, 2, 3, 4, 5, 6, 19, 20, 22, 23].includes(index) })).join(';'));
+    lines.push(row.map((value, index) => csvCell(value, { text: [1, 2, 3, 4, 5, 6, 7, 20, 21, 23, 24].includes(index) })).join(';'));
   }
   return `\uFEFF${lines.join('\r\n')}\r\n`;
 }

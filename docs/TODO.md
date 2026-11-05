@@ -1,6 +1,8 @@
 # Prochaines tâches — 5 novembre 2026
 
-Après la règle scoop 0.3.15, poursuivre l'audit des 1 058 aliments exportés : 1 009 codes Ciqual rapprochés du classement officiel et 49 références hors Ciqual. Proposer des rendements de cuisson par aliment et méthode, en préservant notamment le riz basmati ×2,5 existant. Examiner les conflits avant toute modification groupée ; la whey vanille garde son poids de scoop déjà saisi à 25 g jusqu'à une pesée de l'utilisateur. La catégorie alimentaire et l'édition groupée restent à développer.
+Après 0.3.16 : faire examiner les 49 références hors Ciqual et les conflits de rendement avant toute correction de données. Ne pas déduire une densité ou un poids de cuillère pour des aliments qui ne sont pas mesurés ainsi. Préparer des suggestions de rendement par aliment et méthode avec source ; conserver les valeurs propres déjà renseignées et les quantités des menus historiques.
+
+Poursuivre l'audit des 1 058 aliments exportés : 1 009 codes Ciqual rapprochés du classement officiel et 49 références hors Ciqual. Proposer des rendements de cuisson par aliment et méthode, en préservant notamment le riz basmati ×2,5 existant. Examiner les conflits avant toute modification groupée ; la whey vanille garde son poids de scoop déjà saisi à 25 g jusqu'à une pesée de l'utilisateur. Le classement et l'édition groupée sont livrés en 0.3.16.
 
 Exporter le catalogue réel depuis la page Aliments en 0.3.14, puis faire transmettre le CSV par l’utilisateur. Sur ce fichier, inventorier les champs manquants, proposer des catégories alimentaires distinctes des catégories de courses et documenter chaque valeur recherchée (source, portée, fiabilité). Préparer ensuite l’édition groupée avec aperçu et validation explicite ; ne modifier aucune fiche sur une hypothèse générique.
 

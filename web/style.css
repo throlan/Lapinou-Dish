@@ -672,3 +672,11 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .production-period { min-width:0; border:1px solid var(--line); border-radius:12px; margin:12px 0; padding:12px; }
 .production-period label.production-period-choice { display:flex; align-items:center; gap:8px; }
 .production-period-choice input { width:auto; flex:none; margin:0; }
+.bulk-food-edit-rows { display:grid; gap:6px; max-height:48vh; overflow:auto; margin:12px 0; }
+.bulk-food-edit-dialog { width:min(900px,calc(100vw - 28px)); max-height:90vh; overflow:auto; }
+.bulk-food-edit-row { display:grid; grid-template-columns:minmax(0,2fr) minmax(110px,1fr) minmax(130px,1fr); align-items:center; gap:10px; padding:5px 8px; border:1px solid var(--line); border-radius:8px; }
+.bulk-food-edit-row span { overflow-wrap:anywhere; }
+.bulk-food-edit-row small { color:var(--muted); }
+.bulk-food-edit-row input { width:100%; min-width:0; }
+.bulk-food-edit-preview-line { padding:6px 8px; border-bottom:1px solid var(--line); overflow-wrap:anywhere; }
+@media(max-width:600px){.bulk-food-edit-row{grid-template-columns:1fr 1fr}.bulk-food-edit-row span{grid-column:1/-1}}

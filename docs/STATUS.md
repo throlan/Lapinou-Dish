@@ -1,5 +1,9 @@
 # État du projet — 5 novembre 2026
 
+## 0.3.16 — classement et édition groupée du catalogue
+
+Les catégories alimentaires utilisent les codes exacts de Ciqual 2025 et restent modifiables dans la fiche. Le catalogue se filtre par catégorie ou champ manquant ; une sélection jusqu'à 250 fiches peut être modifiée champ par champ, avec aperçu, source, contrôle de version et protection contre l'écrasement involontaire. Les 49 références hors Ciqual et les coefficients discutables restent à examiner ; aucune valeur de cuisson ou de mesure n'est appliquée automatiquement. 362 tests locaux réussis. Publication demandée par l'utilisateur.
+
 ## 0.3.15 — scoop de whey de 60 ml
 
 Le doseur par défaut fait 60 ml. Pour une whey sans conversion propre, l'estimation est 30 g par scoop (plage utilisateur 25–35 g). Le poids spécifique déjà saisi, ou une densité connue, a priorité. Les autres poudres sans mesure restent à compléter. Les conversions des recettes, achats et stocks concordent ; les anciennes fiches et quantités de menus ne sont pas modifiées automatiquement.

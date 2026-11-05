@@ -1,5 +1,9 @@
 # Cahier des améliorations proposées
 
+## 0.3.16 — catalogue alimentaire
+
+Classement par catégorie alimentaire Ciqual 2025, distincte des catégories de courses ; filtre par catégorie et champ manquant ; édition groupée jusqu'à 250 aliments avec aperçu, source, contrôle de version et protection des valeurs existantes. Les coefficients et poids manquants restent à rechercher et valider au cas par cas. Voir [CATALOGUE-SUGGESTIONS.md](CATALOGUE-SUGGESTIONS.md).
+
 ## 0.3.15 — dosette de whey
 
 Le volume de référence de la scoop est 60 ml. Une whey sans mesure propre utilise 30 g estimés, milieu de la plage 25–35 g donnée par l'utilisateur. Les 25 g déjà saisis sur la fiche vanille restent prioritaires. Le reste de l'audit du catalogue, le classement officiel Ciqual et l'édition groupée restent à traiter séparément.

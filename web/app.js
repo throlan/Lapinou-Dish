@@ -13,7 +13,7 @@ import { ingredientCookingFactor, recipeServiceChoices, recipeServiceMode, recip
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { offset: 0, limit: 50, query: '', onlyIncomplete: false, total: 0, household: null, selectedFoodIds:new Set(), foodYieldConversions:[], mealAdditions:[], productionTypes:[], productionTypesHouseholdId:null, debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, editingFoodFromShopping: false, editingOrderLinkId: null, importingDraftId: null, generateImportedImage: false, people: [], recipes: [], plannedRecipeIds: [], plannedRecipeLookupError: null, preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, proteinTargets: {}, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
+const state = { offset: 0, limit: 50, query: '', foodCategory: '', missingField: '', onlyIncomplete: false, total: 0, household: null, selectedFoodIds:new Set(), foodYieldConversions:[], mealAdditions:[], productionTypes:[], productionTypesHouseholdId:null, debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, editingFoodFromShopping: false, editingOrderLinkId: null, importingDraftId: null, generateImportedImage: false, people: [], recipes: [], plannedRecipeIds: [], plannedRecipeLookupError: null, preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, proteinTargets: {}, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
 let recipeImageConfig={enabled:false}, imageRecipeId=null;
 const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbohydrateG', 'g gluc.'], ['fatG', 'g lip.']];
 const selectedStoreFoods=new Map();
@@ -1068,13 +1068,15 @@ let foodsRequest=0,currentFoodPageIds=[],bulkDeleteIds=[],bulkDeleteDeletableIds
 function updateFoodSelectionUi(){
   const count=state.selectedFoodIds.size,pageIds=currentFoodPageIds.map(id=>id.toLowerCase()),selectedOnPage=pageIds.filter(id=>state.selectedFoodIds.has(id)).length;
   $('#food-selection-count').textContent=count?`${count.toLocaleString('fr-FR')} aliment${count===1?'':'s'} sélectionné${count===1?'':'s'}`:'Aucun aliment sélectionné';
-  $('#clear-food-selection').disabled=!count;$('#bulk-delete-foods').disabled=!count;
+  $('#clear-food-selection').disabled=!count;$('#bulk-delete-foods').disabled=!count;$('#bulk-edit-foods').disabled=!count;
   const page=$('#select-food-page');page.checked=pageIds.length>0&&selectedOnPage===pageIds.length;page.indeterminate=selectedOnPage>0&&selectedOnPage<pageIds.length;
 }
 async function refreshFoods() {
   const request=++foodsRequest;
   const params = new URLSearchParams({ limit: String(state.limit), offset: String(state.offset) });
   if (state.query) params.set('q', state.query);
+  if (state.foodCategory) params.set('category', state.foodCategory);
+  if (state.missingField) params.set('missingField', state.missingField);
   if (state.onlyIncomplete) params.set('incomplete', 'true');
   $('#food-rows').innerHTML = '<tr><td colspan="6" class="empty">Chargement…</td></tr>';
   try {
@@ -1116,7 +1118,7 @@ function foodRow(food, recipes = null) {
   name.className='food-name-cell';
   const strong = document.createElement('strong'); strong.textContent = food.name;
   strong.title=food.name;
-  const small = document.createElement('small'); small.textContent = food.brand ?? '';
+  const small = document.createElement('small'); small.textContent = [food.foodCategory,food.brand].filter(Boolean).join(' · ');
   const requiredValues = ['energy_kcal', 'protein_g', 'carbohydrate_g', 'fat_g', 'fibre_g'];
   const hasMissingNutrition = requiredValues.some((key) => food.nutrients_per_100g?.[key] == null);
   if (hasMissingNutrition) small.textContent += `${small.textContent ? ' · ' : ''}À compléter`;
@@ -1165,12 +1167,12 @@ $('#select-food-page').addEventListener('change',event=>{
   refreshFoods();
 });
 $('#select-food-results').addEventListener('click',async event=>{
-  const button=event.currentTarget,query=state.query,onlyIncomplete=state.onlyIncomplete,total=state.total;
+  const button=event.currentTarget,query=state.query,category=state.foodCategory,missingField=state.missingField,onlyIncomplete=state.onlyIncomplete,total=state.total;
   if(!total)return;button.disabled=true;const original=button.textContent;let ids=[];
   try{
     for(let offset=0;offset<total;offset+=100){
-      if(state.query!==query||state.onlyIncomplete!==onlyIncomplete)throw new Error('Le filtre a changé pendant la sélection. Recommence avec les résultats affichés.');
-      const params=new URLSearchParams({limit:'100',offset:String(offset)});if(query)params.set('q',query);if(onlyIncomplete)params.set('incomplete','true');
+      if(state.query!==query||state.foodCategory!==category||state.missingField!==missingField||state.onlyIncomplete!==onlyIncomplete)throw new Error('Le filtre a changé pendant la sélection. Recommence avec les résultats affichés.');
+      const params=new URLSearchParams({limit:'100',offset:String(offset)});if(query)params.set('q',query);if(category)params.set('category',category);if(missingField)params.set('missingField',missingField);if(onlyIncomplete)params.set('incomplete','true');
       const page=await api(`/api/foods?${params}`);ids.push(...page.foods.map(food=>food.id.toLowerCase()));button.textContent=`Sélection… ${Math.min(offset+100,total).toLocaleString('fr-FR')} / ${total.toLocaleString('fr-FR')}`;
     }
     for(const id of ids)state.selectedFoodIds.add(id);
@@ -1179,6 +1181,70 @@ $('#select-food-results').addEventListener('click',async event=>{
   finally{button.textContent=original;button.disabled=false;}
 });
 $('#clear-food-selection').addEventListener('click',()=>{state.selectedFoodIds.clear();refreshFoods();});
+
+const bulkFoodNutrients={energyKcal:'energy_kcal',proteinG:'protein_g',carbohydrateG:'carbohydrate_g',fatG:'fat_g',fibreG:'fibre_g'};
+const bulkFoodUnits={tspGrams:'tsp',tbspGrams:'tbsp',pinchGrams:'pinch',scoopGrams:'scoop',pieceGrams:'piece'};
+let bulkFoodRows=[],bulkFoodPreview=null,bulkFoodRequest=null;
+function bulkFoodCurrent(food,field){
+  if(bulkFoodNutrients[field])return food.nutrients?.[bulkFoodNutrients[field]]??null;
+  if(bulkFoodUnits[field])return food.gramsPerUnit?.[bulkFoodUnits[field]]??null;
+  return food[field]??null;
+}
+function invalidateBulkFoodPreview(){bulkFoodPreview=null;bulkFoodRequest=null;$('#confirm-bulk-food-edit').disabled=true;$('#bulk-food-edit-message').textContent='';$('#bulk-food-edit-preview').replaceChildren();}
+function renderBulkFoodRows(){
+  invalidateBulkFoodPreview();const field=$('#bulk-food-field').value,root=$('#bulk-food-edit-rows');root.replaceChildren();
+  for(const food of bulkFoodRows){
+    const row=document.createElement('label');row.className='bulk-food-edit-row';
+    const title=document.createElement('span');title.textContent=food.name;
+    const current=document.createElement('small');const value=bulkFoodCurrent(food,field);current.textContent=value==null?'Non renseigné':`Actuel : ${value}`;
+    const input=document.createElement('input');input.dataset.foodId=food.id;input.placeholder='Laisser vide pour ignorer';
+    if(field==='foodCategory'){input.type='text';input.maxLength=80;input.setAttribute('list','food-category-options');}
+    else{input.type='number';input.min=bulkFoodNutrients[field]?'0':'0.000001';input.step='any';}
+    input.addEventListener('input',invalidateBulkFoodPreview);row.append(title,current,input);root.append(row);
+  }
+}
+$('#bulk-edit-foods').addEventListener('click',async()=>{
+  if(state.selectedFoodIds.size>250){showMessage($('#food-list-message'),'Sélectionne au maximum 250 aliments pour une édition groupée. Tu peux traiter les autres ensuite.');return;}
+  $('#bulk-food-edit-dialog').showModal();$('#bulk-food-edit-rows').replaceChildren(emptyMessage('Chargement des fiches…'));invalidateBulkFoodPreview();
+  try{const result=await api('/api/foods/bulk-edit/rows',{method:'POST',body:JSON.stringify({foodIds:[...state.selectedFoodIds]})});bulkFoodRows=result.foods;renderBulkFoodRows();}
+  catch(error){$('#bulk-food-edit-rows').replaceChildren(emptyMessage(`Chargement impossible : ${error.body?.error??error.message}`));}
+});
+$('#bulk-food-field').addEventListener('change',renderBulkFoodRows);
+$('#fill-bulk-food-common').addEventListener('click',()=>{const value=$('#bulk-food-common').value.trim();if(!value)return;for(const input of $('#bulk-food-edit-rows').querySelectorAll('input[data-food-id]'))if(!input.value)input.value=value;invalidateBulkFoodPreview();});
+$('#bulk-food-source').addEventListener('input',invalidateBulkFoodPreview);
+$('#bulk-food-overwrite').addEventListener('change',invalidateBulkFoodPreview);
+for(const selector of ['#close-bulk-food-edit','#cancel-bulk-food-edit'])$(selector).addEventListener('click',()=>$('#bulk-food-edit-dialog').close());
+function bulkFoodPayload(dryRun){
+  const field=$('#bulk-food-field').value,sourceNote=$('#bulk-food-source').value.trim();
+  if(!sourceNote)throw new Error('Indique la source ou la méthode de mesure.');
+  const byId=new Map(bulkFoodRows.map(food=>[food.id,food]));
+  const changes=[...$('#bulk-food-edit-rows').querySelectorAll('input[data-food-id]')].filter(input=>input.value.trim()).map(input=>({foodId:input.dataset.foodId,version:byId.get(input.dataset.foodId).version,value:field==='foodCategory'?input.value.trim():Number(input.value)}));
+  if(!changes.length)throw new Error('Saisis au moins une nouvelle valeur.');
+  return {field,sourceNote,overwrite:$('#bulk-food-overwrite').checked,changes,dryRun};
+}
+function renderBulkFoodPreview(preview){
+  const root=$('#bulk-food-edit-preview');root.replaceChildren();
+  for(const item of preview){const line=document.createElement('div');line.className='bulk-food-edit-preview-line';line.textContent=`${item.name??item.foodId} : ${item.current??'non renseigné'} → ${item.proposed}${item.conflict?` · conflit : ${item.conflict}`:''}`;root.append(line);}
+}
+$('#preview-bulk-food-edit').addEventListener('click',async()=>{
+  invalidateBulkFoodPreview();
+  try{
+    const request=bulkFoodPayload(true);const result=await api('/api/foods/bulk-edit',{method:'POST',body:JSON.stringify(request)});
+    renderBulkFoodPreview(result.preview);
+    const conflicts=result.preview.filter(item=>item.conflict);
+    $('#bulk-food-edit-message').textContent=conflicts.length?`${conflicts.length} conflit(s) listé(s) ci-dessous. Corrige-les avant d’appliquer.`:`${result.preview.length} changement(s) proposés. Vérifie les valeurs et la source avant d’appliquer.`;
+    if(!conflicts.length){bulkFoodPreview=result;bulkFoodRequest=request;$('#confirm-bulk-food-edit').disabled=false;}
+  }catch(error){const preview=error.body?.preview;if(preview)renderBulkFoodPreview(preview);$('#bulk-food-edit-message').textContent=preview?`${preview.filter(item=>item.conflict).length} conflit(s) listé(s) ci-dessous. Une valeur existe déjà ou la fiche a changé.`:`Aperçu impossible : ${error.body?.error??error.message}`;}
+});
+$('#confirm-bulk-food-edit').addEventListener('click',async event=>{
+  if(!bulkFoodPreview||!bulkFoodRequest)return;const button=event.currentTarget;button.disabled=true;
+  try{
+    const result=await api('/api/foods/bulk-edit',{method:'POST',body:JSON.stringify({...bulkFoodRequest,dryRun:false})});
+    $('#bulk-food-edit-dialog').close();state.selectedFoodIds.clear();await refreshFoods();await refreshFoodCategories();
+    showMessage($('#food-list-message'),`${result.applied} fiche(s) modifiée(s) avec journal et source.`,true);
+  }catch(error){$('#bulk-food-edit-message').textContent=`Application impossible : ${error.body?.error??error.message}. Recharge les fiches si elles ont changé.`;}
+  finally{invalidateBulkFoodPreview();}
+});
 
 function renderBulkDeletePreview(result){
   const root=$('#bulk-food-delete-preview');root.replaceChildren();bulkDeleteDeletableIds=result.deletable.map(food=>food.id);bulkDeleteProtectedCount=result.dueToUsage.length;
@@ -1230,6 +1296,7 @@ async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = 
       form.elements.id.value = duplicate ? '' : food.id;
       form.elements.name.value = duplicate ? `${food.name} (copie)` : food.name;
       form.elements.brand.value = food.brand ?? '';
+      form.elements.foodCategory.value = food.foodCategory ?? '';
       form.elements.aliases.value = duplicate ? '' : (food.aliases ?? []).filter((alias) => alias !== food.name).join(', ');
       for (const key of ['energyKcal', 'proteinG', 'carbohydrateG', 'fatG', 'fibreG']) form.elements[key].value = food.nutrientsPer100g?.[key] ?? '';
       form.elements.gramsPerMillilitre.value = food.gramsPerMillilitre ?? '';
@@ -1301,6 +1368,17 @@ $('#food-search').addEventListener('input', (event) => {
   state.debounce = setTimeout(() => { state.query = event.target.value.trim(); state.offset = 0; refreshFoods(); }, 180);
 });
 $('#food-incomplete').addEventListener('change', (event) => { state.onlyIncomplete = event.target.checked; state.offset = 0; refreshFoods(); });
+$('#food-category-filter').addEventListener('change',event=>{state.foodCategory=event.target.value;state.offset=0;refreshFoods();});
+$('#food-missing-field').addEventListener('change',event=>{state.missingField=event.target.value;state.offset=0;$('#bulk-food-field').value=event.target.value||'foodCategory';refreshFoods();});
+async function refreshFoodCategories(){
+  const {categories,uncategorized}=await api('/api/foods/categories');
+  const filter=$('#food-category-filter'),selected=filter.value;
+  filter.replaceChildren(new Option('Toutes',''),new Option(`Sans catégorie (${uncategorized})`,'__none__'),...categories.map(item=>new Option(`${item.category} (${item.count})`,item.category)));
+  filter.value=selected;
+  if(filter.value!==selected){state.foodCategory='';state.offset=0;await refreshFoods();}
+  $('#food-category-options').replaceChildren(...categories.map(item=>{const option=document.createElement('option');option.value=item.category;return option;}));
+}
+refreshFoodCategories().catch(()=>{});
 function moveFoodPage(direction){state.offset=Math.max(0,state.offset+direction*state.limit);refreshFoods();}
 for(const selector of ['#previous-page','#previous-page-top'])$(selector).addEventListener('click',()=>moveFoodPage(-1));
 for(const selector of ['#next-page','#next-page-top'])$(selector).addEventListener('click',()=>moveFoodPage(1));
@@ -1389,6 +1467,7 @@ $('#food-form').addEventListener('submit', async (event) => {
   const payload = {
     name: form.elements.name.value,
     brand: form.elements.brand.value || null,
+    foodCategory: form.elements.foodCategory.value || null,
     aliases: form.elements.aliases.value.split(',').map((value) => value.trim()).filter(Boolean),
     nutrientsPer100g: Object.fromEntries(['energyKcal', 'proteinG', 'carbohydrateG', 'fatG', 'fibreG'].map((key) => [key, numeric(key)])),
     gramsPerMillilitre: numeric('gramsPerMillilitre'),
@@ -1429,6 +1508,7 @@ $('#food-form').addEventListener('submit', async (event) => {
     }
     $('#food-dialog').close();
     await refreshFoods();
+    await refreshFoodCategories().catch(()=>{});
     if(state.household)await refreshFoodCookingConflicts();
     if (state.editingFoodFromShopping) { state.editingFoodFromShopping = false; await refreshShoppingList(); }
     await refreshFoodStores();

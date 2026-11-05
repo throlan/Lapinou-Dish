@@ -1,5 +1,9 @@
 # Cahier de reprise — 5 novembre 2026
 
+## Catalogue alimentaire — 0.3.16
+
+Une catégorie alimentaire distincte des catégories de courses, un filtre par catégorie ou champ manquant et une modification groupée de 1 à 250 fiches avec aperçu, source obligatoire, contrôle de version et protection des valeurs existantes sont ajoutés. Le classement initial utilise les codes exacts et sous-groupes du fichier officiel Anses Ciqual 2025 : 3 482 codes couverts, dont les 1 009 aliments Ciqual rapprochés de l'export utilisateur. Les 49 autres fiches restent sans catégorie jusqu'à examen. Aucun coefficient de cuisson, poids de mesure, valeur nutritionnelle ou menu n'est rempli automatiquement. Les propositions de rendement USDA et les 41 fiches crues/sèches/surgelées portant ×1 restent à arbitrer au cas par cas. 362 tests locaux réussis. Publication autorisée par l'utilisateur le 5 novembre 2026 ; contrôle GitHub et GHCR à vérifier.
+
 ## Chantier 0.3.15 — scoop de whey
 
 Choix utilisateur : une scoop représente par défaut un doseur de 60 ml ; pour la whey sans pesée ni densité, estimation centrale de 30 g dans la plage annoncée de 25 à 35 g. Une masse de scoop explicitement enregistrée dans la fiche aliment reste prioritaire (dont les 25 g de la whey vanille existante). À défaut, la densité connue ou déduite d'une mesure de volume du même aliment convertit les 60 ml. Une scoop d'un autre aliment sans conversion reste inconnue. La recette, les courses et les stocks utilisent la même règle. Le volume de 60 ml est affiché dans l'éditeur et la fiche aliment ; aucune ancienne valeur n'est réécrite. Les grammes cuits des menus enregistrés ne sont pas recalculés automatiquement.
