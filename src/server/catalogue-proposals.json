@@ -1,0 +1,642 @@
+[
+  {
+    "code": "20516",
+    "field": "cookingFactor",
+    "value": 2.07,
+    "source": "USDA AH-102 (1975)",
+    "url": "https://www.ars.usda.gov/SP2UserFiles/Place/80400525/Data/Classics/ah102.pdf",
+    "method": "859 : trempé, bouilli, égoutté ; 2,05–2,09 dans cette série. SR26 : 2,1.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "9102",
+    "field": "cookingFactor",
+    "value": 3.35,
+    "source": "USDA AH-102 (1975)",
+    "url": "https://www.ars.usda.gov/SP2UserFiles/Place/80400525/Data/Classics/ah102.pdf",
+    "method": "2196 : riz complet long grain bouilli ou cuit au four dans l’eau ; 2,81–3,82. Ne vaut pas pour le grain court.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "9108",
+    "field": "cookingFactor",
+    "value": 3.97,
+    "source": "USDA AH-102 (1975)",
+    "url": "https://www.ars.usda.gov/SP2UserFiles/Place/80400525/Data/Classics/ah102.pdf",
+    "method": "2887 : riz sauvage non précuit, bouilli jusqu’à tendreté (~30 min) ; 3,07–4,88.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "20359",
+    "field": "cookingFactor",
+    "value": 2.61,
+    "source": "USDA AH-102 (1975)",
+    "url": "https://www.ars.usda.gov/SP2UserFiles/Place/80400525/Data/Classics/ah102.pdf",
+    "method": "1417 : lentilles sèches mijotées 20 min et égouttées ; 2,51–2,81. Ligne 1418 : 2,89 avec une autre cuisson.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "9100",
+    "field": "cookingFactor",
+    "value": 3.08,
+    "source": "USDA AH-102 (1975)",
+    "url": "https://www.ars.usda.gov/SP2UserFiles/Place/80400525/Data/Classics/ah102.pdf",
+    "method": "2198 : riz blanc long ou moyen cuit à l’eau, vapeur ou four ; 2,43–3,75. Conserver ×3 par défaut.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "9119",
+    "field": "cookingFactor",
+    "value": 3.08,
+    "source": "USDA AH-102 (1975)",
+    "url": "https://www.ars.usda.gov/SP2UserFiles/Place/80400525/Data/Classics/ah102.pdf",
+    "method": "2198 : comparateur riz blanc générique, pas une mesure de basmati ni de riz thaï. Garder ×2,5.",
+    "uncertainty": "élevée",
+    "referenceOnly": true
+  },
+  {
+    "code": "9810",
+    "field": "cookingFactor",
+    "value": 2.73,
+    "source": "USDA AH-102 (1975)",
+    "url": "https://www.ars.usda.gov/SP2UserFiles/Place/80400525/Data/Classics/ah102.pdf",
+    "method": "1469 : macaronis, coudes et coquilles bouillis à différents degrés ; 2,34–3,28. Comparateur si forme et cuisson comparables.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "20525",
+    "field": "cookingFactor",
+    "value": 2.4,
+    "source": "USDA SR26",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400525/data/sr26/sr26_doc.pdf",
+    "method": "Table 6 : haricot rouge de type kidney, cuit à l’eau, sans sel ajouté. Confirmer la variété et l’égouttage.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "20518",
+    "field": "cookingFactor",
+    "value": 2.8,
+    "source": "USDA SR26",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400525/data/sr26/sr26_doc.pdf",
+    "method": "Table 6 : fèves sèches (broadbeans) cuites à l’eau, sans sel ajouté ; ne pas transférer aux fèves fraîches.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "20515",
+    "field": "cookingFactor",
+    "value": 2.5,
+    "source": "USDA SR26",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400525/data/sr26/sr26_doc.pdf",
+    "method": "Table 6 : pois cassés secs cuits sans sel ; ne comprend pas l’eau conservée d’une soupe.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "36017",
+    "field": "cookingFactor",
+    "value": 0.72,
+    "source": "USDA, rendements viandes et volailles (2012)",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400525/data/retn/usda_cookingyields_meatpoultry.pdf",
+    "method": "Ligne 5060 : poitrine de poulet au four, 61–82 %. Méthode et définition de la découpe USDA à confirmer pour le filet sans peau.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "36017",
+    "field": "cookingFactor",
+    "value": 0.77,
+    "source": "USDA, rendements viandes et volailles (2012)",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400525/data/retn/usda_cookingyields_meatpoultry.pdf",
+    "method": "Ligne 5061 : poitrine pochée, mijotée ou en ragoût, 70–88 %. Ne pas moyenner avec le four.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "28204",
+    "field": "cookingFactor",
+    "value": 0.8,
+    "source": "USDA, rendements viandes et volailles (2012)",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400525/data/retn/usda_cookingyields_meatpoultry.pdf",
+    "method": "Ligne 10061 : filet mignon maigre, rôti au four, 12 observations, 74–84 %. Pas une mesure de cuisson en médaillons.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "9686",
+    "field": "cookingFactor",
+    "value": 1,
+    "source": "Observation / pesée à confirmer",
+    "url": null,
+    "method": "Produit déjà cuit : ×1 seulement s’il est incorporé tel quel. Peser séparément si réchauffage ou dessèchement significatif.",
+    "uncertainty": "faible",
+    "referenceOnly": true
+  },
+  {
+    "code": "17270",
+    "field": "gramsPerMillilitre",
+    "value": 0.918,
+    "source": "FAO/INFOODS Density Database v2",
+    "url": "https://www.fao.org/4/ap815e/ap815e.pdf",
+    "method": "Table huiles : olive, 0,918 g/ml (TB). Référence huile liquide générique, pas une mesure de la bouteille.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "17130",
+    "field": "gramsPerMillilitre",
+    "value": 0.92,
+    "source": "FAO/INFOODS Density Database v2",
+    "url": "https://www.fao.org/4/ap815e/ap815e.pdf",
+    "method": "Table huiles : colza à 20 °C (CSG), densité relative 0,92 ; approximation domestique en g/ml.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "17400",
+    "field": "gramsPerMillilitre",
+    "value": 0.923,
+    "source": "FAO/INFOODS Density Database v2",
+    "url": "https://www.fao.org/4/ap815e/ap815e.pdf",
+    "method": "Table huiles : sésame à 15,6 °C (CSG), densité relative 0,923 ; approximation en g/ml.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "17040",
+    "field": "gramsPerMillilitre",
+    "value": 0.914,
+    "source": "FAO/INFOODS Density Database v2",
+    "url": "https://www.fao.org/4/ap815e/ap815e.pdf",
+    "method": "Table huiles : arachide liquide (TB), 0,914 g/ml ; pas une mesure de la marque.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "19041",
+    "field": "gramsPerMillilitre",
+    "value": 1.034,
+    "source": "FAO/INFOODS Density Database v2",
+    "url": "https://www.fao.org/4/ap815e/ap815e.pdf",
+    "method": "Table lait : partiellement écrémé (DK). Référence proche du lait UHT, traitement et température non appariés.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "19023",
+    "field": "gramsPerMillilitre",
+    "value": 1.03,
+    "source": "FAO/INFOODS Density Database v2",
+    "url": "https://www.fao.org/4/ap815e/ap815e.pdf",
+    "method": "Table lait : entier liquide (TB). Référence proche du lait UHT ; pas le lait concentré ni en poudre.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "19050",
+    "field": "gramsPerMillilitre",
+    "value": 1.033,
+    "source": "FAO/INFOODS Density Database v2",
+    "url": "https://www.fao.org/4/ap815e/ap815e.pdf",
+    "method": "Table lait : écrémé liquide (TB), autre entrée DK à 1,036 ; pas une mesure de ce lait UHT.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11023",
+    "field": "tspGrams",
+    "value": 3.1,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02020 : 1 c. à café, ail sec en poudre. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11023",
+    "field": "tbspGrams",
+    "value": 9.7,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02020 : 1 c. à soupe, ail sec en poudre. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11025",
+    "field": "tspGrams",
+    "value": 2.6,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02010 : 1 c. à café, cannelle moulue. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11025",
+    "field": "tbspGrams",
+    "value": 7.8,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02010 : 1 c. à soupe, cannelle moulue. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11075",
+    "field": "tspGrams",
+    "value": 2,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02006 : 1 c. à café, cardamome moulue. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11075",
+    "field": "tbspGrams",
+    "value": 5.8,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02006 : 1 c. à soupe, cardamome moulue. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11089",
+    "field": "tspGrams",
+    "value": 3,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02043 : 1 c. à café, curcuma moulu. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11089",
+    "field": "tbspGrams",
+    "value": 9.4,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02043 : 1 c. à soupe, curcuma moulu. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11049",
+    "field": "tspGrams",
+    "value": 2.3,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02028 : 1 c. à café, paprika en poudre. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11049",
+    "field": "tbspGrams",
+    "value": 6.8,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02028 : 1 c. à soupe, paprika en poudre. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11015",
+    "field": "tspGrams",
+    "value": 2.3,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02030 : 1 c. à café, poivre noir moulu, pas en grains. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11015",
+    "field": "tbspGrams",
+    "value": 6.9,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02030 : 1 c. à soupe, poivre noir moulu, pas en grains. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11019",
+    "field": "tspGrams",
+    "value": 2.4,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02032 : 1 c. à café, poivre blanc moulu. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11019",
+    "field": "tbspGrams",
+    "value": 7.1,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02032 : 1 c. à soupe, poivre blanc moulu. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11088",
+    "field": "tspGrams",
+    "value": 1.8,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02031 : 1 c. à café, piment de Cayenne en poudre. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11088",
+    "field": "tbspGrams",
+    "value": 5.3,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02031 : 1 c. à soupe, piment de Cayenne en poudre. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11042",
+    "field": "tspGrams",
+    "value": 2.1,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02014 : 1 c. à café, cumin en graines entières. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11042",
+    "field": "tbspGrams",
+    "value": 6,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02014 : 1 c. à soupe, cumin en graines entières. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11026",
+    "field": "tspGrams",
+    "value": 1.8,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02013 : 1 c. à café, coriandre en graines. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11026",
+    "field": "tbspGrams",
+    "value": 5,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02013 : 1 c. à soupe, coriandre en graines. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11005",
+    "field": "tspGrams",
+    "value": 2,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02015 : 1 c. à café, mélange curry en poudre ; composition variable. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "11005",
+    "field": "tbspGrams",
+    "value": 6.3,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02015 : 1 c. à soupe, mélange curry en poudre ; composition variable. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "11006",
+    "field": "tspGrams",
+    "value": 1.8,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02021 : 1 c. à café, gingembre moulu. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11006",
+    "field": "tbspGrams",
+    "value": 5.2,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02021 : 1 c. à soupe, gingembre moulu. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11063",
+    "field": "tspGrams",
+    "value": 1,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02017 : 1 c. à café, feuilles d’aneth séchées, pas graines. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "11063",
+    "field": "tbspGrams",
+    "value": 3.1,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02017 : 1 c. à soupe, feuilles d’aneth séchées, pas graines. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "11024",
+    "field": "tspGrams",
+    "value": 0.5,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02029 : 1 c. à café, persil séché non tassé, pas frais. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "11024",
+    "field": "tbspGrams",
+    "value": 1.6,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02029 : 1 c. à soupe, persil séché non tassé, pas frais. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "11032",
+    "field": "tspGrams",
+    "value": 0.7,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02003 : 1 c. à café, basilic séché en feuilles, pas moulu. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "11032",
+    "field": "tbspGrams",
+    "value": 2.1,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02003 : 1 c. à soupe, basilic séché en feuilles, pas moulu. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "11038",
+    "field": "tspGrams",
+    "value": 1,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02042 : 1 c. à café, thym séché en feuilles, pas moulu. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "11038",
+    "field": "tbspGrams",
+    "value": 2.7,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02042 : 1 c. à soupe, thym séché en feuilles, pas moulu. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "11090",
+    "field": "tspGrams",
+    "value": 5,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02048 : 1 c. à café, vinaigre de cidre liquide. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11090",
+    "field": "tbspGrams",
+    "value": 14.9,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02048 : 1 c. à soupe, vinaigre de cidre liquide. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11091",
+    "field": "tspGrams",
+    "value": 5.3,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02069 : 1 c. à café, vinaigre balsamique liquide, pas crème. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11091",
+    "field": "tbspGrams",
+    "value": 16,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02069 : 1 c. à soupe, vinaigre balsamique liquide, pas crème. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11220",
+    "field": "tspGrams",
+    "value": 5,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02068 : 1 c. à café, vinaigre de vin rouge liquide. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11220",
+    "field": "tbspGrams",
+    "value": 14.9,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 02068 : 1 c. à soupe, vinaigre de vin rouge liquide. Masse de la mesure USDA ; remplissage et ustensile domestiques à vérifier.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "22050",
+    "field": "pieceGrams",
+    "value": 9,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 01140 : 1 œuf entier cru de caille, masse comestible hors coquille ; calibre variable.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "22060",
+    "field": "pieceGrams",
+    "value": 70,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 01138 : 1 œuf entier cru de cane, masse comestible hors coquille ; calibre variable.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "22070",
+    "field": "pieceGrams",
+    "value": 144,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 01139 : 1 œuf entier cru de oie, masse comestible hors coquille ; calibre variable.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "31008",
+    "field": "tbspGrams",
+    "value": 21,
+    "source": "USDA SR28, WEIGHT",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip",
+    "method": "WEIGHT, NDB 19296 : 1 c. à soupe de miel. La densité déjà saisie (1,39 g/ml) donne aussi ~20,85 g pour 15 ml ; vérifier la mesure de 36 g.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "10038",
+    "field": "cookingFactor",
+    "value": 0.586667,
+    "source": "Observation / pesée à confirmer",
+    "url": null,
+    "method": "Pesée citée dans la reprise : 176 g cuits / 300 g de départ. Confirmer que la référence surgelée crue, l’état à la pesée et l’égouttage sont bien ceux utilisés.",
+    "uncertainty": "élevée",
+    "referenceOnly": true
+  }
+]

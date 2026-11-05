@@ -63,10 +63,10 @@ const bulkFoodFields = {
 
 export function validateBulkFoodEdit(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return { error: 'invalid-bulk-edit' };
-  const field = bulkFoodFields[input.field];
+  const field = Object.hasOwn(bulkFoodFields,input.field) ? bulkFoodFields[input.field] : null;
   if (!field || !Array.isArray(input.changes) || input.changes.length < 1 || input.changes.length > 250 ||
       typeof input.dryRun !== 'boolean' || typeof input.overwrite !== 'boolean' ||
-      typeof input.sourceNote !== 'string' || !input.sourceNote.trim() || input.sourceNote.length > 500) return { error: 'invalid-bulk-edit' };
+      typeof input.sourceNote !== 'string' || input.sourceNote.length > 500) return { error: 'invalid-bulk-edit' };
   const ids = new Set();
   const changes = [];
   for (const item of input.changes) {
@@ -75,13 +75,15 @@ export function validateBulkFoodEdit(input) {
     ids.add(item.foodId.toLowerCase());
     const value = field.kind === 'text' ? (typeof item.value === 'string' ? item.value.trim() : null) : item.value;
     if (field.kind === 'text' ? !value || value.length > 80 : typeof value !== 'number' || !Number.isFinite(value) || value < (field.nutrient ? 0 : 0.000001) || value > field.max) return { error: 'invalid-bulk-value' };
-    changes.push({ foodId: item.foodId, version: item.version, value });
+    const sourceNote = item.sourceNote ?? input.sourceNote;
+    if (typeof sourceNote !== 'string' || !sourceNote.trim() || sourceNote.length > 500) return { error: 'invalid-bulk-edit' };
+    changes.push({ foodId: item.foodId, version: item.version, value, sourceNote: sourceNote.trim() });
   }
   return { data: { field: input.field, definition: field, changes, dryRun: input.dryRun, overwrite: input.overwrite, sourceNote: input.sourceNote.trim() } };
 }
 
 export async function bulkEditFoods(pool, input) {
-  const { definition, changes, dryRun, overwrite, sourceNote } = input;
+  const { definition, changes, dryRun, overwrite } = input;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -99,11 +101,12 @@ export async function bulkEditFoods(pool, input) {
       }
       const same = current != null && (definition.kind === 'text' ? current === item.value : Number(current) === item.value);
       const conflict = !row ? 'absent' : Number(row.version) !== item.version ? 'version-changed' : current != null && !same && !overwrite ? 'existing-value' : null;
-      preview.push({ foodId: item.foodId, name: row?.name ?? null, version: row?.version ?? null, current: current == null ? null : definition.kind === 'text' ? current : Number(current), proposed: item.value, conflict });
+      preview.push({ foodId: item.foodId, name: row?.name ?? null, version: row?.version ?? null, current: current == null ? null : definition.kind === 'text' ? current : Number(current), proposed: item.value, sourceNote: item.sourceNote, conflict });
     }
     if (dryRun || preview.some(item => item.conflict)) { await client.query('ROLLBACK'); return { preview, applied: 0, conflictCount: preview.filter(item => item.conflict).length }; }
     for (const item of preview) {
       if (String(item.current) === String(item.proposed)) continue;
+      const {sourceNote} = item;
       const before = await getFood(client, item.foodId);
       if (definition.column) await client.query(`UPDATE foods SET ${definition.column}=$2,source_note=concat_ws(E'\\n',NULLIF(source_note,''),$3::text),manual_override=true,version=version+1,updated_at=now() WHERE id=$1`, [item.foodId, item.proposed, sourceNote]);
       else if (definition.unit) await client.query(`INSERT INTO food_unit_conversions(food_id,unit_id,grams_per_unit,source_note) VALUES($1,$2,$3,$4) ON CONFLICT(food_id,unit_id) DO UPDATE SET grams_per_unit=EXCLUDED.grams_per_unit,source_note=EXCLUDED.source_note`, [item.foodId, definition.unit, item.proposed, sourceNote]);

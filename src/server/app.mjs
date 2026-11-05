@@ -1,3 +1,4 @@
+import { listCatalogueProposals } from './catalogue-review.mjs';
 import {countPreparationStock,validatePreparationCount} from './preparation-stock.mjs';
 import {deleteExtraProduction,listExtraProductions,saveExtraProduction,validateExtraProduction} from './extra-productions.mjs';
 import {listShoppingPreferences,saveShoppingPreference,validateShoppingPreference} from './shopping-products.mjs';
@@ -820,6 +821,10 @@ export async function handleRequest(request, response, pool, appPassword = null,
         const missing = await pool.query('SELECT count(*)::integer AS count FROM foods WHERE food_category IS NULL');
         return send(response, 200, { categories: result.rows, uncategorized: missing.rows[0].count });
       } catch { return send(response, 500, { error: 'food-categories-failed' }); }
+    }
+    if (url.pathname === '/api/foods/catalogue-review' && request.method === 'GET') {
+      try { return send(response, 200, await listCatalogueProposals(pool)); }
+      catch { return send(response, 500, { error: 'catalogue-review-failed' }); }
     }
     if (url.pathname === '/api/foods/bulk-edit/rows' && request.method === 'POST') {
       const body = await readJson(request); if (body.error) return send(response, body.status ?? 400, { error: body.error });
