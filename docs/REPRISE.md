@@ -4,7 +4,7 @@
 
 Choix utilisateur : une scoop représente par défaut un doseur de 60 ml ; pour la whey sans pesée ni densité, estimation centrale de 30 g dans la plage annoncée de 25 à 35 g. Une masse de scoop explicitement enregistrée dans la fiche aliment reste prioritaire (dont les 25 g de la whey vanille existante). À défaut, la densité connue ou déduite d'une mesure de volume du même aliment convertit les 60 ml. Une scoop d'un autre aliment sans conversion reste inconnue. La recette, les courses et les stocks utilisent la même règle. Le volume de 60 ml est affiché dans l'éditeur et la fiche aliment ; aucune ancienne valeur n'est réécrite. Les grammes cuits des menus enregistrés ne sont pas recalculés automatiquement.
 
-361 tests locaux réussis, dont les conversions ciblées en nutrition, production et achats. Publication à consigner après fusion.
+361 tests locaux réussis, dont les conversions ciblées en nutrition, production et achats. PR [#166](https://github.com/throlan/Lapinou-Dish/pull/166) fusionnée au commit `0eb9293a2a37f81d8f81ce5bd88bc64f13167933`. [Contrôles et publication GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/42011194348). Tags `0.3.15` et `v0.3.15` vérifiés, digest commun `sha256:33d930ad3f6d8768ac98f2be55e84c8c54f4ab307676e6bf5cc743d794f77af7`.
 
 ## Chantier 0.3.14 — export du catalogue alimentaire
 

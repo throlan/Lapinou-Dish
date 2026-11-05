@@ -4,7 +4,7 @@
 
 Le doseur par défaut fait 60 ml. Pour une whey sans conversion propre, l'estimation est 30 g par scoop (plage utilisateur 25–35 g). Le poids spécifique déjà saisi, ou une densité connue, a priorité. Les autres poudres sans mesure restent à compléter. Les conversions des recettes, achats et stocks concordent ; les anciennes fiches et quantités de menus ne sont pas modifiées automatiquement.
 
-361 tests locaux réussis ; publication à consigner après fusion.
+361 tests locaux réussis. PR [#166](https://github.com/throlan/Lapinou-Dish/pull/166) fusionnée ; [contrôles et publication GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/42011194348). Les tags `0.3.15` et `v0.3.15` ont le même digest.
 
 ## 0.3.14 — export du catalogue alimentaire
 
