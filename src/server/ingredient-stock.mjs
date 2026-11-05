@@ -36,12 +36,12 @@ export function validateProductCount(input) {
 }
 
 async function foodMassDetails(client,foodId) {
-  const food=await client.query(`SELECT f.grams_per_millilitre AS "gramsPerMillilitre",
+  const food=await client.query(`SELECT f.canonical_name AS name,f.grams_per_millilitre AS "gramsPerMillilitre",
     COALESCE((SELECT jsonb_object_agg(unit_id,grams_per_unit) FROM food_unit_conversions WHERE food_id=f.id),'{}'::jsonb) AS "gramsPerUnit"
     FROM foods f WHERE f.id=$1`,[foodId]);
   if(!food.rowCount)return null;
   const row=food.rows[0];
-  return {gramsPerMillilitre:row.gramsPerMillilitre==null?null:Number(row.gramsPerMillilitre),
+  return {name:row.name,gramsPerMillilitre:row.gramsPerMillilitre==null?null:Number(row.gramsPerMillilitre),
     gramsPerUnit:Object.fromEntries(Object.entries(row.gramsPerUnit).map(([unit,value])=>[unit,Number(value)]))};
 }
 
@@ -175,6 +175,7 @@ export function productionDeductions(lines, quantity, yieldAmount, {allowNegativ
   const deductions = new Map();
   for (const line of lines) {
     const grams = toGrams(Number(line.quantity) * quantity / yieldAmount, line.unitId, {
+      name: line.name,
       gramsPerMillilitre: line.gramsPerMillilitre == null ? null : Number(line.gramsPerMillilitre),
       gramsPerUnit: Object.fromEntries(Object.entries(line.gramsPerUnit ?? {}).map(([key,value]) => [key,Number(value)])),
     });

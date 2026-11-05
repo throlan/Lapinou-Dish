@@ -1,5 +1,7 @@
 # Cahier produit Lapinou Dish
 
+Une scoop correspond par défaut à 60 ml. Pour la whey, 30 g par scoop est une estimation de secours, tandis qu'un poids pesé dans la fiche aliment ou une densité connue prévaut. Le calcul n'invente pas une masse pour les autres poudres.
+
 Le catalogue alimentaire peut être exporté en CSV depuis la page Aliments, avec identifiants, valeurs et réglages d’achat du foyer sélectionné. L’export porte sur toutes les fiches, sans modifier les données. Il prépare une vérification documentée des champs manquants et un futur classement par catégories alimentaires.
 
 ## Règles courantes depuis 0.3.13

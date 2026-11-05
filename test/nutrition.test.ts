@@ -92,7 +92,18 @@ test("uses a food's teaspoon weight to convert other volume units", () => {
   assert.equal(toGrams(1, "tsp", { ...cocoa, gramsPerUnit: { tbsp: 15 } }), 5);
   assert.equal(toGrams(2, "pinch", { ...cocoa, gramsPerUnit: { pinch: 0.4 } }), 0.8);
   assert.equal(toGrams(1, "scoop", { ...cocoa, gramsPerUnit: { scoop: 30 } }), 30);
-  assert.equal(toGrams(1, "tbsp", { ...cocoa, gramsPerUnit: { scoop: 30 } }), null);
+  assert.equal(toGrams(1, "tbsp", { ...cocoa, gramsPerUnit: { scoop: 30 } }), 7.5);
+});
+
+test("a 60 ml whey scoop uses a measured mass first, then density, then the 30 g estimate", () => {
+  const whey: Food = { ...rice, name: "Whey isolate native, goût vanille", gramsPerUnit: {}, gramsPerMillilitre: null };
+  assert.equal(toGrams(2, "scoop", whey), 60);
+  assert.equal(toGrams(1, "scoop", { ...whey, gramsPerUnit: { scoop: 25 } }), 25);
+  assert.equal(toGrams(1, "scoop", { ...whey, gramsPerMillilitre: 0.45 }), 27);
+  assert.equal(toGrams(1, "scoop", { ...whey, gramsPerUnit: { tsp: 2.5 } }), 30);
+  assert.equal(toGrams(1, "ml", whey), null);
+  assert.equal(toGrams(1, "scoop", { ...whey, name: "Cacao en poudre" }), null);
+  assert.equal(toGrams(1, "scoop", { ...whey, name: "Cacao en poudre", gramsPerMillilitre: 0.4 }), 24);
 });
 
 test("a pinch of seasoning does not make recipe nutrition incomplete", () => {

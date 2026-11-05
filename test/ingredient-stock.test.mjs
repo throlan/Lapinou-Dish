@@ -26,6 +26,13 @@ test('volumes and pieces only deduct inventory with documented food conversions'
   assert.equal(productionDeductions([{...line,unitId:'ml',gramsPerMillilitre:'0.8'}],24,12).items[0].usedG,3.2);
   assert.equal(productionDeductions([{...line,unitId:'ml'}],24,12).error,'ingredient-conversion-missing');
 });
+
+test('a whey scoop uses the 60 ml estimate for production unless its weighed mass is saved',()=>{
+  const line={foodId,name:'Whey isolate native',quantity:2,unitId:'scoop',quantityG:1000,gramsPerUnit:{}};
+  assert.equal(productionDeductions([line],1,1).items[0].usedG,60);
+  assert.equal(productionDeductions([{...line,gramsPerUnit:{scoop:25}}],1,1).items[0].usedG,50);
+  assert.equal(productionDeductions([{...line,name:'Cacao'}],1,1).error,'ingredient-conversion-missing');
+});
 test('order quantities preserve the safety minimum after planned use',()=>{
   const stock={foodId,quantityG:500,minimumG:100,targetG:1000};
   const result=ingredientProjection(stock,[{foodId,quantity:2000,unitId:'g'}]);

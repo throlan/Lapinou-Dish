@@ -1,5 +1,11 @@
 # État du projet — 5 novembre 2026
 
+## 0.3.15 — scoop de whey de 60 ml
+
+Le doseur par défaut fait 60 ml. Pour une whey sans conversion propre, l'estimation est 30 g par scoop (plage utilisateur 25–35 g). Le poids spécifique déjà saisi, ou une densité connue, a priorité. Les autres poudres sans mesure restent à compléter. Les conversions des recettes, achats et stocks concordent ; les anciennes fiches et quantités de menus ne sont pas modifiées automatiquement.
+
+361 tests locaux réussis ; publication à consigner après fusion.
+
 ## 0.3.14 — export du catalogue alimentaire
 
 Bouton d’export CSV sur la page Aliments. Il réunit toutes les fiches, leurs données nutritionnelles et de conversion, et les unités d’achat du foyer choisi, indépendamment de la pagination et des filtres. Le fichier sert au futur examen des données manquantes ; aucune correction automatique n’est appliquée. 358 tests locaux réussis. PR [#164](https://github.com/throlan/Lapinou-Dish/pull/164) fusionnée ; [contrôles et publication GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/42005139395). Les tags `0.3.14` et `v0.3.14` ont le même digest.

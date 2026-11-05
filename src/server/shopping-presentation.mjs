@@ -53,7 +53,7 @@ export function purchaseEntry(item) {
     detail=`1 ${item.purchaseRule.singularLabel} = ${frenchNumber(multiplier)} ${item.unitId}`;
   }
   return {kind,label,quantity,multiplier,unitId:item.unitId,step:kind!=='native'||item.unitId==='piece'?'1':'any',
-    gramsPerEntry:toGrams(multiplier,item.unitId,{gramsPerUnit:item.gramsPerUnit??{},gramsPerMillilitre:item.gramsPerMillilitre??null}),detail};
+    gramsPerEntry:toGrams(multiplier,item.unitId,{name:item.name,gramsPerUnit:item.gramsPerUnit??{},gramsPerMillilitre:item.gramsPerMillilitre??null}),detail};
 }
 
 export function shoppingExportLine(item) {
