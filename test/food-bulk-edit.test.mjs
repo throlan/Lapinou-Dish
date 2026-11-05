@@ -60,3 +60,40 @@ test('food categories come from exact Ciqual codes and bulk edits preview, prote
     assert.equal((await request(pool, '/api/foods?category=Protéines%20en%20poudre', null, 'GET')).body.total, 1);
   } finally { await db.close(); }
 });
+
+test('catalogue review matches only exact Ciqual references and saves selected rows with separate provenance', async () => {
+  const db = new PGlite();
+  try {
+    const directory = new URL('../db/migrations/', import.meta.url);
+    for (const file of (await readdir(directory)).filter(name => name.endsWith('.sql')).sort()) await db.exec(await readFile(new URL(file, directory), 'utf8'));
+    const pool = { async query(sql, args = []) { const result = await db.query(sql, args); return { ...result, rowCount: result.rows.length || result.affectedRows || 0 }; }, async connect() { return { ...this, release() {} }; } };
+    const olive = randomUUID(), sesame = randomUUID(), peanut = randomUUID(), other = randomUUID();
+    await pool.query(`INSERT INTO foods(id,canonical_name,source,source_reference,grams_per_millilitre)
+      VALUES($1,'Huile olive','ciqual','17270',NULL),($2,'Huile sésame','ciqual','17400',NULL),
+            ($3,'Huile arachide','ciqual','17040',0.91),($4,'Huile olive','manual','17270',NULL)`, [olive,sesame,peanut,other]);
+    const review = await request(pool,'/api/foods/catalogue-review',null,'GET');
+    assert.equal(review.status,200);
+    assert.deepEqual(new Set(review.body.foods.map(food=>food.id)),new Set([olive,sesame,peanut]));
+    assert.equal(review.body.foods.find(food=>food.id===olive).proposals[0].value,.918);
+    assert.equal(Number(review.body.foods.find(food=>food.id===peanut).gramsPerMillilitre),.91);
+    const payload={field:'gramsPerMillilitre',sourceNote:'',overwrite:false,dryRun:true,changes:[
+      {foodId:olive,version:1,value:.918,sourceNote:'FAO, olive (TB)'},
+      {foodId:sesame,version:1,value:.923,sourceNote:'FAO, sésame à 15,6 °C (CSG)'}]};
+    const preview=await request(pool,'/api/foods/bulk-edit',payload);
+    assert.equal(preview.status,200);assert.equal(preview.body.applied,0);
+    assert.deepEqual(preview.body.preview.map(item=>item.sourceNote),payload.changes.map(item=>item.sourceNote));
+    assert.equal((await pool.query('SELECT count(*)::int AS n FROM food_change_log')).rows[0].n,0);
+    const blocked=await request(pool,'/api/foods/bulk-edit',{...payload,dryRun:false,changes:[...payload.changes,{foodId:peanut,version:1,value:.914,sourceNote:'FAO'}]});
+    assert.equal(blocked.status,409);
+    assert.equal((await pool.query('SELECT grams_per_millilitre FROM foods WHERE id=$1',[olive])).rows[0].grams_per_millilitre,null);
+    const saved=await request(pool,'/api/foods/bulk-edit',{...payload,dryRun:false});
+    assert.equal(saved.body.applied,2);
+    for(const change of payload.changes){
+      const row=(await pool.query('SELECT grams_per_millilitre,source_note FROM foods WHERE id=$1',[change.foodId])).rows[0];
+      assert.equal(Number(row.grams_per_millilitre),change.value);
+      assert.equal(row.source_note,change.sourceNote);
+    }
+    const missingSource=await request(pool,'/api/foods/bulk-edit',{...payload,changes:[{foodId:olive,version:2,value:.919}]});
+    assert.equal(missingSource.status,400);
+  } finally { await db.close(); }
+});

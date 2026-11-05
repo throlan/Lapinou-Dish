@@ -680,3 +680,10 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .bulk-food-edit-row input { width:100%; min-width:0; }
 .bulk-food-edit-preview-line { padding:6px 8px; border-bottom:1px solid var(--line); overflow-wrap:anywhere; }
 @media(max-width:600px){.bulk-food-edit-row{grid-template-columns:1fr 1fr}.bulk-food-edit-row span{grid-column:1/-1}}
+.bulk-food-proposals { grid-column: 1 / -1; min-width: 0; }
+.bulk-food-proposal { padding: .5rem 0; overflow-wrap: anywhere; }
+.bulk-food-proposal p { margin: 0 0 .35rem; }
+.bulk-food-proposal button { margin-inline-start: .5rem; }
+
+.bulk-food-edit-row label { overflow-wrap:anywhere; }
+@media(max-width:600px){.bulk-food-edit-row label { grid-column:1/-1; }}

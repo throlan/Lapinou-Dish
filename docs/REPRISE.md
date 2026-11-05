@@ -1,5 +1,11 @@
 # Cahier de reprise — 5 novembre 2026
 
+## Catalogue : propositions sourcées — 0.3.17
+
+Dans Aliments, « Examiner les propositions sourcées » rapproche les références Ciqual exactes et affiche la valeur actuelle, les méthodes et les limites. Une proposition pour un champ vide peut être reportée volontairement dans la saisie, puis enregistrée en lot après aperçu, avec sa provenance par ligne. Les écarts sur valeurs existantes renvoient à la fiche individuelle. Aucun remplissage automatique. [Audit de l’export et conflits](CATALOGUE-SUGGESTIONS.md) : 1 057 fiches inventoriées, 44 examinées en détail, 64 lignes dont 39 écarts pour 38 couples fiche/champ. L’examen des autres références et les pesées du foyer restent à faire.
+
+Base 0.3.16 : [PR #168](https://github.com/throlan/Lapinou-Dish/pull/168), [contrôles et publication réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/42016604589). Aucun accès à Unraid/Nginx.
+
 ## Catalogue alimentaire — 0.3.16
 
 Une catégorie alimentaire distincte des catégories de courses, un filtre par catégorie ou champ manquant et une modification groupée de 1 à 250 fiches avec aperçu, source obligatoire, contrôle de version et protection des valeurs existantes sont ajoutés. Le classement initial utilise les codes exacts et sous-groupes du fichier officiel Anses Ciqual 2025 : 3 482 codes couverts, dont les 1 009 aliments Ciqual rapprochés de l'export utilisateur. Les 49 autres fiches restent sans catégorie jusqu'à examen. Aucun coefficient de cuisson, poids de mesure, valeur nutritionnelle ou menu n'est rempli automatiquement. Les propositions de rendement USDA et les 41 fiches crues/sèches/surgelées portant ×1 restent à arbitrer au cas par cas. 362 tests locaux réussis. Publication autorisée par l'utilisateur le 5 novembre 2026 ; contrôle GitHub et GHCR à vérifier.

@@ -1,5 +1,9 @@
 # Cahier des améliorations proposées
 
+## Catalogue : propositions sourcées — 0.3.17
+
+Dans Aliments, « Examiner les propositions sourcées » rapproche les références Ciqual exactes et affiche la valeur actuelle, les méthodes et les limites. Une proposition pour un champ vide peut être reportée volontairement dans la saisie, puis enregistrée en lot après aperçu, avec sa provenance par ligne. Les écarts sur valeurs existantes renvoient à la fiche individuelle. Aucun remplissage automatique. [Audit de l’export et conflits](CATALOGUE-SUGGESTIONS.md) : 1 057 fiches inventoriées, 44 examinées en détail, 64 lignes dont 39 écarts pour 38 couples fiche/champ. L’examen des autres références et les pesées du foyer restent à faire.
+
 ## 0.3.16 — catalogue alimentaire
 
 Classement par catégorie alimentaire Ciqual 2025, distincte des catégories de courses ; filtre par catégorie et champ manquant ; édition groupée jusqu'à 250 aliments avec aperçu, source, contrôle de version et protection des valeurs existantes. Les coefficients et poids manquants restent à rechercher et valider au cas par cas. Voir [CATALOGUE-SUGGESTIONS.md](CATALOGUE-SUGGESTIONS.md).

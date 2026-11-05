@@ -1,5 +1,9 @@
 # Prochaines tâches — 5 novembre 2026
 
+## Catalogue : propositions sourcées — 0.3.17
+
+Dans Aliments, « Examiner les propositions sourcées » rapproche les références Ciqual exactes et affiche la valeur actuelle, les méthodes et les limites. Une proposition pour un champ vide peut être reportée volontairement dans la saisie, puis enregistrée en lot après aperçu, avec sa provenance par ligne. Les écarts sur valeurs existantes renvoient à la fiche individuelle. Aucun remplissage automatique. [Audit de l’export et conflits](CATALOGUE-SUGGESTIONS.md) : 1 057 fiches inventoriées, 44 examinées en détail, 64 lignes dont 39 écarts pour 38 couples fiche/champ. L’examen des autres références et les pesées du foyer restent à faire.
+
 Après 0.3.16 : faire examiner les 49 références hors Ciqual et les conflits de rendement avant toute correction de données. Ne pas déduire une densité ou un poids de cuillère pour des aliments qui ne sont pas mesurés ainsi. Préparer des suggestions de rendement par aliment et méthode avec source ; conserver les valeurs propres déjà renseignées et les quantités des menus historiques.
 
 Poursuivre l'audit des 1 058 aliments exportés : 1 009 codes Ciqual rapprochés du classement officiel et 49 références hors Ciqual. Proposer des rendements de cuisson par aliment et méthode, en préservant notamment le riz basmati ×2,5 existant. Examiner les conflits avant toute modification groupée ; la whey vanille garde son poids de scoop déjà saisi à 25 g jusqu'à une pesée de l'utilisateur. Le classement et l'édition groupée sont livrés en 0.3.16.
