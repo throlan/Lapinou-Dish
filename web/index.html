@@ -11,8 +11,8 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.3.14">
-    <link rel="stylesheet" href="/editorial.css?v=0.3.14">
+    <link rel="stylesheet" href="/style.css?v=0.3.15">
+    <link rel="stylesheet" href="/editorial.css?v=0.3.15">
   </head>
   <body>
     <header class="topbar">
@@ -390,7 +390,8 @@
           <button type="button" class="secondary" id="find-external-nutrition">Chercher hors Ciqual</button>
           <div id="nutrition-matches" class="nutrition-matches" aria-live="polite"></div>
         </section>
-        <div class="food-conversion-row"><label>Poids cuit pour 1 g cru (coefficient)<input name="cookingFactor" type="number" min="0.000001" max="10" step="any" placeholder="Ex. 2,5 pour le riz ; 0,587 pour les crevettes"></label><label>Densité (g/ml)<input name="gramsPerMillilitre" type="number" min="0.001" step="any" placeholder="Si connue"></label><label>Poids d'une c. à café (g)<input name="tspGrams" type="number" min="0.001" step="any" placeholder="Si connu"></label><label>Poids d'une c. à soupe (g)<input name="tbspGrams" type="number" min="0.001" step="any" placeholder="Si connu"></label><label>Poids d'une pincée (g)<input name="pinchGrams" type="number" min="0.001" step="any" placeholder="Si connu"></label><label>Poids d'un scoop (g)<input name="scoopGrams" type="number" min="0.001" step="any" placeholder="Selon le doseur"></label><label>Poids d'une pièce (g)<input name="pieceGrams" type="number" min="0.001" step="any" placeholder="Si applicable"></label></div>
+        <div class="food-conversion-row"><label>Poids cuit pour 1 g cru (coefficient)<input name="cookingFactor" type="number" min="0.000001" max="10" step="any" placeholder="Ex. 2,5 pour le riz ; 0,587 pour les crevettes"></label><label>Densité (g/ml)<input name="gramsPerMillilitre" type="number" min="0.001" step="any" placeholder="Si connue"></label><label>Poids d'une c. à café (g)<input name="tspGrams" type="number" min="0.001" step="any" placeholder="Si connu"></label><label>Poids d'une c. à soupe (g)<input name="tbspGrams" type="number" min="0.001" step="any" placeholder="Si connu"></label><label>Poids d'une pincée (g)<input name="pinchGrams" type="number" min="0.001" step="any" placeholder="Si connu"></label><label>Poids d'un scoop de 60 ml (g)<input name="scoopGrams" type="number" min="0.001" step="any" placeholder="Pesée du doseur à ras"></label><label>Poids d'une pièce (g)<input name="pieceGrams" type="number" min="0.001" step="any" placeholder="Si applicable"></label></div>
+        <p class="hint">Pour la whey sans poids de dosette ni densité renseignés, 1 scoop de 60 ml est estimé à 30 g (plage indiquée : 25–35 g). Une pesée propre à l’aliment reste prioritaire.</p>
         <p class="hint">Le coefficient estime seulement le poids servi après cuisson : 300 g crus × 0,587 ≈ 176 g cuits. Les valeurs nutritionnelles et la liste de courses restent fondées sur la quantité crue. Les menus existants ne sont recalculés que sur demande explicite.</p>
         <p class="hint">Renseigne le poids des mesures utilisées dans tes recettes pour convertir les courses et les stocks en grammes. Une pincée ne rend pas le calcul nutritionnel incomplet ; sans son poids, elle reste toutefois affichée en pincées dans les courses.</p>
         <fieldset id="food-purchase-unit-settings">
@@ -451,7 +452,7 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/install-app.js?v=0.3.14"></script>
-    <script type="module" src="/app.js?v=0.3.14"></script>
+    <script type="module" src="/install-app.js?v=0.3.15"></script>
+    <script type="module" src="/app.js?v=0.3.15"></script>
   </body>
 </html>

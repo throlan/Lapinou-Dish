@@ -1,5 +1,11 @@
 # Cahier de reprise — 5 novembre 2026
 
+## Chantier 0.3.15 — scoop de whey
+
+Choix utilisateur : une scoop représente par défaut un doseur de 60 ml ; pour la whey sans pesée ni densité, estimation centrale de 30 g dans la plage annoncée de 25 à 35 g. Une masse de scoop explicitement enregistrée dans la fiche aliment reste prioritaire (dont les 25 g de la whey vanille existante). À défaut, la densité connue ou déduite d'une mesure de volume du même aliment convertit les 60 ml. Une scoop d'un autre aliment sans conversion reste inconnue. La recette, les courses et les stocks utilisent la même règle. Le volume de 60 ml est affiché dans l'éditeur et la fiche aliment ; aucune ancienne valeur n'est réécrite. Les grammes cuits des menus enregistrés ne sont pas recalculés automatiquement.
+
+361 tests locaux réussis, dont les conversions ciblées en nutrition, production et achats. Publication à consigner après fusion.
+
 ## Chantier 0.3.14 — export du catalogue alimentaire
 
 La page Aliments propose « Exporter tout le catalogue (CSV) ». Le téléchargement couvre toutes les fiches, sans limite de pagination ni filtre de recherche, avec identifiant stable, noms, provenance, valeurs nutritionnelles, coefficient de cuisson, densité, poids des mesures et unité d’achat du foyer sélectionné. Le CSV est en UTF-8 avec séparateur point-virgule. Il ne modifie aucune fiche. L’accès utilise l’authentification habituelle de l’application. L’utilisateur exportera son catalogue depuis son installation et transmettra le fichier pour préparer les recherches documentaires, le classement et l’édition groupée. Aucun accès à Unraid ou Nginx.

@@ -1,4 +1,4 @@
-const unitNames={g:'g',kg:'kg',ml:'ml',l:'l',piece:'pièce',tsp:'cuillère à café',tbsp:'cuillère à soupe',cup:'tasse',pinch:'pincée',scoop:'dosette'};
+const unitNames={g:'g',kg:'kg',ml:'ml',l:'l',piece:'pièce',tsp:'cuillère à café',tbsp:'cuillère à soupe',cup:'tasse',pinch:'pincée',scoop:'dosette (60 ml)'};
 const errors={
   'purchase-product-chain':'Les regroupements en chaîne ne sont pas permis. Choisis directement le produit final.',
   'purchase-product-unit-conflict':'Utilise la même unité d’achat que les autres aliments rattachés à ce produit.',

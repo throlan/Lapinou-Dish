@@ -1,5 +1,9 @@
 # Cahier des améliorations proposées
 
+## 0.3.15 — dosette de whey
+
+Le volume de référence de la scoop est 60 ml. Une whey sans mesure propre utilise 30 g estimés, milieu de la plage 25–35 g donnée par l'utilisateur. Les 25 g déjà saisis sur la fiche vanille restent prioritaires. Le reste de l'audit du catalogue, le classement officiel Ciqual et l'édition groupée restent à traiter séparément.
+
 ## 0.3.14 — inventaire du catalogue
 
 Export CSV complet depuis la page Aliments pour examiner les quelque mille fiches restantes. Prochaine étape après remise du fichier réel : rechercher les coefficients de cuisson, densités et poids des mesures manquants, distinguer les sources propres au produit des estimations, définir les catégories alimentaires, puis construire un aperçu d’édition groupée validé avant enregistrement. Ne pas remplir automatiquement une valeur incertaine.

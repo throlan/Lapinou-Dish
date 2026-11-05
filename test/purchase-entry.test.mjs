@@ -20,6 +20,13 @@ test('packs take priority over purchase rules, native pieces remain pieces and u
   const failedRule=purchaseEntry({...eggs,purchaseRuleApplied:false});assert.equal(failedRule.label,'g');assert.equal(failedRule.multiplier,1);
 });
 
+test('the same whey scoop estimate is used for shopping units',()=>{
+  const whey={name:'Whey isolate native',unitId:'scoop',quantity:2,neededQuantity:2};
+  assert.equal(purchaseEntry(whey).gramsPerEntry,30);
+  assert.equal(purchaseEntry({...whey,gramsPerUnit:{scoop:25}}).gramsPerEntry,25);
+  assert.equal(purchaseEntry({...whey,name:'Cacao'}).gramsPerEntry,null);
+});
+
 async function editor(item){
   const source=await readFile(new URL('../web/app.js',import.meta.url),'utf8');
   const start=source.indexOf("          const inventoryActions=document.createElement('div');"),last="          });inventoryActions.append(receipt);main.append(inventoryActions);";

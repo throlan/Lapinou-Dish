@@ -1526,7 +1526,7 @@ function addRecipeLine(initial = null) {
   quantity.value = initial && Object.hasOwn(initial, 'quantity') ? String(initial.quantity ?? '') : '100';
   quantity.placeholder = quantity.value ? '' : 'À préciser'; quantity.required = true; quantity.setAttribute('aria-label', 'Quantité');
   const unit = document.createElement('select'); unit.setAttribute('aria-label', 'Unité');
-  for (const [id, label] of [['g','g'],['kg','kg'],['ml','ml'],['l','l'],['tsp','c. à café'],['tbsp','c. à soupe'],['cup','tasse'],['pinch','pincée'],['scoop','scoop'],['piece','pièce']]) unit.add(new Option(label, id));
+  for (const [id, label] of [['g','g'],['kg','kg'],['ml','ml'],['l','l'],['tsp','c. à café'],['tbsp','c. à soupe'],['cup','tasse'],['pinch','pincée'],['scoop','scoop (60 ml)'],['piece','pièce']]) unit.add(new Option(label, id));
   if (initial?.unitId) unit.value = initial.unitId;
   if (initial?.unknownUnit) { unit.add(new Option('Unité à préciser', ''), 0); unit.value = ''; unit.required = true; }
   unit.addEventListener('change', () => { if (search.value.trim().length >= 2) search.dispatchEvent(new Event('input')); });

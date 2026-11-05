@@ -26,7 +26,10 @@ const MILLILITRES_PER_UNIT: Readonly<Record<string, number>> = {
   "cuillere a soupe": 15,
   cup: 240,
   tasse: 240,
+  scoop: 60,
 };
+
+const DEFAULT_WHEY_SCOOP_GRAMS = 30;
 
 function key(value: string): string {
   return value
@@ -64,7 +67,12 @@ export function toGrams(quantity: number, unitId: string, food: Food): number | 
       .find((conversion) => conversion.millilitres != null && Number.isFinite(conversion.grams) && conversion.grams > 0);
     if (knownVolume?.millilitres != null) density = knownVolume.grams / knownVolume.millilitres;
   }
-  if (density == null || !Number.isFinite(density) || density <= 0) return null;
+  if (density == null || !Number.isFinite(density) || density <= 0) {
+    // The household's 60 ml whey scoop is estimated at 25–35 g. Keep a
+    // food-specific weighed scoop or known density above this midpoint.
+    return unit === "scoop" && /\bwhey\b/i.test(food.name ?? "")
+      ? quantity * DEFAULT_WHEY_SCOOP_GRAMS : null;
+  }
   return quantity * volumeFactor * density;
 }
 
