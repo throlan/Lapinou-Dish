@@ -17,6 +17,7 @@ import { deleteSavingPlan, getEnergyReserveOverview, saveSavingPlan, validateSav
 import { countProductInventory, listIngredientStock, recordPurchaseReceipt, saveIngredientStock, validateIngredientStock, validateProductCount, validatePurchaseReceipt } from './ingredient-stock.mjs';
 import { createHmac, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import { createFood, deleteFood, deleteFoods, fillMissingNutritionFromExternal, getFood, listCookingFactorConflicts, listFoodRecipeUsage, updateFood, validateFoodInput } from './foods.mjs';
+import { exportFoodCatalog } from './food-export.mjs';
 import { getOpenFoodFactsProduct, searchOpenFoodFacts } from './open-food-facts.mjs';
 import { createRecipe, deleteRecipe, listRecipes, readRecipe, updateRecipe, updateRecipeSettings, validateRecipeInput, validateRecipeSettings, validateRecipeDeletion } from './recipes.mjs';
 import { listImportDrafts, saveImportDrafts } from './recipe-imports.mjs';
@@ -758,6 +759,21 @@ export async function handleRequest(request, response, pool, appPassword = null,
         return recipe ? send(response, 200, { recipe }) : send(response, 404, { error: 'recipe-not-found' });
       } catch {
         return send(response, 500, { error: 'recipe-read-failed' });
+      }
+    }
+
+    if (url.pathname === '/api/foods/export' && request.method === 'GET') {
+      const householdId = url.searchParams.get('householdId');
+      if (!isUuid(householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      try {
+        const csv = await exportFoodCatalog(pool, householdId);
+        if (csv == null) return send(response, 404, { error: 'household-not-found' });
+        response.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        response.setHeader('Content-Disposition', 'attachment; filename="lapinou-aliments.csv"');
+        response.writeHead(200);
+        return response.end(csv);
+      } catch {
+        return send(response, 500, { error: 'food-export-failed' });
       }
     }
 

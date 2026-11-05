@@ -1306,6 +1306,30 @@ for(const selector of ['#previous-page','#previous-page-top'])$(selector).addEve
 for(const selector of ['#next-page','#next-page-top'])$(selector).addEventListener('click',()=>moveFoodPage(1));
 $('#food-page-size').addEventListener('change',event=>{state.limit=Math.min(250,Math.max(1,Number(event.target.value)||50));state.offset=0;refreshFoods();});
 $('#add-food').addEventListener('click', () => openFoodEditor());
+$('#export-foods').addEventListener('click', async event => {
+  const button = event.currentTarget;
+  if (!state.household) return showMessage($('#food-list-message'), 'Choisis un foyer avant l’export.');
+  button.disabled = true;
+  try {
+    const response = await fetch(`/api/foods/export?${new URLSearchParams({ householdId: state.household.id })}`, {
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error ?? `HTTP ${response.status}`);
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'lapinou-aliments.csv';
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    showMessage($('#food-list-message'), 'Catalogue exporté. Le fichier contient tous les aliments du catalogue.', true);
+  } catch (error) {
+    showMessage($('#food-list-message'), `Export impossible : ${error.message}`);
+  } finally {
+    button.disabled = false;
+  }
+});
 $('#find-external-nutrition').addEventListener('click', async () => {
   const matches = $('#nutrition-matches');
   const foodId = matches.dataset.foodId;

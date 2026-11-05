@@ -1,4 +1,6 @@
-# Prochaines tâches — 4 novembre 2026
+# Prochaines tâches — 5 novembre 2026
+
+Exporter le catalogue réel depuis la page Aliments en 0.3.14, puis faire transmettre le CSV par l’utilisateur. Sur ce fichier, inventorier les champs manquants, proposer des catégories alimentaires distinctes des catégories de courses et documenter chaque valeur recherchée (source, portée, fiabilité). Préparer ensuite l’édition groupée avec aperçu et validation explicite ; ne modifier aucune fiche sur une hypothèse générique.
 
 0.3.13 livrée par la PR [#162](https://github.com/throlan/Lapinou-Dish/pull/162) : 356 tests complets locaux et contrôle ciblé supplémentaire réussis ; [publication GHCR vérifiée](https://github.com/throlan/Lapinou-Dish/actions/runs/41855028940). Après déploiement par l'utilisateur, recueillir son retour sur les catégories communes/individuelles, les conflits de coefficients et l'aperçu de rééquilibrage. Il résout au cas par cas les éventuels coefficients contradictoires depuis la fiche aliment. Aucun réglage nutritionnel individuel ni quota selon l'âge n'est inventé. La règle visant 125 g de viande/poisson par portion demeure en attente.
 
