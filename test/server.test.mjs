@@ -85,7 +85,7 @@ test('food search requires two characters, searches the catalogue, and caps resu
     assert.match(sql, /FROM foods f/);
     assertSqlParenthesesBalanced(sql);
     if (calls++ === 0) {
-      assert.deepEqual(values, ['oeuf', 'oeuf', 250, 0, 'piece', ['oeuf'], false, '']);
+      assert.deepEqual(values, ['oeuf', 'oeuf', 250, 0, 'piece', ['oeuf'], false, '', '']);
       assert.match(sql, /grams_per_millilitre IS NOT NULL/);
       assert.match(sql, /normalized_alias = \$2/);
       assert.match(sql, /unnest\(\$6::text\[\]\)/);
@@ -94,7 +94,7 @@ test('food search requires two characters, searches the catalogue, and caps resu
     }
     assert.match(sql, /count\(\*\)/);
     assert.match(sql, /::integer\)\)\)/);
-    assert.deepEqual(values, ['oeuf', 'oeuf', ['oeuf'], false, '']);
+    assert.deepEqual(values, ['oeuf', 'oeuf', ['oeuf'], false, '', '']);
     return { rows: [{ total: 1 }] };
   } };
   const empty = await invoke('/api/foods?q=o&limit=500&offset=250', pool);
@@ -127,7 +127,7 @@ test('catalogue can be filtered to foods missing required nutrition values', asy
     assertSqlParenthesesBalanced(sql);
     assert.match(sql, /required\.is_required_for_recipe/);
     assert.match(sql, /missing\.value_per_100g IS NOT NULL/);
-    assert.equal(values.at(-2), true);
+    assert.equal(values.at(-3), true);
     return calls++ === 0 ? { rows: [] } : { rows: [{ total: 0 }] };
   } };
   const response = await invoke('/api/foods?incomplete=true', pool);
@@ -170,7 +170,7 @@ test('Ciqual-only search adds a source filter to result and count queries', asyn
   let calls = 0;
   const response = await invoke('/api/foods?q=oignon&source=ciqual', { query: async (sql, values) => {
     assert.match(sql, /f\.source = \$[58]/);
-    assert.equal(values.at(-1), 'ciqual');
+    assert.equal(values.at(-2), 'ciqual');
     return calls++ === 0 ? { rows: [] } : { rows: [{ total: 0 }] };
   } });
   assert.equal(response.status, 200);

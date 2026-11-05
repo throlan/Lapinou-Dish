@@ -45,6 +45,93 @@ export async function listCookingFactorConflicts(pool, householdId) {
   return [...groups.values()].filter(group=>group.factors.size>1).map(({factors,...group})=>({...group,factors:[...factors].sort((a,b)=>a-b)}));
 }
 
+const bulkFoodFields = {
+  foodCategory: { column: 'food_category', kind: 'text' },
+  cookingFactor: { column: 'cooking_factor', max: 10 },
+  gramsPerMillilitre: { column: 'grams_per_millilitre', max: 100 },
+  tspGrams: { unit: 'tsp', max: 100000 },
+  tbspGrams: { unit: 'tbsp', max: 100000 },
+  pinchGrams: { unit: 'pinch', max: 100000 },
+  scoopGrams: { unit: 'scoop', max: 100000 },
+  pieceGrams: { unit: 'piece', max: 100000 },
+  energyKcal: { nutrient: 'energy_kcal', max: 100000 },
+  proteinG: { nutrient: 'protein_g', max: 100000 },
+  carbohydrateG: { nutrient: 'carbohydrate_g', max: 100000 },
+  fatG: { nutrient: 'fat_g', max: 100000 },
+  fibreG: { nutrient: 'fibre_g', max: 100000 },
+};
+
+export function validateBulkFoodEdit(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return { error: 'invalid-bulk-edit' };
+  const field = bulkFoodFields[input.field];
+  if (!field || !Array.isArray(input.changes) || input.changes.length < 1 || input.changes.length > 250 ||
+      typeof input.dryRun !== 'boolean' || typeof input.overwrite !== 'boolean' ||
+      typeof input.sourceNote !== 'string' || !input.sourceNote.trim() || input.sourceNote.length > 500) return { error: 'invalid-bulk-edit' };
+  const ids = new Set();
+  const changes = [];
+  for (const item of input.changes) {
+    if (!item || typeof item.foodId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.foodId) ||
+        !Number.isInteger(item.version) || item.version < 1 || ids.has(item.foodId.toLowerCase())) return { error: 'invalid-bulk-edit' };
+    ids.add(item.foodId.toLowerCase());
+    const value = field.kind === 'text' ? (typeof item.value === 'string' ? item.value.trim() : null) : item.value;
+    if (field.kind === 'text' ? !value || value.length > 80 : typeof value !== 'number' || !Number.isFinite(value) || value < (field.nutrient ? 0 : 0.000001) || value > field.max) return { error: 'invalid-bulk-value' };
+    changes.push({ foodId: item.foodId, version: item.version, value });
+  }
+  return { data: { field: input.field, definition: field, changes, dryRun: input.dryRun, overwrite: input.overwrite, sourceNote: input.sourceNote.trim() } };
+}
+
+export async function bulkEditFoods(pool, input) {
+  const { definition, changes, dryRun, overwrite, sourceNote } = input;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const ids = changes.map(item => item.foodId);
+    const found = await client.query('SELECT id,canonical_name AS name,version,food_category,cooking_factor,grams_per_millilitre FROM foods WHERE id=ANY($1::uuid[]) ORDER BY id FOR UPDATE', [ids]);
+    const byId = new Map(found.rows.map(row => [row.id, row]));
+    const preview = [];
+    for (const item of changes) {
+      const row = byId.get(item.foodId);
+      let current = null;
+      if (row) {
+        if (definition.column) current = row[definition.column];
+        else if (definition.unit) current = (await client.query('SELECT grams_per_unit AS value FROM food_unit_conversions WHERE food_id=$1 AND unit_id=$2', [item.foodId, definition.unit])).rows[0]?.value ?? null;
+        else current = (await client.query('SELECT value_per_100g AS value FROM food_nutrients WHERE food_id=$1 AND nutrient_id=$2', [item.foodId, definition.nutrient])).rows[0]?.value ?? null;
+      }
+      const same = current != null && (definition.kind === 'text' ? current === item.value : Number(current) === item.value);
+      const conflict = !row ? 'absent' : Number(row.version) !== item.version ? 'version-changed' : current != null && !same && !overwrite ? 'existing-value' : null;
+      preview.push({ foodId: item.foodId, name: row?.name ?? null, version: row?.version ?? null, current: current == null ? null : definition.kind === 'text' ? current : Number(current), proposed: item.value, conflict });
+    }
+    if (dryRun || preview.some(item => item.conflict)) { await client.query('ROLLBACK'); return { preview, applied: 0, conflictCount: preview.filter(item => item.conflict).length }; }
+    for (const item of preview) {
+      if (String(item.current) === String(item.proposed)) continue;
+      const before = await getFood(client, item.foodId);
+      if (definition.column) await client.query(`UPDATE foods SET ${definition.column}=$2,source_note=concat_ws(E'\\n',NULLIF(source_note,''),$3::text),manual_override=true,version=version+1,updated_at=now() WHERE id=$1`, [item.foodId, item.proposed, sourceNote]);
+      else if (definition.unit) await client.query(`INSERT INTO food_unit_conversions(food_id,unit_id,grams_per_unit,source_note) VALUES($1,$2,$3,$4) ON CONFLICT(food_id,unit_id) DO UPDATE SET grams_per_unit=EXCLUDED.grams_per_unit,source_note=EXCLUDED.source_note`, [item.foodId, definition.unit, item.proposed, sourceNote]);
+      else await client.query(`INSERT INTO food_nutrients(food_id,nutrient_id,value_per_100g,source_note) VALUES($1,$2,$3,$4) ON CONFLICT(food_id,nutrient_id) DO UPDATE SET value_per_100g=EXCLUDED.value_per_100g,source_note=EXCLUDED.source_note`, [item.foodId, definition.nutrient, item.proposed, sourceNote]);
+      if (!definition.column) await client.query('UPDATE foods SET manual_override=true,version=version+1,updated_at=now() WHERE id=$1', [item.foodId]);
+      if (input.field === 'cookingFactor') {
+        const affected = await client.query(`WITH RECURSIVE affected(id,depth) AS (
+          SELECT DISTINCT r.id,0 FROM recipe_lines l JOIN recipes r ON r.id=l.recipe_id WHERE l.food_id=$1 AND r.parent_recipe_id IS NULL
+          UNION ALL SELECT r.id,a.depth+1 FROM affected a JOIN recipe_lines l ON l.ingredient_recipe_id=a.id JOIN recipes r ON r.id=l.recipe_id WHERE r.parent_recipe_id IS NULL
+        ) SELECT id FROM affected GROUP BY id ORDER BY max(depth),id`, [item.foodId]);
+        for (const row of affected.rows) {
+          const recipe = await readRecipe(client, row.id);
+          if (!recipe?.separateStarch) continue;
+          await syncServingParts(client, row.id, { ...recipe, householdId: recipe.householdId ?? (await client.query('SELECT household_id FROM recipes WHERE id=$1', [row.id])).rows[0].household_id });
+          await client.query('UPDATE recipes SET version=version+1,updated_at=now() WHERE id=$1', [row.id]);
+        }
+      }
+      const after = await getFood(client, item.foodId);
+      await client.query('INSERT INTO food_change_log(id,food_id,reason,before_state,after_state) VALUES($1,$2,$3,$4::jsonb,$5::jsonb)', [randomUUID(), item.foodId, `Modification groupée : ${sourceNote}`, JSON.stringify(before), JSON.stringify(after)]);
+    }
+    await client.query('COMMIT');
+    return { preview, applied: preview.filter(item => String(item.current) !== String(item.proposed)).length, conflictCount: 0 };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally { client.release(); }
+}
+
 export function validateFoodInput(input, { creating = false } = {}) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return { error: 'invalid-body' };
   const data = {};
@@ -83,6 +170,11 @@ export function validateFoodInput(input, { creating = false } = {}) {
     if(value!==null && (typeof value!=='number'||!Number.isFinite(value)||value<=0||value>10))return {error:'invalid-cooking-factor'};
     data.cookingFactor=value;
   }
+  if (creating || Object.hasOwn(input, 'foodCategory')) {
+    const value = input.foodCategory ?? null;
+    if (value !== null && (typeof value !== 'string' || value.trim().length > 80)) return { error: 'invalid-food-category' };
+    data.foodCategory = value?.trim() || null;
+  }
   if (creating || Object.hasOwn(input, 'gramsPerUnit')) {
     const units = input.gramsPerUnit ?? {};
     if (!units || typeof units !== 'object' || Array.isArray(units)) return { error: 'invalid-unit-conversions' };
@@ -112,9 +204,9 @@ export async function createFood(pool, data) {
       return { error: 'possible-duplicate', matches: duplicate };
     }
     await client.query(
-      `INSERT INTO foods (id, canonical_name, brand, source, source_note, grams_per_millilitre,cooking_factor)
-       VALUES ($1, $2, $3, 'manual', $4, $5,$6)`,
-      [id, data.name, data.brand, data.sourceNote, data.gramsPerMillilitre,data.cookingFactor],
+      `INSERT INTO foods (id, canonical_name, brand, source, source_note, grams_per_millilitre,cooking_factor,food_category)
+       VALUES ($1, $2, $3, 'manual', $4, $5,$6,$7)`,
+      [id, data.name, data.brand, data.sourceNote, data.gramsPerMillilitre,data.cookingFactor,data.foodCategory],
     );
     await writeNutrients(client, id, data.nutrients, data.nutrientSourceNote ?? 'Saisie manuelle');
     for (const [unit, grams] of Object.entries(data.gramsPerUnit)) {
@@ -153,6 +245,7 @@ export async function updateFood(pool, id, data) {
       ...(data.sourceNote !== undefined ? { sourceNote: data.sourceNote } : {}),
       ...(data.gramsPerMillilitre !== undefined ? { gramsPerMillilitre: data.gramsPerMillilitre } : {}),
       ...(data.cookingFactor !== undefined ? { cookingFactor: data.cookingFactor } : {}),
+      ...(data.foodCategory !== undefined ? { foodCategory: data.foodCategory } : {}),
       ...(data.nutrients !== undefined ? { nutrientsPer100g: data.nutrients } : {}),
     };
     const duplicate = await findDuplicate(client, afterState.name, afterState.brand, id);
@@ -162,10 +255,10 @@ export async function updateFood(pool, id, data) {
     }
     await client.query(
       `UPDATE foods SET canonical_name = $2, brand = $3, source_note = $4,
-              grams_per_millilitre = $5, cooking_factor=$6, manual_override = true,
+              grams_per_millilitre = $5, cooking_factor=$6, food_category=$7, manual_override = true,
               version = version + 1, updated_at = now()
         WHERE id = $1`,
-      [id, afterState.name, afterState.brand, afterState.sourceNote, afterState.gramsPerMillilitre,afterState.cookingFactor],
+      [id, afterState.name, afterState.brand, afterState.sourceNote, afterState.gramsPerMillilitre,afterState.cookingFactor,afterState.foodCategory],
     );
     if (data.nutrients !== undefined) await writeNutrients(client, id, data.nutrients, 'Correction manuelle');
     if (data.gramsPerUnit !== undefined) {
@@ -380,7 +473,7 @@ async function writeAliases(client, foodId, name, aliases) {
 export async function getFood(client, id) {
   const result = await client.query(
     `SELECT f.id, f.canonical_name AS name, f.brand, f.source, f.source_reference,
-            f.source_note, f.grams_per_millilitre,f.cooking_factor,
+            f.source_note, f.grams_per_millilitre,f.cooking_factor,f.food_category,f.version,
             jsonb_object_agg(n.id, fn.value_per_100g ORDER BY n.sort_order)
               FILTER (WHERE n.id IS NOT NULL) AS nutrient_values,
             COALESCE((SELECT jsonb_object_agg(u.unit_id, u.grams_per_unit)
@@ -403,6 +496,7 @@ export async function getFood(client, id) {
     sourceReference: row.source_reference, sourceNote: row.source_note,
     gramsPerMillilitre: row.grams_per_millilitre === null ? null : Number(row.grams_per_millilitre),
     cookingFactor: row.cooking_factor == null ? null : Number(row.cooking_factor),
+    foodCategory: row.food_category, version: row.version,
     gramsPerUnit: Object.fromEntries(Object.entries(row.grams_per_unit ?? {}).map(([key, value]) => [key, Number(value)])),
     aliases: row.aliases ?? [], nutrientsPer100g: names,
   };

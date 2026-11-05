@@ -16,7 +16,7 @@ import { deleteFoodYieldConversion,listFoodYieldConversions,saveFoodYieldConvers
 import { deleteSavingPlan, getEnergyReserveOverview, saveSavingPlan, validateSavingPlan } from './energy-reserve.mjs';
 import { countProductInventory, listIngredientStock, recordPurchaseReceipt, saveIngredientStock, validateIngredientStock, validateProductCount, validatePurchaseReceipt } from './ingredient-stock.mjs';
 import { createHmac, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
-import { createFood, deleteFood, deleteFoods, fillMissingNutritionFromExternal, getFood, listCookingFactorConflicts, listFoodRecipeUsage, updateFood, validateFoodInput } from './foods.mjs';
+import { bulkEditFoods, createFood, deleteFood, deleteFoods, fillMissingNutritionFromExternal, getFood, listCookingFactorConflicts, listFoodRecipeUsage, updateFood, validateBulkFoodEdit, validateFoodInput } from './foods.mjs';
 import { exportFoodCatalog } from './food-export.mjs';
 import { getOpenFoodFactsProduct, searchOpenFoodFacts } from './open-food-facts.mjs';
 import { createRecipe, deleteRecipe, listRecipes, readRecipe, updateRecipe, updateRecipeSettings, validateRecipeInput, validateRecipeSettings, validateRecipeDeletion } from './recipes.mjs';
@@ -814,6 +814,35 @@ export async function handleRequest(request, response, pool, appPassword = null,
       catch{return send(response,500,{error:'food-bulk-delete-failed'});}
     }
 
+    if (url.pathname === '/api/foods/categories' && request.method === 'GET') {
+      try {
+        const result = await pool.query('SELECT food_category AS category,count(*)::integer AS count FROM foods WHERE food_category IS NOT NULL GROUP BY food_category ORDER BY food_category');
+        const missing = await pool.query('SELECT count(*)::integer AS count FROM foods WHERE food_category IS NULL');
+        return send(response, 200, { categories: result.rows, uncategorized: missing.rows[0].count });
+      } catch { return send(response, 500, { error: 'food-categories-failed' }); }
+    }
+    if (url.pathname === '/api/foods/bulk-edit/rows' && request.method === 'POST') {
+      const body = await readJson(request); if (body.error) return send(response, body.status ?? 400, { error: body.error });
+      const ids = body.value?.foodIds;
+      if (!Array.isArray(ids) || ids.length < 1 || ids.length > 250 || ids.some(id => !isUuid(id))) return send(response, 400, { error: 'invalid-food-ids' });
+      try {
+        const result = await pool.query(`SELECT f.id,f.canonical_name AS name,f.version,f.food_category AS "foodCategory",f.cooking_factor AS "cookingFactor",f.grams_per_millilitre AS "gramsPerMillilitre",
+          COALESCE((SELECT jsonb_object_agg(unit_id,grams_per_unit) FROM food_unit_conversions WHERE food_id=f.id),'{}'::jsonb) AS "gramsPerUnit",
+          COALESCE((SELECT jsonb_object_agg(nutrient_id,value_per_100g) FROM food_nutrients WHERE food_id=f.id),'{}'::jsonb) AS nutrients
+          FROM foods f WHERE f.id=ANY($1::uuid[]) ORDER BY lower(f.canonical_name)`, [ids]);
+        return send(response, 200, { foods: result.rows });
+      } catch { return send(response, 500, { error: 'food-bulk-rows-failed' }); }
+    }
+    if (url.pathname === '/api/foods/bulk-edit' && request.method === 'POST') {
+      const body = await readJson(request); if (body.error) return send(response, body.status ?? 400, { error: body.error });
+      const validation = validateBulkFoodEdit(body.value);
+      if (validation.error) return send(response, 400, { error: validation.error });
+      try {
+        const result = await bulkEditFoods(pool, validation.data);
+        return send(response, result.conflictCount ? 409 : 200, result);
+      } catch { return send(response, 500, { error: 'food-bulk-edit-failed' }); }
+    }
+
     const foodId = url.pathname.match(/^\/api\/foods\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i)?.[1];
     const suggestionsMatch = url.pathname.match(/^\/api\/foods\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/nutrition-suggestions$/i);
     if (suggestionsMatch && request.method === 'GET') {
@@ -882,6 +911,24 @@ export async function handleRequest(request, response, pool, appPassword = null,
       const unit = url.searchParams.get('unit') ?? '';
       const onlyIncomplete = url.searchParams.get('incomplete') === 'true';
       const sourceFilter = url.searchParams.get('source') === 'ciqual' ? 'ciqual' : '';
+      const categoryFilter = (url.searchParams.get('category') ?? '').trim();
+      if (categoryFilter.length > 80) return send(response, 400, { error: 'invalid-food-category' });
+      const missingFilters = {
+        foodCategory: 'f.food_category IS NULL', cookingFactor: 'f.cooking_factor IS NULL', gramsPerMillilitre: 'f.grams_per_millilitre IS NULL',
+        tspGrams: "NOT EXISTS (SELECT 1 FROM food_unit_conversions c WHERE c.food_id=f.id AND c.unit_id='tsp')",
+        tbspGrams: "NOT EXISTS (SELECT 1 FROM food_unit_conversions c WHERE c.food_id=f.id AND c.unit_id='tbsp')",
+        pinchGrams: "NOT EXISTS (SELECT 1 FROM food_unit_conversions c WHERE c.food_id=f.id AND c.unit_id='pinch')",
+        scoopGrams: "NOT EXISTS (SELECT 1 FROM food_unit_conversions c WHERE c.food_id=f.id AND c.unit_id='scoop')",
+        pieceGrams: "NOT EXISTS (SELECT 1 FROM food_unit_conversions c WHERE c.food_id=f.id AND c.unit_id='piece')",
+        energyKcal: "NOT EXISTS (SELECT 1 FROM food_nutrients n WHERE n.food_id=f.id AND n.nutrient_id='energy_kcal' AND n.value_per_100g IS NOT NULL)",
+        proteinG: "NOT EXISTS (SELECT 1 FROM food_nutrients n WHERE n.food_id=f.id AND n.nutrient_id='protein_g' AND n.value_per_100g IS NOT NULL)",
+        carbohydrateG: "NOT EXISTS (SELECT 1 FROM food_nutrients n WHERE n.food_id=f.id AND n.nutrient_id='carbohydrate_g' AND n.value_per_100g IS NOT NULL)",
+        fatG: "NOT EXISTS (SELECT 1 FROM food_nutrients n WHERE n.food_id=f.id AND n.nutrient_id='fat_g' AND n.value_per_100g IS NOT NULL)",
+        fibreG: "NOT EXISTS (SELECT 1 FROM food_nutrients n WHERE n.food_id=f.id AND n.nutrient_id='fibre_g' AND n.value_per_100g IS NOT NULL)",
+      };
+      const missingField = url.searchParams.get('missingField') ?? '';
+      if (missingField && !Object.hasOwn(missingFilters, missingField)) return send(response, 400, { error: 'invalid-missing-field' });
+      const missingPredicate = missingField ? missingFilters[missingField] : 'true';
       const limit = integerInRange(url.searchParams.get('limit'), 50, 1, 250);
       const offset = integerInRange(url.searchParams.get('offset'), 0, 0, 100000);
       if (query.length === 1) return send(response, 200, { foods: [], total: 0, limit, offset });
@@ -891,14 +938,15 @@ export async function handleRequest(request, response, pool, appPassword = null,
         .map((token) => token.length > 4 && token.endsWith('s') ? token.slice(0, -1) : token))];
       try {
         const result = await pool.query(
-          `SELECT f.id, f.canonical_name AS name, f.brand, f.source,
+          `SELECT f.id, f.canonical_name AS name, f.brand, f.source, f.food_category AS "foodCategory",
                   f.source_reference, f.source_note,
                   jsonb_object_agg(n.id, fn.value_per_100g ORDER BY n.sort_order)
                     FILTER (WHERE n.id IS NOT NULL) AS nutrients_per_100g
              FROM foods f
              LEFT JOIN food_nutrients fn ON fn.food_id = f.id
              LEFT JOIN nutrients n ON n.id = fn.nutrient_id
-            WHERE ($8 = '' OR f.source = $8)
+            WHERE ($8 = '' OR f.source = $8) AND ($9 = '' OR ($9 = '__none__' AND f.food_category IS NULL) OR f.food_category = $9)
+              AND ${missingPredicate}
               AND ($7::boolean = false OR EXISTS (
                     SELECT 1 FROM nutrients required
                      WHERE required.is_required_for_recipe
@@ -937,11 +985,12 @@ export async function handleRequest(request, response, pool, appPassword = null,
                                         AND a.normalized_alias LIKE '%' || search_token || '%')) DESC,
                      f.canonical_name
             LIMIT $3 OFFSET $4`,
-          [query, normalizedQuery, limit, offset, unit, searchTokens, onlyIncomplete, sourceFilter],
+          [query, normalizedQuery, limit, offset, unit, searchTokens, onlyIncomplete, sourceFilter, categoryFilter],
         );
         const count = await pool.query(
           `SELECT count(*)::integer AS total FROM foods f
-            WHERE ($5 = '' OR f.source = $5)
+            WHERE ($5 = '' OR f.source = $5) AND ($6 = '' OR ($6 = '__none__' AND f.food_category IS NULL) OR f.food_category = $6)
+              AND ${missingPredicate}
               AND ($4::boolean = false OR EXISTS (
                     SELECT 1 FROM nutrients required
                      WHERE required.is_required_for_recipe
@@ -959,7 +1008,7 @@ export async function handleRequest(request, response, pool, appPassword = null,
                                     WHERE a.food_id = f.id
                                       AND a.normalized_alias LIKE '%' || search_token || '%')
                   ) >= GREATEST(1, ceil(cardinality($3::text[]) * 0.6)::integer)))`,
-          [query, normalizedQuery, searchTokens, onlyIncomplete, sourceFilter],
+          [query, normalizedQuery, searchTokens, onlyIncomplete, sourceFilter, categoryFilter],
         );
         return send(response, 200, { foods: result.rows, total: count.rows[0].total, limit, offset });
       } catch {
