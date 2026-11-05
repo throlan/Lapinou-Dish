@@ -1,4 +1,8 @@
-# État du projet — 4 novembre 2026
+# État du projet — 5 novembre 2026
+
+## 0.3.14 — export du catalogue alimentaire
+
+Bouton d’export CSV sur la page Aliments. Il réunit toutes les fiches, leurs données nutritionnelles et de conversion, et les unités d’achat du foyer choisi, indépendamment de la pagination et des filtres. Le fichier sert au futur examen des données manquantes ; aucune correction automatique n’est appliquée. 358 tests locaux réussis ; publication à consigner après fusion.
 
 ## 0.3.13 — coefficients alimentaires et propositions de repas
 

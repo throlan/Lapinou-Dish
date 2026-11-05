@@ -1,5 +1,9 @@
 # Cahier des améliorations proposées
 
+## 0.3.14 — inventaire du catalogue
+
+Export CSV complet depuis la page Aliments pour examiner les quelque mille fiches restantes. Prochaine étape après remise du fichier réel : rechercher les coefficients de cuisson, densités et poids des mesures manquants, distinguer les sources propres au produit des estimations, définir les catégories alimentaires, puis construire un aperçu d’édition groupée validé avant enregistrement. Ne pas remplir automatiquement une valeur incertaine.
+
 ## 0.3.13 — poids cuit, catégories et priorité calorique
 
 Coefficient cru/cuit par aliment dans la fiche unique ; liste des conflits historiques sans décision automatique. Catégories configurées par créneau et mode commun/individuel ; entrée et laitage ajoutés. Les anciennes catégories facultatives restent proposées. Le calcul initial des services séparés suit les proportions d'assiette d'Administration. En cas de dépassement, dessert retiré entier puis féculents réduits sans toucher au plat principal ; protéines affichées à titre informatif. Rééquilibrage sur la journée après aperçu, sans action automatique sur la semaine. Les menus existants sont conservés jusqu'à recalcul demandé. Voir `docs/MEAL-ENERGY.md` et `docs/SERVING-GRAMS.md`.

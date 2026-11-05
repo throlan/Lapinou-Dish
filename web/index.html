@@ -11,8 +11,8 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.3.13">
-    <link rel="stylesheet" href="/editorial.css?v=0.3.13">
+    <link rel="stylesheet" href="/style.css?v=0.3.14">
+    <link rel="stylesheet" href="/editorial.css?v=0.3.14">
   </head>
   <body>
     <header class="topbar">
@@ -163,7 +163,8 @@
         </div>
       </section>
       <section id="foods-view" class="view hidden">
-        <div class="section-heading"><div><h2>Catalogue alimentaire</h2><p>Une fiche canonique par aliment, enrichie par Ciqual et modifiable.</p></div><button class="primary" id="add-food">+ Nouvel aliment</button></div>
+        <div class="section-heading"><div><h2>Catalogue alimentaire</h2><p>Une fiche canonique par aliment, enrichie par Ciqual et modifiable.</p></div><div class="recipe-page-actions"><button type="button" class="secondary" id="export-foods">Exporter tout le catalogue (CSV)</button><button class="primary" id="add-food">+ Nouvel aliment</button></div></div>
+        <p class="muted">L’export comprend tous les aliments et les unités d’achat du foyer, indépendamment de la recherche et de la page affichées.</p>
         <div class="toolbar food-toolbar"><label class="search"><span>⌕</span><input id="food-search" type="search" placeholder="Rechercher un aliment…" autocomplete="off"></label><label class="incomplete-filter"><input id="food-incomplete" type="checkbox"> À compléter</label><span class="muted" id="food-count"></span></div>
         <div class="food-bulk-toolbar"><label><input id="select-food-page" type="checkbox"> Sélectionner la page</label><button type="button" class="secondary" id="select-food-results">Sélectionner tous les résultats</button><span id="food-selection-count" class="muted">Aucun aliment sélectionné</span><button type="button" class="secondary" id="clear-food-selection" disabled>Effacer la sélection</button><button type="button" class="secondary danger-button" id="bulk-delete-foods" disabled>Supprimer la sélection</button></div>
         <p id="food-list-message" class="form-message" role="status"></p>
@@ -450,7 +451,7 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
-    <script type="module" src="/install-app.js?v=0.3.13"></script>
-    <script type="module" src="/app.js?v=0.3.13"></script>
+    <script type="module" src="/install-app.js?v=0.3.14"></script>
+    <script type="module" src="/app.js?v=0.3.14"></script>
   </body>
 </html>

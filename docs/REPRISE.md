@@ -1,4 +1,10 @@
-# Cahier de reprise — 4 novembre 2026
+# Cahier de reprise — 5 novembre 2026
+
+## Chantier 0.3.14 — export du catalogue alimentaire
+
+La page Aliments propose « Exporter tout le catalogue (CSV) ». Le téléchargement couvre toutes les fiches, sans limite de pagination ni filtre de recherche, avec identifiant stable, noms, provenance, valeurs nutritionnelles, coefficient de cuisson, densité, poids des mesures et unité d’achat du foyer sélectionné. Le CSV est en UTF-8 avec séparateur point-virgule. Il ne modifie aucune fiche. L’accès utilise l’authentification habituelle de l’application. L’utilisateur exportera son catalogue depuis son installation et transmettra le fichier pour préparer les recherches documentaires, le classement et l’édition groupée. Aucun accès à Unraid ou Nginx.
+
+Suite souhaitée : examiner le fichier réel, définir une taxonomie alimentaire distincte des catégories de courses, rechercher les valeurs manquantes avec provenance et degré de fiabilité, puis proposer une validation groupée avant toute écriture. Une mesure générique ou supposée ne doit pas remplacer une valeur propre au produit.
 
 ## Chantier 0.3.13 — cuisson par aliment et repas configurables
 

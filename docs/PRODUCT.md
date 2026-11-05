@@ -1,5 +1,7 @@
 # Cahier produit Lapinou Dish
 
+Le catalogue alimentaire peut être exporté en CSV depuis la page Aliments, avec identifiants, valeurs et réglages d’achat du foyer sélectionné. L’export porte sur toutes les fiches, sans modifier les données. Il prépare une vérification documentée des champs manquants et un futur classement par catégories alimentaires.
+
 ## Règles courantes depuis 0.3.13
 
 Le coefficient poids cuit / poids cru appartient à la fiche aliment. Il est prioritaire sur les anciens coefficients des lignes de recettes ; une valeur absente conserve le calcul historique. Les contradictions anciennes sont listées dans Administration et demandent une décision de l'utilisateur. Les grammes cuits des menus déjà enregistrés et les stocks historiques ne sont pas réécrits ; les ingrédients et courses restent en quantités crues. Les conversions entre deux aliments distincts servent séparément aux achats.
