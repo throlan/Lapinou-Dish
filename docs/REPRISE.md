@@ -4,6 +4,8 @@
 
 La page Aliments propose « Exporter tout le catalogue (CSV) ». Le téléchargement couvre toutes les fiches, sans limite de pagination ni filtre de recherche, avec identifiant stable, noms, provenance, valeurs nutritionnelles, coefficient de cuisson, densité, poids des mesures et unité d’achat du foyer sélectionné. Le CSV est en UTF-8 avec séparateur point-virgule. Il ne modifie aucune fiche. L’accès utilise l’authentification habituelle de l’application. L’utilisateur exportera son catalogue depuis son installation et transmettra le fichier pour préparer les recherches documentaires, le classement et l’édition groupée. Aucun accès à Unraid ou Nginx.
 
+358 tests locaux réussis. PR [#164](https://github.com/throlan/Lapinou-Dish/pull/164) fusionnée au commit `187f4607ca21e8659d81c22e27c041c45b2f7fc4`. [Contrôles et publication GHCR réussis](https://github.com/throlan/Lapinou-Dish/actions/runs/42005139395). Tags `0.3.14` et `v0.3.14` vérifiés, digest commun `sha256:5de25477f00327f85ea7104077e9c9421acef78591f060c67436e6b180e2542b`.
+
 Suite souhaitée : examiner le fichier réel, définir une taxonomie alimentaire distincte des catégories de courses, rechercher les valeurs manquantes avec provenance et degré de fiabilité, puis proposer une validation groupée avant toute écriture. Une mesure générique ou supposée ne doit pas remplacer une valeur propre au produit.
 
 ## Chantier 0.3.13 — cuisson par aliment et repas configurables
