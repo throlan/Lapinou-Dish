@@ -1,5 +1,9 @@
 # Cahier de reprise — 6 novembre 2026
 
+## Revue du catalogue : sélection et catégories — 0.3.23
+
+Le filtre par catégorie est disponible dans Administration → Compléter le catalogue. La vue initiale montre les fiches avec estimation ; les fiches sans estimation restent accessibles par « Toutes les fiches », « Avec valeur actuelle » ou « Valeur actuelle sans estimation ». Pour éviter la confusion, chaque ligne indique explicitement si une estimation existe ; le chiffre prérempli peut être simplement la valeur actuelle. Cocher une valeur inchangée est refusé immédiatement. Une nouvelle valeur sans source ou mesure personnelle est signalée avec le nom de l'aliment et le curseur se place dans le champ à compléter ; si une sélection devient incomplète ensuite, le message de validation nomme les aliments à corriger. Aucune valeur ou quantité de menu n'est changée automatiquement.
+
 ## Revue du catalogue : lignes compactes — 0.3.22
 
 Le bouton « Exclure de cuisson » reste sur la même ligne que la fiche et ses autres actions sur ordinateur. Sur mobile, les valeurs et les boutons disposent de lignes lisibles. La case « Masquer les valeurs actuelles identiques » est alignée sur son libellé. Aucun calcul, filtre ou aliment n'est modifié par cette correction d'affichage.
