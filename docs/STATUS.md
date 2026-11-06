@@ -1,5 +1,9 @@
 # État du projet — 6 novembre 2026
 
+## Catalogue complet en revue — 0.3.20
+
+L'administration présente toutes les fiches avec valeurs actuelles et estimations éditables. La validation ne touche que les lignes cochées après aperçu. Les 1 058 fiches de l'export ont été inventoriées ; 513 disposent d'au moins une proposition de conversion ou de catégorie, les autres restent affichées sans chiffre forcé. Voir [REPRISE.md](REPRISE.md).
+
 ## État de cuisson par ingrédient — 0.3.19
 
 Une même fiche alimentaire peut servir crue ou être cuite selon la recette. Le rendement cuit/cru reste dans la fiche aliment ; l'éditeur demande le choix pour chaque nouvel ingrédient. Les recettes anciennes et les quantités déjà enregistrées dans les menus et stocks sont conservées. Voir [REPRISE.md](REPRISE.md).

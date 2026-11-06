@@ -1,5 +1,7 @@
 # Cahier produit Lapinou Dish
 
+Dans Administration, « Catalogue à compléter » regroupe les fiches alimentaires en liste simple : valeur actuelle, estimation éditable, provenance et sélection. Les estimations de cuisson s'appliquent uniquement aux fiches que l'utilisateur choisit de valider ; elles ne changent pas les portions déjà enregistrées dans les menus.
+
 Une ligne d'ingrédient indique désormais si l'aliment est servi cru, cuit à partir de sa quantité crue ou ajouté déjà cuit. Le coefficient de cuisson appartient à la fiche aliment et ne s'applique que dans le deuxième cas. Les recettes historiques gardent leur calcul antérieur jusqu'à vérification dans l'éditeur.
 
 La version 0.3.16 ajoute des catégories alimentaires indépendantes des rubriques de courses, un filtre par donnée manquante et une édition groupée avec aperçu et provenance. Les valeurs estimées de cuisson et de mesure ne sont pas appliquées automatiquement.

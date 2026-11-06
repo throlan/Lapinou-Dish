@@ -32,7 +32,8 @@ test('administration presents compact accessible tabs and recipe-specific minimu
   const tabs=[...html.matchAll(/data-admin-tab="([^"]+)"/g)].map(match=>match[1]);
   const panels=[...html.matchAll(/data-admin-panel="([^"]+)"/g)].map(match=>match[1]);
   assert.deepEqual(tabs,panels);
-  assert.equal(tabs.length,7);
+  assert.equal(tabs.length,8);
+  assert.ok(tabs.includes('catalogue'));
   assert.match(html,/name="minimumProductionAmount"/);
   assert.match(html,/name="minimumProductionUnitId"/);
 });

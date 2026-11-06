@@ -688,3 +688,8 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 
 .bulk-food-edit-row label { overflow-wrap:anywhere; }
 @media(max-width:600px){.bulk-food-edit-row label { grid-column:1/-1; }}
+
+.catalogue-estimate-toolbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px;margin:14px 0}.catalogue-estimate-toolbar label{min-width:0}.catalogue-estimate-toolbar input,.catalogue-estimate-toolbar select{width:100%}
+.catalogue-estimate-rows{display:grid;gap:5px;margin:12px 0}.catalogue-estimate-row{display:grid;grid-template-columns:28px minmax(180px,2fr) minmax(105px,.8fr) minmax(100px,.7fr) minmax(180px,2fr) auto;gap:9px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface,white)}
+.catalogue-estimate-row>input[type=checkbox]{width:18px;height:18px;margin:0}.catalogue-estimate-row>input:not([type=checkbox]){width:100%;min-width:0;margin:0}.catalogue-estimate-name{min-width:0;font-weight:600}.catalogue-estimate-name small{display:block;color:var(--muted);font-weight:400}.catalogue-estimate-detail{grid-column:2/-1;color:var(--muted);overflow-wrap:anywhere}.catalogue-estimate-preview{max-height:320px;overflow:auto}.catalogue-estimate-preview p{margin:0;padding:5px 0;border-bottom:1px solid var(--line)}
+@media(max-width:850px){.catalogue-estimate-row{grid-template-columns:24px minmax(0,1fr) minmax(0,1fr)}.catalogue-estimate-name{grid-column:2/-1}.catalogue-estimate-row>span{grid-column:2/-1}.catalogue-estimate-row>button{grid-column:2/-1}.catalogue-estimate-detail{grid-column:2/-1}}

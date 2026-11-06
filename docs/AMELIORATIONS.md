@@ -1,5 +1,9 @@
 # Cahier des améliorations proposées
 
+## Revue intégrale et édition sélectionnée du catalogue — 0.3.20
+
+La revue passe des 58 fiches ponctuelles à une liste de toutes les fiches actuelles. Les estimations de famille sont proposées pour les aliments crus/à cuire et les liquides de l'audit, avec incertitude et source. Les valeurs existantes peuvent être choisies pour remplacement après aperçu ; aucune écriture automatique. 500 fiches maximum par validation, journal détaillé et contrôle de version. Les catégories des références hors Ciqual sont préremplies d'après leur nom mais restent modifiables.
+
 ## État cru ou cuit par ingrédient — 0.3.19
 
 Le choix est propre à la ligne de recette, pour permettre à un même aliment d'être servi cru ou cuit. Une ligne déjà cuite garde son poids saisi ; une ligne cuite dans la recette applique le rendement de la fiche aliment à sa quantité crue. Les anciennes lignes restent en mode historique jusqu'à contrôle explicite. Les menus enregistrés ne sont pas recalculés.

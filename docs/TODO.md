@@ -1,5 +1,9 @@
 # Prochaines tâches — 6 novembre 2026
 
+## Après la revue complète du catalogue
+
+L'utilisateur sélectionnera les estimations qu'il souhaite appliquer dans Administration. Peser les scoops, pincées et produits particuliers avant d'ajouter leurs masses ; vérifier les méthodes de cuisson propres au foyer et les étiquettes des références manuelles. Les valeurs non pertinentes restent vides. Aucun traitement supplémentaire des 1 058 fiches n'est nécessaire pour présenter le catalogue ; les propositions restent révisables.
+
 ## Après l'état de cuisson par ingrédient
 
 Faire examiner progressivement les lignes historiques dans l'éditeur et les coefficients contradictoires, sans conversion automatique ni changement des quantités de menus déjà validées. Pour les ingrédients ajoutés déjà cuits, sélectionner la fiche nutritionnelle correspondant à leur forme cuite. Poursuivre ensuite l'audit du catalogue décrit ci-dessous.
