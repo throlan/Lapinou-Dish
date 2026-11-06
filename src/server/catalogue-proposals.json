@@ -638,5 +638,275 @@
     "method": "Pesée citée dans la reprise : 176 g cuits / 300 g de départ. Confirmer que la référence surgelée crue, l’état à la pesée et l’égouttage sont bien ceux utilisés.",
     "uncertainty": "élevée",
     "referenceOnly": true
+  },
+  {
+    "code": "11064",
+    "field": "tspGrams",
+    "value": 2.1,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 170918, Spices, caraway seed. Graines de carvi ; portions USDA 1 tsp et 1 tbsp. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11064",
+    "field": "tbspGrams",
+    "value": 6.7,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 170918, Spices, caraway seed. Graines de carvi ; portions USDA 1 tsp et 1 tbsp. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11066",
+    "field": "tspGrams",
+    "value": 2.0,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 171323, Spices, fennel seed. Graines de fenouil entières ; portions USDA tsp/tbsp whole. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11066",
+    "field": "tbspGrams",
+    "value": 5.8,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 171323, Spices, fennel seed. Graines de fenouil entières ; portions USDA tsp/tbsp whole. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11077",
+    "field": "tspGrams",
+    "value": 3.7,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 171324, Spices, fenugreek seed. Graines de fenugrec ; portions USDA 1 tsp et 1 tbsp. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11077",
+    "field": "tbspGrams",
+    "value": 11.1,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 171324, Spices, fenugreek seed. Graines de fenugrec ; portions USDA 1 tsp et 1 tbsp. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "10999",
+    "field": "tspGrams",
+    "value": 0.6,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 171318, Spices, chervil, dried. Cerfeuil séché ; portions USDA 1 tsp et 1 tbsp. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "10999",
+    "field": "tbspGrams",
+    "value": 1.9,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 171318, Spices, chervil, dried. Cerfeuil séché ; portions USDA 1 tsp et 1 tbsp. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11034",
+    "field": "tspGrams",
+    "value": 0.6,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 170928, Spices, marjoram, dried. Marjolaine séchée ; portions USDA 1 tsp et 1 tbsp. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11034",
+    "field": "tbspGrams",
+    "value": 1.7,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 170928, Spices, marjoram, dried. Marjolaine séchée ; portions USDA 1 tsp et 1 tbsp. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11036",
+    "field": "tspGrams",
+    "value": 1.2,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 171333, Spices, rosemary, dried. Romarin séché ; taille des feuilles et remplissage à vérifier. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "11036",
+    "field": "tbspGrams",
+    "value": 3.3,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 171333, Spices, rosemary, dried. Romarin séché ; taille des feuilles et remplissage à vérifier. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "15034",
+    "field": "tspGrams",
+    "value": 3.4,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 169414, Seeds, flaxseed. Graines de lin entières ; portions USDA tsp/tbsp whole, pas moulues. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "15034",
+    "field": "tbspGrams",
+    "value": 10.3,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 169414, Seeds, flaxseed. Graines de lin entières ; portions USDA tsp/tbsp whole, pas moulues. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11065",
+    "field": "tspGrams",
+    "value": 4.2,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 173471, Vanilla extract. Extrait de vanille liquide ; composition alcoolique exacte à vérifier. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "11065",
+    "field": "tbspGrams",
+    "value": 13.0,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 173471, Vanilla extract. Extrait de vanille liquide ; composition alcoolique exacte à vérifier. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
+  },
+  {
+    "code": "11039",
+    "field": "tspGrams",
+    "value": 0.7,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 170934, Spices, saffron. Safran ; la source ne précise pas filaments ou poudre, comparaison seule. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "élevée",
+    "referenceOnly": true
+  },
+  {
+    "code": "11039",
+    "field": "tbspGrams",
+    "value": 2.1,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 170934, Spices, saffron. Safran ; la source ne précise pas filaments ou poudre, comparaison seule. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "élevée",
+    "referenceOnly": true
+  },
+  {
+    "code": "11050",
+    "field": "tspGrams",
+    "value": 0.6,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 170937, Spices, tarragon, dried. Estragon séché en feuilles ; fiche sans forme précise, comparaison seule. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "élevée",
+    "referenceOnly": true
+  },
+  {
+    "code": "11050",
+    "field": "tbspGrams",
+    "value": 1.8,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 170937, Spices, tarragon, dried. Estragon séché en feuilles ; fiche sans forme précise, comparaison seule. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "élevée",
+    "referenceOnly": true
+  },
+  {
+    "code": "11062",
+    "field": "tspGrams",
+    "value": 1.4,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 170936, Spices, savory, ground. Sarriette moulue ; fiche seulement séchée, comparaison seule. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "élevée",
+    "referenceOnly": true
+  },
+  {
+    "code": "11062",
+    "field": "tbspGrams",
+    "value": 4.4,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 170936, Spices, savory, ground. Sarriette moulue ; fiche seulement séchée, comparaison seule. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "élevée",
+    "referenceOnly": true
+  },
+  {
+    "code": "15052",
+    "field": "tspGrams",
+    "value": 3.4,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 169414, Seeds, flaxseed. Lin entier générique ; variété brune non confirmée, comparaison seule. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "élevée",
+    "referenceOnly": true
+  },
+  {
+    "code": "15052",
+    "field": "tbspGrams",
+    "value": 10.3,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 169414, Seeds, flaxseed. Lin entier générique ; variété brune non confirmée, comparaison seule. Masse par 1 mesure USDA ; pesée du produit du foyer prioritaire.",
+    "uncertainty": "élevée",
+    "referenceOnly": true
+  },
+  {
+    "code": "11061",
+    "field": "tspGrams",
+    "value": 2.8,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 171330, Spices, poppy seed. Une cuillère à café de graines de pavot ; valeur existante conservée. Masse de mesure externe ; pesée du foyer prioritaire.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "11061",
+    "field": "tbspGrams",
+    "value": 8.8,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 171330, Spices, poppy seed. Une cuillère à soupe de graines de pavot ; valeur existante conservée. Masse de mesure externe ; pesée du foyer prioritaire.",
+    "uncertainty": "moyenne",
+    "referenceOnly": false
+  },
+  {
+    "code": "15203",
+    "field": "tbspGrams",
+    "value": 15,
+    "source": "USDA FoodData Central SR Legacy (2018), food_portion.csv",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+    "method": "FDC 168604, Seeds, sesame butter, tahini, type of kernels unspecified. Une cuillère à soupe de tahini ; type de graines non précisé dans la source. Masse de mesure externe ; pesée du foyer prioritaire.",
+    "uncertainty": "élevée",
+    "referenceOnly": false
   }
 ]

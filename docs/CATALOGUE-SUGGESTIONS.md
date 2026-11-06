@@ -97,6 +97,29 @@ Garder la valeur déjà saisie jusqu’à confirmation. Un comparateur de forme 
 | 22070 | Oeuf d'oie, cru | g/pièce | — | 144 | [USDA SR28, WEIGHT](https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip) | WEIGHT, NDB 01139 : 1 œuf entier cru de oie, masse comestible hors coquille ; calibre variable. | moyenne | Champ vide |
 | 10038 | Crevette, surgelée, crue | cuit/cru | — | 0,586667 | Observation / pesée à confirmer | Pesée citée dans la reprise : 176 g cuits / 300 g de départ. Confirmer que la référence surgelée crue, l’état à la pesée et l’égouttage sont bien ceux utilisés. | élevée | Comparateur seul |
 
+### Nouveau lot — portions d'épices, graines et extrait (6 novembre 2026)
+
+Source : [USDA FoodData Central, archive officielle SR Legacy d'avril 2018](https://fdc.nal.usda.gov/download-datasets/), tables `food.csv` et `food_portion.csv` ; identifiant FDC indiqué pour chaque aliment. Rapprochement avec les codes Ciqual exacts de l'export du 5 novembre, qui contient 1 058 lignes. Cet export comporte une fiche manuelle de plus que celui audité pour la 0.3.17 ; l'identité de cette fiche n'est pas déduite. **14 fiches supplémentaires examinées, 27 lignes** : 17 propositions pour des champs vides sur 9 fiches, 2 écarts sur une fiche et 8 comparateurs non applicables sans précision de forme sur 4 fiches. Ces lignes sont ajoutées au parcours « Examiner les propositions sourcées », sans modifier les valeurs du catalogue. La masse d'une cuillère varie selon le remplissage et le produit réel.
+
+| Code Ciqual | Aliment exact | Référence USDA | c. à café / c. à soupe | Décision et incertitude |
+| --- | --- | --- | ---: | --- |
+| 11064 | Carvi, graine | FDC 170918, caraway seed | 2,1 / 6,7 g | Propositions ; graines, incertitude moyenne. |
+| 11066 | Fenouil, graine | FDC 171323, fennel seed **whole** | 2 / 5,8 g | Propositions ; graines entières, incertitude moyenne. |
+| 11077 | Fenugrec, graine | FDC 171324, fenugreek seed | 3,7 / 11,1 g | Propositions ; graines, incertitude moyenne. |
+| 10999 | Cerfeuil, séché | FDC 171318, chervil dried | 0,6 / 1,9 g | Propositions ; séché, incertitude moyenne. |
+| 11034 | Marjolaine, séchée | FDC 170928, marjoram dried | 0,6 / 1,7 g | Propositions ; séchée, incertitude moyenne. |
+| 11036 | Romarin, séché | FDC 171333, rosemary dried | 1,2 / 3,3 g | Propositions ; taille des feuilles incertaine, incertitude élevée. |
+| 15034 | Lin, graine | FDC 169414, flaxseed **whole** | 3,4 / 10,3 g | Propositions pour graines entières seulement ; incertitude moyenne. |
+| 11065 | Vanille, extrait alcoolique | FDC 173471, vanilla extract | 4,2 / 13 g | Propositions ; composition alcoolique exacte à vérifier, incertitude élevée. |
+| 15203 | Tahin ou purée de sésame | FDC 168604, tahini de graines non précisées | — / 15 g | Proposition pour c. à soupe ; graines et texture à confirmer, incertitude élevée. |
+| 11061 | Pavot, graine | FDC 171330, poppy seed | 2,8 / 8,8 g | **Écarts** avec 3 / 9 g déjà saisis ; conserver ces valeurs jusqu'à arbitrage. |
+| 11039 | Safran | FDC 170934, saffron | 0,7 / 2,1 g | **Comparateur seul** : filaments ou poudre non précisés, incertitude élevée. |
+| 11050 | Estragon, séché | FDC 170937, tarragon dried **leaves** | 0,6 / 1,8 g | **Comparateur seul** : feuilles ou poudre non précisées ; poudre USDA 1,6 / 4,8 g. |
+| 11062 | Sarriette, séchée | FDC 170936, savory **ground** | 1,4 / 4,4 g | **Comparateur seul** : fiche sans mention « moulue », incertitude élevée. |
+| 15052 | Lin, brun, graine | FDC 169414, flaxseed générique **whole** | 3,4 / 10,3 g | **Comparateur seul** : variété brune non identifiée dans la source. |
+
+Les quatre fiches en comparaison seule demandent une précision sur la forme ou la variété avant toute saisie. Aucun champ de densité, pincée ou scoop n'est déduit des masses de cuillères. Les valeurs déjà remplies ne sont pas touchées ; les conflits du lot précédent restent à arbitrer individuellement. L'export CSV ne contient pas les liens vers les recettes : impossible de classer ce lot par fréquence d'utilisation sans un relevé complémentaire.
+
 ### Suite de l’examen
 
 Les valeurs de cuillère sont des masses par mesure et ne sont pas utilisées pour inventer une densité universelle de poudre ou une pincée. L’huile de tournesol n’a pas reçu de valeur : l’entrée FAO à 0,96 mérite une seconde source indépendante. Les lentilles corail, vertes et blondes ne reçoivent pas le rendement de la lentille moyenne sans source adaptée. La référence précise des crevettes reste à confirmer. Les références hors Ciqual restent à vérifier sur leurs étiquettes ou par pesée. Les données nutritionnelles non numériques de Ciqual restent inchangées.

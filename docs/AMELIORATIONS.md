@@ -1,5 +1,9 @@
 # Cahier des améliorations proposées
 
+## Nouveau lot de propositions alimentaires — 0.3.18
+
+Quatorze fiches supplémentaires disposent de 27 mesures USDA dans la revue existante, avec séparation entre propositions applicables, écarts sur valeurs présentes et comparateurs de forme incertaine. L'audit cumulé atteint 58 fiches et 91 lignes ; poursuivre les recherches par aliment exact et les arbitrages utilisateur. [Détail](CATALOGUE-SUGGESTIONS.md).
+
 ## Catalogue : propositions sourcées — 0.3.17
 
 Dans Aliments, « Examiner les propositions sourcées » rapproche les références Ciqual exactes et affiche la valeur actuelle, les méthodes et les limites. Une proposition pour un champ vide peut être reportée volontairement dans la saisie, puis enregistrée en lot après aperçu, avec sa provenance par ligne. Les écarts sur valeurs existantes renvoient à la fiche individuelle. Aucun remplissage automatique. [Audit de l’export et conflits](CATALOGUE-SUGGESTIONS.md) : 1 057 fiches inventoriées, 44 examinées en détail, 64 lignes dont 39 écarts pour 38 couples fiche/champ. L’examen des autres références et les pesées du foyer restent à faire.

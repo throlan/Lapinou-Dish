@@ -1,4 +1,8 @@
-# Cahier de reprise — 5 novembre 2026
+# Cahier de reprise — 6 novembre 2026
+
+## Catalogue : nouveau lot sourcé — 0.3.18
+
+Sur la base 0.3.17, 14 fiches Ciqual supplémentaires ont été examinées dans l'export disponible : 27 mesures USDA, dont 17 propositions sur champs vides, 2 écarts avec des mesures existantes et 8 comparateurs réservés aux formes incertaines. Le parcours de revue existant les présente sans les appliquer. Le pavot déjà renseigné reste inchangé ; le safran, l'estragon, la sarriette et le lin brun exigent une précision avant saisie. [Détail et références](CATALOGUE-SUGGESTIONS.md). Le CSV local compte 1 058 fiches ; celui du lot 0.3.17 en comptait 1 057. Sans les deux fichiers, ne pas identifier arbitrairement la fiche différente. 364 tests locaux réussis. Aucun accès à Unraid ou Nginx.
 
 ## Catalogue : propositions sourcées — 0.3.17
 
