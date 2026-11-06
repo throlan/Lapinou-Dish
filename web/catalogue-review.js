@@ -12,18 +12,27 @@ export function catalogueSame(current,proposal){
   return Math.abs(Number(current)-Number(proposal))<0.000001;
 }
 
+export function catalogueSelectionIssue(food,field,value,source){
+  const entered=String(value??'').trim();
+  if(!entered||field!=='foodCategory'&&(!Number.isFinite(Number(entered))||Number(entered)<=0))return 'invalid-value';
+  if(catalogueSame(catalogueCurrent(food,field),field==='foodCategory'?entered:Number(entered)))return 'unchanged';
+  if(!String(source??'').trim())return 'missing-source';
+  return null;
+}
+
 export function catalogueExclusion(food,exclusions){
   if(exclusions.categories.includes(food.foodCategory??'__none__'))return 'catégorie';
   if(exclusions.foodIds.includes(food.id.toLowerCase()))return 'aliment';
   return null;
 }
 
-export function filterCatalogueReview(foods,{field,query='',filter='all',selectedIds=new Set(),exclusions={categories:[],foodIds:[]},hideSame=true}){
+export function filterCatalogueReview(foods,{field,query='',category='',filter='all',selectedIds=new Set(),exclusions={categories:[],foodIds:[]},hideSame=true}){
   const search=query.trim().toLocaleLowerCase('fr');
   return foods.filter(food=>{
     const selected=selectedIds.has(food.id),excluded=field==='cookingFactor'?catalogueExclusion(food,exclusions):null;
     const current=catalogueCurrent(food,field),proposal=food.estimates?.[field];
     if(search&&!`${food.name} ${food.code??''} ${food.foodCategory??''}`.toLocaleLowerCase('fr').includes(search))return false;
+    if(category&&(food.foodCategory??'__none__')!==category)return false;
     if(filter==='excluded')return Boolean(excluded);
     if(excluded)return false;
     if(hideSame&&!selected&&catalogueSame(current,proposal?.value))return false;

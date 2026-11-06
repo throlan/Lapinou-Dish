@@ -1,5 +1,9 @@
 # État du projet — 6 novembre 2026
 
+## Revue du catalogue : catégories et validation guidée — 0.3.23
+
+Filtre par catégorie rétabli dans la revue, vue initiale limitée aux estimations et distinction explicite avec les valeurs actuelles préremplies. Les lignes inchangées ne peuvent plus être cochées ; une source manquante est signalée avec le nom de l'aliment. Voir [REPRISE.md](REPRISE.md).
+
 ## Revue du catalogue : affichage corrigé — 0.3.22
 
 Les lignes de révision restent compactes : le bouton d'exclusion ne tombe plus dans la colonne étroite de la case à cocher. L'affichage mobile et l'alignement du filtre des valeurs identiques sont corrigés. Voir [REPRISE.md](REPRISE.md).

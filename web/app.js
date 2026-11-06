@@ -8,7 +8,7 @@ import { suggestPlatePortions } from './portion-planner.js';
 import { PLATE_PARTS, validPlateRatios } from './meal-config.js';
 import { batchCookingWindow } from './preparation-weeks.js';
 import { clampFoodPageOffset } from './food-pagination.js';
-import {catalogueCurrent,catalogueSame,catalogueExclusion,filterCatalogueReview,catalogueReviewCsv} from './catalogue-review.js';
+import {catalogueCurrent,catalogueSame,catalogueSelectionIssue,catalogueExclusion,filterCatalogueReview,catalogueReviewCsv} from './catalogue-review.js';
 import { groupPreparations, suggestedProductionQuantity, suggestedServingQuantities, scaledIngredients, scaledSourceIngredients, productionRecipe, cookingYield } from './cooking-sheet.js';
 import { ingredientCookingFactor, recipeServiceChoices, recipeServiceMode, recipeDisplayPreferences, filterRecipeDirectory, recipeCardForSource, recipeMissingData, recipeMomentLabel, recipeTypeLabel, recipePlanningLabel } from './recipe-directory.js';
 
@@ -1195,12 +1195,18 @@ async function loadCatalogueEstimates(force=false){
   catalogueEstimateLoading=true;$('#catalogue-estimate-rows').replaceChildren(emptyMessage('Chargement du catalogue…'));
   try{const householdId=state.household?.id;if(!householdId)throw new Error('Aucun foyer sélectionné.');
     const [result,settings]=await Promise.all([api('/api/foods/catalogue-estimates',{timeoutMs:30000}),api(`/api/foods/catalogue-review-exclusions?householdId=${encodeURIComponent(householdId)}`)]);
-    catalogueEstimateFoods=result.foods;catalogueEstimateExclusions=settings.exclusions;catalogueEstimateHouseholdId=householdId;renderCatalogueExclusionCategories();renderCatalogueEstimates();}
+    catalogueEstimateFoods=result.foods;catalogueEstimateExclusions=settings.exclusions;catalogueEstimateHouseholdId=householdId;renderCatalogueReviewCategories();renderCatalogueExclusionCategories();renderCatalogueEstimates();}
   catch(error){showMessage($('#catalogue-estimate-message'),`Catalogue indisponible : ${error.body?.error??error.message}`);}
   finally{catalogueEstimateLoading=false;}
 }
 function catalogueEstimateFiltered(){
-  return filterCatalogueReview(catalogueEstimateFoods,{field:estimateField(),query:$('#catalogue-estimate-search').value,filter:$('#catalogue-estimate-filter').value,selectedIds:new Set(catalogueEstimateSelected.keys()),exclusions:catalogueEstimateExclusions,hideSame:$('#catalogue-estimate-hide-same').checked});
+  return filterCatalogueReview(catalogueEstimateFoods,{field:estimateField(),query:$('#catalogue-estimate-search').value,category:$('#catalogue-estimate-category').value,filter:$('#catalogue-estimate-filter').value,selectedIds:new Set(catalogueEstimateSelected.keys()),exclusions:catalogueEstimateExclusions,hideSame:$('#catalogue-estimate-hide-same').checked});
+}
+function renderCatalogueReviewCategories(){
+  const select=$('#catalogue-estimate-category'),previous=select.value,all=document.createElement('option');all.value='';all.textContent='Toutes les catégories';select.replaceChildren(all);
+  const categories=[...new Set(catalogueEstimateFoods.map(food=>food.foodCategory??'__none__'))].sort((a,b)=>a.localeCompare(b,'fr'));
+  for(const category of categories){const option=document.createElement('option');option.value=category;option.textContent=category==='__none__'?'Sans catégorie':category;select.append(option);}
+  select.value=categories.includes(previous)?previous:'';
 }
 async function saveCatalogueExclusions(next){
   const message=$('#catalogue-estimate-exclusions-message');
@@ -1237,10 +1243,17 @@ function renderCatalogueEstimates(){
     const before=document.createElement('span');before.textContent=current==null?'Actuel : vide':`Actuel : ${current}`;
     const value=document.createElement('input');value.type=field==='foodCategory'?'text':'number';value.step='any';value.min=field==='foodCategory'?'':'0.000001';value.max=field==='cookingFactor'?'10':'';value.setAttribute('aria-label',`Valeur à enregistrer pour ${food.name}`);value.value=selected?.value??proposal?.value??current??'';
     const source=document.createElement('input');source.type='text';source.maxLength=500;source.setAttribute('aria-label',`Source pour ${food.name}`);source.placeholder='Source ou mesure personnelle';source.value=selected?.sourceNote??estimateNote(proposal);
-    const details=document.createElement('small');details.className='catalogue-estimate-detail';details.textContent=proposal?`${proposal.uncertainty} · ${proposal.method}`:'Sans estimation ; mesure personnelle possible.';
+    const details=document.createElement('small');details.className='catalogue-estimate-detail';details.textContent=proposal?`Estimation : ${proposal.value} · ${proposal.uncertainty} · ${proposal.method}`:'Aucune estimation : le champ reprend la valeur actuelle si elle existe. Pour la modifier, indique une source ou une mesure personnelle.';
     const open=document.createElement('button');open.type='button';open.className='secondary catalogue-estimate-open';open.textContent='Fiche';open.addEventListener('click',()=>void openFoodEditor(food.id));
     const saveSelection=()=>{if(check.checked)catalogueEstimateSelected.set(food.id,{foodId:food.id,version:food.version,value:value.value,sourceNote:source.value});else catalogueEstimateSelected.delete(food.id);invalidateCatalogueEstimatePreview();$('#catalogue-estimate-count').textContent=`${catalogueEstimateFoods.length.toLocaleString('fr-FR')} fiches · ${proposed.toLocaleString('fr-FR')} avec estimation pour ce champ · ${catalogueEstimateSelected.size} cochée(s) (500 maximum par validation)`;};
-    check.addEventListener('change',()=>{if(check.checked&&catalogueEstimateSelected.size>=500){check.checked=false;showMessage($('#catalogue-estimate-message'),'Maximum 500 fiches par validation. Valide cette sélection puis continue avec les autres.');return;}saveSelection();});
+    check.addEventListener('change',()=>{
+      if(check.checked){
+        if(catalogueEstimateSelected.size>=500){check.checked=false;showMessage($('#catalogue-estimate-message'),'Maximum 500 fiches par validation. Valide cette sélection puis continue avec les autres.');return;}
+        const issue=catalogueSelectionIssue(food,field,value.value,source.value);
+        if(issue){check.checked=false;showMessage($('#catalogue-estimate-message'),`${food.name} : ${issue==='unchanged'?'cette valeur est déjà enregistrée, aucune modification à valider.':issue==='invalid-value'?'saisis une valeur valide avant de cocher la fiche.':'indique une source ou une mesure personnelle avant de cocher la fiche.'}`);if(issue!=='unchanged')(issue==='missing-source'?source:value).focus();return;}
+      }
+      saveSelection();
+    });
     value.addEventListener('input',()=>{if(check.checked)saveSelection();else invalidateCatalogueEstimatePreview();});source.addEventListener('input',()=>{if(check.checked)saveSelection();else invalidateCatalogueEstimatePreview();});
     row.append(check,name,before,value,source,open);
     if(field==='cookingFactor'){
@@ -1253,7 +1266,7 @@ function renderCatalogueEstimates(){
   }
   if(!page.length)root.append(emptyMessage('Aucune fiche pour ce filtre.'));
 }
-for(const selector of ['#catalogue-estimate-search','#catalogue-estimate-filter','#catalogue-estimate-page-size','#catalogue-estimate-hide-same'])$(selector).addEventListener(selector.endsWith('search')?'input':'change',()=>{catalogueEstimatePage=0;renderCatalogueEstimates();});
+for(const selector of ['#catalogue-estimate-search','#catalogue-estimate-category','#catalogue-estimate-filter','#catalogue-estimate-page-size','#catalogue-estimate-hide-same'])$(selector).addEventListener(selector.endsWith('search')?'input':'change',()=>{catalogueEstimatePage=0;renderCatalogueEstimates();});
 $('#catalogue-estimate-field').addEventListener('change',()=>{catalogueEstimateSelected.clear();catalogueEstimatePage=0;invalidateCatalogueEstimatePreview();renderCatalogueEstimates();});
 $('#catalogue-estimate-prev').addEventListener('click',()=>{catalogueEstimatePage--;renderCatalogueEstimates();});
 $('#catalogue-estimate-next').addEventListener('click',()=>{catalogueEstimatePage++;renderCatalogueEstimates();});
@@ -1266,9 +1279,12 @@ $('#catalogue-estimate-select-page').addEventListener('click',()=>{
   invalidateCatalogueEstimatePreview();renderCatalogueEstimates();
 });
 function catalogueEstimatePayload(dryRun){
-  const field=estimateField(),changes=[...catalogueEstimateSelected.values()].filter(item=>!catalogueSame(estimateCurrent(catalogueEstimateFoods.find(food=>food.id===item.foodId),field),field==='foodCategory'?item.value.trim():Number(item.value))).map(item=>({foodId:item.foodId,version:Number(item.version),value:field==='foodCategory'?item.value.trim():Number(item.value),sourceNote:item.sourceNote.trim()}));
+  const field=estimateField(),chosen=[...catalogueEstimateSelected.values()].map(item=>({item,food:catalogueEstimateFoods.find(food=>food.id===item.foodId)}));
+  const changed=chosen.filter(({item,food})=>food&&!catalogueSame(estimateCurrent(food,field),field==='foodCategory'?item.value.trim():Number(item.value)));
+  const changes=changed.map(({item})=>({foodId:item.foodId,version:Number(item.version),value:field==='foodCategory'?item.value.trim():Number(item.value),sourceNote:item.sourceNote.trim()}));
   if(!changes.length)throw new Error('Aucune valeur cochée ne diffère de sa valeur actuelle.');
-  if(changes.some(item=>!item.sourceNote||item.sourceNote.length>500))throw new Error('Chaque ligne cochée doit indiquer une source ou une mesure personnelle.');
+  const missingSources=changed.filter(({item})=>!item.sourceNote.trim()||item.sourceNote.length>500);
+  if(missingSources.length)throw new Error(`Source manquante pour ${missingSources.slice(0,5).map(({food})=>food.name).join(', ')}${missingSources.length>5?` et ${missingSources.length-5} autre(s)`:''}. Choisis « Sélectionnées » pour les retrouver.`);
   if(changes.some(item=>field==='foodCategory'?!item.value:!Number.isFinite(item.value)||item.value<=0))throw new Error('Vérifie les valeurs cochées.');
   return {field,sourceNote:'',overwrite:true,changes,dryRun};
 }
