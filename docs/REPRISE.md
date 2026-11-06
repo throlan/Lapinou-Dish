@@ -1,5 +1,10 @@
 # Cahier de reprise — 6 novembre 2026
 
+## Catégories et classement groupé — 0.3.25
+
+Dans Aliments, « + Catégorie » crée un nom réutilisable même sans aliment affecté. La modification groupée par catégorie demande un seul choix pour toute la sélection, existant ou nouveau, sans source. L’aperçu montre les reclassements avant validation et le contrôle de version protège les fiches modifiées entre-temps. Pour les autres champs, les valeurs restent protégées sauf choix explicite. Les outils de revue et d’export sont regroupés ; les actions groupées apparaissent à la sélection.
+
+
 ## Revue du catalogue : masquage et source facultative — 0.3.24
 
 La case de masquage retire aussi les fiches sans estimation dont la saisie est préremplie par la valeur déjà enregistrée. Décoche-la pour les revoir ; les sélections et exclusions restent consultables dans leurs vues dédiées. Le compteur et le CSV de la liste filtrée suivent les filtres actifs. La source est facultative dans la revue, à la demande de l’utilisateur ; l’enregistrement reste explicite et journalisé. L’onglet « Conversions aliments » est retiré. Les règles d’achat existantes ne sont pas modifiées et les anciens conflits de cuisson restent consultables depuis « Compléter le catalogue ».

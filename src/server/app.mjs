@@ -818,9 +818,27 @@ export async function handleRequest(request, response, pool, appPassword = null,
       catch{return send(response,500,{error:'food-bulk-delete-failed'});}
     }
 
-    if (url.pathname === '/api/foods/categories' && request.method === 'GET') {
+    if (url.pathname === '/api/foods/categories' && ['GET','POST'].includes(request.method)) {
+      if (request.method === 'POST') {
+        const body = await readJson(request);
+        if (body.error) return send(response, body.status ?? 400, {error:body.error});
+        const category = typeof body.value?.name === 'string' ? body.value.name.trim() : '';
+        if (!category || category.length > 80 || category === '__none__' || /[\x00-\x1f\x7f]/.test(category)) return send(response,400,{error:'invalid-food-category'});
+        try {
+          const existing = await pool.query('SELECT food_category AS category FROM foods WHERE lower(food_category)=lower($1) ORDER BY food_category LIMIT 1',[category]);
+          if (existing.rows.length) return send(response,200,{category:existing.rows[0].category,created:false});
+          const result = await pool.query('INSERT INTO custom_food_categories(name) VALUES($1) ON CONFLICT (lower(name)) DO NOTHING RETURNING name',[category]);
+          if (result.rows.length) return send(response,201,{category:result.rows[0].name,created:true});
+          const saved = await pool.query('SELECT name FROM custom_food_categories WHERE lower(name)=lower($1)',[category]);
+          return send(response,200,{category:saved.rows[0].name,created:false});
+        } catch { return send(response,500,{error:'food-category-create-failed'}); }
+      }
       try {
-        const result = await pool.query('SELECT food_category AS category,count(*)::integer AS count FROM foods WHERE food_category IS NOT NULL GROUP BY food_category ORDER BY food_category');
+        const result = await pool.query(`WITH used AS (
+          SELECT food_category AS category,count(*)::integer AS count FROM foods WHERE food_category IS NOT NULL GROUP BY food_category
+        ) SELECT category,count FROM used UNION ALL
+          SELECT name,0 FROM custom_food_categories c WHERE NOT EXISTS(SELECT 1 FROM used WHERE lower(category)=lower(c.name))
+          ORDER BY category`);
         const missing = await pool.query('SELECT count(*)::integer AS count FROM foods WHERE food_category IS NULL');
         return send(response, 200, { categories: result.rows, uncategorized: missing.rows[0].count });
       } catch { return send(response, 500, { error: 'food-categories-failed' }); }

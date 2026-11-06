@@ -1071,6 +1071,7 @@ function updateFoodSelectionUi(){
   const count=state.selectedFoodIds.size,pageIds=currentFoodPageIds.map(id=>id.toLowerCase()),selectedOnPage=pageIds.filter(id=>state.selectedFoodIds.has(id)).length;
   $('#food-selection-count').textContent=count?`${count.toLocaleString('fr-FR')} aliment${count===1?'':'s'} sélectionné${count===1?'':'s'}`:'Aucun aliment sélectionné';
   $('#clear-food-selection').disabled=!count;$('#bulk-delete-foods').disabled=!count;$('#bulk-edit-foods').disabled=!count;
+  $('#food-selection-actions').classList.toggle('hidden',!count);
   const page=$('#select-food-page');page.checked=pageIds.length>0&&selectedOnPage===pageIds.length;page.indeterminate=selectedOnPage>0&&selectedOnPage<pageIds.length;
 }
 async function refreshFoods() {
@@ -1158,7 +1159,7 @@ function foodRow(food, recipes = null) {
   remove.addEventListener('click',async()=>{
     if(!confirm(`Supprimer « ${food.name} » du catalogue ? Cette action est définitive. Une fiche utilisée dans une recette ou un stock ne pourra pas être supprimée.`))return;
     remove.disabled=true;
-    try{await api(`/api/foods/${food.id}`,{method:'DELETE'});showMessage($('#food-list-message'),`« ${food.name} » a été supprimé du catalogue.`,true);await refreshFoods();}
+    try{await api(`/api/foods/${food.id}`,{method:'DELETE'});showMessage($('#food-list-message'),`« ${food.name} » a été supprimé du catalogue.`,true);await refreshFoods();await refreshFoodCategories().catch(()=>{});}
     catch(error){const body=error.body??{};const refs=[...(body.recipes??[])];const details=refs.length?` Recettes concernées : ${refs.join(', ')}.`:'';const stocks=body.stockCount?` Fiche suivie dans ${body.stockCount} stock(s).`:'';showMessage($('#food-list-message'),body.error==='food-in-use'?`Suppression impossible : cet aliment est encore utilisé.${details}${stocks}`:`Suppression impossible : ${body.error??error.message}`);remove.disabled=false;}
   });actionButtons.append(remove);action.append(actionButtons);
   row.append(selectCell,name,recipeUsage,source,values,action); return row;
@@ -1307,7 +1308,7 @@ $('#catalogue-estimate-apply').addEventListener('click',async()=>{
 
 const bulkFoodNutrients={energyKcal:'energy_kcal',proteinG:'protein_g',carbohydrateG:'carbohydrate_g',fatG:'fat_g',fibreG:'fibre_g'};
 const bulkFoodUnits={tspGrams:'tsp',tbspGrams:'tbsp',pinchGrams:'pinch',scoopGrams:'scoop',pieceGrams:'piece'};
-let bulkFoodRows=[],bulkFoodPreview=null,bulkFoodRequest=null,bulkFoodReview=false,bulkFoodRevision=0;
+let bulkFoodRows=[],bulkFoodPreview=null,bulkFoodRequest=null,bulkFoodRevision=0,bulkFoodLoad=0;
 const formatBulkValue=value=>new Intl.NumberFormat('fr-FR',{maximumFractionDigits:6}).format(value);
 function bulkFoodCurrent(food,field){
   if(bulkFoodNutrients[field])return food.nutrients?.[bulkFoodNutrients[field]]??null;
@@ -1316,80 +1317,67 @@ function bulkFoodCurrent(food,field){
 }
 function invalidateBulkFoodPreview(){bulkFoodRevision++;bulkFoodPreview=null;bulkFoodRequest=null;$('#confirm-bulk-food-edit').disabled=true;$('#bulk-food-edit-message').textContent='';$('#bulk-food-edit-preview').replaceChildren();}
 function renderBulkFoodRows(){
-  invalidateBulkFoodPreview();const field=$('#bulk-food-field').value,root=$('#bulk-food-edit-rows');root.replaceChildren();
+  invalidateBulkFoodPreview();
+  const field=$('#bulk-food-field').value,root=$('#bulk-food-edit-rows'),category=field==='foodCategory';
+  $('#bulk-food-category-row').classList.toggle('hidden',!category);
+  for(const selector of ['#bulk-food-overwrite-row','#bulk-food-common-row','#bulk-food-source-row'])$(selector).classList.toggle('hidden',category);
+  $('#bulk-food-manual-hint').textContent=category?'Choisis une catégorie existante ou saisis un nouveau nom. Elle sera appliquée à tous les aliments ci-dessous, après confirmation.':'Saisis les nouvelles valeurs, puis vérifie l’aperçu. Les valeurs existantes sont protégées sauf choix explicite.';
+  root.replaceChildren();
   for(const food of bulkFoodRows){
-    const proposals=food.proposals?.filter(item=>item.field===field)??[];
-    if(bulkFoodReview&&!proposals.length)continue;
     const row=document.createElement('div');row.className='bulk-food-edit-row';
-    const title=document.createElement('label');title.textContent=food.name;title.htmlFor='bulk-value-'+food.id;
-    const current=document.createElement('small');const value=bulkFoodCurrent(food,field);current.textContent=value==null?'Non renseigné':`Actuel : ${formatBulkValue(Number(value))}`;
-    if(field==='foodCategory'&&value!=null)current.textContent=`Actuel : ${value}`;
-    const input=document.createElement('input');input.id=title.htmlFor;input.dataset.foodId=food.id;input.placeholder='Laisser vide pour ignorer';
-    if(field==='foodCategory'){input.type='text';input.maxLength=80;input.setAttribute('list','food-category-options');}
-    else{input.type='number';input.min=bulkFoodNutrients[field]?'0':'0.000001';input.step='any';}
-    input.addEventListener('input',()=>{delete input.dataset.proposedValue;delete input.dataset.proposalSource;invalidateBulkFoodPreview();});
+    const title=document.createElement(category?'span':'label');title.textContent=food.name;
+    const current=document.createElement('small');const value=bulkFoodCurrent(food,field);
+    current.textContent=value==null?(category?'Sans catégorie':'Non renseigné'):'Actuel : '+(category?value:formatBulkValue(Number(value)));
     row.append(title,current);
-    if(!bulkFoodReview||value==null)row.append(input);
-    else{
-      const open=document.createElement('button');open.type='button';open.className='secondary';open.textContent='Ouvrir la fiche';
-      open.addEventListener('click',()=>{$('#bulk-food-edit-dialog').close();void openFoodEditor(food.id);});row.append(open);
-    }
-    if(bulkFoodReview){
-      const details=document.createElement('div');details.className='bulk-food-proposals';
-      for(const proposal of proposals){
-        const line=document.createElement('div');line.className='bulk-food-proposal';
-        const text=document.createElement('p');
-        const status=value!=null?(Number(value)===proposal.value?'Valeur identique':'Écart · valeur actuelle protégée'):proposal.referenceOnly?'Comparateur seulement':'Proposition';
-        text.textContent=`${status} : ${formatBulkValue(proposal.value)} · incertitude ${proposal.uncertainty}. ${proposal.method}`;
-        line.append(text);
-        if(proposal.url){const link=document.createElement('a');link.href=proposal.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=proposal.source;line.append(link);}
-        if(value==null&&!proposal.referenceOnly){
-          const use=document.createElement('button');use.type='button';use.className='secondary';use.textContent='Reporter dans la saisie';
-          use.addEventListener('click',()=>{input.value=proposal.value;input.dataset.proposedValue=proposal.value;input.dataset.proposalSource=`${proposal.source} — ${proposal.method} Incertitude ${proposal.uncertainty}. ${proposal.url??''}`;invalidateBulkFoodPreview();input.focus();});line.append(use);
-        }
-        details.append(line);
-      }
-      row.append(details);
+    if(!category){
+      const input=document.createElement('input');input.id='bulk-value-'+food.id;title.htmlFor=input.id;input.dataset.foodId=food.id;input.placeholder='Laisser vide pour ignorer';
+      input.type='number';input.min=bulkFoodNutrients[field]?'0':'0.000001';input.step='any';
+      input.addEventListener('input',invalidateBulkFoodPreview);row.append(input);
     }
     root.append(row);
   }
-  if(!root.childElementCount)root.append(emptyMessage('Aucune fiche pour ce champ.'));
+  if(!root.childElementCount)root.append(emptyMessage('Aucune fiche à modifier.'));
 }
-let bulkFoodLoad=0;
-async function openBulkFoodEdit(review){
-  const load=++bulkFoodLoad;bulkFoodReview=review;bulkFoodRows=[];
-  const dialog=$('#bulk-food-edit-dialog');
-  $('#bulk-food-edit-title').textContent=review?'Propositions sourcées du catalogue':'Modifier plusieurs aliments';
-  for(const selector of ['#bulk-food-overwrite-row','#bulk-food-common-row','#bulk-food-manual-hint'])$(selector).classList.toggle('hidden',review);
-  $('#bulk-food-review-hint').classList.toggle('hidden',!review);
-  $('#bulk-food-overwrite').checked=false;$('#bulk-food-source').value='';$('#bulk-food-common').value='';
-  const field=$('#bulk-food-field');
-  for(const option of field.options){option.hidden=review&&!['cookingFactor','gramsPerMillilitre','tspGrams','tbspGrams','pieceGrams'].includes(option.value);option.disabled=option.hidden;}
-  field.value=review?'cookingFactor':'foodCategory';
-  dialog.showModal();$('#bulk-food-edit-rows').replaceChildren(emptyMessage('Chargement des fiches…'));invalidateBulkFoodPreview();
+async function openBulkFoodEdit(){
+  const load=++bulkFoodLoad;bulkFoodRows=[];
+  const dialog=$('#bulk-food-edit-dialog'),ids=[...state.selectedFoodIds];
+  for(const selector of ['#bulk-food-source','#bulk-food-common','#bulk-food-category'])$(selector).value='';
+  $('#bulk-food-overwrite').checked=false;
+  $('#bulk-food-field').value=state.missingField||'foodCategory';
+  renderBulkFoodRows();dialog.showModal();$('#bulk-food-edit-rows').replaceChildren(emptyMessage('Chargement des fiches…'));
   try{
-    const result=review?await api('/api/foods/catalogue-review'):await api('/api/foods/bulk-edit/rows',{method:'POST',body:JSON.stringify({foodIds:[...state.selectedFoodIds]})});
-    if(load!==bulkFoodLoad||!dialog.open)return;bulkFoodRows=result.foods;renderBulkFoodRows();
-  }catch(error){if(load===bulkFoodLoad&&dialog.open)$('#bulk-food-edit-rows').replaceChildren(emptyMessage(`Chargement impossible : ${error.body?.error??error.message}`));}
+    const result=await api('/api/foods/bulk-edit/rows',{method:'POST',body:JSON.stringify({foodIds:ids})});
+    if(load!==bulkFoodLoad||!dialog.open)return;
+    if(result.foods.length!==ids.length)throw new Error('Des fiches ne sont plus disponibles. Ferme et actualise la sélection.');
+    bulkFoodRows=result.foods;renderBulkFoodRows();
+  }catch(error){if(load===bulkFoodLoad&&dialog.open)$('#bulk-food-edit-rows').replaceChildren(emptyMessage('Chargement impossible : '+(error.body?.error??error.message)));}
 }
 $('#review-catalogue-foods').addEventListener('click',()=>{setView('admin');setAdminTab('catalogue');});
 $('#bulk-edit-foods').addEventListener('click',()=>{
   if(state.selectedFoodIds.size>250){showMessage($('#food-list-message'),'Sélectionne au maximum 250 aliments pour une édition groupée. Tu peux traiter les autres ensuite.');return;}
-  void openBulkFoodEdit(false);
+  void openBulkFoodEdit();
 });
 $('#bulk-food-field').addEventListener('change',renderBulkFoodRows);
 $('#fill-bulk-food-common').addEventListener('click',()=>{const value=$('#bulk-food-common').value.trim();if(!value)return;for(const input of $('#bulk-food-edit-rows').querySelectorAll('input[data-food-id]'))if(!input.value)input.value=value;invalidateBulkFoodPreview();});
-$('#bulk-food-source').addEventListener('input',invalidateBulkFoodPreview);
+for(const selector of ['#bulk-food-source','#bulk-food-category'])$(selector).addEventListener('input',invalidateBulkFoodPreview);
 $('#bulk-food-overwrite').addEventListener('change',invalidateBulkFoodPreview);
 for(const selector of ['#close-bulk-food-edit','#cancel-bulk-food-edit'])$(selector).addEventListener('click',()=>$('#bulk-food-edit-dialog').close());
 function bulkFoodPayload(dryRun){
-  const field=$('#bulk-food-field').value,sourceNote=$('#bulk-food-source').value.trim();
+  const field=$('#bulk-food-field').value;
+  if(field==='foodCategory'){
+    const entered=$('#bulk-food-category').value.trim();
+    if(!entered||entered.length>80||entered==='__none__')throw new Error('Choisis une catégorie ou saisis son nom.');
+    const value=[...$('#food-category-options').options].find(option=>option.value.toLowerCase()===entered.toLowerCase())?.value??entered;
+    const changes=bulkFoodRows.filter(food=>food.foodCategory!==value).map(food=>({foodId:food.id,version:Number(food.version),value}));
+    if(!changes.length)throw new Error('Aucun aliment sélectionné ne change de catégorie.');
+    return {field,sourceNote:'',overwrite:true,changes,dryRun};
+  }
   const byId=new Map(bulkFoodRows.map(food=>[food.id,food]));
-  const changes=[...$('#bulk-food-edit-rows').querySelectorAll('input[data-food-id]')].filter(input=>input.value.trim()).map(input=>({foodId:input.dataset.foodId,version:Number(byId.get(input.dataset.foodId).version),...(input.dataset.proposalSource&&Number(input.dataset.proposedValue)===Number(input.value)?{sourceNote:input.dataset.proposalSource}:{}),value:field==='foodCategory'?input.value.trim():Number(input.value)}));
+  const changes=[...$('#bulk-food-edit-rows').querySelectorAll('input[data-food-id]')].filter(input=>input.value.trim()).map(input=>({foodId:input.dataset.foodId,version:Number(byId.get(input.dataset.foodId).version),value:Number(input.value)}));
   if(!changes.length)throw new Error('Saisis au moins une nouvelle valeur.');
-  if(!sourceNote&&changes.some(item=>!item.sourceNote))throw new Error('Indique la source de tes propres saisies.');
-  return {field,sourceNote,overwrite:!bulkFoodReview&&$('#bulk-food-overwrite').checked,changes,dryRun};
+  return {field,sourceNote:$('#bulk-food-source').value.trim(),overwrite:$('#bulk-food-overwrite').checked,changes,dryRun};
 }
+
 function renderBulkFoodPreview(preview){
   const root=$('#bulk-food-edit-preview');root.replaceChildren();
   for(const item of preview){const line=document.createElement('div');line.className='bulk-food-edit-preview-line';line.textContent=`${item.name??item.foodId} : ${item.current??'non renseigné'} → ${item.proposed}${item.sourceNote?' · '+item.sourceNote:''}${item.conflict?` · conflit : ${item.conflict}`:''}`;root.append(line);}
@@ -1401,7 +1389,7 @@ $('#preview-bulk-food-edit').addEventListener('click',async()=>{
     if(revision!==bulkFoodRevision||!$('#bulk-food-edit-dialog').open)return;
     renderBulkFoodPreview(result.preview);
     const conflicts=result.preview.filter(item=>item.conflict);
-    $('#bulk-food-edit-message').textContent=conflicts.length?`${conflicts.length} conflit(s) listé(s) ci-dessous. Corrige-les avant d’appliquer.`:`${result.preview.length} changement(s) proposés. Vérifie les valeurs et la source avant d’appliquer.`;
+    $('#bulk-food-edit-message').textContent=conflicts.length?`${conflicts.length} conflit(s) listé(s) ci-dessous. Corrige-les avant d’appliquer.`:`${result.preview.length} changement(s) proposés. Vérifie les changements avant d’appliquer.`;
     if(!conflicts.length){bulkFoodPreview=result;bulkFoodRequest=request;$('#confirm-bulk-food-edit').disabled=false;}
   }catch(error){if(revision!==bulkFoodRevision||!$('#bulk-food-edit-dialog').open)return;const preview=error.body?.preview;if(preview)renderBulkFoodPreview(preview);$('#bulk-food-edit-message').textContent=preview?`${preview.filter(item=>item.conflict).length} conflit(s) listé(s) ci-dessous. Une valeur existe déjà ou la fiche a changé.`:`Aperçu impossible : ${error.body?.error??error.message}`;}
 });
@@ -1409,8 +1397,9 @@ $('#confirm-bulk-food-edit').addEventListener('click',async event=>{
   if(!bulkFoodPreview||!bulkFoodRequest)return;const button=event.currentTarget;button.disabled=true;
   try{
     const result=await api('/api/foods/bulk-edit',{method:'POST',body:JSON.stringify({...bulkFoodRequest,dryRun:false})});
-    $('#bulk-food-edit-dialog').close();state.selectedFoodIds.clear();await refreshFoods();await refreshFoodCategories();
-    showMessage($('#food-list-message'),`${result.applied} fiche(s) modifiée(s) avec journal et source.`,true);
+    $('#bulk-food-edit-dialog').close();state.selectedFoodIds.clear();await refreshFoods();await refreshFoodCategories().catch(()=>{});
+    catalogueEstimateFoods=[];
+    showMessage($('#food-list-message'),`${result.applied} fiche(s) modifiée(s).`,true);
   }catch(error){$('#bulk-food-edit-message').textContent=`Application impossible : ${error.body?.error??error.message}. Recharge les fiches si elles ont changé.`;}
   finally{invalidateBulkFoodPreview();}
 });
@@ -1548,6 +1537,23 @@ async function refreshFoodCategories(){
   $('#food-category-options').replaceChildren(...categories.map(item=>{const option=document.createElement('option');option.value=item.category;return option;}));
 }
 refreshFoodCategories().catch(()=>{});
+$('#add-food-category').addEventListener('click',()=>{
+  $('#food-category-form').reset();$('#food-category-message').textContent='';$('#food-category-dialog').showModal();
+});
+$('#cancel-food-category').addEventListener('click',()=>$('#food-category-dialog').close());
+$('#food-category-form').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const form=event.currentTarget,button=form.querySelector('[type=submit]'),name=form.elements.name.value.trim();
+  if(!name){showMessage($('#food-category-message'),'Saisis un nom de catégorie.');return;}
+  button.disabled=true;
+  try{
+    const result=await api('/api/foods/categories',{method:'POST',body:JSON.stringify({name})});
+    $('#food-category-dialog').close();
+    await refreshFoodCategories().catch(()=>{});
+    showMessage($('#food-list-message'),result.created?'Catégorie « '+result.category+' » créée.':'La catégorie « '+result.category+' » existe déjà.',true);
+  }catch(error){showMessage($('#food-category-message'),'Création impossible : '+(error.body?.error??error.message));}
+  finally{button.disabled=false;}
+});
 function moveFoodPage(direction){state.offset=Math.max(0,state.offset+direction*state.limit);refreshFoods();}
 for(const selector of ['#previous-page','#previous-page-top'])$(selector).addEventListener('click',()=>moveFoodPage(-1));
 for(const selector of ['#next-page','#next-page-top'])$(selector).addEventListener('click',()=>moveFoodPage(1));
