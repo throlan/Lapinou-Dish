@@ -1,5 +1,9 @@
 # Cahier de reprise — 6 novembre 2026
 
+## Revue du catalogue : lignes compactes — 0.3.22
+
+Le bouton « Exclure de cuisson » reste sur la même ligne que la fiche et ses autres actions sur ordinateur. Sur mobile, les valeurs et les boutons disposent de lignes lisibles. La case « Masquer les valeurs actuelles identiques » est alignée sur son libellé. Aucun calcul, filtre ou aliment n'est modifié par cette correction d'affichage.
+
 ## Revue du catalogue : exclusions et exports — 0.3.21
 
 Dans Administration → Compléter le catalogue, les exclusions de catégories et d'aliments concernent uniquement la liste de révision du coefficient de cuisson. Elles sont enregistrées par foyer et réversibles via le filtre « Exclues de la cuisson » ou la liste des catégories. Elles ne modifient aucune fiche, recette ni quantité de menu. La liste peut afficher les valeurs actuelles, y compris sans estimation ; le champ de saisie reprend alors la valeur présente. Les lignes dont la valeur non nulle égale l'estimation sont masquées par défaut, avec une case pour les revoir. Le CSV exporte toute la liste filtrée, au-delà de la page affichée, ou uniquement les fiches cochées ; il contient les valeurs actuelles, estimations, sources, liens et exclusions. Une valeur inchangée n'est pas envoyée en validation. Les estimations restent facultatives et aucune valeur n'est appliquée automatiquement. **372 tests locaux réussis.** Aucun accès à Unraid ni Nginx.

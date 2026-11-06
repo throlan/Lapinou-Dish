@@ -1,5 +1,9 @@
 # État du projet — 6 novembre 2026
 
+## Revue du catalogue : affichage corrigé — 0.3.22
+
+Les lignes de révision restent compactes : le bouton d'exclusion ne tombe plus dans la colonne étroite de la case à cocher. L'affichage mobile et l'alignement du filtre des valeurs identiques sont corrigés. Voir [REPRISE.md](REPRISE.md).
+
 ## Revue du catalogue : filtres et exports — 0.3.21
 
 Les exclusions de cuisson par catégorie ou aliment sont conservées par foyer et ne touchent pas aux données alimentaires. La revue affiche les valeurs actuelles même sans estimation, masque par défaut les estimations identiques aux valeurs déjà présentes et exporte la vue filtrée ou la sélection en CSV. **372 tests locaux réussis.** Voir [REPRISE.md](REPRISE.md).
