@@ -76,7 +76,7 @@ export function validateBulkFoodEdit(input) {
     const value = field.kind === 'text' ? (typeof item.value === 'string' ? item.value.trim() : null) : item.value;
     if (field.kind === 'text' ? !value || value.length > 80 : typeof value !== 'number' || !Number.isFinite(value) || value < (field.nutrient ? 0 : 0.000001) || value > field.max) return { error: 'invalid-bulk-value' };
     const sourceNote = item.sourceNote ?? input.sourceNote;
-    if (typeof sourceNote !== 'string' || !sourceNote.trim() || sourceNote.length > 500) return { error: 'invalid-bulk-edit' };
+    if (typeof sourceNote !== 'string' || sourceNote.length > 500) return { error: 'invalid-bulk-edit' };
     changes.push({ foodId: item.foodId, version: item.version, value, sourceNote: sourceNote.trim() });
   }
   return { data: { field: input.field, definition: field, changes, dryRun: input.dryRun, overwrite: input.overwrite, sourceNote: input.sourceNote.trim() } };
@@ -108,7 +108,7 @@ export async function bulkEditFoods(pool, input) {
       if (String(item.current) === String(item.proposed)) continue;
       const {sourceNote} = item;
       const before = await getFood(client, item.foodId);
-      if (definition.column) await client.query(`UPDATE foods SET ${definition.column}=$2,source_note=concat_ws(E'\\n',NULLIF(source_note,''),$3::text),manual_override=true,version=version+1,updated_at=now() WHERE id=$1`, [item.foodId, item.proposed, sourceNote]);
+      if (definition.column) await client.query(`UPDATE foods SET ${definition.column}=$2,source_note=CASE WHEN $3::text='' THEN source_note ELSE concat_ws(E'\\n',NULLIF(source_note,''),$3::text) END,manual_override=true,version=version+1,updated_at=now() WHERE id=$1`, [item.foodId, item.proposed, sourceNote]);
       else if (definition.unit) await client.query(`INSERT INTO food_unit_conversions(food_id,unit_id,grams_per_unit,source_note) VALUES($1,$2,$3,$4) ON CONFLICT(food_id,unit_id) DO UPDATE SET grams_per_unit=EXCLUDED.grams_per_unit,source_note=EXCLUDED.source_note`, [item.foodId, definition.unit, item.proposed, sourceNote]);
       else await client.query(`INSERT INTO food_nutrients(food_id,nutrient_id,value_per_100g,source_note) VALUES($1,$2,$3,$4) ON CONFLICT(food_id,nutrient_id) DO UPDATE SET value_per_100g=EXCLUDED.value_per_100g,source_note=EXCLUDED.source_note`, [item.foodId, definition.nutrient, item.proposed, sourceNote]);
       if (!definition.column) await client.query('UPDATE foods SET manual_override=true,version=version+1,updated_at=now() WHERE id=$1', [item.foodId]);
@@ -125,7 +125,7 @@ export async function bulkEditFoods(pool, input) {
         }
       }
       const after = await getFood(client, item.foodId);
-      await client.query('INSERT INTO food_change_log(id,food_id,reason,before_state,after_state) VALUES($1,$2,$3,$4::jsonb,$5::jsonb)', [randomUUID(), item.foodId, `Modification groupée : ${sourceNote}`, JSON.stringify(before), JSON.stringify(after)]);
+      await client.query('INSERT INTO food_change_log(id,food_id,reason,before_state,after_state) VALUES($1,$2,$3,$4::jsonb,$5::jsonb)', [randomUUID(), item.foodId, sourceNote ? `Modification groupée : ${sourceNote}` : 'Modification groupée sans source renseignée', JSON.stringify(before), JSON.stringify(after)]);
     }
     await client.query('COMMIT');
     return { preview, applied: preview.filter(item => String(item.current) !== String(item.proposed)).length, conflictCount: 0 };

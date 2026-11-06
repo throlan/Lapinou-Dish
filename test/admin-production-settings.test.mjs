@@ -19,7 +19,7 @@ test('opening administration loads and renders production categories before edit
     $:selector=>selector==='#meal-ratios-form'?form:selector==='button[type="submit"]'?{disabled:false}:message,
     api:async path=>path.startsWith('/api/meal-settings')?{ratios}:({productionTypes:[]}),
     refreshPeople:async()=>{},refreshProductionTypes:async()=>{loadedTypes++;state.productionTypes=[{id:'bread',label:'Pain'},{id:'pasta',label:'Pâtes'}];context.renderProductionTypeRows();},
-    refreshProteinSettings:async()=>{},updateMealRatiosPreview(){},refreshPlateSettings:async()=>{},refreshFoodYieldConversions:async()=>{},refreshMealAdditions:async()=>{},
+    refreshProteinSettings:async()=>{},updateMealRatiosPreview(){},refreshPlateSettings:async()=>{},refreshFoodCookingConflicts:async()=>{},refreshMealAdditions:async()=>{},
     renderProductionTypeRows(){renderedRows=context.state.productionTypes;},showMessage(){},
   };
   runInNewContext(app.slice(start,end)+'\nglobalThis.refresh=refreshMealSettings;',context);
@@ -32,7 +32,9 @@ test('administration presents compact accessible tabs and recipe-specific minimu
   const tabs=[...html.matchAll(/data-admin-tab="([^"]+)"/g)].map(match=>match[1]);
   const panels=[...html.matchAll(/data-admin-panel="([^"]+)"/g)].map(match=>match[1]);
   assert.deepEqual(tabs,panels);
-  assert.equal(tabs.length,8);
+  assert.equal(tabs.length,7);
+  assert.ok(!tabs.includes('yields'));
+  assert.match(html,/id="food-cooking-conflicts"/);
   assert.ok(tabs.includes('catalogue'));
   assert.match(html,/name="minimumProductionAmount"/);
   assert.match(html,/name="minimumProductionUnitId"/);

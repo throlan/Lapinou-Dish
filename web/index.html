@@ -59,7 +59,6 @@
           <button type="button" role="tab" aria-selected="false" aria-controls="admin-panel-additions" data-admin-tab="additions">Ajouts individuels</button>
           <button type="button" role="tab" aria-selected="false" aria-controls="admin-panel-proteins" data-admin-tab="proteins">Protéines</button>
           <button type="button" role="tab" aria-selected="false" aria-controls="admin-panel-plates" data-admin-tab="plates">Assiettes</button>
-          <button type="button" role="tab" aria-selected="false" aria-controls="admin-panel-yields" data-admin-tab="yields">Conversions aliments</button>
           <button type="button" role="tab" aria-selected="false" aria-controls="admin-panel-catalogue" data-admin-tab="catalogue">Catalogue à compléter</button>
         </nav>
         <div class="admin-panels">
@@ -129,29 +128,12 @@
           <p id="plate-ratios-message" class="form-message" role="status"></p>
         </form>
         </section>
-        <section id="admin-panel-yields" class="admin-panel" role="tabpanel" tabindex="0" data-admin-panel="yields" hidden>
-        <h3>Coefficients de cuisson à vérifier</h3>
-        <p class="muted">Un aliment utilisé avec plusieurs coefficients reste inchangé tant que tu n’as pas choisi sa valeur dans sa fiche. Les quantités déjà enregistrées dans les menus et les stocks restent identiques.</p>
-        <div id="food-cooking-conflicts" class="card"><p class="empty">Chargement…</p></div>
-        <h3>Conversions de rendement des aliments</h3>
-        <form id="food-yield-form" class="card food-yield-form">
-          <p class="muted">Relie deux fiches alimentaires distinctes, par exemple des pois chiches cuits égouttés aux pois chiches secs à acheter. Ce réglage sert aux courses ; le poids cuit d’un même aliment se renseigne dans sa fiche. Une règle « Acheter sous… » explicite reste prioritaire.</p>
-          <input type="hidden" name="id">
-          <div class="form-grid">
-            <label>Aliment de départ<input name="sourceFoodName" list="yield-source-options" autocomplete="off" required placeholder="Rechercher un aliment…"><datalist id="yield-source-options"></datalist><input name="sourceFoodId" type="hidden"></label>
-            <label>Aliment obtenu<input name="targetFoodName" list="yield-target-options" autocomplete="off" required placeholder="Rechercher un aliment…"><datalist id="yield-target-options"></datalist><input name="targetFoodId" type="hidden"></label>
-            <label>Coefficient obtenu<input name="factor" type="number" min="0.000001" max="10" step="any" required placeholder="Ex. 1,25"></label>
-          </div>
-          <div class="form-actions"><button type="submit" class="primary">Ajouter la conversion</button><button type="button" class="secondary hidden" id="cancel-food-yield-edit">Annuler la modification</button></div>
-          <p id="food-yield-message" class="form-message" role="status"></p>
-        </form>
-        <div id="food-yield-conversions" class="food-yield-conversions" aria-live="polite"><p class="muted">Chargement des conversions…</p></div>
-        </section>
         <section id="admin-panel-catalogue" class="admin-panel" role="tabpanel" tabindex="0" data-admin-panel="catalogue" hidden>
           <h3>Compléter le catalogue</h3>
           <p class="muted">Toutes les fiches sont listées. Les valeurs proposées sont des estimations, surtout quand elles proviennent d’une famille d’aliments. Modifie la valeur ou sa source si besoin, coche seulement les lignes voulues, puis vérifie le récapitulatif. Les données actuelles restent inchangées jusqu’à validation.</p>
+          <details><summary>Coefficients de cuisson historiques à vérifier</summary><div id="food-cooking-conflicts" class="card"><p class="empty">Chargement…</p></div></details>
           <div class="catalogue-estimate-toolbar"><label>Champ<select id="catalogue-estimate-field"><option value="cookingFactor">Poids cuit / poids cru</option><option value="gramsPerMillilitre">Densité (g/ml)</option><option value="tspGrams">Poids c. à café (g)</option><option value="tbspGrams">Poids c. à soupe (g)</option><option value="pinchGrams">Poids pincée (g)</option><option value="scoopGrams">Poids scoop (g)</option><option value="pieceGrams">Poids pièce (g)</option><option value="foodCategory">Catégorie</option></select></label><label>Rechercher<input id="catalogue-estimate-search" type="search" placeholder="Nom ou code Ciqual"></label><label>Catégorie<select id="catalogue-estimate-category"><option value="">Toutes les catégories</option></select></label><label>Afficher<select id="catalogue-estimate-filter"><option value="all">Toutes les fiches</option><option value="proposed" selected>Avec estimation</option><option value="missing">Sans valeur actuelle</option><option value="current">Avec valeur actuelle</option><option value="current-no-proposal">Valeur actuelle sans estimation</option><option value="selected">Sélectionnées</option><option value="excluded">Exclues de la cuisson</option></select></label><label>Par page<select id="catalogue-estimate-page-size"><option value="50">50</option><option value="100">100</option><option value="250">250</option></select></label></div>
-          <label class="checkbox-label catalogue-estimate-toggle"><input id="catalogue-estimate-hide-same" type="checkbox" checked> Masquer les valeurs actuelles identiques aux estimations</label>
+          <label class="checkbox-label catalogue-estimate-toggle"><input id="catalogue-estimate-hide-same" type="checkbox" checked> Masquer les fiches dont la valeur proposée ou préremplie est déjà enregistrée</label>
           <details id="catalogue-estimate-exclusions"><summary>Exclure des aliments ou catégories du coefficient de cuisson</summary><p class="muted">Ces exclusions masquent uniquement les fiches dans la révision du coefficient de cuisson. Les recettes et les valeurs enregistrées ne changent pas. Pour exclure un aliment seul, utilise le bouton sur sa ligne.</p><div id="catalogue-estimate-category-exclusions" class="catalogue-estimate-categories"></div><p id="catalogue-estimate-exclusions-message" class="form-message" role="status"></p></details>
           <p id="catalogue-estimate-count" class="muted" role="status"></p>
           <div class="form-actions"><button type="button" class="secondary" id="catalogue-estimate-select-page">Cocher les estimations de la page</button><button type="button" class="secondary" id="catalogue-estimate-clear">Tout décocher</button><button type="button" class="secondary" id="catalogue-estimate-export-filtered">Exporter la liste filtrée</button><button type="button" class="secondary" id="catalogue-estimate-export-selected">Exporter les fiches cochées</button></div>
