@@ -1,4 +1,8 @@
-# Prochaines tâches — 5 novembre 2026
+# Prochaines tâches — 6 novembre 2026
+
+## Catalogue après le nouveau lot 0.3.18
+
+Poursuivre l'examen des fiches non couvertes par les 58 fiches déjà documentées. Arbitrer un par un les écarts, notamment les graines de pavot (2,8/8,8 g dans la source USDA contre 3/9 g saisis), et préciser les formes de safran, estragon, sarriette et lin brun avant toute saisie. L'export CSV ne permet pas de déterminer quels aliments sont utilisés dans les recettes ; obtenir ce relevé avant de prioriser par usage. Préserver la fiche manuelle supplémentaire de l'export à 1 058 lignes sans deviner sa différence avec l'export à 1 057 lignes.
 
 ## Catalogue : propositions sourcées — 0.3.17
 
