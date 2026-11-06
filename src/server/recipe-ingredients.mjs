@@ -18,8 +18,8 @@ export function recipeMinimumInYield(recipe){
 export async function loadRecipeGraph(client,householdId) {
   const recipes=await client.query(`SELECT id,name,yield_amount,yield_unit_id,output_units,production_type,minimum_production_amount,minimum_production_unit_id,
     parent_recipe_id,separate_starch,cooking_factors,serving_part_active FROM recipes WHERE household_id=$1`,[householdId]);
-  const lines=await client.query(`SELECT l.recipe_id,l.food_id,l.ingredient_recipe_id,l.quantity,l.unit_id,l.serving_part,l.cooking_factor,
-    f.canonical_name,f.grams_per_millilitre,
+  const lines=await client.query(`SELECT l.recipe_id,l.food_id,l.ingredient_recipe_id,l.quantity,l.unit_id,l.serving_part,l.cooking_factor,l.cooking_state,
+    f.canonical_name,f.grams_per_millilitre,f.cooking_factor AS food_cooking_factor,
     COALESCE((SELECT jsonb_object_agg(c.unit_id,c.grams_per_unit) FROM food_unit_conversions c WHERE c.food_id=f.id),'{}'::jsonb) AS grams_per_unit
     FROM recipe_lines l JOIN recipes r ON r.id=l.recipe_id LEFT JOIN foods f ON f.id=l.food_id
     WHERE r.household_id=$1 ORDER BY l.sort_order,l.id`,[householdId]);
@@ -28,7 +28,7 @@ export async function loadRecipeGraph(client,householdId) {
     separateStarch:r.separate_starch,cookingFactors:r.cooking_factors??{},lines:[],parts:[]}]));
   for(const r of graph.values())if(r.parentRecipeId&&r.servingPartActive!==false)graph.get(r.parentRecipeId)?.parts.push(r);
   for(const l of lines.rows)graph.get(l.recipe_id).lines.push({foodId:l.food_id,recipeId:l.ingredient_recipe_id,
-    quantity:Number(l.quantity),unitId:l.unit_id,servingPart:l.serving_part??'main',cookingFactor:l.cooking_factor==null?null:Number(l.cooking_factor),
+    quantity:Number(l.quantity),unitId:l.unit_id,servingPart:l.serving_part??'main',cookingFactor:l.cooking_factor==null?null:Number(l.cooking_factor),cookingState:l.cooking_state??'legacy',foodCookingFactor:l.food_cooking_factor==null?null:Number(l.food_cooking_factor),
     name:l.canonical_name,gramsPerMillilitre:l.grams_per_millilitre==null?null:Number(l.grams_per_millilitre),
     gramsPerUnit:Object.fromEntries(Object.entries(l.grams_per_unit).map(([k,v])=>[k,Number(v)]))});
   return graph;
@@ -48,7 +48,10 @@ export function recipeWeight(graph,recipeId,path=[]) {
     }else grams=toGrams(line.quantity,line.unitId,line);
     if(grams==null || !Number.isFinite(grams))return null;
     // Components are already prepared; never reapply a rice/pasta cooking factor.
-    total+=grams*(line.recipeId?1:line.cookingFactor??(recipe.separateStarch?recipe.cookingFactors[line.servingPart]:1)??1);
+    const factor=line.recipeId||['served_raw','already_cooked'].includes(line.cookingState)?1:
+      line.cookingState==='cooked_from_raw'?(line.foodCookingFactor??line.cookingFactor??1):
+      (line.cookingFactor??(recipe.separateStarch?recipe.cookingFactors[line.servingPart]:1)??1);
+    total+=grams*factor;
   }
   return total>0?total:null;
 }

@@ -1,5 +1,7 @@
 # Cahier produit Lapinou Dish
 
+Une ligne d'ingrédient indique désormais si l'aliment est servi cru, cuit à partir de sa quantité crue ou ajouté déjà cuit. Le coefficient de cuisson appartient à la fiche aliment et ne s'applique que dans le deuxième cas. Les recettes historiques gardent leur calcul antérieur jusqu'à vérification dans l'éditeur.
+
 La version 0.3.16 ajoute des catégories alimentaires indépendantes des rubriques de courses, un filtre par donnée manquante et une édition groupée avec aperçu et provenance. Les valeurs estimées de cuisson et de mesure ne sont pas appliquées automatiquement.
 
 Une scoop correspond par défaut à 60 ml. Pour la whey, 30 g par scoop est une estimation de secours, tandis qu'un poids pesé dans la fiche aliment ou une densité connue prévaut. Le calcul n'invente pas une masse pour les autres poudres.

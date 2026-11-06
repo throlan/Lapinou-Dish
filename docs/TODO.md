@@ -1,5 +1,9 @@
 # Prochaines tâches — 6 novembre 2026
 
+## Après l'état de cuisson par ingrédient
+
+Faire examiner progressivement les lignes historiques dans l'éditeur et les coefficients contradictoires, sans conversion automatique ni changement des quantités de menus déjà validées. Pour les ingrédients ajoutés déjà cuits, sélectionner la fiche nutritionnelle correspondant à leur forme cuite. Poursuivre ensuite l'audit du catalogue décrit ci-dessous.
+
 ## Catalogue après le nouveau lot 0.3.18
 
 Poursuivre l'examen des fiches non couvertes par les 58 fiches déjà documentées. Arbitrer un par un les écarts, notamment les graines de pavot (2,8/8,8 g dans la source USDA contre 3/9 g saisis), et préciser les formes de safran, estragon, sarriette et lin brun avant toute saisie. L'export CSV ne permet pas de déterminer quels aliments sont utilisés dans les recettes ; obtenir ce relevé avant de prioriser par usage. Préserver la fiche manuelle supplémentaire de l'export à 1 058 lignes sans deviner sa différence avec l'export à 1 057 lignes.

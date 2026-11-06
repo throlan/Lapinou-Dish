@@ -1565,7 +1565,7 @@ $('#food-form').addEventListener('submit', async (event) => {
       return;
     }
     const duplicates = error.body?.matches?.map((food) => food.name).join(', ');
-    showMessage($('#food-message'), error.body?.error === 'possible-duplicate' ? `Cette fiche ressemble à un aliment déjà présent : ${duplicates}.` : `Enregistrement impossible : ${error.body?.error ?? error.message}`);
+    showMessage($('#food-message'), error.body?.error === 'possible-duplicate' ? `Cette fiche ressemble à un aliment déjà présent : ${duplicates}.` : error.body?.error==='cooking-factor-in-use' ? 'Ce coefficient est utilisé par une recette qui cuit cet aliment. Modifie d’abord ses ingrédients.' : `Enregistrement impossible : ${error.body?.error ?? error.message}`);
   }
 });
 
@@ -1670,12 +1670,19 @@ function addRecipeLine(initial = null) {
   if(!serving.options[2].hidden) serving.options[0].textContent='Viande / protéines et sauce';
   serving.addEventListener('change',updateServingConfiguration);
   const cooking = document.createElement('input'); cooking.type='hidden';cooking.name='cookingFactor';cooking.value=String(initial?.cookingFactor??1);
+  const cookingState=document.createElement('select');cookingState.name='cookingState';cookingState.required=true;
+  if(!initial?.cookingState)cookingState.add(new Option('Choisir l’état…',''));
+  else if(initial.cookingState==='legacy')cookingState.add(new Option('Calcul historique · à vérifier','legacy'));
+  cookingState.add(new Option('Servi cru · poids inchangé','served_raw'));
+  cookingState.add(new Option('Cuit dans cette recette · poids cru saisi','cooked_from_raw'));
+  cookingState.add(new Option('Ajouté déjà cuit · poids cuit saisi','already_cooked'));
+  cookingState.value=initial?.cookingState??'';
   const controls=document.createElement('div');controls.className='recipe-line-controls';
   const field=(text,input,className)=>{const label=document.createElement('label');label.className=className;label.append(document.createTextNode(text),input);return label;};
   const quantityField=field('Quantité',quantity,'ingredient-quantity-field'),unitField=field('Unité',unit,'ingredient-unit-field');
   const servingField=field(servingMode === 'whole'?'Type d’ingrédient':'Partie servie',serving,'ingredient-serving-field');
   servingField.hidden=serving.hidden;
-  controls.append(quantityField,unitField,servingField,cooking,remove);
+  controls.append(quantityField,unitField,servingField,field('État de l’ingrédient',cookingState,'ingredient-cooking-state-field'),cooking,remove);
   const actions=document.createElement('div');actions.className='ingredient-actions';actions.append(changeMatch,editFood);
   foodBox.append(search,select,incompleteTag);row.append(foodBox,controls,hint,actions);$('#recipe-lines').append(row);
   if (initial?.foodId) changeMatch.classList.remove('hidden');
@@ -1794,7 +1801,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
   const form = event.currentTarget;
   const servingMode = form.elements.servingMode.value;
   const servingOptions = { servingMode, separateStarch: servingMode !== 'original', cookingFactors: { main:1, starch:1, vegetables:1 } };
-  $$('.recipe-line').forEach((row,index) => { lines[index].servingPart = ['separate','three'].includes(servingMode) ? $('select[name="servingPart"]',row).value : 'main'; const factor=$('[name="cookingFactor"]',row).value; lines[index].cookingFactor=factor === '' ? null : Number(factor); });
+  $$('.recipe-line').forEach((row,index) => { lines[index].servingPart = ['separate','three'].includes(servingMode) ? $('select[name="servingPart"]',row).value : 'main'; const factor=$('[name="cookingFactor"]',row).value; lines[index].cookingFactor=factor === '' ? null : Number(factor);if(lines[index].foodId)lines[index].cookingState=$('select[name="cookingState"]',row).value; });
   if (['separate','three'].includes(servingMode) && !lines.some(line=>line.servingPart === 'starch')) {
     showMessage(message,'Affecte le riz ou les autres féculents à « Féculents » sur leurs lignes d’ingrédients avant d’enregistrer. Le service séparé est conservé dans le formulaire.');
     message.scrollIntoView({behavior:'smooth',block:'center'});
@@ -1840,6 +1847,8 @@ $('#recipe-form').addEventListener('submit', async (event) => {
       'serving-weight-conversion-required':'Pour estimer les grammes, complète la conversion en grammes des ingrédients exprimés en ml, cuillères ou pièces dans leurs fiches aliments.',
       'invalid-serving-parts':'La séparation des féculents est réservée aux plats. Garde au moins un ingrédient dans la partie principale.',
       'invalid-cooking-factor':'Le coefficient de cuisson doit être un nombre positif, au maximum 10.',
+      'invalid-cooking-state':'Choisis si chaque aliment est servi cru, cuit dans la recette ou ajouté déjà cuit.',
+      'cooking-factor-required':'Renseigne le coefficient de cuisson dans la fiche de cet aliment avant de choisir « Cuit dans cette recette ».',
       'serving-parts-cannot-be-disabled':'Le retour aux proportions de la recette est prévu pour « Préparation servie ensemble ». Les modes avec plusieurs parties ne peuvent pas être regroupés automatiquement.',
       'serving-part-removal-not-supported':'Une partie déjà utilisée ne peut pas être supprimée implicitement. Conserve les parties existantes pour protéger le planning et le stock.',
       'recipe-used-in-prepared-meal':'Cette recette est liée à un repas déjà marqué préparé. Annule d’abord la préparation de ce repas pour modifier ses ingrédients.',

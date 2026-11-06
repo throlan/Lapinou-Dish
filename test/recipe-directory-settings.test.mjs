@@ -29,6 +29,9 @@ test('ingredient coefficients preserve inherited and custom values, never recook
   assert.equal(ingredientCookingFactor(recipe,{servingPart:'starch'}),2.7);
   assert.equal(ingredientCookingFactor(recipe,{servingPart:'starch',cookingFactor:1}),1);
   assert.equal(ingredientCookingFactor(recipe,{recipeId:'bread',servingPart:'starch',cookingFactor:3}),1);
+  assert.equal(ingredientCookingFactor(recipe,{servingPart:'starch',foodCookingFactor:2.5,cookingState:'served_raw'}),1);
+  assert.equal(ingredientCookingFactor(recipe,{servingPart:'starch',foodCookingFactor:2.5,cookingState:'cooked_from_raw'}),2.5);
+  assert.equal(ingredientCookingFactor(recipe,{servingPart:'starch',foodCookingFactor:2.5,cookingState:'already_cooked'}),1);
   assert.equal(ingredientCookingFactor({separateStarch:false,cookingFactors:{main:0.8}},{servingPart:'main'}),1);
   assert.ok(cookingFactorChoices.some(([value,label])=>value==='2'&&label.includes('Semoule')));
 });

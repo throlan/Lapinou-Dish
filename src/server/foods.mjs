@@ -256,6 +256,10 @@ export async function updateFood(pool, id, data) {
       await client.query('ROLLBACK');
       return { error: 'possible-duplicate', matches: duplicate };
     }
+    if(data.cookingFactor===null && before.cookingFactor!==null){
+      const used=await client.query("SELECT 1 FROM recipe_lines WHERE food_id=$1 AND cooking_state='cooked_from_raw' LIMIT 1",[id]);
+      if(used.rowCount){await client.query('ROLLBACK');return {error:'cooking-factor-in-use'};}
+    }
     await client.query(
       `UPDATE foods SET canonical_name = $2, brand = $3, source_note = $4,
               grams_per_millilitre = $5, cooking_factor=$6, food_category=$7, manual_override = true,

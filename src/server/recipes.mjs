@@ -74,7 +74,9 @@ export function validateRecipeInput(input) {
     if (typeof line.quantity !== 'number' || !Number.isFinite(line.quantity) || line.quantity <= 0 || line.quantity > 100000) return { error: 'invalid-quantity' };
     if (typeof line.unitId !== 'string' || !/^[a-z][a-z0-9_-]{0,30}$/.test(line.unitId)) return { error: 'invalid-unit' };
     if (line.cookingFactor != null && (typeof line.cookingFactor !== 'number' || !Number.isFinite(line.cookingFactor) || line.cookingFactor <= 0 || line.cookingFactor > 10)) return {error:'invalid-cooking-factor'};
-    lines.push({ foodId: line.foodId || null, recipeId:line.recipeId || null, quantity: line.quantity, unitId: line.unitId, componentId: null, variantId: null, servingPart: serving.data.separateStarch ? line.servingPart ?? 'main' : 'main', cookingFactor: line.cookingFactor ?? null });
+    const cookingState=line.cookingState??'legacy';
+    if(!['legacy','served_raw','cooked_from_raw','already_cooked'].includes(cookingState) || (line.recipeId && cookingState!=='legacy'))return {error:'invalid-cooking-state'};
+    lines.push({ foodId: line.foodId || null, recipeId:line.recipeId || null, quantity: line.quantity, unitId: line.unitId, componentId: null, variantId: null, servingPart: serving.data.separateStarch ? line.servingPart ?? 'main' : 'main', cookingFactor: line.cookingFactor ?? null, cookingState });
   }
   return { data: { ...serving.data, name: input.name.trim(), description: typeof input.description === 'string' ? input.description.slice(0, 5000) : '', instructions: typeof input.instructions === 'string' ? input.instructions.slice(0, 20000) : '', sourceUrl: typeof input.sourceUrl === 'string' && /^https:\/\//i.test(input.sourceUrl) ? input.sourceUrl.slice(0, 2000) : null, recipeType, productionType, minimumProductionAmount, minimumProductionUnitId, mealMoments: [...moments], householdId: input.householdId, outputUnits, yield: { amount, unitId }, lines } };
 }
@@ -152,6 +154,13 @@ export async function updateRecipeSettings(pool, id, data) {
   } finally { client.release(); }
 }
 
+async function requireCatalogueCookingFactors(client,lines){
+  const ids=[...new Set(lines.filter(line=>line.foodId&&line.cookingState==='cooked_from_raw').map(line=>line.foodId))];
+  if(!ids.length)return;
+  const missing=await client.query('SELECT id FROM foods WHERE id=ANY($1::uuid[]) AND cooking_factor IS NULL LIMIT 1',[ids]);
+  if(missing.rowCount)throw new Error('cooking-factor-required');
+}
+
 export async function createRecipe(pool, data) {
   const client = await pool.connect();
   const id = randomUUID();
@@ -165,11 +174,12 @@ export async function createRecipe(pool, data) {
     );
     for (const [index, line] of data.lines.entries()) {
       await client.query(
-        `INSERT INTO recipe_lines (id, recipe_id, food_id, quantity, unit_id, sort_order,serving_part,cooking_factor,ingredient_recipe_id)
-         VALUES ($1, $2, $3, $4, $5, $6,$7,$8,$9)`,
-        [randomUUID(), id, line.foodId, line.quantity, line.unitId, index,line.servingPart ?? 'main',line.cookingFactor ?? null,line.recipeId??null],
+        `INSERT INTO recipe_lines (id, recipe_id, food_id, quantity, unit_id, sort_order,serving_part,cooking_factor,ingredient_recipe_id,cooking_state)
+         VALUES ($1, $2, $3, $4, $5, $6,$7,$8,$9,$10)`,
+        [randomUUID(), id, line.foodId, line.quantity, line.unitId, index,line.servingPart ?? 'main',line.cookingFactor ?? null,line.recipeId??null,line.cookingState??'legacy'],
       );
     }
+    await requireCatalogueCookingFactors(client,data.lines);
     validateRecipeGraph(await loadRecipeGraph(client,data.householdId));
     await syncServingParts(client,id,data);
     await syncRecipeParents(client,id,data.householdId);
@@ -178,7 +188,7 @@ export async function createRecipe(pool, data) {
     return recipe;
   } catch (error) {
     await client.query('ROLLBACK');
-    if ([...componentErrors,'serving-weight-conversion-required','invalid-serving-weight','serving-part-removal-not-supported','serving-parts-cannot-be-disabled'].includes(error.message)) return {error:error.message};
+    if ([...componentErrors,'cooking-factor-required','serving-weight-conversion-required','invalid-serving-weight','serving-part-removal-not-supported','serving-parts-cannot-be-disabled'].includes(error.message)) return {error:error.message};
     if (error.code === '23503') return { error: 'unknown-household-food-or-unit' };
     throw error;
   } finally {
@@ -236,11 +246,12 @@ export async function updateRecipe(pool, id, data, expectedVersion=null) {
     await client.query('DELETE FROM recipe_lines WHERE recipe_id = $1', [id]);
     for (const [index, line] of data.lines.entries()) {
       await client.query(
-        `INSERT INTO recipe_lines (id, recipe_id, food_id, quantity, unit_id, sort_order,serving_part,cooking_factor,ingredient_recipe_id)
-         VALUES ($1, $2, $3, $4, $5, $6,$7,$8,$9)`,
-        [randomUUID(), id, line.foodId, line.quantity, line.unitId, index,line.servingPart ?? 'main',line.cookingFactor ?? null,line.recipeId??null],
+        `INSERT INTO recipe_lines (id, recipe_id, food_id, quantity, unit_id, sort_order,serving_part,cooking_factor,ingredient_recipe_id,cooking_state)
+         VALUES ($1, $2, $3, $4, $5, $6,$7,$8,$9,$10)`,
+        [randomUUID(), id, line.foodId, line.quantity, line.unitId, index,line.servingPart ?? 'main',line.cookingFactor ?? null,line.recipeId??null,line.cookingState??'legacy'],
       );
     }
+    await requireCatalogueCookingFactors(client,data.lines);
     validateRecipeGraph(await loadRecipeGraph(client,data.householdId));
     await syncServingParts(client,id,data);
     await syncRecipeParents(client,id,data.householdId);
@@ -249,7 +260,7 @@ export async function updateRecipe(pool, id, data, expectedVersion=null) {
     return recipe;
   } catch (error) {
     await client.query('ROLLBACK');
-    if ([...componentErrors,'serving-weight-conversion-required','invalid-serving-weight','serving-part-removal-not-supported','serving-parts-cannot-be-disabled'].includes(error.message)) return {error:error.message};
+    if ([...componentErrors,'cooking-factor-required','serving-weight-conversion-required','invalid-serving-weight','serving-part-removal-not-supported','serving-parts-cannot-be-disabled'].includes(error.message)) return {error:error.message};
     if (error.code === '23503') return { error: 'unknown-household-food-or-unit' };
     throw error;
   } finally {
@@ -269,13 +280,13 @@ export async function readRecipe(client, id, path=[]) {
   const row = recipeResult.rows[0];
   if (!row) return null;
   const linesResult = await client.query(
-    `SELECT l.id,l.food_id,l.ingredient_recipe_id,l.quantity,l.unit_id,l.sort_order,l.serving_part,l.cooking_factor,f.cooking_factor AS food_cooking_factor
+    `SELECT l.id,l.food_id,l.ingredient_recipe_id,l.quantity,l.unit_id,l.sort_order,l.serving_part,l.cooking_factor,l.cooking_state,f.cooking_factor AS food_cooking_factor
       FROM recipe_lines l LEFT JOIN foods f ON f.id=l.food_id
       WHERE l.recipe_id = $1 ORDER BY l.sort_order`, [id],
   );
   const lines = linesResult.rows.map((line) => ({
     id: line.id, foodId: line.food_id, recipeId:line.ingredient_recipe_id??null, quantity: Number(line.quantity), unitId: line.unit_id,
-    componentId: null, variantId: null, servingPart: line.serving_part ?? 'main', cookingFactor: line.cooking_factor == null ? null : Number(line.cooking_factor),foodCookingFactor:line.food_cooking_factor==null?null:Number(line.food_cooking_factor),
+    componentId: null, variantId: null, servingPart: line.serving_part ?? 'main', cookingFactor: line.cooking_factor == null ? null : Number(line.cooking_factor),cookingState:line.cooking_state??'legacy',foodCookingFactor:line.food_cooking_factor==null?null:Number(line.food_cooking_factor),
   }));
   const foodIds = [...new Set(lines.map((line) => line.foodId))];
   const foodsResult = foodIds.length ? await client.query(
