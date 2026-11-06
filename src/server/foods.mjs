@@ -64,7 +64,7 @@ const bulkFoodFields = {
 export function validateBulkFoodEdit(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return { error: 'invalid-bulk-edit' };
   const field = Object.hasOwn(bulkFoodFields,input.field) ? bulkFoodFields[input.field] : null;
-  if (!field || !Array.isArray(input.changes) || input.changes.length < 1 || input.changes.length > 250 ||
+  if (!field || !Array.isArray(input.changes) || input.changes.length < 1 || input.changes.length > 500 ||
       typeof input.dryRun !== 'boolean' || typeof input.overwrite !== 'boolean' ||
       typeof input.sourceNote !== 'string' || input.sourceNote.length > 500) return { error: 'invalid-bulk-edit' };
   const ids = new Set();

@@ -1,4 +1,5 @@
 import { listCatalogueProposals } from './catalogue-review.mjs';
+import {listCatalogueEstimates} from './catalogue-estimates.mjs';
 import {countPreparationStock,validatePreparationCount} from './preparation-stock.mjs';
 import {deleteExtraProduction,listExtraProductions,saveExtraProduction,validateExtraProduction} from './extra-productions.mjs';
 import {listShoppingPreferences,saveShoppingPreference,validateShoppingPreference} from './shopping-products.mjs';
@@ -825,6 +826,10 @@ export async function handleRequest(request, response, pool, appPassword = null,
     if (url.pathname === '/api/foods/catalogue-review' && request.method === 'GET') {
       try { return send(response, 200, await listCatalogueProposals(pool)); }
       catch { return send(response, 500, { error: 'catalogue-review-failed' }); }
+    }
+    if (url.pathname === '/api/foods/catalogue-estimates' && request.method === 'GET') {
+      try { return send(response, 200, await listCatalogueEstimates(pool)); }
+      catch { return send(response, 500, { error: 'catalogue-estimates-failed' }); }
     }
     if (url.pathname === '/api/foods/bulk-edit/rows' && request.method === 'POST') {
       const body = await readJson(request); if (body.error) return send(response, body.status ?? 400, { error: body.error });
