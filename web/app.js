@@ -14,7 +14,7 @@ import { ingredientCookingFactor, recipeServiceChoices, recipeServiceMode, recip
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { offset: 0, limit: 50, query: '', foodCategory: '', missingField: '', onlyIncomplete: false, total: 0, household: null, selectedFoodIds:new Set(), foodYieldConversions:[], mealAdditions:[], productionTypes:[], productionTypesHouseholdId:null, debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, editingFoodFromShopping: false, editingOrderLinkId: null, importingDraftId: null, generateImportedImage: false, people: [], recipes: [], plannedRecipeIds: [], plannedRecipeLookupError: null, preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, proteinTargets: {}, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
+const state = { offset: 0, limit: 50, query: '', foodCategory: '', missingField: '', onlyIncomplete: false, total: 0, household: null, selectedFoodIds:new Set(), mealAdditions:[], productionTypes:[], productionTypesHouseholdId:null, debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, editingFoodFromShopping: false, editingOrderLinkId: null, importingDraftId: null, generateImportedImage: false, people: [], recipes: [], plannedRecipeIds: [], plannedRecipeLookupError: null, preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, proteinTargets: {}, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
 let recipeImageConfig={enabled:false}, imageRecipeId=null;
 const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbohydrateG', 'g gluc.'], ['fatG', 'g lip.']];
 const selectedStoreFoods=new Map();
@@ -58,7 +58,7 @@ function setView(name, { recordHistory=true }={}) {
   $('.mobile-nav details').classList.toggle('active',['foods','import','admin'].includes(name));
   if (name === 'home') refreshDashboard();
   if (name === 'foods') return refreshFoods();
-  if (name === 'recipes') return refreshFoodYieldConversions().then(refreshRecipes);
+  if (name === 'recipes') return refreshRecipes();
   if (name === 'import') return Promise.all([refreshImportDrafts(),refreshRecipeAIConfig()]);
   if (name === 'calendar') refreshCalendar();
   if (name === 'profiles') refreshPeople();
@@ -1232,8 +1232,9 @@ function renderCatalogueEstimates(){
   const field=estimateField(),filtered=catalogueEstimateFiltered(),pageSize=Number($('#catalogue-estimate-page-size').value),maxPage=Math.max(0,Math.ceil(filtered.length/pageSize)-1);
   catalogueEstimatePage=Math.min(catalogueEstimatePage,maxPage);
   const page=filtered.slice(catalogueEstimatePage*pageSize,(catalogueEstimatePage+1)*pageSize),root=$('#catalogue-estimate-rows');root.replaceChildren();
-  const proposed=catalogueEstimateFoods.filter(food=>food.estimates?.[field]).length;
-  $('#catalogue-estimate-count').textContent=`${catalogueEstimateFoods.length.toLocaleString('fr-FR')} fiches · ${proposed.toLocaleString('fr-FR')} avec estimation pour ce champ · ${catalogueEstimateSelected.size} cochée(s) (500 maximum par validation)`;
+  const proposed=filtered.filter(food=>food.estimates?.[field]).length;
+  const renderCount=()=>{$('#catalogue-estimate-count').textContent=`${filtered.length.toLocaleString('fr-FR')} résultat(s) filtré(s) · ${proposed.toLocaleString('fr-FR')} avec estimation · ${catalogueEstimateSelected.size} cochée(s) (500 maximum par validation)`;};
+  renderCount();
   $('#catalogue-estimate-page-label').textContent=filtered.length?`${catalogueEstimatePage*pageSize+1}–${Math.min((catalogueEstimatePage+1)*pageSize,filtered.length)} sur ${filtered.length}`:'Aucun résultat';
   $('#catalogue-estimate-prev').disabled=catalogueEstimatePage===0;$('#catalogue-estimate-next').disabled=catalogueEstimatePage===maxPage;
   for(const food of page){
@@ -1242,15 +1243,15 @@ function renderCatalogueEstimates(){
     const name=document.createElement('div');name.className='catalogue-estimate-name';name.append(document.createTextNode(food.name));if(food.code){const code=document.createElement('small');code.textContent=`Ciqual ${food.code}`;name.append(code);}
     const before=document.createElement('span');before.textContent=current==null?'Actuel : vide':`Actuel : ${current}`;
     const value=document.createElement('input');value.type=field==='foodCategory'?'text':'number';value.step='any';value.min=field==='foodCategory'?'':'0.000001';value.max=field==='cookingFactor'?'10':'';value.setAttribute('aria-label',`Valeur à enregistrer pour ${food.name}`);value.value=selected?.value??proposal?.value??current??'';
-    const source=document.createElement('input');source.type='text';source.maxLength=500;source.setAttribute('aria-label',`Source pour ${food.name}`);source.placeholder='Source ou mesure personnelle';source.value=selected?.sourceNote??estimateNote(proposal);
-    const details=document.createElement('small');details.className='catalogue-estimate-detail';details.textContent=proposal?`Estimation : ${proposal.value} · ${proposal.uncertainty} · ${proposal.method}`:'Aucune estimation : le champ reprend la valeur actuelle si elle existe. Pour la modifier, indique une source ou une mesure personnelle.';
+    const source=document.createElement('input');source.type='text';source.maxLength=500;source.setAttribute('aria-label',`Source pour ${food.name}`);source.placeholder='Source (facultative)';source.value=selected?.sourceNote??estimateNote(proposal);
+    const details=document.createElement('small');details.className='catalogue-estimate-detail';details.textContent=proposal?`Estimation : ${proposal.value} · ${proposal.uncertainty} · ${proposal.method}`:'Aucune estimation.';
     const open=document.createElement('button');open.type='button';open.className='secondary catalogue-estimate-open';open.textContent='Fiche';open.addEventListener('click',()=>void openFoodEditor(food.id));
-    const saveSelection=()=>{if(check.checked)catalogueEstimateSelected.set(food.id,{foodId:food.id,version:food.version,value:value.value,sourceNote:source.value});else catalogueEstimateSelected.delete(food.id);invalidateCatalogueEstimatePreview();$('#catalogue-estimate-count').textContent=`${catalogueEstimateFoods.length.toLocaleString('fr-FR')} fiches · ${proposed.toLocaleString('fr-FR')} avec estimation pour ce champ · ${catalogueEstimateSelected.size} cochée(s) (500 maximum par validation)`;};
+    const saveSelection=()=>{if(check.checked)catalogueEstimateSelected.set(food.id,{foodId:food.id,version:food.version,value:value.value,sourceNote:source.value});else catalogueEstimateSelected.delete(food.id);invalidateCatalogueEstimatePreview();renderCount();};
     check.addEventListener('change',()=>{
       if(check.checked){
         if(catalogueEstimateSelected.size>=500){check.checked=false;showMessage($('#catalogue-estimate-message'),'Maximum 500 fiches par validation. Valide cette sélection puis continue avec les autres.');return;}
-        const issue=catalogueSelectionIssue(food,field,value.value,source.value);
-        if(issue){check.checked=false;showMessage($('#catalogue-estimate-message'),`${food.name} : ${issue==='unchanged'?'cette valeur est déjà enregistrée, aucune modification à valider.':issue==='invalid-value'?'saisis une valeur valide avant de cocher la fiche.':'indique une source ou une mesure personnelle avant de cocher la fiche.'}`);if(issue!=='unchanged')(issue==='missing-source'?source:value).focus();return;}
+        const issue=catalogueSelectionIssue(food,field,value.value);
+        if(issue){check.checked=false;showMessage($('#catalogue-estimate-message'),`${food.name} : ${issue==='unchanged'?'cette valeur est déjà enregistrée.':'saisis une valeur valide avant de cocher la fiche.'}`);if(issue==='invalid-value')value.focus();return;}
       }
       saveSelection();
     });
@@ -1275,7 +1276,7 @@ $('#catalogue-estimate-export-filtered').addEventListener('click',()=>downloadCa
 $('#catalogue-estimate-export-selected').addEventListener('click',()=>{if(!catalogueEstimateSelected.size){showMessage($('#catalogue-estimate-message'),'Coche au moins une fiche à exporter.');return;}downloadCatalogueCsv(catalogueEstimateFoods.filter(food=>catalogueEstimateSelected.has(food.id)),'selection');});
 $('#catalogue-estimate-select-page').addEventListener('click',()=>{
   const pageSize=Number($('#catalogue-estimate-page-size').value),field=estimateField(),page=catalogueEstimateFiltered().slice(catalogueEstimatePage*pageSize,(catalogueEstimatePage+1)*pageSize);
-  for(const food of page){const proposal=food.estimates?.[field];if(!proposal||catalogueEstimateSelected.has(food.id)||catalogueEstimateSelected.size>=500)continue;catalogueEstimateSelected.set(food.id,{foodId:food.id,version:food.version,value:String(proposal.value),sourceNote:estimateNote(proposal)});}
+  for(const food of page){const proposal=food.estimates?.[field];if(!proposal||catalogueSelectionIssue(food,field,proposal.value)||catalogueEstimateSelected.has(food.id)||catalogueEstimateSelected.size>=500)continue;catalogueEstimateSelected.set(food.id,{foodId:food.id,version:food.version,value:String(proposal.value),sourceNote:estimateNote(proposal)});}
   invalidateCatalogueEstimatePreview();renderCatalogueEstimates();
 });
 function catalogueEstimatePayload(dryRun){
@@ -1283,8 +1284,6 @@ function catalogueEstimatePayload(dryRun){
   const changed=chosen.filter(({item,food})=>food&&!catalogueSame(estimateCurrent(food,field),field==='foodCategory'?item.value.trim():Number(item.value)));
   const changes=changed.map(({item})=>({foodId:item.foodId,version:Number(item.version),value:field==='foodCategory'?item.value.trim():Number(item.value),sourceNote:item.sourceNote.trim()}));
   if(!changes.length)throw new Error('Aucune valeur cochée ne diffère de sa valeur actuelle.');
-  const missingSources=changed.filter(({item})=>!item.sourceNote.trim()||item.sourceNote.length>500);
-  if(missingSources.length)throw new Error(`Source manquante pour ${missingSources.slice(0,5).map(({food})=>food.name).join(', ')}${missingSources.length>5?` et ${missingSources.length-5} autre(s)`:''}. Choisis « Sélectionnées » pour les retrouver.`);
   if(changes.some(item=>field==='foodCategory'?!item.value:!Number.isFinite(item.value)||item.value<=0))throw new Error('Vérifie les valeurs cochées.');
   return {field,sourceNote:'',overwrite:true,changes,dryRun};
 }
@@ -1302,7 +1301,7 @@ $('#catalogue-estimate-apply').addEventListener('click',async()=>{
     const conflicts=checked.preview.filter(item=>item.conflict);if(conflicts.length)throw new Error(`${conflicts.length} conflit(s) : recharge la liste avant de valider.`);
     const result=await api('/api/foods/bulk-edit',{method:'POST',body:JSON.stringify({...payload,dryRun:false}),timeoutMs:300000});
     catalogueEstimateSelected.clear();catalogueEstimateFoods=[];invalidateCatalogueEstimatePreview();await loadCatalogueEstimates(true);await refreshFoods();
-    showMessage($('#catalogue-estimate-message'),`${result.applied} fiche(s) enregistrée(s) avec leur source.`,true);
+    showMessage($('#catalogue-estimate-message'),`${result.applied} fiche(s) enregistrée(s).`,true);
   }catch(error){showMessage($('#catalogue-estimate-message'),`Enregistrement impossible : ${error.body?.error??error.message}. Aucun changement si le lot a échoué.`);button.disabled=catalogueEstimateSelected.size===0;}
 });
 
@@ -2672,7 +2671,6 @@ function updateMealRatiosPreview() {
     root.append(line);
   }
 }
-function resetFoodYieldForm(){const form=$('#food-yield-form');form.reset();form.elements.id.value='';form.elements.sourceFoodId.value='';form.elements.targetFoodId.value='';$('button[type="submit"]',form).textContent='Ajouter la conversion';$('#cancel-food-yield-edit').classList.add('hidden');}
 async function refreshFoodCookingConflicts(){
   const root=$('#food-cooking-conflicts');if(!root)return;
   if(!state.household){root.replaceChildren(emptyMessage('Crée un foyer pour consulter les coefficients à vérifier.'));return;}
@@ -2689,39 +2687,6 @@ async function refreshFoodCookingConflicts(){
     }
   }catch(error){root.replaceChildren(emptyMessage(`Conflits indisponibles : ${error.body?.error??error.message}`));}
 }
-function selectYieldFood(form,key,id,name){form.elements[`${key}FoodId`].value=id;form.elements[`${key}FoodName`].value=name;}
-async function searchYieldFoods(key){
-  const form=$('#food-yield-form'),input=form.elements[`${key}FoodName`],idField=form.elements[`${key}FoodId`],list=$(`#yield-${key}-options`),query=input.value.trim();
-  idField.value='';if(query.length<2){list.replaceChildren();return;}
-  try{const result=await api(`/api/foods?q=${encodeURIComponent(query)}&limit=20`);if(input.value.trim()!==query)return;list.replaceChildren(...result.foods.map(food=>{const option=document.createElement('option');option.value=food.name;option.dataset.id=food.id;return option;}));
-    const match=[...list.options].find(option=>option.value===query);if(match)idField.value=match.dataset.id;
-  }catch{/* Search suggestions are optional; the form reports a missing selection on save. */}
-}
-for(const key of ['source','target'])$('#food-yield-form').elements[`${key}FoodName`].addEventListener('input',()=>{const form=$('#food-yield-form');form.elements[`${key}FoodId`].value='';clearTimeout(form.dataset[`${key}SearchTimer`]);form.dataset[`${key}SearchTimer`]=setTimeout(()=>searchYieldFoods(key),250);});
-function renderFoodYieldConversions(){
-  const root=$('#food-yield-conversions');root.replaceChildren();if(!state.foodYieldConversions.length){root.append(emptyMessage('Aucune conversion de rendement définie pour ce foyer.'));return;}
-  for(const conversion of state.foodYieldConversions){
-    const row=document.createElement('article');row.className='food-yield-conversion';const info=document.createElement('div'),title=document.createElement('strong'),factor=document.createElement('span');
-    title.textContent=`${conversion.sourceFoodName} → ${conversion.targetFoodName}`;factor.className='muted';factor.textContent=`1 g → ${format(conversion.factor)} g`;info.append(title,factor);
-    const actions=document.createElement('div'),edit=document.createElement('button');actions.className='food-yield-conversion-actions';edit.type='button';edit.className='secondary';edit.textContent='Modifier';edit.addEventListener('click',()=>{const form=$('#food-yield-form');form.elements.id.value=conversion.id;form.elements.factor.value=String(conversion.factor);selectYieldFood(form,'source',conversion.sourceFoodId,conversion.sourceFoodName);selectYieldFood(form,'target',conversion.targetFoodId,conversion.targetFoodName);$('button[type="submit"]',form).textContent='Enregistrer la conversion';$('#cancel-food-yield-edit').classList.remove('hidden');form.elements.factor.focus();});
-    const remove=document.createElement('button');remove.type='button';remove.className='secondary danger-button';remove.textContent='Supprimer';remove.addEventListener('click',async()=>{if(!confirm(`Supprimer la conversion « ${conversion.sourceFoodName} → ${conversion.targetFoodName} » ?`))return;remove.disabled=true;try{await api(`/api/household-food-yields?householdId=${encodeURIComponent(state.household.id)}&id=${encodeURIComponent(conversion.id)}`,{method:'DELETE'});await refreshFoodYieldConversions();await refreshRecipes();showMessage($('#food-yield-message'),'Conversion supprimée.',true);}catch(error){showMessage($('#food-yield-message'),`Suppression impossible : ${error.body?.error??error.message}`);remove.disabled=false;}});
-    actions.append(edit,remove);row.append(info,actions);root.append(row);
-  }
-}
-async function refreshFoodYieldConversions(){
-  const form=$('#food-yield-form'),root=$('#food-yield-conversions');if(!state.household){state.foodYieldConversions=[];form.querySelectorAll('input,button').forEach(control=>control.disabled=true);root.replaceChildren(emptyMessage('Crée un foyer pour gérer ses conversions alimentaires.'));return;}
-  form.querySelectorAll('input,button').forEach(control=>control.disabled=false);
-  try{const result=await api(`/api/household-food-yields?householdId=${encodeURIComponent(state.household.id)}`);state.foodYieldConversions=result.conversions;renderFoodYieldConversions();await refreshFoodCookingConflicts();}catch(error){root.replaceChildren(emptyMessage(`Conversions indisponibles : ${error.body?.error??error.message}`));}
-}
-$('#cancel-food-yield-edit').addEventListener('click',resetFoodYieldForm);
-$('#food-yield-form').addEventListener('submit',async event=>{
-  event.preventDefault();const form=event.currentTarget,message=$('#food-yield-message');if(!state.household||!form.reportValidity())return;
-  for(const key of ['source','target'])if(!form.elements[`${key}FoodId`].value)await searchYieldFoods(key);
-  if(!form.elements.sourceFoodId.value||!form.elements.targetFoodId.value){showMessage(message,'Choisis chaque aliment parmi les suggestions de recherche.');return;}
-  const save=$('button[type="submit"]',form);save.disabled=true;
-  try{await api('/api/household-food-yields',{method:'PUT',body:JSON.stringify({householdId:state.household.id,id:form.elements.id.value||undefined,sourceFoodId:form.elements.sourceFoodId.value,targetFoodId:form.elements.targetFoodId.value,factor:Number(form.elements.factor.value)})});resetFoodYieldForm();await refreshFoodYieldConversions();await refreshRecipes();showMessage(message,'Conversion enregistrée. Les recettes déjà enregistrées gardent leurs coefficients actuels.',true);}
-  catch(error){showMessage(message,error.body?.error==='food-yield-already-defined'?'Une conversion existe déjà pour cet aliment de départ.':`Enregistrement impossible : ${error.body?.error??error.message}`);}finally{save.disabled=false;}
-});
 const ADDITION_RECIPE_TYPES=[['accompaniment','Accompagnement'],['salad','Salade'],['beverage','Boisson'],['sauce','Sauce'],['dessert','Dessert']];
 const ADDITION_ROLE_LABELS={main:'Plat principal',accompaniment:'Accompagnement',beverage:'Boisson',dessert:'Dessert',sauce:'Sauce'};
 function roleForRecipeType(type){return type==='salad'?'accompaniment':type;}
@@ -2827,14 +2792,14 @@ $('#production-types-form')?.addEventListener('submit',async event=>{
 async function refreshMealSettings() {
   const form=$('#meal-ratios-form');
   $('button[type="submit"]',form).disabled=true;
-  if(!state.household){await refreshFoodYieldConversions();return;}
+  if(!state.household)return;
   try {
     const settings=await api(`/api/meal-settings?householdId=${encodeURIComponent(state.household.id)}`);
     state.mealRatios=settings.ratios;
     for(const slot of dashboardSlots)form.elements[slot].value=Number((settings.ratios[slot]*100).toFixed(4));
     form.elements.evening_snack.value='0';
     await Promise.all([refreshPeople(),refreshProductionTypes(),refreshProteinSettings()]);updateMealRatiosPreview();
-    await refreshPlateSettings();await refreshFoodYieldConversions();await refreshMealAdditions();
+    await refreshPlateSettings();await refreshFoodCookingConflicts();await refreshMealAdditions();
     showMessage($('#meal-ratios-message'),'');
   }catch(error){showMessage($('#meal-ratios-message'),`Répartition indisponible : ${error.body?.error ?? error.message}`);}
 }

@@ -93,7 +93,13 @@ test('catalogue review matches only exact Ciqual references and saves selected r
       assert.equal(Number(row.grams_per_millilitre),change.value);
       assert.equal(row.source_note,change.sourceNote);
     }
-    const missingSource=await request(pool,'/api/foods/bulk-edit',{...payload,changes:[{foodId:olive,version:2,value:.919}]});
-    assert.equal(missingSource.status,400);
+    const missingSource=await request(pool,'/api/foods/bulk-edit',{...payload,overwrite:true,dryRun:false,changes:[{foodId:olive,version:2,value:.919}]});
+    assert.equal(missingSource.status,200);
+    assert.equal(missingSource.body.applied,1);
+    const updated=(await pool.query('SELECT grams_per_millilitre,source_note FROM foods WHERE id=$1',[olive])).rows[0];
+    assert.equal(Number(updated.grams_per_millilitre),.919);
+    assert.equal(updated.source_note,payload.changes[0].sourceNote);
+    const measure=await request(pool,'/api/foods/bulk-edit',{...payload,field:'tspGrams',dryRun:false,changes:[{foodId:olive,version:3,value:4}]});
+    assert.equal(measure.body.applied,1);
   } finally { await db.close(); }
 });

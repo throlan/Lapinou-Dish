@@ -12,11 +12,10 @@ export function catalogueSame(current,proposal){
   return Math.abs(Number(current)-Number(proposal))<0.000001;
 }
 
-export function catalogueSelectionIssue(food,field,value,source){
+export function catalogueSelectionIssue(food,field,value){
   const entered=String(value??'').trim();
   if(!entered||field!=='foodCategory'&&(!Number.isFinite(Number(entered))||Number(entered)<=0))return 'invalid-value';
   if(catalogueSame(catalogueCurrent(food,field),field==='foodCategory'?entered:Number(entered)))return 'unchanged';
-  if(!String(source??'').trim())return 'missing-source';
   return null;
 }
 
@@ -35,7 +34,7 @@ export function filterCatalogueReview(foods,{field,query='',category='',filter='
     if(category&&(food.foodCategory??'__none__')!==category)return false;
     if(filter==='excluded')return Boolean(excluded);
     if(excluded)return false;
-    if(hideSame&&!selected&&catalogueSame(current,proposal?.value))return false;
+    if(hideSame&&filter!=='selected'&&catalogueSame(current,proposal?.value??current))return false;
     if(filter==='proposed')return Boolean(proposal);
     if(filter==='missing')return current==null;
     if(filter==='current')return current!=null;

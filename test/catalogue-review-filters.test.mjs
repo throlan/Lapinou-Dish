@@ -12,10 +12,10 @@ const foods=[
 const exclusions={categories:['Épices'],foodIds:['cccccccc-cccc-4ccc-8ccc-cccccccccccc']};
 
 test('catalogue filters exclude cooking-only categories and foods, hide identical values, and expose current-only rows',()=>{
-  assert.deepEqual(filterCatalogueReview(foods,{field:'cookingFactor',exclusions}).map(food=>food.name),['Fromage']);
-  assert.deepEqual(filterCatalogueReview(foods,{field:'cookingFactor',exclusions,filter:'current-no-proposal'}).map(food=>food.name),['Fromage']);
-  assert.deepEqual(filterCatalogueReview(foods,{field:'cookingFactor',category:'Fromages',exclusions,filter:'current-no-proposal'}).map(food=>food.name),['Fromage']);
-  assert.deepEqual(filterCatalogueReview(foods,{field:'cookingFactor',category:'Féculents',exclusions,filter:'current-no-proposal'}),[]);
+  assert.deepEqual(filterCatalogueReview(foods,{field:'cookingFactor',exclusions}).map(food=>food.name),[]);
+  assert.deepEqual(filterCatalogueReview(foods,{field:'cookingFactor',exclusions,hideSame:false,filter:'current-no-proposal'}).map(food=>food.name),['Fromage']);
+  assert.deepEqual(filterCatalogueReview(foods,{field:'cookingFactor',category:'Fromages',exclusions,hideSame:false,filter:'current-no-proposal'}).map(food=>food.name),['Fromage']);
+  assert.deepEqual(filterCatalogueReview(foods,{field:'cookingFactor',category:'Féculents',exclusions,hideSame:false,filter:'current-no-proposal'}),[]);
   assert.deepEqual(filterCatalogueReview(foods,{field:'cookingFactor',exclusions,filter:'excluded'}).map(food=>food.name),['Herbes','Poulet cru']);
   assert.deepEqual(filterCatalogueReview(foods,{field:'cookingFactor',exclusions,hideSame:false}).map(food=>food.name),['Riz cru','Fromage']);
   assert.equal(catalogueCurrent(foods[3],'cookingFactor'),1);
@@ -34,9 +34,9 @@ test('catalogue exclusion payload accepts scoped categories and food ids, reject
   assert.equal(validateCatalogueReviewExclusions({categories:[],foodIds:['bad']}).error,'invalid-catalogue-exclusions');
 });
 
-test('a prefilled current value is not a proposal and a real change needs provenance',()=>{
+test('a prefilled current value is not a proposal and a real change can be selected without provenance',()=>{
   assert.equal(catalogueSelectionIssue(foods[3],'cookingFactor','1',''),'unchanged');
-  assert.equal(catalogueSelectionIssue({...foods[3],cookingFactor:null},'cookingFactor','1',''),'missing-source');
+  assert.equal(catalogueSelectionIssue({...foods[3],cookingFactor:null},'cookingFactor','1',''),null);
   assert.equal(catalogueSelectionIssue({...foods[3],cookingFactor:null},'cookingFactor','1','Pesée du foyer'),null);
   assert.equal(catalogueSelectionIssue(foods[3],'cookingFactor','','Pesée du foyer'),'invalid-value');
 });

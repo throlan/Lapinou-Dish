@@ -1,5 +1,10 @@
 # Cahier de reprise — 6 novembre 2026
 
+## Revue du catalogue : masquage et source facultative — 0.3.24
+
+La case de masquage retire aussi les fiches sans estimation dont la saisie est préremplie par la valeur déjà enregistrée. Décoche-la pour les revoir ; les sélections et exclusions restent consultables dans leurs vues dédiées. Le compteur et le CSV de la liste filtrée suivent les filtres actifs. La source est facultative dans la revue, à la demande de l’utilisateur ; l’enregistrement reste explicite et journalisé. L’onglet « Conversions aliments » est retiré. Les règles d’achat existantes ne sont pas modifiées et les anciens conflits de cuisson restent consultables depuis « Compléter le catalogue ».
+
+
 ## Revue du catalogue : sélection et catégories — 0.3.23
 
 Le filtre par catégorie est disponible dans Administration → Compléter le catalogue. La vue initiale montre les fiches avec estimation ; les fiches sans estimation restent accessibles par « Toutes les fiches », « Avec valeur actuelle » ou « Valeur actuelle sans estimation ». Pour éviter la confusion, chaque ligne indique explicitement si une estimation existe ; le chiffre prérempli peut être simplement la valeur actuelle. Cocher une valeur inchangée est refusé immédiatement. Une nouvelle valeur sans source ou mesure personnelle est signalée avec le nom de l'aliment et le curseur se place dans le champ à compléter ; si une sélection devient incomplète ensuite, le message de validation nomme les aliments à corriger. Aucune valeur ou quantité de menu n'est changée automatiquement.
