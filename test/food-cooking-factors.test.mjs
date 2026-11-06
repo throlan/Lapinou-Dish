@@ -5,6 +5,7 @@ import {PGlite} from '@electric-sql/pglite';
 import {listCookingFactorConflicts,updateFood,validateFoodInput} from '../src/server/foods.mjs';
 import {createRecipe,readRecipe,validateRecipeInput} from '../src/server/recipes.mjs';
 import {savePlannedMeal,listPlannedMeals} from '../src/server/planning.mjs';
+import {loadRecipeGraph,recipeWeight} from '../src/server/recipe-ingredients.mjs';
 
 test('a food cooking factor resolves conflicting recipes without changing saved cooked menu grams',async()=>{
   const db=new PGlite();
@@ -32,5 +33,36 @@ test('a food cooking factor resolves conflicting recipes without changing saved 
     for(const recipe of [first,second])assert.equal((await readRecipe(pool,recipe.id)).servingParts.find(part=>part.servingPart==='starch').yield.amount,117.3334);
     const meal=(await listPlannedMeals(pool,household,'2026-11-02'))[0];
     assert.deepEqual(meal.items.map(item=>item.amounts[0].quantity),[100,120]);
+  }finally{await db.close();}
+});
+
+test('the same food stays raw in one recipe and uses its catalogue yield only when cooked in another',async()=>{
+  const db=new PGlite();
+  try{
+    const dir=new URL('../db/migrations/',import.meta.url);
+    for(const file of (await readdir(dir)).filter(file=>file.endsWith('.sql')).sort())await db.exec(await readFile(new URL(file,dir),'utf8'));
+    const pool={async query(sql,args=[]){const result=await db.query(sql,args);return {...result,rowCount:result.rows.length||result.affectedRows||0};},async connect(){return {...this,release(){}};}};
+    const household='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',food='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    await pool.query('INSERT INTO households(id,name) VALUES($1,$2)',[household,'Test']);
+    await pool.query("INSERT INTO foods(id,canonical_name,source,cooking_factor) VALUES($1,'Courgette, crue','manual',0.7)",[food]);
+    const make=async(name,cookingState)=>createRecipe(pool,validateRecipeInput({householdId:household,name,recipeType:'dish',yield:{amount:1,unitId:'portion'},servingMode:'whole',separateStarch:true,cookingFactors:{main:1},lines:[{foodId:food,quantity:100,unitId:'g',servingPart:'main',cookingState}]}).data);
+    const raw=await make('Salade', 'served_raw'),cooked=await make('Poêlée','cooked_from_raw'),ready=await make('Déjà cuit','already_cooked');
+    assert.equal(validateRecipeInput({householdId:household,name:'Erreur',yield:{amount:1,unitId:'portion'},lines:[{foodId:food,quantity:100,unitId:'g',cookingState:'guess'}]}).error,'invalid-cooking-state');
+    assert.equal(raw.lines[0].cookingState,'served_raw');
+    assert.equal(cooked.lines[0].cookingState,'cooked_from_raw');
+    assert.deepEqual([raw,cooked,ready].map(recipe=>recipe.servingParts[0].yield.amount),[100,70,100]);
+    assert.equal((await updateFood(pool,food,validateFoodInput({cookingFactor:null}).data)).error,'cooking-factor-in-use');
+    const graph=await loadRecipeGraph(pool,household);
+    assert.deepEqual([raw,cooked,ready].map(recipe=>recipeWeight(graph,recipe.id)),[100,70,100]);
+    assert.deepEqual([raw,cooked,ready].map(recipe=>recipeWeight(graph,recipe.servingParts[0].id)),[100,70,100]);
+    await updateFood(pool,food,validateFoodInput({cookingFactor:0.5}).data);
+    const updated=await Promise.all([raw,cooked,ready].map(recipe=>readRecipe(pool,recipe.id)));
+    assert.deepEqual(updated.map(recipe=>recipe.servingParts[0].yield.amount),[100,50,100]);
+    const missing='cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    await pool.query("INSERT INTO foods(id,canonical_name,source) VALUES($1,'Aubergine crue','manual')",[missing]);
+    const invalid=await createRecipe(pool,validateRecipeInput({householdId:household,name:'Sans coefficient',recipeType:'dish',yield:{amount:1,unitId:'portion'},servingMode:'whole',separateStarch:true,cookingFactors:{main:1},lines:[{foodId:missing,quantity:100,unitId:'g',servingPart:'main',cookingState:'cooked_from_raw'}]}).data);
+    assert.equal(invalid.error,'cooking-factor-required');
+    const rawWithoutFactor=await createRecipe(pool,validateRecipeInput({householdId:household,name:'Sans coefficient cru',recipeType:'dish',yield:{amount:1,unitId:'portion'},servingMode:'whole',separateStarch:true,cookingFactors:{main:1},lines:[{foodId:missing,quantity:100,unitId:'g',servingPart:'main',cookingState:'served_raw'}]}).data);
+    assert.equal(rawWithoutFactor.lines[0].cookingState,'served_raw');
   }finally{await db.close();}
 });

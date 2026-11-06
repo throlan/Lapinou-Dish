@@ -1,5 +1,9 @@
 # État du projet — 6 novembre 2026
 
+## État de cuisson par ingrédient — 0.3.19
+
+Une même fiche alimentaire peut servir crue ou être cuite selon la recette. Le rendement cuit/cru reste dans la fiche aliment ; l'éditeur demande le choix pour chaque nouvel ingrédient. Les recettes anciennes et les quantités déjà enregistrées dans les menus et stocks sont conservées. Voir [REPRISE.md](REPRISE.md).
+
 ## Audit du catalogue — 0.3.18
 
 Le parcours de revue 0.3.17 reçoit 27 mesures USDA sur 14 autres fiches : 17 propositions sur champs vides, 2 écarts avec une valeur présente et 8 comparateurs de forme incertaine. Aucun aliment réel, recette ou menu n'est modifié automatiquement. Audit cumulé : 58 fiches et 91 lignes documentées. Détails dans [CATALOGUE-SUGGESTIONS.md](CATALOGUE-SUGGESTIONS.md). 364 tests locaux réussis ; publication à vérifier après fusion.

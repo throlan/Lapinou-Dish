@@ -1,5 +1,11 @@
 # Cahier de reprise — 6 novembre 2026
 
+## État cru ou cuit des ingrédients — 0.3.19
+
+Chaque ligne d'aliment choisit « Servi cru » (poids inchangé), « Cuit dans cette recette » (quantité crue saisie, coefficient de la fiche aliment) ou « Ajouté déjà cuit » (quantité cuite saisie, poids inchangé). Pour un aliment déjà cuit, choisir sa fiche cuite afin d'obtenir les bonnes valeurs nutritionnelles. Les recettes existantes gardent leur calcul historique, signalé dans l'éditeur, jusqu'à révision explicite. Les parties de service dérivées conservent le choix. Un coefficient utilisé ne peut pas être effacé de la fiche aliment.
+
+Migration additive `20261106_ingredient_cooking_state.sql` : aucun recalcul des quantités de menus enregistrées ni des stocks. Aucun rendement ou nutriment inconnu n'est inventé. 365 tests locaux réussis. Après publication, contrôler un exemple cru et un exemple cuit avec le même aliment, puis un plat à parties séparées. Aucun accès à Unraid ni Nginx ; l'utilisateur gère le déploiement.
+
 ## Catalogue : nouveau lot sourcé — 0.3.18
 
 Sur la base 0.3.17, 14 fiches Ciqual supplémentaires ont été examinées dans l'export disponible : 27 mesures USDA, dont 17 propositions sur champs vides, 2 écarts avec des mesures existantes et 8 comparateurs réservés aux formes incertaines. Le parcours de revue existant les présente sans les appliquer. Le pavot déjà renseigné reste inchangé ; le safran, l'estragon, la sarriette et le lin brun exigent une précision avant saisie. [Détail et références](CATALOGUE-SUGGESTIONS.md). Le CSV local compte 1 058 fiches ; celui du lot 0.3.17 en comptait 1 057. Sans les deux fichiers, ne pas identifier arbitrairement la fiche différente. 364 tests locaux réussis. Aucun accès à Unraid ou Nginx.

@@ -1,5 +1,9 @@
 # Cahier des améliorations proposées
 
+## État cru ou cuit par ingrédient — 0.3.19
+
+Le choix est propre à la ligne de recette, pour permettre à un même aliment d'être servi cru ou cuit. Une ligne déjà cuite garde son poids saisi ; une ligne cuite dans la recette applique le rendement de la fiche aliment à sa quantité crue. Les anciennes lignes restent en mode historique jusqu'à contrôle explicite. Les menus enregistrés ne sont pas recalculés.
+
 ## Nouveau lot de propositions alimentaires — 0.3.18
 
 Quatorze fiches supplémentaires disposent de 27 mesures USDA dans la revue existante, avec séparation entre propositions applicables, écarts sur valeurs présentes et comparateurs de forme incertaine. L'audit cumulé atteint 58 fiches et 91 lignes ; poursuivre les recherches par aliment exact et les arbitrages utilisateur. [Détail](CATALOGUE-SUGGESTIONS.md).

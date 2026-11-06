@@ -35,7 +35,10 @@ export async function syncServingParts(client, id, data) {
     const food = foodById.get(line.foodId);
     const grams = line.recipeId ? recipeWeight(graph,line.recipeId)*recipeFraction(graph,line.recipeId,line.quantity,line.unitId) : food ? toGrams(line.quantity,line.unitId,food) : null;
     if (grams == null || !(grams>0)) throw new Error('serving-weight-conversion-required');
-    data.servingWeights[line.servingPart] = (data.servingWeights[line.servingPart] ?? 0) + grams * (line.recipeId ? 1 : food?.cookingFactor ?? line.cookingFactor ?? data.cookingFactors[line.servingPart]);
+    const factor=line.recipeId||['served_raw','already_cooked'].includes(line.cookingState)?1:
+      line.cookingState==='cooked_from_raw'?(food?.cookingFactor??line.cookingFactor??1):
+      (food?.cookingFactor??line.cookingFactor??data.cookingFactors[line.servingPart]);
+    data.servingWeights[line.servingPart] = (data.servingWeights[line.servingPart] ?? 0) + grams * factor;
   }
   if (Object.values(data.servingWeights).some(weight => !(weight > 0) || weight > 100000)) throw new Error('invalid-serving-weight');
   await client.query('UPDATE recipes SET serving_weights=$2::jsonb WHERE id=$1', [id,JSON.stringify(data.servingWeights)]);
@@ -55,7 +58,7 @@ export async function syncServingParts(client, id, data) {
       [childId,data.householdId,`${data.name} — ${label}`,data.description,weight,part === 'main' ? data.recipeType : 'accompaniment',data.productionType,data.mealMoments,id,part]);
     await client.query('DELETE FROM recipe_lines WHERE recipe_id=$1', [childId]);
     for (const [index, line] of data.lines.filter(line => line.servingPart === part).entries()) {
-      await client.query('INSERT INTO recipe_lines(id,recipe_id,food_id,quantity,unit_id,sort_order,ingredient_recipe_id) VALUES($1,$2,$3,$4,$5,$6,$7)', [randomUUID(),childId,line.foodId,line.quantity,line.unitId,index,line.recipeId??null]);
+      await client.query('INSERT INTO recipe_lines(id,recipe_id,food_id,quantity,unit_id,sort_order,ingredient_recipe_id,cooking_factor,cooking_state) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)', [randomUUID(),childId,line.foodId,line.quantity,line.unitId,index,line.recipeId??null,line.cookingState==='legacy'?null:line.cookingFactor??null,line.cookingState??'legacy']);
     }
   }
   const added = childParts.filter(part => !old.rows.some(row=>row.serving_part === part.part));
