@@ -1,5 +1,9 @@
 # Cahier de reprise — 6 novembre 2026
 
+## Revue du catalogue : exclusions et exports — 0.3.21
+
+Dans Administration → Compléter le catalogue, les exclusions de catégories et d'aliments concernent uniquement la liste de révision du coefficient de cuisson. Elles sont enregistrées par foyer et réversibles via le filtre « Exclues de la cuisson » ou la liste des catégories. Elles ne modifient aucune fiche, recette ni quantité de menu. La liste peut afficher les valeurs actuelles, y compris sans estimation ; le champ de saisie reprend alors la valeur présente. Les lignes dont la valeur non nulle égale l'estimation sont masquées par défaut, avec une case pour les revoir. Le CSV exporte toute la liste filtrée, au-delà de la page affichée, ou uniquement les fiches cochées ; il contient les valeurs actuelles, estimations, sources, liens et exclusions. Une valeur inchangée n'est pas envoyée en validation. Les estimations restent facultatives et aucune valeur n'est appliquée automatiquement. **372 tests locaux réussis.** Aucun accès à Unraid ni Nginx.
+
 ## Revue de tout le catalogue dans l'administration — 0.3.20
 
 L'onglet « Catalogue à compléter » liste toutes les fiches présentes, avec recherche, pagination, valeur actuelle, estimation modifiable, source et case à cocher. Le récapitulatif est facultatif ; le bouton de validation vérifie le lot avant d'enregistrer les seules fiches cochées, avec journal et protection contre les changements concurrents. Une valeur existante peut être remplacée volontairement. Limite : 500 fiches par validation ; les fiches non sélectionnées restent intactes. Le déploiement ne remplit rien automatiquement.

@@ -1,5 +1,6 @@
 import { listCatalogueProposals } from './catalogue-review.mjs';
 import {listCatalogueEstimates} from './catalogue-estimates.mjs';
+import {readCatalogueReviewExclusions,saveCatalogueReviewExclusions} from './catalogue-review-exclusions.mjs';
 import {countPreparationStock,validatePreparationCount} from './preparation-stock.mjs';
 import {deleteExtraProduction,listExtraProductions,saveExtraProduction,validateExtraProduction} from './extra-productions.mjs';
 import {listShoppingPreferences,saveShoppingPreference,validateShoppingPreference} from './shopping-products.mjs';
@@ -39,6 +40,7 @@ const staticFiles = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/food-pagination.js', ['food-pagination.js', 'text/javascript; charset=utf-8']],
+  ['/catalogue-review.js', ['catalogue-review.js', 'text/javascript; charset=utf-8']],
   ['/portion-planner.js', ['portion-planner.js', 'text/javascript; charset=utf-8']],
   ['/serving-quantities.js', ['serving-quantities.js', 'text/javascript; charset=utf-8']],
   ['/serving-compensation.js', ['serving-compensation.js', 'text/javascript; charset=utf-8']],
@@ -830,6 +832,19 @@ export async function handleRequest(request, response, pool, appPassword = null,
     if (url.pathname === '/api/foods/catalogue-estimates' && request.method === 'GET') {
       try { return send(response, 200, await listCatalogueEstimates(pool)); }
       catch { return send(response, 500, { error: 'catalogue-estimates-failed' }); }
+    }
+    if (url.pathname === '/api/foods/catalogue-review-exclusions' && ['GET','PUT'].includes(request.method)) {
+      const body=request.method==='PUT'?await readJson(request):null;
+      if(body?.error)return send(response,body.status??400,{error:body.error});
+      const householdId=request.method==='GET'?url.searchParams.get('householdId'):body.value?.householdId;
+      if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});
+      try{
+        const result=request.method==='GET'?await readCatalogueReviewExclusions(pool,householdId):
+          await saveCatalogueReviewExclusions(pool,householdId,body.value?.exclusions);
+        if(!result||result.error==='household-not-found')return send(response,404,{error:'household-not-found'});
+        if(result.error)return send(response,400,{error:result.error});
+        return send(response,200,result);
+      }catch{return send(response,500,{error:'catalogue-exclusions-failed'});}
     }
     if (url.pathname === '/api/foods/bulk-edit/rows' && request.method === 'POST') {
       const body = await readJson(request); if (body.error) return send(response, body.status ?? 400, { error: body.error });

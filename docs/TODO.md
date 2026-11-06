@@ -1,5 +1,9 @@
 # Prochaines tâches — 6 novembre 2026
 
+## Après les filtres du catalogue 0.3.21
+
+Faire examiner les listes CSV filtrées selon les besoins, notamment les aliments utilisés en recette si un export de cet usage est disponible. Les catégories exclues du coefficient de cuisson restent dans le catalogue et les autres champs de revue ; leur exclusion peut être annulée à tout moment. Vérifier les valeurs propres au produit avant de confirmer un lot.
+
 ## Après la revue complète du catalogue
 
 L'utilisateur sélectionnera les estimations qu'il souhaite appliquer dans Administration. Peser les scoops, pincées et produits particuliers avant d'ajouter leurs masses ; vérifier les méthodes de cuisson propres au foyer et les étiquettes des références manuelles. Les valeurs non pertinentes restent vides. Aucun traitement supplémentaire des 1 058 fiches n'est nécessaire pour présenter le catalogue ; les propositions restent révisables.
