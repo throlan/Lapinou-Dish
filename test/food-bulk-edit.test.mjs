@@ -22,6 +22,12 @@ test('food categories come from exact Ciqual codes and bulk edits preview, prote
     await pool.query("INSERT INTO foods(id,canonical_name,source) VALUES($1,'Whey test','manual')", [whey]);
     await db.exec(await readFile(new URL('20261105_food_category_mapping.sql', directory), 'utf8'));
     assert.equal((await pool.query('SELECT food_category FROM foods WHERE id=$1', [cheese])).rows[0].food_category, 'Fromages');
+    const created = await request(pool, '/api/foods/categories', { name: '  Skyr  ' });
+    assert.equal(created.status, 201);
+    assert.equal((await request(pool, '/api/foods/categories', { name: 'SKYR' })).body.category, 'Skyr');
+    assert.equal((await request(pool, '/api/foods/categories', { name: '__none__' })).status, 400);
+    const categories = await request(pool, '/api/foods/categories', null, 'GET');
+    assert.deepEqual(categories.body.categories.find(item=>item.category==='Skyr'),{category:'Skyr',count:0});
     const rows = await request(pool, '/api/foods/bulk-edit/rows', { foodIds: [cheese, whey] });
     assert.equal(rows.status, 200);
     assert.equal(rows.body.foods.length, 2);
@@ -58,6 +64,13 @@ test('food categories come from exact Ciqual codes and bulk edits preview, prote
     const list = await request(pool, '/api/foods?category=Whey', null, 'GET');
     assert.equal(list.status, 200); assert.equal(list.body.total, 0);
     assert.equal((await request(pool, '/api/foods?category=Protéines%20en%20poudre', null, 'GET')).body.total, 1);
+    const classify={field:'foodCategory',sourceNote:'',overwrite:true,changes:[
+      {foodId:cheese,version:1,value:'Skyr'},{foodId:whey,version:6,value:'Skyr'}]};
+    assert.equal((await request(pool,'/api/foods/bulk-edit',{...classify,dryRun:true})).body.applied,0);
+    const savedCategory=await request(pool,'/api/foods/bulk-edit',{...classify,dryRun:false});
+    assert.equal(savedCategory.status,200);
+    assert.equal(savedCategory.body.applied,2);
+    assert.equal((await request(pool,'/api/foods?category=Skyr',null,'GET')).body.total,2);
   } finally { await db.close(); }
 });
 

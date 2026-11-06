@@ -696,3 +696,12 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .catalogue-estimate-categories{display:flex;flex-wrap:wrap;gap:8px 16px;margin:12px 0}.catalogue-estimate-categories label{display:inline-flex;align-items:center;gap:5px;padding:6px 9px;border:1px solid var(--line);border-radius:8px}.catalogue-estimate-categories input{margin:0}#catalogue-estimate-exclusions{margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:10px}
 .catalogue-estimate-row>input[type=checkbox]{width:18px;height:18px;margin:0}.catalogue-estimate-row>input:not([type=checkbox]){width:100%;min-width:0;margin:0}.catalogue-estimate-name{min-width:0;font-weight:600}.catalogue-estimate-name small{display:block;color:var(--muted);font-weight:400}.catalogue-estimate-detail{grid-column:2/-1;color:var(--muted);overflow-wrap:anywhere}.catalogue-estimate-preview{max-height:320px;overflow:auto}.catalogue-estimate-preview p{margin:0;padding:5px 0;border-bottom:1px solid var(--line)}
 @media(max-width:850px){.catalogue-estimate-row,.catalogue-estimate-row.has-exclusion{grid-template-columns:24px minmax(0,1fr) minmax(0,1fr)}.catalogue-estimate-row>input[type=checkbox]{grid-column:1;grid-row:1}.catalogue-estimate-name{grid-column:2/-1;grid-row:1}.catalogue-estimate-row>span,.catalogue-estimate-row>input:not([type=checkbox]){grid-column:2/-1}.catalogue-estimate-row .catalogue-estimate-open{grid-column:2}.catalogue-estimate-row .catalogue-estimate-exclude{grid-column:3}.catalogue-estimate-detail{grid-column:2/-1}}
+#foods-view .food-tools { position:relative; }
+#foods-view .food-tools summary { cursor:pointer; padding:.55rem; }
+#foods-view .food-tools > div { display:flex; gap:.4rem; flex-wrap:wrap; }
+#foods-view label.food-page-selection { display:flex; align-items:center; gap:.5rem; }
+#foods-view label.food-page-selection input { width:auto; margin:0; }
+.food-selection-actions { display:flex; flex-wrap:wrap; gap:.5rem; }
+#foods-view .food-pagination label { white-space:nowrap; }
+#foods-view .food-pagination select { width:auto; min-width:4.5rem; }
+#foods-view #food-list-message:empty { display:none; }

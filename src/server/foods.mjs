@@ -74,7 +74,7 @@ export function validateBulkFoodEdit(input) {
         !Number.isInteger(item.version) || item.version < 1 || ids.has(item.foodId.toLowerCase())) return { error: 'invalid-bulk-edit' };
     ids.add(item.foodId.toLowerCase());
     const value = field.kind === 'text' ? (typeof item.value === 'string' ? item.value.trim() : null) : item.value;
-    if (field.kind === 'text' ? !value || value.length > 80 : typeof value !== 'number' || !Number.isFinite(value) || value < (field.nutrient ? 0 : 0.000001) || value > field.max) return { error: 'invalid-bulk-value' };
+    if (field.kind === 'text' ? !value || value.length > 80 || value === '__none__' || /[\x00-\x1f\x7f]/.test(value) : typeof value !== 'number' || !Number.isFinite(value) || value < (field.nutrient ? 0 : 0.000001) || value > field.max) return { error: 'invalid-bulk-value' };
     const sourceNote = item.sourceNote ?? input.sourceNote;
     if (typeof sourceNote !== 'string' || sourceNote.length > 500) return { error: 'invalid-bulk-edit' };
     changes.push({ foodId: item.foodId, version: item.version, value, sourceNote: sourceNote.trim() });
@@ -104,6 +104,11 @@ export async function bulkEditFoods(pool, input) {
       preview.push({ foodId: item.foodId, name: row?.name ?? null, version: row?.version ?? null, current: current == null ? null : definition.kind === 'text' ? current : Number(current), proposed: item.value, sourceNote: item.sourceNote, conflict });
     }
     if (dryRun || preview.some(item => item.conflict)) { await client.query('ROLLBACK'); return { preview, applied: 0, conflictCount: preview.filter(item => item.conflict).length }; }
+    if(input.field==='foodCategory'){
+      for(const name of new Set(preview.filter(item=>item.current!==item.proposed).map(item=>item.proposed))){
+        await client.query('INSERT INTO custom_food_categories(name) SELECT $1 WHERE NOT EXISTS(SELECT 1 FROM foods WHERE lower(food_category)=lower($1)) ON CONFLICT (lower(name)) DO NOTHING',[name]);
+      }
+    }
     for (const item of preview) {
       if (String(item.current) === String(item.proposed)) continue;
       const {sourceNote} = item;
