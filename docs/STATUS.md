@@ -1,5 +1,9 @@
 # État du projet — 6 novembre 2026
 
+## Revue du catalogue : filtres et exports — 0.3.21
+
+Les exclusions de cuisson par catégorie ou aliment sont conservées par foyer et ne touchent pas aux données alimentaires. La revue affiche les valeurs actuelles même sans estimation, masque par défaut les estimations identiques aux valeurs déjà présentes et exporte la vue filtrée ou la sélection en CSV. **372 tests locaux réussis.** Voir [REPRISE.md](REPRISE.md).
+
 ## Catalogue complet en revue — 0.3.20
 
 L'administration présente toutes les fiches avec valeurs actuelles et estimations éditables. La validation ne touche que les lignes cochées après aperçu. Les 1 058 fiches de l'export ont été inventoriées ; 513 disposent d'au moins une proposition de conversion ou de catégorie, les autres restent affichées sans chiffre forcé. Voir [REPRISE.md](REPRISE.md).
