@@ -2,7 +2,7 @@ import {toGrams} from '../domain/foods.ts';
 
 const types=new Map([
   ['viandes','meat'],['charcuteries','meat'],['produits a base de viande','meat'],
-  ['poissons','fish'],['oeufs','eggs'],['œufs','eggs'],
+  ['legumes','vegetables'],['poissons','fish'],['oeufs','eggs'],['œufs','eggs'],
   ...['feculents','tubercules','pains','pates a tarte','cereales du petit-dejeuner','legumineuses'].map(name=>[name,'starch']),
 ]);
 const normalize=value=>String(value??'').normalize('NFD').replace(/\p{M}/gu,'').toLowerCase().trim();
@@ -14,7 +14,7 @@ function ingredientKind(food,part){
     (/^(?:oeuf|œuf)s?\b/.test(name)?'eggs':
     /^(?:poulet|dinde|veau|boeuf|bœuf|porc|agneau|canard|lapin|mouton|viande)\b/.test(name)?'meat':
     /^(?:saumon|cabillaud|thon|truite|merlu|colin|dorade|sardine|maquereau|poisson)\b/.test(name)?'fish':
-    /^(?:riz|pates|pain|semoule|quinoa|pommes? de terre|bagels?)\b/.test(name)||part==='starch'&&!food.category?'starch':null);
+    /^(?:riz|pates|pain|semoule|quinoa|pommes? de terre|bagels?)\b/.test(name)||part==='starch'&&!food.category?'starch':part==='vegetables'&&!food.category?'vegetables':null);
 }
 
 export function servingIngredientLoad(line,food,factors,part){
@@ -29,7 +29,7 @@ export function servingIngredientLoad(line,food,factors,part){
     return {eggs:grams!=null&&piece>0?grams/piece:null};
   }
   const alreadyCooked=line.cookingState==='already_cooked'||line.cookingState==='legacy'&&/\b(cuit|cuite|bouilli|roti|grille|appertise|fume)s?\b/.test(normalize(food.name));
-  if(kind==='starch')return {starch:grams==null?null:grams*(line.cookingState==='served_raw'||alreadyCooked?1:factor)};
+  if(kind==='starch'||kind==='vegetables')return {[kind]:grams==null?null:grams*(line.cookingState==='served_raw'||alreadyCooked?1:factor)};
   return {[kind]:grams==null?null:alreadyCooked?line.foodCookingFactor>0?grams/line.foodCookingFactor:null:grams};
 }
 

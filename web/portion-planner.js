@@ -1,4 +1,4 @@
-import { DEFAULT_MEAL_RATIOS, DEFAULT_PLATE_RATIOS, validPlateRatios } from './meal-config.js';
+import { DEFAULT_MEAL_RATIOS, DEFAULT_PLATE_RATIOS, validPlateRatios, effectiveServingCaps } from './meal-config.js';
 export const SLOT_RATIOS = DEFAULT_MEAL_RATIOS;
 
 export function breakfastServingLimit(recipe,parent) {
@@ -258,22 +258,23 @@ export function suggestPlatePortions(proposals, budget, plateRatios=DEFAULT_PLAT
 
 // These caps are per person and per meal. The load is expressed per unit of
 // the recipe's yield: raw grams for meat/fish, egg count, served grams for starch.
-export const MEAL_SERVING_CAPS=Object.freeze({meat:125,fish:150,eggs:3,starch:200});
 
-export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RATIOS){
+export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RATIOS,overrides){
   const ratios=validPlateRatios(plateRatios)?plateRatios:DEFAULT_PLATE_RATIOS;
   const rows=proposals.map(row=>({...row}));
-  const remaining={...MEAL_SERVING_CAPS},groups=new Map(),warnings=new Set();
+  const remaining=effectiveServingCaps(overrides),groups=new Map(),warnings=new Set();
   const validBudget=Number.isFinite(budget)&&budget>=0&&rows.every(row=>Number.isFinite(row.recipeKcal)&&row.recipeKcal>0);
   const loads=row=>row.servingLoad??(row.servingPart==='starch'?{starch:1}:{});
   const limit=row=>{
     let max=row.maxQuantity??Infinity;
     for(const [key,value] of Object.entries(loads(row))){
+      if(!Number.isFinite(remaining[key]))continue;
       if(value==null){warnings.add('Un poids cru ou une équivalence d’ingrédient manque : vérifie la portion signalée.');return 0;}
       if(value>0&&key in remaining)max=Math.min(max,remaining[key]/value);
     }
     return Math.max(0,max);
   };
+  const hasFixedProtein=row=>row.role==='main'&&row.fixedProteinEligible!==false&&row.reason!=='no-slot-budget'&&['meat','fish','eggs'].some(key=>loads(row)[key]>0);
   const consume=(row,quantity)=>{
     for(const [key,value] of Object.entries(loads(row)))if(value>0&&key in remaining)remaining[key]=Math.max(0,remaining[key]-quantity*value);
   };
@@ -305,8 +306,9 @@ export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RA
   // Explicit additions keep their existing role in the kcal calculation.
   // Their ingredient loads still share the same per-meal limits.
   for(const row of rows.filter(row=>!byRow.has(row))){
-    if(row.quantity==null)continue;
-    const desired=Math.max(0,Number(row.quantity)||0);
+    const fixed=hasFixedProtein(row)&&!row.assignment&&row.reason!=='no-slot-budget';
+    if(row.quantity==null&&!fixed)continue;
+    const desired=fixed?limit(row):Math.max(0,Number(row.quantity)||0);
     row.quantity=fit(row,desired);
     if(row.quantity+1e-5<desired&&Object.keys(loads(row)).length)warnings.add('Une portion a été réduite pour respecter les plafonds ou les unités.');
     if(!row.quantity&&desired>0&&!row.assignment)row.quantity=null;
@@ -322,10 +324,12 @@ export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RA
     const main=members.find(row=>row.servingPart==='main');
     const starch=members.find(row=>row.servingPart==='starch');
     const veg=members.find(row=>row.servingPart==='vegetables');
+    const fixed=hasFixedProtein(main);
+    if(fixed)put(main,fit(main,limit(main)));
     if(mode==='three'){
-      put(main,fit(main,kcal/energy*shares.main,left/main.recipeKcal,true));
+      if(!fixed)put(main,fit(main,kcal/energy*shares.main,left/main.recipeKcal,true));
       const ratio=shares.vegetables/shares.starch;
-      let starchTarget=Math.min(left/(starch.recipeKcal+ratio*veg.recipeKcal),limit(veg)/ratio);
+      let starchTarget=Math.max(0,Math.min(left/(starch.recipeKcal+ratio*veg.recipeKcal),limit(veg)/ratio));
       // If both sides draw on the same cap, reserve their joint load at the
       // configured ratio before assigning either side.
       for(const key of Object.keys(remaining)){
@@ -333,11 +337,11 @@ export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RA
         if(use>0)starchTarget=Math.min(starchTarget,remaining[key]/use);
       }
       put(starch,fit(starch,starchTarget));
-      put(veg,fit(veg,starch.quantity*ratio,left/veg.recipeKcal));
+      put(veg,fit(veg,starch.quantity*ratio,Math.max(0,left)/veg.recipeKcal));
     }else{
-      const ordered=[...members].sort((a,b)=>Number(b.countStep>0)-Number(a.countStep>0));
-      for(const row of ordered)put(row,fit(row,kcal/energy*shares[row.servingPart],left/row.recipeKcal,true));
-      if(mode==='separate')for(const row of [starch,main]){
+      const ordered=members.filter(row=>!fixed||row!==main).sort((a,b)=>Number(b.countStep>0)-Number(a.countStep>0));
+      for(const row of ordered)put(row,fit(row,kcal/energy*shares[row.servingPart],Math.max(0,left)/row.recipeKcal,true));
+      if(mode==='separate')for(const row of fixed?[starch]:[starch,main]){
         if(!(left>1e-7))break;
         const delta=fit({...row,maxQuantity:Math.max(0,(row.maxQuantity??Infinity)-row.quantity)},left/row.recipeKcal);
         row.quantity=Number((row.quantity+delta).toFixed(5));

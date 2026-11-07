@@ -5,7 +5,7 @@ import {compensateManualServing} from './serving-compensation.js';
 import {shoppingPreferenceControls,shoppingPreferencesPanel,shoppingPreferenceError} from './shopping-preferences.js';
 import { MEAL_ORDER, MEAL_LABELS, validMealRatios } from './meal-config.js';
 import { cappedMealPortions } from './portion-planner.js';
-import { PLATE_PARTS, validPlateRatios } from './meal-config.js';
+import { PLATE_PARTS, validPlateRatios, SERVING_CAP_FIELDS } from './meal-config.js';
 import { batchCookingWindow } from './preparation-weeks.js';
 import { clampFoodPageOffset } from './food-pagination.js';
 import {catalogueCurrent,catalogueSame,catalogueSelectionIssue,catalogueExclusion,filterCatalogueReview,catalogueReviewCsv} from './catalogue-review.js';
@@ -2805,7 +2805,7 @@ async function refreshMealSettings() {
     for(const slot of dashboardSlots)form.elements[slot].value=Number((settings.ratios[slot]*100).toFixed(4));
     form.elements.evening_snack.value='0';
     await Promise.all([refreshPeople(),refreshProductionTypes(),refreshProteinSettings()]);updateMealRatiosPreview();
-    await refreshPlateSettings();await refreshFoodCookingConflicts();await refreshMealAdditions();
+    await refreshPlateSettings();await refreshServingCaps();await refreshFoodCookingConflicts();await refreshMealAdditions();
     showMessage($('#meal-ratios-message'),'');
   }catch(error){showMessage($('#meal-ratios-message'),`Répartition indisponible : ${error.body?.error ?? error.message}`);}
 }
@@ -2861,6 +2861,53 @@ $('#protein-targets-form').addEventListener('submit',async event=>{
   }catch(error){showMessage(message,`Enregistrement impossible : ${error.body?.error??error.message}`);}
   finally{button.disabled=false;}
 });
+
+async function refreshServingCaps(){
+  const root=$('#serving-caps-fields'),button=$('#serving-caps-form button[type="submit"]');
+  root.replaceChildren();button.disabled=true;
+  const householdId=state.household?.id;
+  if(!householdId)return;
+  try{
+    const settings=await api('/api/serving-caps?householdId='+encodeURIComponent(householdId));
+    if(state.household?.id!==householdId)return;
+    state.servingCaps=settings.caps??{};
+    for(const person of state.people){
+      const group=document.createElement('fieldset'),legend=document.createElement('legend'),fields=document.createElement('div');
+      legend.textContent=person.displayName;fields.className='serving-caps-grid';
+      for(const [key,field] of Object.entries(SERVING_CAP_FIELDS)){
+        const label=document.createElement('label'),input=document.createElement('input');
+        label.textContent=field.label;input.type='number';input.min='1';input.max=String(field.max);input.step='1';
+        input.dataset.personId=person.id;input.dataset.cap=key;
+        input.placeholder=Number.isFinite(field.defaultValue)?String(field.defaultValue):'Sans plafond';
+        input.value=state.servingCaps[person.id]?.[key]??'';
+        label.append(input);fields.append(label);
+      }
+      group.append(legend,fields);root.append(group);
+    }
+    if(!state.people.length)root.append(emptyMessage('Ajoute un profil pour personnaliser ses plafonds.'));
+    button.disabled=!state.people.length;
+  }catch(error){root.replaceChildren(emptyMessage('Plafonds indisponibles : '+(error.body?.error??error.message)));}
+}
+
+$('#serving-caps-form').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const form=event.currentTarget,householdId=state.household?.id,button=$('button[type="submit"]',form),message=$('#serving-caps-message');
+  if(!householdId||!form.reportValidity())return;
+  const caps={};
+  for(const input of form.querySelectorAll('input[data-cap]')){
+    if(input.value==='')continue;
+    (caps[input.dataset.personId]??={})[input.dataset.cap]=Number(input.value);
+  }
+  button.disabled=true;
+  try{
+    const result=await api('/api/serving-caps',{method:'PUT',body:JSON.stringify({householdId,caps})});
+    if(state.household?.id!==householdId)return;
+    state.servingCaps=result.caps??{};
+    showMessage(message,'Plafonds enregistrés. Ils seront utilisés pour les prochaines propositions de portions.',true);
+  }catch(error){showMessage(message,'Enregistrement impossible : '+(error.body?.error??error.message));}
+  finally{button.disabled=false;}
+});
+
 
 function plateRatiosFromForm() {
   const form=$('#plate-ratios-form');
@@ -2938,7 +2985,7 @@ $('#person-form').addEventListener('submit', async (event) => {
   const data = Object.fromEntries(new FormData(form));
   try {
     await api('/api/people', { method: 'POST', body: JSON.stringify({ householdId: state.household.id, ...data }) });
-    form.reset(); showMessage($('#people-message'), 'Profil ajouté.', true); await refreshPeople();await refreshProteinSettings();
+    form.reset(); showMessage($('#people-message'), 'Profil ajouté.', true); await refreshPeople();await refreshProteinSettings();await refreshServingCaps();
   } catch (error) { showMessage($('#people-message'), error.body?.error === 'person-already-exists' ? 'Ce nom de profil existe déjà dans le foyer.' : 'Impossible de créer le profil.'); }
 });
 
@@ -2997,7 +3044,7 @@ async function refreshCalendar() {
   grid.replaceChildren(emptyMessage('Chargement de la semaine…'));
   try {
     const end = addDays(state.calendarWeekStart, 6);
-    const [plan, peopleResult, recipesResult, mealSettings, reserve, plateSettings, proteinSettings, mealAdditionsResult] = await Promise.all([
+    const [plan, peopleResult, recipesResult, mealSettings, reserve, plateSettings, proteinSettings, mealAdditionsResult, servingCaps] = await Promise.all([
       api(`/api/planning?householdId=${encodeURIComponent(state.household.id)}&weekStart=${state.calendarWeekStart}`),
       api(`/api/people?householdId=${encodeURIComponent(state.household.id)}`),
       api(`/api/recipes?householdId=${encodeURIComponent(state.household.id)}`),
@@ -3006,10 +3053,12 @@ async function refreshCalendar() {
       api(`/api/plate-settings?householdId=${encodeURIComponent(state.household.id)}`),
       api(`/api/protein-settings?householdId=${encodeURIComponent(state.household.id)}`),
       api(`/api/meal-additions?householdId=${encodeURIComponent(state.household.id)}`),
+      api(`/api/serving-caps?householdId=${encodeURIComponent(state.household.id)}`),
     ]);
     state.mealRatios=mealSettings.ratios;
     state.plateRatios=plateSettings.ratios;
     state.proteinTargets=proteinSettings.targets??{};
+    state.servingCaps=servingCaps.caps??{};
     state.mealAdditions=mealAdditionsResult.additions??[];
     state.people = peopleResult.people;
     state.recipes = recipesResult.recipes;
@@ -3444,11 +3493,11 @@ function applyAutomaticPortions(items, attendeeIds) {
       const parent=state.recipes.find(parent=>parent.id===recipe?.parentRecipeId);
       proposals.push({ item, personId, role, quantity, reason: suggestion.reason, step, recipeKcal: Number(kcal), proteinG: recipe?.nutrition?.perYieldUnit?.proteinG == null ? null : Number(recipe.nutrition.perYieldUnit.proteinG), maxQuantity, slotBudgetKcal: suggestion.slotBudgetKcal, assignment,
         parentRecipeId:recipe?.parentRecipeId,servingPart:recipe?.servingPart,recipeUnit,
-        servingLoad:recipe?.servingLoad,countStep:recipe?.eggServingStep??recipe?.servingDisplay?.gramsPerUnit,plateParts:parent?.servingParts?.map(part=>part.servingPart),budgetFraction:1/commonCount });
+        servingLoad:recipe?.servingLoad,fixedProteinEligible:!['dessert','beverage','sauce'].includes(recipe?.recipeType),countStep:recipe?.eggServingStep??recipe?.servingDisplay?.gramsPerUnit,plateParts:parent?.servingParts?.map(part=>part.servingPart),budgetFraction:1/commonCount });
     }
     const budget = proposals.find((proposal) => Number.isFinite(proposal.slotBudgetKcal))?.slotBudgetKcal;
     if (proposals.length) {
-      const result=cappedMealPortions(proposals,budget,state.plateRatios);
+      const result=cappedMealPortions(proposals,budget,state.plateRatios,state.servingCaps?.[personId]);
       result.warnings.forEach(message=>messages.add(message));
       if(result.proportionsApplied)messages.add('Proportions d’Administration au départ, puis ajustement des accompagnements dans les plafonds par personne.');
       result.proposals.forEach((proposal) => {
@@ -3642,7 +3691,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
           let accepted=!recipe?.servingDisplay;
           if(recipe?.servingDisplay && next!=='' && previousQuantity!=='' && Number.isFinite(Number(next)) && Number(next)>=0){
             const data=currentFormAmounts();
-            const result=compensateManualServing(data,allPlanningRecipes(),recipe.id,personId,Number(previousQuantity));
+            const result=compensateManualServing(data,allPlanningRecipes(),recipe.id,personId,Number(previousQuantity),state.servingCaps?.[personId]);
             if(result.ok){
               accepted=true;
               const targetRow=$$('.planned-item-editor',root).find(entry=>entry.dataset.itemKey===result.itemKey);

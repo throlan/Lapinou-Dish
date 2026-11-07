@@ -351,6 +351,7 @@ export async function readRecipe(client, id, path=[]) {
       foodById.get(line.foodId),row.parent_cooking_factors??row.cooking_factors,row.serving_part??line.servingPart));
   }
   if(row.serving_part==='starch'&&!Object.hasOwn(servingLoad,'starch'))servingLoad.starch=Number(row.yield_amount);
+  if(row.serving_part==='vegetables')servingLoad.vegetables=Number(row.yield_amount);
   const servingParts = [], archivedServingParts=[];
   if (row.separate_starch) {
     const children = await client.query('SELECT id,serving_part_active FROM recipes WHERE parent_recipe_id=$1 ORDER BY serving_part', [id]);

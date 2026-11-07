@@ -27,3 +27,18 @@ export function validPlateRatios(value) {
         && Math.abs(parts.reduce((sum,part)=>sum+ratios[part],0)-1)<1e-9;
     });
 }
+
+export const SERVING_CAP_FIELDS = Object.freeze({
+  meat:{label:'Viande (g crus)',defaultValue:125,max:5000},
+  fish:{label:'Poisson (g crus)',defaultValue:150,max:5000},
+  eggs:{label:'Œufs entiers',defaultValue:3,max:100},
+  starch:{label:'Féculents (g servis)',defaultValue:200,max:5000},
+  vegetables:{label:'Légumes (g servis)',defaultValue:Infinity,max:5000},
+});
+
+export function effectiveServingCaps(overrides={}){
+  return Object.fromEntries(Object.entries(SERVING_CAP_FIELDS).map(([key,field])=>{
+    const value=overrides?.[key];
+    return [key,Number.isInteger(value)&&value>=1&&value<=field.max?value:field.defaultValue];
+  }));
+}
