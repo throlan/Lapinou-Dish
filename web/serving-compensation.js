@@ -1,4 +1,4 @@
-import {MEAL_SERVING_CAPS} from './portion-planner.js';
+import {effectiveServingCaps} from './meal-config.js';
 // Post-processing only: the original gram planner remains unchanged.
 // All quantities and energy densities below are canonical grams and kcal/g.
 export function compensateServingCalories(rows, before, after) {
@@ -41,7 +41,7 @@ export function roundServingCalories(proposals) {
 
 // A manual edit compensates against the immediately preceding canonical values;
 // it never runs the planner or changes another person's meal.
-export function compensateManualServing(items, recipes, recipeId, personId, previousQuantity) {
+export function compensateManualServing(items, recipes, recipeId, personId, previousQuantity, overrides) {
   const recipe=recipes.find(entry=>entry.id===recipeId);
   if(!recipe?.parentRecipeId || !recipe.servingDisplay)return {ok:false,reason:''};
   const parent=recipes.find(entry=>entry.id===recipe.parentRecipeId);
@@ -57,11 +57,12 @@ export function compensateManualServing(items, recipes, recipeId, personId, prev
   const before=after.map((q,i)=>entries[i].part.id===recipeId?previousQuantity:q);
   const result=compensateServingCalories(entries,before,after);
   if(!result.ok)return result;
-  const adjusted=entries[result.adjustedIndex];
+  const adjusted=entries[result.adjustedIndex],caps=effectiveServingCaps(overrides);
   for(const [key,load] of Object.entries(adjusted.servingLoad??{})){
+    if(!Number.isFinite(caps[key]))continue;
     if(load===null)return {ok:false,reason:'Équivalence manquante : la compensation automatique n’a pas été appliquée.'};
     const total=entries.reduce((sum,row,i)=>sum+(row.servingLoad?.[key]??0)*result.quantities[i],0);
-    if(load>0&&total>MEAL_SERVING_CAPS[key]+1e-5)return {ok:false,reason:'La compensation dépasserait un plafond : ajuste la partie restante si besoin.'};
+    if(load>0&&total>caps[key]+1e-5)return {ok:false,reason:'La compensation dépasserait un plafond : ajuste la partie restante si besoin.'};
   }
   return {...result,itemKey:adjusted.key,quantity:result.quantities[result.adjustedIndex]};
 }

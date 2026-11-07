@@ -91,7 +91,7 @@ test('the actual input handler compensates soup live on successive edits, and co
   const soup={value:'480',dataset:{personId:'a'}},otherPerson={value:'200',dataset:{personId:'b'}},root={},targetRow={dataset:{itemKey:'2'}},message={};
   const collect=()=>Object.fromEntries(rows().map((row,i)=>[i,{recipeId:row.servingPart,role:row.role,amounts:{a:i===0?units.servingInputValue(input):i===2?soup.value:String(row.quantity),b:'200'}}]));
   let updates=0;
-  const context={...units,compensateManualServing,input,recipe:recipes()[1],personId:'a',root,currentFormAmounts:collect,
+  const context={...units,compensateManualServing,state:{},input,recipe:recipes()[1],personId:'a',root,currentFormAmounts:collect,
     allPlanningRecipes:recipes,updateMealProteinSummary(){updates++;},$:()=>message,
     $$(selector){return selector==='.planned-item-editor'?[targetRow]:[soup,otherPerson];}};
   runInNewContext(source.slice(start,end),context);

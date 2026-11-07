@@ -11,7 +11,7 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.3.17">
+    <link rel="stylesheet" href="/style.css?v=0.3.27">
     <link rel="stylesheet" href="/editorial.css?v=0.3.17">
   </head>
   <body>
@@ -123,9 +123,16 @@
         <form id="plate-ratios-form" class="card">
           <p class="muted">Proportions en poids estimé servi, après application des coefficients de cuisson. Chaque mode totalise 100 %. Ces pourcentages ne représentent ni les kcal, ni la surface de l’assiette, ni des grammes de protéines nutritionnelles.</p>
           <div id="plate-ratios-fields"></div>
-          <p class="muted">Les proportions servent de départ. Les propositions plafonnent par personne et par repas la viande à 125 g crus, le poisson à 150 g crus, les œufs à 3 et les féculents à 200 g servis. En deux parties, les féculents s’ajustent en priorité. En trois parties, le rapport féculents/légumes est conservé et les kcal restantes peuvent rester libres. Boissons et desserts restent à part. Les quantités saisies et les duplications sont conservées ; utilise « Recalculer les portions » pour appliquer un nouveau réglage.</p>
+          <p class="muted">Les proportions servent de départ. La part principale de viande, poisson ou œufs est fixée par le réglage du profil, indépendamment de son budget kcal, dans les limites de la recette et des autres plafonds. En deux parties, les féculents s’ajustent en priorité. En trois parties, le rapport féculents/légumes est conservé et les kcal restantes peuvent rester libres. Boissons et desserts restent à part. Les quantités saisies et les duplications sont conservées ; utilise « Recalculer les portions » pour appliquer un nouveau réglage.</p>
           <button type="submit" class="primary" disabled>Enregistrer la composition</button>
           <p id="plate-ratios-message" class="form-message" role="status"></p>
+        </form>
+        <h3>Plafonds par personne et par repas</h3>
+        <form id="serving-caps-form" class="card">
+          <p class="muted">Laisse un champ vide pour garder le réglage par défaut : 125 g de viande crue, 150 g de poisson cru, 3 œufs, 200 g de féculents servis et aucun plafond pour les légumes. Les plafonds s’appliquent aux propositions automatiques ; ils ne réécrivent pas les repas enregistrés.</p>
+          <div id="serving-caps-fields"></div>
+          <button type="submit" class="primary" disabled>Enregistrer les plafonds</button>
+          <p id="serving-caps-message" class="form-message" role="status"></p>
         </form>
         </section>
         <section id="admin-panel-catalogue" class="admin-panel" role="tabpanel" tabindex="0" data-admin-panel="catalogue" hidden>
@@ -470,6 +477,6 @@
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
     <script type="module" src="/install-app.js?v=0.3.17"></script>
-    <script type="module" src="/app.js?v=0.3.26"></script>
+    <script type="module" src="/app.js?v=0.3.27"></script>
   </body>
 </html>

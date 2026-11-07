@@ -29,7 +29,7 @@ test('automatic servings cap raw meat inside the mixed part for all four profile
   context.calculate(items, people.map(person => person.id));
   for (const person of people) {
     assert.ok(Number(items[0].amounts[person.id]) > 0);
-    assert.ok(Number(items[0].amounts[person.id]) <= 250);
+    assert.equal(Number(items[0].amounts[person.id]),250);
     assert.ok(Number(items[1].amounts[person.id]) > 0);
     assert.ok(Number(items[1].amounts[person.id]) <= 200);
   }

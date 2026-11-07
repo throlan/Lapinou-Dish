@@ -1,5 +1,10 @@
 # Cahier de reprise — 6 novembre 2026
 
+## Plafonds personnalisés par repas — 0.3.27
+
+Administration → Assiettes permet de fixer, pour chaque personne, les plafonds de viande crue, poisson cru, œufs entiers, féculents servis et légumes servis. Un champ vide reprend le défaut (125 g, 150 g, 3 œufs, 200 g, aucun plafond légumes). À réglages identiques, la part principale de viande, poisson ou œufs est la même quel que soit le budget kcal ; un plafond personnalisé peut la modifier. Le calcul conserve le rapport féculents/légumes en trois parties et applique la première limite atteinte, sans imposer de remplir le budget kcal. Les menus déjà enregistrés ne sont pas réécrits. Migration additive 20261107_person_serving_caps.sql.
+
+
 ## Propositions de portions par repas — 0.3.26
 
 Les proportions d’Administration donnent le point de départ. Les propositions respectent par personne et par repas 125 g crus de viande, 150 g crus de poisson, trois œufs entiers et 200 g servis de féculents. Les plafonds portent sur les ingrédients, y compris dans une préparation maison imbriquée. Le poids cru des ingrédients déjà cuits est reconstitué uniquement si une équivalence est disponible. En deux parties, les féculents absorbent en priorité le budget restant ; en trois parties, les féculents et légumes s’ajustent ensemble selon leur rapport configuré ; quand les féculents atteignent leur plafond, le budget kcal restant est laissé libre. Un plat servi ensemble garde sa composition. Il n’est pas nécessaire de remplir l’enveloppe kcal. Les menus enregistrés ne sont pas recalculés automatiquement.

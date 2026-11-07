@@ -9,10 +9,10 @@ const rows=(parts,loads,densities,steps=[])=>parts.map((servingPart,i)=>({parent
 const quantities=result=>result.proposals.map(row=>row.quantity);
 const close=(a,b)=>assert.ok(Math.abs(a-b)<0.00005,a+' vs '+b);
 
-test('two-part plate retains its starting proportions under the caps and prioritizes starch after the raw meat cap',()=>{
+test('two-part plate fixes the raw meat serving and lets starch vary with the budget',()=>{
   const plate=rows(['main','starch'],[{meat:.5},{starch:1}],[1,1]);
   const ratios={whole:{main:1},separate:{main:.66,starch:.34},three:{main:.25,starch:.25,vegetables:.5}};
-  assert.deepEqual(quantities(cappedMealPortions(plate,300,ratios)),[198,102]);
+  assert.deepEqual(quantities(cappedMealPortions(plate,300,ratios)),[250,50]);
   assert.deepEqual(quantities(cappedMealPortions(plate,430)),[250,180]);
   assert.deepEqual(quantities(cappedMealPortions(plate,900)),[250,200]);
 });

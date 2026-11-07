@@ -1,3 +1,4 @@
+import { readServingCaps, saveServingCaps } from './serving-cap-settings.mjs';
 import { listCatalogueProposals } from './catalogue-review.mjs';
 import {listCatalogueEstimates} from './catalogue-estimates.mjs';
 import {readCatalogueReviewExclusions,saveCatalogueReviewExclusions} from './catalogue-review-exclusions.mjs';
@@ -149,15 +150,15 @@ export async function handleRequest(request, response, pool, appPassword = null,
         return send(response,result.error?409:200,result);
       }catch{return send(response,500,{error:'daily-rebalance-failed'});}
     }
-    if (['/api/meal-settings','/api/plate-settings','/api/protein-settings'].includes(url.pathname) && ['GET','PUT'].includes(request.method)) {
+    if (['/api/meal-settings','/api/plate-settings','/api/protein-settings','/api/serving-caps'].includes(url.pathname) && ['GET','PUT'].includes(request.method)) {
       const body=request.method === 'PUT' ? await readJson(request) : null;
       if(body?.error) return send(response,body.status ?? 400,{error:body.error});
       const householdId=request.method === 'PUT' ? body.value?.householdId : url.searchParams.get('householdId');
       if(!isUuid(householdId)) return send(response,400,{error:'invalid-household-id'});
       try {
-        const readSettings=url.pathname==='/api/protein-settings'?readProteinSettings:url.pathname==='/api/plate-settings'?readPlateSettings:readMealSettings;
-        const saveSettings=url.pathname==='/api/protein-settings'?saveProteinSettings:url.pathname==='/api/plate-settings'?savePlateSettings:saveMealSettings;
-        const result=request.method === 'GET' ? await readSettings(pool,householdId) : await saveSettings(pool,householdId,url.pathname==='/api/protein-settings'?body.value?.targets:body.value?.ratios);
+        const readSettings=url.pathname==='/api/serving-caps'?readServingCaps:url.pathname==='/api/protein-settings'?readProteinSettings:url.pathname==='/api/plate-settings'?readPlateSettings:readMealSettings;
+        const saveSettings=url.pathname==='/api/serving-caps'?saveServingCaps:url.pathname==='/api/protein-settings'?saveProteinSettings:url.pathname==='/api/plate-settings'?savePlateSettings:saveMealSettings;
+        const result=request.method === 'GET' ? await readSettings(pool,householdId) : await saveSettings(pool,householdId,url.pathname==='/api/protein-settings'?body.value?.targets:url.pathname==='/api/serving-caps'?body.value?.caps:body.value?.ratios);
         if(!result || result.error === 'household-not-found') return send(response,404,{error:'household-not-found'});
         return send(response,result.error ? 400 : 200,result);
       } catch { return send(response,500,{error:'meal-settings-failed'}); }
