@@ -1,3 +1,4 @@
+import {MEAL_SERVING_CAPS} from './portion-planner.js';
 // Post-processing only: the original gram planner remains unchanged.
 // All quantities and energy densities below are canonical grams and kcal/g.
 export function compensateServingCalories(rows, before, after) {
@@ -49,11 +50,18 @@ export function compensateManualServing(items, recipes, recipeId, personId, prev
     const part=recipes.find(entry=>entry.id===item.recipeId);
     return part?.parentRecipeId===parent?.id && ['main','accompaniment'].includes(item.role??'main')
       ?[{key,item,part,servingPart:part.servingPart,recipeUnit:part.yield.unitId,countStep:part.servingDisplay?.gramsPerUnit,
-        recipeKcal:part.nutrition?.perYieldUnit?.energyKcal,plateParts:parent.servingParts?.map(p=>p.servingPart)}]:[];
+        servingLoad:part.servingLoad,recipeKcal:part.nutrition?.perYieldUnit?.energyKcal,plateParts:parent.servingParts?.map(p=>p.servingPart)}]:[];
   });
   if(!complete(entries))return {ok:false,reason:'Parties manquantes ou répétées : compensation impossible.'};
   const after=entries.map(({item})=>item.amounts?.[personId] === ''?null:item.amounts?.[personId]);
   const before=after.map((q,i)=>entries[i].part.id===recipeId?previousQuantity:q);
   const result=compensateServingCalories(entries,before,after);
-  return result.ok?{...result,itemKey:entries[result.adjustedIndex].key,quantity:result.quantities[result.adjustedIndex]}:result;
+  if(!result.ok)return result;
+  const adjusted=entries[result.adjustedIndex];
+  for(const [key,load] of Object.entries(adjusted.servingLoad??{})){
+    if(load===null)return {ok:false,reason:'Équivalence manquante : la compensation automatique n’a pas été appliquée.'};
+    const total=entries.reduce((sum,row,i)=>sum+(row.servingLoad?.[key]??0)*result.quantities[i],0);
+    if(load>0&&total>MEAL_SERVING_CAPS[key]+1e-5)return {ok:false,reason:'La compensation dépasserait un plafond : ajuste la partie restante si besoin.'};
+  }
+  return {...result,itemKey:adjusted.key,quantity:result.quantities[result.adjustedIndex]};
 }

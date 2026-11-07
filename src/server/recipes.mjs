@@ -1,4 +1,5 @@
-import {componentErrors,loadRecipeGraph,validateRecipeGraph,recipeFraction} from './recipe-ingredients.mjs';
+import { addServingLoad, servingIngredientLoad } from './serving-limits.mjs';
+import {componentErrors,loadRecipeGraph,validateRecipeGraph,recipeFraction,recipeWeight} from './recipe-ingredients.mjs';
 import { randomUUID } from 'node:crypto';
 import { calculateRecipeNutrition } from '../domain/foods.ts';
 import { restoreOriginalServingMode, syncServingParts, validateServingParts } from './serving-parts.mjs';
@@ -274,24 +275,32 @@ export async function readRecipe(client, id, path=[]) {
     `SELECT id, household_id,output_units, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type,minimum_production_amount,minimum_production_unit_id, meal_moments,separate_starch,serving_weights,cooking_factors,parent_recipe_id,serving_part,serving_part_active,version,
             EXISTS (SELECT 1 FROM recipe_images WHERE recipe_id=recipes.id) AS image_available,
             (SELECT count(*) FROM recipes siblings WHERE siblings.parent_recipe_id=recipes.parent_recipe_id AND siblings.serving_part_active) AS sibling_count,
-            (SELECT parent.name FROM recipes parent WHERE parent.id=recipes.parent_recipe_id) AS parent_recipe_name
+            (SELECT parent.name FROM recipes parent WHERE parent.id=recipes.parent_recipe_id) AS parent_recipe_name,
+            (SELECT parent.cooking_factors FROM recipes parent WHERE parent.id=recipes.parent_recipe_id) AS parent_cooking_factors
        FROM recipes WHERE id = $1`, [id],
   );
   const row = recipeResult.rows[0];
   if (!row) return null;
   const linesResult = await client.query(
-    `SELECT l.id,l.food_id,l.ingredient_recipe_id,l.quantity,l.unit_id,l.sort_order,l.serving_part,l.cooking_factor,l.cooking_state,f.cooking_factor AS food_cooking_factor
+    `SELECT l.id,l.food_id,l.ingredient_recipe_id,l.quantity,l.unit_id,l.sort_order,l.serving_part,l.cooking_factor,l.cooking_state,f.cooking_factor AS food_cooking_factor,original.cooking_factor AS original_cooking_factor
       FROM recipe_lines l LEFT JOIN foods f ON f.id=l.food_id
-      WHERE l.recipe_id = $1 ORDER BY l.sort_order`, [id],
+      LEFT JOIN LATERAL (
+        SELECT p.cooking_factor FROM (
+          SELECT cooking_factor,food_id,row_number() OVER (ORDER BY sort_order,id)-1 AS position
+          FROM recipe_lines WHERE recipe_id=$2 AND serving_part=$3
+        ) p WHERE p.position=l.sort_order AND p.food_id=l.food_id
+      ) original ON TRUE
+      WHERE l.recipe_id = $1 ORDER BY l.sort_order`, [id,row.serving_part_active===false?null:row.parent_recipe_id??null,row.serving_part??null],
   );
   const lines = linesResult.rows.map((line) => ({
     id: line.id, foodId: line.food_id, recipeId:line.ingredient_recipe_id??null, quantity: Number(line.quantity), unitId: line.unit_id,
     componentId: null, variantId: null, servingPart: line.serving_part ?? 'main', cookingFactor: line.cooking_factor == null ? null : Number(line.cooking_factor),cookingState:line.cooking_state??'legacy',foodCookingFactor:line.food_cooking_factor==null?null:Number(line.food_cooking_factor),
+    originalCookingFactor:line.original_cooking_factor==null?null:Number(line.original_cooking_factor),
   }));
   const foodIds = [...new Set(lines.map((line) => line.foodId))];
   const foodsResult = foodIds.length ? await client.query(
     `SELECT f.id, f.canonical_name AS name, f.brand, f.source, f.source_reference,
-            f.source_note, f.grams_per_millilitre,
+            f.source_note, f.grams_per_millilitre, f.food_category,
             jsonb_object_agg(n.id, fn.value_per_100g ORDER BY n.sort_order)
               FILTER (WHERE n.id IS NOT NULL) AS nutrient_values,
             COALESCE((SELECT jsonb_object_agg(c.unit_id, c.grams_per_unit)
@@ -311,16 +320,20 @@ export async function readRecipe(client, id, path=[]) {
     const nutrientsPer100g = Object.fromEntries(Object.entries(nutrients).map(([dbKey, key]) => [key, values[dbKey] == null ? null : Number(values[dbKey])]));
     return {
       id: food.id, name: food.name, aliases: [], brand: food.brand, source: food.source,
-      sourceReference: food.source_reference, nutrientsPer100g,
+      sourceReference: food.source_reference, category:food.food_category, nutrientsPer100g,
       gramsPerUnit: Object.fromEntries(Object.entries(food.grams_per_unit ?? {}).map(([key, value]) => [key, Number(value)])),
       gramsPerMillilitre: food.grams_per_millilitre == null ? null : Number(food.grams_per_millilitre),
     };
   });
   const nutritionLines=lines.map(line=>({...line}));
+  const servingLoad={};
   const graph=lines.some(line=>line.recipeId)?await loadRecipeGraph(client,row.household_id):null;
   for(const [index,line] of lines.entries())if(line.recipeId){
     const component=await readRecipe(client,line.recipeId,[...path,id]);
     const fraction=recipeFraction(graph,line.recipeId,line.quantity,line.unitId);
+    if(/^(?:pains?|bagels?|baguettes?)\b/i.test(component.name)){
+      addServingLoad(servingLoad,{...component.servingLoad,starch:recipeWeight(graph,line.recipeId)/component.yield.amount||null},fraction*component.yield.amount);
+    }else addServingLoad(servingLoad,component.servingLoad,fraction*component.yield.amount);
     line.foodName=component.name;line.recipeName=component.name;
     foods.push({id:line.recipeId,name:component.name,nutrientsPer100g:component.nutrition.batch,gramsPerUnit:{}});
     nutritionLines[index]={...line,foodId:line.recipeId,quantity:fraction*100,unitId:'g'};
@@ -333,6 +346,11 @@ export async function readRecipe(client, id, path=[]) {
   }
   if (row.parent_recipe_id) nutrition.perYieldUnit = Object.fromEntries(Object.entries(nutrition.batch).map(([key,value]) => [key,value == null ? null : value / Number(row.yield_amount)]));
   const foodById = new Map(foods.map((food) => [food.id, food]));
+  for(const line of lines.filter(line=>line.foodId)){
+    addServingLoad(servingLoad,servingIngredientLoad({...line,cookingFactor:line.cookingFactor??line.originalCookingFactor},
+      foodById.get(line.foodId),row.parent_cooking_factors??row.cooking_factors,row.serving_part??line.servingPart));
+  }
+  if(row.serving_part==='starch'&&!Object.hasOwn(servingLoad,'starch'))servingLoad.starch=Number(row.yield_amount);
   const servingParts = [], archivedServingParts=[];
   if (row.separate_starch) {
     const children = await client.query('SELECT id,serving_part_active FROM recipes WHERE parent_recipe_id=$1 ORDER BY serving_part', [id]);
@@ -343,6 +361,8 @@ export async function readRecipe(client, id, path=[]) {
     ingredientName:counted.foodName??foodById.get(counted.foodId)?.name??null}:null;
   return {
     servingDisplay,
+    eggServingStep:lines.length===1&&lines[0].foodId&&servingLoad.eggs>0?Number(row.yield_amount)/servingLoad.eggs:null,
+    servingLoad:Object.fromEntries(Object.entries(servingLoad).map(([key,value])=>[key,value==null?null:value/Number(row.yield_amount)])),
     separateStarch:row.separate_starch ?? false,servingWeights:row.serving_weights ?? {},cookingFactors:row.cooking_factors ?? {main:1,starch:3},parentRecipeId:row.parent_recipe_id ?? null,parentRecipeName:row.parent_recipe_name??null,servingPart:row.serving_part ?? null,servingPartActive:row.serving_part_active??true,servingParts,archivedServingParts,imageAvailable:Boolean(row.image_available),
     id: row.id, version: Number(row.version ?? 0), name: row.name, description: row.description, instructions: row.instructions ?? '', sourceUrl: row.source_url ?? null,
     recipeType: row.recipe_type ?? 'dish', productionType: row.production_type ?? 'none', mealMoments: row.meal_moments ?? [],

@@ -1,5 +1,10 @@
 # Cahier de reprise — 6 novembre 2026
 
+## Propositions de portions par repas — 0.3.26
+
+Les proportions d’Administration donnent le point de départ. Les propositions respectent par personne et par repas 125 g crus de viande, 150 g crus de poisson, trois œufs entiers et 200 g servis de féculents. Les plafonds portent sur les ingrédients, y compris dans une préparation maison imbriquée. Le poids cru des ingrédients déjà cuits est reconstitué uniquement si une équivalence est disponible. En deux parties, les féculents absorbent en priorité le budget restant ; en trois parties, les féculents et légumes s’ajustent ensemble selon leur rapport configuré ; quand les féculents atteignent leur plafond, le budget kcal restant est laissé libre. Un plat servi ensemble garde sa composition. Il n’est pas nécessaire de remplir l’enveloppe kcal. Les menus enregistrés ne sont pas recalculés automatiquement.
+
+
 ## Catégories et classement groupé — 0.3.25
 
 Dans Aliments, « + Catégorie » crée un nom réutilisable même sans aliment affecté. La modification groupée par catégorie demande un seul choix pour toute la sélection, existant ou nouveau, sans source. L’aperçu montre les reclassements avant validation et le contrôle de version protège les fiches modifiées entre-temps. Pour les autres champs, les valeurs restent protégées sauf choix explicite. Les outils de revue et d’export sont regroupés ; les actions groupées apparaissent à la sélection.

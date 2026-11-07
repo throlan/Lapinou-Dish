@@ -12,9 +12,9 @@ const individualStart=source.indexOf('function isIndividualRole(');
 const individualEnd=source.indexOf('function individualDefaultQuantity(',individualStart);
 function addIndividualMealItemRule(context){runInNewContext(source.slice(individualStart,individualEnd),context);}
 
-test('automatic meat and vegetable servings stay within one batch portion for all four profiles', () => {
-  const parent = { id: 'parent', yield: { amount: 4, unitId: 'portion' } };
-  const main = { id: 'main', parentRecipeId: parent.id, servingPart: 'main', yield: { amount: 1660, unitId: 'g' }, nutrition: { perYieldUnit: { energyKcal: 1.3, proteinG: 0.075 } } };
+test('automatic servings cap raw meat inside the mixed part for all four profiles', () => {
+  const parent = { id: 'parent', yield: { amount: 4, unitId: 'portion' }, servingParts:[{servingPart:'main'},{servingPart:'starch'}] };
+  const main = { id: 'main', parentRecipeId: parent.id, servingPart: 'main', servingLoad:{meat:.5}, yield: { amount: 1660, unitId: 'g' }, nutrition: { perYieldUnit: { energyKcal: 1.3, proteinG: 0.075 } } };
   const rice = { id: 'rice', parentRecipeId: parent.id, servingPart: 'starch', yield: { amount: 750, unitId: 'g' }, nutrition: { perYieldUnit: { energyKcal: 1.2, proteinG: 0.02 } } };
   const people = [1600, 3200, 2200, 2600].map((energy, i) => ({ id: String(i), displayName: String(i), energy }));
   const items = { 0: { recipeId: main.id, role: 'main' }, 1: { recipeId: rice.id, role: 'accompaniment' } };
@@ -29,8 +29,9 @@ test('automatic meat and vegetable servings stay within one batch portion for al
   context.calculate(items, people.map(person => person.id));
   for (const person of people) {
     assert.ok(Number(items[0].amounts[person.id]) > 0);
-    assert.ok(Number(items[0].amounts[person.id]) <= 410);
+    assert.ok(Number(items[0].amounts[person.id]) <= 250);
     assert.ok(Number(items[1].amounts[person.id]) > 0);
+    assert.ok(Number(items[1].amounts[person.id]) <= 200);
   }
 });
 
@@ -43,7 +44,7 @@ test('linked rice uses the configured plate proportion instead of a one-gram acc
   const root={replaceChildren(){}};
   const context={...planner,roundServingCalories,state:{recipes:[parent],people,calendarMeals:[],plateRatios:{whole:{main:1},separate:{main:0.66,starch:0.34},three:{main:0.25,starch:0.25,vegetables:0.5}}},
     $:selector=>selector==='#meal-form'?{elements:{mealDate:{value:'2026-10-31'},slot:{value:'dinner'}}}:root,
-    allPlanningRecipes:()=>[parent,main,rice],latestProfile:()=>({dailyEnergyKcal:1300}),plannedCaloriesForPerson:()=>0,
+    allPlanningRecipes:()=>[parent,main,rice],latestProfile:()=>({dailyEnergyKcal:1000}),plannedCaloriesForPerson:()=>0,
     document:{createElement:()=>({append(){}})}};
   addIndividualMealItemRule(context);
   runInNewContext(source.slice(start,end)+'\nglobalThis.calculate=applyAutomaticPortions;',context);
@@ -51,7 +52,7 @@ test('linked rice uses the configured plate proportion instead of a one-gram acc
   const mainGrams=Number(items[0].amounts.bibinette),riceGrams=Number(items[1].amounts.bibinette);
   assert.ok(riceGrams>1,`rice should be a real plate part, received ${riceGrams} g`);
   assert.ok(Math.abs(mainGrams/(mainGrams+riceGrams)-0.66)<0.001);
-  assert.ok(mainGrams*0.58+riceGrams*1.3<=1300*planner.SLOT_RATIOS.dinner+100.001);
+  assert.ok(mainGrams*0.58+riceGrams*1.3<=1000*planner.SLOT_RATIOS.dinner+100.001);
 });
 
 test('protein adjustment cannot bypass the main serving ceiling; piece recipes keep their own portions', () => {

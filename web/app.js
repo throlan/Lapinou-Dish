@@ -1,10 +1,10 @@
-import { breakfastServingLimit, calculateDailyEnergy, calculateDailyProtein, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, dailyProteinTarget, capAccompanimentQuantity, mainServingLimit, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';
+import { breakfastServingLimit, calculateDailyEnergy, calculateDailyProtein, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, dailyProteinTarget, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';
 import {mountCookingInstagram} from './cooking-instagram.js';
 import {servingUnit,servingUnitLabel,displayServingQuantity,setServingInput,servingInputValue} from './serving-quantities.js';
-import {roundServingCalories,compensateManualServing} from './serving-compensation.js';
+import {compensateManualServing} from './serving-compensation.js';
 import {shoppingPreferenceControls,shoppingPreferencesPanel,shoppingPreferenceError} from './shopping-preferences.js';
 import { MEAL_ORDER, MEAL_LABELS, validMealRatios } from './meal-config.js';
-import { suggestPlatePortions } from './portion-planner.js';
+import { cappedMealPortions } from './portion-planner.js';
 import { PLATE_PARTS, validPlateRatios } from './meal-config.js';
 import { batchCookingWindow } from './preparation-weeks.js';
 import { clampFoodPageOffset } from './food-pagination.js';
@@ -3406,7 +3406,7 @@ function applyAutomaticPortions(items, attendeeIds) {
       const step = recipeUnit === 'piece' ? 1 : recipeUnit === 'g' ? 10 : 0.5;
       if (individual) {
         const quantity = Number(assignment?.quantity);
-        proposals.push({ item, assignment, personId, role, quantity: Number.isFinite(quantity) && quantity >= 0 ? quantity : 0, step, recipeKcal: Number(kcal), proteinG: recipe?.nutrition?.perYieldUnit?.proteinG == null ? null : Number(recipe.nutrition.perYieldUnit.proteinG), maxQuantity: Infinity });
+        proposals.push({ item, assignment, personId, role, quantity: Number.isFinite(quantity) && quantity >= 0 ? quantity : 0, step, recipeKcal: Number(kcal), proteinG: recipe?.nutrition?.perYieldUnit?.proteinG == null ? null : Number(recipe.nutrition.perYieldUnit.proteinG), maxQuantity: Infinity,recipeUnit,countStep:recipe?.eggServingStep??recipe?.servingDisplay?.gramsPerUnit,servingLoad:recipe?.servingLoad });
         if (kcal == null) messages.add(`${recipe?.name ?? (role === 'sauce' ? 'Une sauce' : 'Une boisson')} : calories inconnues, le respect du budget ne peut pas être vérifié.`);
         continue;
       }
@@ -3428,18 +3428,9 @@ function applyAutomaticPortions(items, attendeeIds) {
         ? (recipeUnit === 'g' ? 10 : 1)
         : null;
       const proposedQuantity = suggestion.quantity ?? fallbackQuantity;
-      const servingMax = recipe?.parentRecipeId && ['main','vegetables'].includes(recipe.servingPart)
-        ? mainServingLimit(recipe, state.recipes.find(parent => parent.id === recipe.parentRecipeId))
-        : role === 'accompaniment' && recipeUnit === 'g' && !recipe?.parentRecipeId
-        ? Math.min(200, Number(recipe?.yield?.amount) * 1.5)
-        : Infinity;
       const parentRecipe=state.recipes.find(parent=>parent.id===recipe?.parentRecipeId);
-      const maxQuantity=Math.min(servingMax,saladServingLimit(recipe),slot==='breakfast' && role==='main'?breakfastServingLimit(recipe,parentRecipe):Infinity);
-      const quantity = proposedQuantity == null ? null : Math.min(
-        proposedQuantity,
-        maxQuantity,
-        recipe?.parentRecipeId ? proposedQuantity : capAccompanimentQuantity(proposedQuantity, { recipeUnit, recipeYieldAmount: recipe?.yield?.amount }),
-      );
+      const maxQuantity=Math.min(saladServingLimit(recipe),slot==='breakfast' && role==='main'?breakfastServingLimit(recipe,parentRecipe):Infinity);
+      const quantity=proposedQuantity==null?null:Math.min(proposedQuantity,maxQuantity);
       item.amounts[personId] = quantity == null ? '' : String(quantity);
       if (Number.isFinite(maxQuantity) && proposedQuantity > maxQuantity) {
         messages.add(`${recipe?.name ?? 'La préparation'} : portion proposée plafonnée à ${maxQuantity} ${recipeUnit} par personne; tu peux toujours l’ajuster.`);
@@ -3453,21 +3444,15 @@ function applyAutomaticPortions(items, attendeeIds) {
       const parent=state.recipes.find(parent=>parent.id===recipe?.parentRecipeId);
       proposals.push({ item, personId, role, quantity, reason: suggestion.reason, step, recipeKcal: Number(kcal), proteinG: recipe?.nutrition?.perYieldUnit?.proteinG == null ? null : Number(recipe.nutrition.perYieldUnit.proteinG), maxQuantity, slotBudgetKcal: suggestion.slotBudgetKcal, assignment,
         parentRecipeId:recipe?.parentRecipeId,servingPart:recipe?.servingPart,recipeUnit,
-        countStep:recipe?.servingDisplay?.gramsPerUnit,plateParts:parent?.servingParts?.map(part=>part.servingPart),budgetFraction:1/commonCount });
+        servingLoad:recipe?.servingLoad,countStep:recipe?.eggServingStep??recipe?.servingDisplay?.gramsPerUnit,plateParts:parent?.servingParts?.map(part=>part.servingPart),budgetFraction:1/commonCount });
     }
     const budget = proposals.find((proposal) => Number.isFinite(proposal.slotBudgetKcal))?.slotBudgetKcal;
-    if (Number.isFinite(budget) && proposals.length && proposals.every((proposal) => Number.isFinite(proposal.recipeKcal) && proposal.recipeKcal > 0)) {
-      const initial = suggestPlatePortions(proposals, budget, state.plateRatios,{proteinInformational:true});
-      const rounded = roundServingCalories(initial.proposals);
-      const result = {...initial,proposals:rounded.proposals,warnings:[...initial.warnings,...rounded.warnings]};
-      result.estimatedKcal=result.proposals.reduce((sum,row)=>sum+(row.quantity??0)*row.recipeKcal,0);
-      result.estimatedProteinG=result.proteinKnown?result.proposals.reduce((sum,row)=>sum+(row.quantity??0)*row.proteinG,0):null;
-      result.proteinTargetMet=null;
-      result.withinBudget=result.estimatedKcal<=budget+1e-4;
+    if (proposals.length) {
+      const result=cappedMealPortions(proposals,budget,state.plateRatios);
       result.warnings.forEach(message=>messages.add(message));
-      if(result.proportionsApplied)messages.add(proposals.some(row=>row.countStep>0)?'Calcul initial selon les proportions d’Administration. Arrondi des unités au plus proche lorsque la compensation calorique sur la partie en grammes est possible.':'Proportions en poids estimé appliquées depuis Administration. Le poids total suit le budget kcal et les plafonds des parties.');
+      if(result.proportionsApplied)messages.add('Proportions d’Administration au départ, puis ajustement des accompagnements dans les plafonds par personne.');
       result.proposals.forEach((proposal) => {
-        if (proposal.assignment) proposal.assignment.quantity = String(proposal.quantity);
+        if (proposal.assignment) proposal.assignment.quantity = String(proposal.quantity??0);
         else proposal.item.amounts[personId] = proposal.quantity == null ? '' : String(proposal.quantity);
       });
       if (!result.withinBudget) messages.add(`${person?.displayName ?? 'Une personne'} : dépassement conservé ; le plat principal n’est pas réduit. Vérifie le total de la journée et le compte épargne.`);
@@ -3689,7 +3674,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     }
     row.append(top, quantities);
     if (allPlanningRecipes().find(recipe=>recipe.id===item.recipeId)?.parentRecipeId) {
-      const estimate=document.createElement('small'); estimate.className='muted'; const counted=allPlanningRecipes().find(recipe=>recipe.id===item.recipeId)?.servingDisplay; estimate.textContent=counted ? '1 '+servingUnitLabel(counted.unitId)+' = '+formatQty(counted.gramsPerUnit)+' g selon la recette et ses équivalences. Le recalcul arrondit au plus proche et compense les calories sur la partie en grammes.' : 'Grammes estimés à partir des ingrédients et du coefficient de cuisson.'; row.append(estimate);
+      const estimate=document.createElement('small'); estimate.className='muted'; const counted=allPlanningRecipes().find(recipe=>recipe.id===item.recipeId)?.servingDisplay; estimate.textContent=counted ? '1 '+servingUnitLabel(counted.unitId)+' = '+formatQty(counted.gramsPerUnit)+' g selon la recette et ses équivalences. Le recalcul garde des unités entières et ajuste les accompagnements dans le budget disponible.' : 'Grammes estimés à partir des ingrédients et du coefficient de cuisson.'; row.append(estimate);
     }
     return row;
   });
