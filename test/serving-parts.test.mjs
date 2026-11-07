@@ -42,6 +42,8 @@ test('gram preparations preserve nutrition, shopping, stock and complete meal du
     const main=recipe.servingParts.find(p=>p.servingPart==='main'),starch=recipe.servingParts.find(p=>p.servingPart==='starch');
     await t.test('750 g estimated rice comes from 250 g raw ×3; nutrition uses raw ingredients',()=>{
       assert.equal(starch.yield.amount,750); assert.equal(main.yield.amount,1550);
+      assert.deepEqual(main.servingLoad,{meat:750/1550});
+      assert.deepEqual(starch.servingLoad,{starch:1});
       assert.equal(starch.nutrition.batch.energyKcal,875);
       assert.equal(starch.nutrition.perYieldUnit.proteinG,18.5/750);
       assert.equal(starch.nutrition.batch.energyKcal+main.nutrition.batch.energyKcal,recipe.nutrition.batch.energyKcal);
