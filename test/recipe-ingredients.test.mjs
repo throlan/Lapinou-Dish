@@ -7,6 +7,7 @@ import {createRecipe,updateRecipe,readRecipe,deleteRecipe,validateRecipeInput} f
 import {addStockLot,cancelStockLot,listPreparationsToMake,listStock} from '../src/server/household-planning.mjs';
 import {rawShoppingRequirements} from '../src/server/shopping-requirements.mjs';
 import {savePlannedMeal,deletePlannedMeal,listPlannedRecipeIds} from '../src/server/planning.mjs';
+import {handleRequest} from '../src/server/app.mjs';
 import {setMealPrepared} from '../src/server/meal-preparation.mjs';
 
 async function fixture(){
@@ -56,7 +57,10 @@ test('bagels by piece feed gram menus, shopping, bread production and assembly w
   await f.pool.query('UPDATE household_ingredient_stock SET quantity_g=5000 WHERE food_id=$1',[beef]);
   const requestId=randomUUID(),production=await f.lot(part,800,{requestId});assert.equal(production.error,undefined);
   assert.equal((await f.lot(part,800,{requestId})).replayed,true);
-  assert.equal((await updateRecipe(f.pool,bagels.id,f.data({...bagels,yield:{amount:6,unitId:'portion'},outputUnits:{piece:6}}))).error,'recipe-output-in-use');
+  const revised=await updateRecipe(f.pool,bagels.id,f.data({...bagels,yield:{amount:6,unitId:'portion'},outputUnits:{piece:6}}));
+  assert.equal(revised.replacesRecipeId,bagels.id);
+  assert.equal(revised.yield.unitId,'portion');
+  assert.notEqual(revised.id,bagels.id);
   assert.equal(await f.stockG(flour),4600);assert.equal(await f.stockG(beef),4600);
   assert.deepEqual(await f.shopping(),[]);
   assert.equal((await listStock(f.pool,f.householdId)).find(r=>r.recipeId===bagels.id).availableQuantity,0);
@@ -64,6 +68,37 @@ test('bagels by piece feed gram menus, shopping, bread production and assembly w
   assert.equal((await cancelStockLot(f.pool,f.householdId,production.id)).cancelled,true);
   assert.equal(await f.stockG(beef),5000);assert.equal(await f.stockG(flour),4600);
   assert.equal((await cancelStockLot(f.pool,f.householdId,bread.id)).cancelled,true);assert.equal(await f.stockG(flour),4800);
+});
+
+test('saving the yield through the recipe API preserves existing finished stock',async t=>{
+  const f=await fixture();t.after(()=>f.db.close());
+  const flour=await f.food('Synthetic flour');await f.tracked(flour,2000);
+  const input={name:'Synthetic bread',productionType:'bread',yield:{amount:20,unitId:'slice'},outputUnits:{slice:20},lines:[{foodId:flour,quantity:600,unitId:'g'}]};
+  const bread=await f.create(input);
+  await f.lot(bread.id,20);
+  const meal=await f.meal(bread.id,2);
+  assert.equal((await setMealPrepared(f.pool,f.householdId,meal.id,true)).prepared,true);
+  const stock=async()=>(await listStock(f.pool,f.householdId)).find(row=>row.recipeId===bread.id);
+  const before=await stock();
+  async function save(yieldValue,outputUnits){
+    const response={setHeader(){},writeHead(code){this.code=code;},end(body){this.body=JSON.parse(body);}};
+    await handleRequest({method:'PUT',url:`/api/recipes/${bread.id}`,headers:{},async *[Symbol.asyncIterator](){
+      yield JSON.stringify({...input,householdId:f.householdId,yield:yieldValue,outputUnits});
+    }},response,f.pool);
+    assert.equal(response.code,200,JSON.stringify(response.body));
+    return response.body.recipe;
+  }
+  const revised=await save({amount:24,unitId:'slice'},{slice:24});
+  assert.equal(revised.id,bread.id);
+  assert.equal(revised.yield.amount,24);
+  assert.deepEqual(await stock(),before);
+  const replacement=await save({amount:1,unitId:'piece'},{slice:24});
+  assert.equal(replacement.replacesRecipeId,bread.id);
+  const historical=await stock();
+  assert.equal(historical.unitId,'slice');
+  assert.equal(historical.physicalQuantity,before.physicalQuantity);
+  assert.deepEqual(historical.lots,before.lots);
+  assert.equal(await f.stockG(flour),1400);
 });
 
 test('bread slices use a declared equivalence, direct and nested menus share stock, and cancelling a meal restores bread',async t=>{

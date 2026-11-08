@@ -521,14 +521,15 @@ function renderProductionOptions() {
   const extra=$('#extra-production-recipe');
   const previous=select.value;
   const available=state.recipes.filter(recipe=>recipe.productionType&&recipe.productionType!=='none'&&!recipe.parentRecipeId);
+  const current=available.filter(recipe=>!recipe.recipeArchived);
   const plannedIds=new Set(state.preparations.filter(item=>item.toMakeQuantity>0&&item.productionType!=='none')
     .map(item=>item.parentRecipeId??item.recipeId));
   select.replaceChildren(new Option('Choisir une préparation des menus…',''));
   for(const recipe of available.filter(item=>plannedIds.has(item.id)))select.add(new Option(`${recipe.name} · ${formatQty(recipe.yield.amount)} ${recipe.yield.unitId}`,recipe.id));
   if(previous&&[...select.options].some(option=>option.value===previous))select.value=previous;
-  extra.replaceChildren(new Option('Choisir une autre préparation…',''),...available.map(recipe=>new Option(recipe.name,recipe.id)));
+  extra.replaceChildren(new Option('Choisir une autre préparation…',''),...current.map(recipe=>new Option(recipe.name,recipe.id)));
   const planSelect=$('#extra-production-plan-form')?.elements.recipeId;
-  if(planSelect){const selected=planSelect.value;planSelect.replaceChildren(new Option('Choisir une recette…',''),...available.map(recipe=>new Option(`${recipe.name} · ${formatQty(recipe.yield.amount)} ${recipe.yield.unitId}`,recipe.id)));planSelect.value=selected;}
+  if(planSelect){const selected=planSelect.value;planSelect.replaceChildren(new Option('Choisir une recette…',''),...current.map(recipe=>new Option(`${recipe.name} · ${formatQty(recipe.yield.amount)} ${recipe.yield.unitId}`,recipe.id)));planSelect.value=selected;}
 }
 function renderExtraProductionPlans(plans){
   const root=$('#extra-production-plans-list');root.replaceChildren();
@@ -1833,7 +1834,7 @@ function addRecipeIngredientLine(initial=null) {
   const caption=document.createElement('span');caption.textContent='Préparation maison';
   const select=document.createElement('select');select.setAttribute('aria-label','Recette liée');select.required=true;
   select.add(new Option('Choisir une préparation…',''));
-  for(const recipe of state.recipes.filter(r=>r.id!==state.editingRecipeId).sort((a,b)=>a.name.localeCompare(b.name,'fr')))select.add(new Option(recipe.name,recipe.id));
+  for(const recipe of state.recipes.filter(r=>r.id!==state.editingRecipeId&&(!r.recipeArchived||r.id===initial?.recipeId)).sort((a,b)=>a.name.localeCompare(b.name,'fr')))select.add(new Option(recipe.name,recipe.id));
   select.value=initial?.recipeId??'';
   const quantity=document.createElement('input');quantity.type='number';quantity.min='0.001';quantity.max='100000';quantity.step='any';quantity.required=true;quantity.value=String(initial?.quantity??1);quantity.setAttribute('aria-label','Quantité');
   const unit=document.createElement('select');unit.setAttribute('aria-label','Unité');unit.required=true;
@@ -1943,14 +1944,14 @@ $('#recipe-form').addEventListener('submit', async (event) => {
   try {
     const path = state.editingRecipeId ? `/api/recipes/${state.editingRecipeId}` : '/api/recipes';
     const method = state.editingRecipeId ? 'PUT' : 'POST';
-    const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, productionType: form.elements.productionType.value, minimumProductionAmount:Number(form.elements.minimumProductionAmount.value||0),minimumProductionUnitId:form.elements.minimumProductionUnitId.value, recipeType: form.elements.recipeType.value, mealMoments: [...form.querySelectorAll('input[name="mealMoments"]:checked')].map((input) => input.value), instructions: form.elements.instructions.value, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, outputUnits:Object.fromEntries(['piece','slice','portion','g','ml'].flatMap(unit=>{const value=form.elements['output_'+unit]?.value;return value?[ [unit,Number(value)] ]:[];})), ...servingOptions, lines }) });
+    const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, productionType: form.elements.productionType.value, minimumProductionAmount:Number(form.elements.minimumProductionAmount.value||0),minimumProductionUnitId:form.elements.minimumProductionUnitId.value, recipeType: form.elements.recipeType.value, mealMoments: [...form.querySelectorAll('input[name="mealMoments"]:checked')].map((input) => input.value), instructions: form.elements.instructions.value, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, outputUnits:Object.fromEntries(['piece','slice','portion','g','ml'].flatMap(unit=>{const value=form.elements['output_'+unit]?.value;return value?[[unit,Number(unit===form.elements.yieldUnit.value?form.elements.yieldAmount.value:value)]]:[];})), ...servingOptions, lines }) });
     const generateImage=state.generateImportedImage;state.generateImportedImage=false;
     if (state.importingDraftId) {
       await api(`/api/recipe-imports/${state.importingDraftId}/converted`, { method: 'POST', body: JSON.stringify({ householdId: state.household.id }) });
       state.importingDraftId = null;
       $('#ignore-import-draft')?.classList.add('hidden');
     }
-    renderRecipe(recipe); showMessage(message, 'Recette enregistrée. Les valeurs affichées sont calculées depuis le catalogue.', true);
+    renderRecipe(recipe); showMessage(message, recipe.replacesRecipeId?'Recette enregistrée. Les anciens lots et repas gardent leur version.':'Recette enregistrée. Les valeurs affichées sont calculées depuis le catalogue.', true);
     state.editingRecipeId = null;
     state.editingRecipeForDeletion=null;$('#delete-current-recipe')?.classList.add('hidden');
     $('#recipe-form-title').textContent = 'Nouvelle recette';
@@ -1981,7 +1982,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
       'cooking-factor-required':'Renseigne le coefficient de cuisson dans la fiche de cet aliment avant de choisir « Cuit dans cette recette ».',
       'serving-parts-cannot-be-disabled':'Le retour aux proportions de la recette est prévu pour « Préparation servie ensemble ». Les modes avec plusieurs parties ne peuvent pas être regroupés automatiquement.',
       'serving-part-removal-not-supported':'Une partie déjà utilisée ne peut pas être supprimée implicitement. Conserve les parties existantes pour protéger le planning et le stock.',
-      'recipe-used-in-prepared-meal':'Un repas préparé utilise cette recette. Tu peux modifier ses ingrédients, mais son rendement, son découpage et son suivi de production sont protégés.',
+      'recipe-replaced':'Cette fiche a déjà été remplacée. Ouvre sa version actuelle depuis la liste des recettes.',
     };
     showMessage(message,servingErrors[error.body?.error] ?? `Enregistrement impossible : ${error.body?.error ?? error.message}`);
   }
@@ -2007,6 +2008,7 @@ async function openRecipeEditor(id = null, duplicate = false) {
   if (id) {
     try {
       const { recipe } = await api(`/api/recipes/${id}`);
+      if(!duplicate&&recipe.replacedByRecipeId)return openRecipeEditor(recipe.replacedByRecipeId);
       if(!duplicate){state.editingRecipeForDeletion=recipe;if(remove){remove.classList.remove('hidden');remove.disabled=false;}}
       form.elements.name.value = duplicate ? `${recipe.name.slice(0,190)} (variante)` : recipe.name;
       form.elements.description.value = recipe.description ?? '';
@@ -2017,6 +2019,8 @@ async function openRecipeEditor(id = null, duplicate = false) {
       form.elements.sourceUrl.value = recipe.sourceUrl ?? '';
       form.elements.instructions.value = recipe.instructions ?? '';
       form.elements.yieldAmount.value = recipe.yield.amount;
+      if(form.elements.yieldUnit.options&&![...form.elements.yieldUnit.options].some(option=>option.value===recipe.yield.unitId))
+        form.elements.yieldUnit.add(new Option(recipe.yield.unitId,recipe.yield.unitId));
       form.elements.yieldUnit.value = recipe.yield.unitId;
       form.elements.minimumProductionAmount.value=recipe.minimumProductionAmount??0;
       form.elements.minimumProductionUnitId.value=recipe.minimumProductionUnitId??recipe.yield.unitId;
@@ -2180,7 +2184,8 @@ try{
   recipeDisplay=recipeDisplayPreferences(JSON.parse(localStorage.getItem('lapinou-recipe-display')??'{}'));
 }catch{}
 function renderFilteredRecipes(){
-  const recipes=filterRecipeDirectory(state.recipes,{...recipeFilters,plannedRecipeIds:state.plannedRecipeIds});
+  const currentRecipes=state.recipes.filter(recipe=>!recipe.recipeArchived);
+  const recipes=filterRecipeDirectory(currentRecipes,{...recipeFilters,plannedRecipeIds:state.plannedRecipeIds});
   const recipesPerPage=recipeDisplay.perPage;
   const root=$('#recipe-list');root.classList.toggle('recipe-list-view',recipeDisplay.view==='list');
   root.style.setProperty('--recipe-columns',String(recipeDisplay.columns));root.style.setProperty('--recipe-tablet-columns',String(Math.min(2,recipeDisplay.columns)));
@@ -2198,10 +2203,10 @@ function renderFilteredRecipes(){
   const pages=Math.max(1,Math.ceil(recipes.length/recipesPerPage));
   recipeFilters.page=Math.min(recipeFilters.page,pages);
   const start=(recipeFilters.page-1)*recipesPerPage;
-  $('#recipe-list').replaceChildren(...(recipes.length?recipes.slice(start,start+recipesPerPage).map(recipeCard):[emptyMessage(state.recipes.length?'Aucune recette avec ces filtres.':'Aucune recette enregistrée.')]));
+  $('#recipe-list').replaceChildren(...(recipes.length?recipes.slice(start,start+recipesPerPage).map(recipeCard):[emptyMessage(currentRecipes.length?'Aucune recette avec ces filtres.':'Aucune recette enregistrée.')]));
     $('#recipe-filter-count').textContent=recipeFilters.missing==='nutrition-planned'&&state.plannedRecipeLookupError
     ?'Le calendrier ne peut pas être vérifié pour le moment.'
-    :`${recipes.length} recette${recipes.length===1?'':'s'} affichée${recipes.length===1?'':'s'} sur ${state.recipes.length}`;
+    :`${recipes.length} recette${recipes.length===1?'':'s'} affichée${recipes.length===1?'':'s'} sur ${currentRecipes.length}`;
   const pagination=$('#recipe-pagination');pagination.replaceChildren();
   if(pages>1){
     for(const [label,page] of [['← Précédent',recipeFilters.page-1],[`Page ${recipeFilters.page} / ${pages}`,null],['Suivant →',recipeFilters.page+1]]){
@@ -2591,11 +2596,11 @@ function recipeCard(recipe) {
       Object.assign(recipe,result.recipe);savedConfiguration=JSON.stringify(configuration());status.textContent='Enregistré';
       const index=state.recipes.findIndex(item=>item.id===recipe.id);if(index!==-1)state.recipes[index]=recipe;
       await refreshRecipes();
-      showMessage($('#recipe-list-message'),`Réglages de « ${recipe.name} » enregistrés.`,true);
+      showMessage($('#recipe-list-message'),result.recipe.replacesRecipeId?'Réglages enregistrés. Les anciens lots et repas gardent leur version.':`Réglages de « ${recipe.name} » enregistrés.`,true);
       await Promise.allSettled([refreshShopping(),refreshDashboard()]);
     }catch(error){const code=error.body?.error;status.textContent=({
       'recipe-version-conflict':'Recette modifiée ailleurs. Actualise la liste.',
-      'recipe-used-in-prepared-meal':'Un repas préparé utilise cette recette. Le rendement, le découpage et le suivi de production sont protégés.',
+      'recipe-replaced':'Cette fiche a été remplacée. Actualise la liste pour ouvrir la version actuelle.',
       'recipe-output-in-use':'Unité utilisée dans un historique : crée une variante.',
       'starch-ingredients-required':'Affecte au moins un ingrédient aux féculents.',
       'vegetable-ingredients-required':'Affecte au moins un ingrédient aux légumes.',
@@ -3573,6 +3578,7 @@ function plannedItemRoleOptions(currentCategoryId,slot) {
 function recipesForPlanning(slot, role, selectedIds = [], requiredRecipeType = null) {
   const selected = new Set(selectedIds.filter(Boolean));
   const eligible = allPlanningRecipes().filter((recipe) => {
+    if(recipe.recipeArchived)return false;
     const moments = recipe.mealMoments ?? [];
     if (moments.length && !moments.includes(slot === 'evening_snack' ? 'snack' : slot)) return false;
     if (recipe.recipeType) {

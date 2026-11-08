@@ -752,7 +752,7 @@ export async function handleRequest(request, response, pool, appPassword = null,
       try {
         const recipe = await updateRecipe(pool, recipeId, validation.data);
         if (!recipe) return send(response, 404, { error: 'recipe-not-found' });
-        if (recipe.error) return send(response, recipe.error==='recipe-used-in-prepared-meal'?409:400, { error: recipe.error });
+        if (recipe.error) return send(response, ['recipe-used-in-prepared-meal','recipe-replaced'].includes(recipe.error)?409:400, recipe);
         return send(response, 200, { recipe });
       } catch {
         return send(response, 500, { error: 'recipe-update-failed' });

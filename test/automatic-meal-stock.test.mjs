@@ -140,5 +140,8 @@ test('all active parts must be produced; child lots inherit the targeted period 
  assert.equal((await settleHouseholdMealStock(f.pool,f.h,{now:now('2026-11-10T12:00:00Z')})).used,3);
  for(const part of recipe.servingParts)assert.equal(await f.physical(part.id),0);
  const quantities=(await f.pool.query('SELECT a.quantity FROM planned_amounts a JOIN planned_meal_items i ON i.id=a.planned_item_id WHERE i.meal_id=$1 ORDER BY a.quantity',[target.id])).rows.map(x=>Number(x.quantity));assert.deepEqual(quantities,[100,100,200]);
- assert.equal((await updateRecipe(f.pool,recipe.id,validateRecipeInput({...data,yield:{amount:2,unitId:'portion'}}).data)).error,'recipe-used-in-prepared-meal');
+ const revised=await updateRecipe(f.pool,recipe.id,validateRecipeInput({...data,yield:{amount:2,unitId:'portion'}}).data);
+ assert.equal(revised.id,recipe.id);assert.equal(revised.yield.amount,2);
+ for(const part of recipe.servingParts)assert.equal(await f.physical(part.id),0);
+ assert.deepEqual((await f.pool.query('SELECT a.quantity FROM planned_amounts a JOIN planned_meal_items i ON i.id=a.planned_item_id WHERE i.meal_id=$1 ORDER BY a.quantity',[target.id])).rows.map(x=>Number(x.quantity)),quantities);
 });

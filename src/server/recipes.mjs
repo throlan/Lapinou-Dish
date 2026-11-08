@@ -126,16 +126,18 @@ export async function updateRecipeSettings(pool, id, data) {
   try {
     await client.query('BEGIN');
     await lockHouseholdInventory(client, data.householdId);
-    const current = await client.query('SELECT version, production_type FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL FOR UPDATE', [id, data.householdId]);
+    const current = await client.query('SELECT version, production_type, recipe_archived, replaced_by_recipe_id FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL FOR UPDATE', [id, data.householdId]);
     if (!current.rowCount) { await client.query('ROLLBACK'); return null; }
+    if(current.rows[0].recipe_archived){await client.query('ROLLBACK');return {error:'recipe-replaced',replacementId:current.rows[0].replaced_by_recipe_id};}
     if (Number(current.rows[0].version) !== data.version) { await client.query('ROLLBACK'); return { error: 'recipe-version-conflict' }; }
-    if (data.productionType!==undefined && current.rows[0].production_type !== data.productionType) {
-      const prepared = await client.query(`WITH RECURSIVE parents(id) AS (
-        SELECT $2::uuid UNION SELECT r.id FROM parents p JOIN recipe_lines l ON l.ingredient_recipe_id=p.id JOIN recipes r ON r.id=l.recipe_id WHERE r.household_id=$1
-      ) SELECT 1 FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
-        JOIN recipes used ON used.id=i.recipe_id WHERE m.household_id=$1 AND (m.prepared_at IS NOT NULL OR EXISTS(SELECT 1 FROM recipe_stock_uses u WHERE u.meal_id=m.id AND u.automatic AND u.cancelled_at IS NULL))
-        AND (used.id IN(SELECT id FROM parents) OR used.parent_recipe_id IN(SELECT id FROM parents)) LIMIT 1`,[data.householdId,id]);
-      if (prepared.rowCount) { await client.query('ROLLBACK'); return { error: 'recipe-used-in-prepared-meal' }; }
+    if(data.productionType!==undefined && current.rows[0].production_type!==data.productionType
+      && await hasRecipeReferences(client,id,data.householdId)){
+      const original=await readRecipe(client,id);
+      const checked=validateRecipeInput({...original,...data,minimumProductionAmount:data.productionType==='none'?0:original.minimumProductionAmount});
+      if(checked.error){await client.query('ROLLBACK');return checked;}
+      const revised=await replaceRecipe(client,id,checked.data);
+      await client.query('COMMIT');
+      return revised;
     }
     await client.query(`UPDATE recipes SET production_type=COALESCE($2,production_type), meal_moments=COALESCE($3,meal_moments), version=version+1, updated_at=now()
       WHERE household_id=$4 AND (id=$1 OR parent_recipe_id=$1)`, [id, data.productionType??null, data.mealMoments??null, data.householdId]);
@@ -162,12 +164,7 @@ async function requireCatalogueCookingFactors(client,lines){
   if(missing.rowCount)throw new Error('cooking-factor-required');
 }
 
-export async function createRecipe(pool, data) {
-  const client = await pool.connect();
-  const id = randomUUID();
-  try {
-    await client.query('BEGIN');
-    await lockHouseholdInventory(client,data.householdId);
+async function insertRecipe(client, id, data) {
     await client.query(
       `INSERT INTO recipes (id, household_id, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type, meal_moments,separate_starch,cooking_factors,output_units,minimum_production_amount,minimum_production_unit_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,$12,$13::jsonb,$14::jsonb,$15,$16)`,
@@ -184,6 +181,15 @@ export async function createRecipe(pool, data) {
     validateRecipeGraph(await loadRecipeGraph(client,data.householdId));
     await syncServingParts(client,id,data);
     await syncRecipeParents(client,id,data.householdId);
+}
+
+export async function createRecipe(pool, data) {
+  const client = await pool.connect();
+  const id = randomUUID();
+  try {
+    await client.query('BEGIN');
+    await lockHouseholdInventory(client,data.householdId);
+    await insertRecipe(client,id,data);
     const recipe = await readRecipe(client, id);
     await client.query('COMMIT');
     return recipe;
@@ -205,6 +211,25 @@ export async function listRecipes(pool, householdId) {
   return Promise.all(result.rows.map(({ id }) => readRecipe(pool, id)));
 }
 
+async function hasRecipeReferences(client,id,householdId){
+  const result=await client.query(`WITH ids AS (
+    SELECT id FROM recipes WHERE household_id=$1 AND (id=$2 OR parent_recipe_id=$2)
+  ) SELECT 1 FROM stock_lots WHERE recipe_id IN (SELECT id FROM ids)
+    UNION ALL SELECT 1 FROM recipe_stock_uses WHERE recipe_id IN (SELECT id FROM ids)
+    UNION ALL SELECT 1 FROM planned_meal_items WHERE recipe_id IN (SELECT id FROM ids)
+    UNION ALL SELECT 1 FROM recipe_lines WHERE ingredient_recipe_id IN (SELECT id FROM ids)
+    LIMIT 1`,[householdId,id]);
+  return result.rowCount>0;
+}
+
+async function replaceRecipe(client,id,data){
+  const replacementId=randomUUID();
+  await insertRecipe(client,replacementId,data);
+  await client.query(`UPDATE recipes SET recipe_archived=true,replaced_by_recipe_id=$2,name=name||' (ancienne version)' WHERE id=$1 OR parent_recipe_id=$1`,[id,replacementId]);
+  await client.query('UPDATE recipe_images SET recipe_id=$2 WHERE recipe_id=$1',[id,replacementId]);
+  return {...await readRecipe(client,replacementId),replacesRecipeId:id};
+}
+
 export async function updateRecipe(pool, id, data, expectedVersion=null) {
   const client = await pool.connect();
   try {
@@ -216,26 +241,22 @@ export async function updateRecipe(pool, id, data, expectedVersion=null) {
       if(Number(found.rows[0].version)!==expectedVersion){await client.query('ROLLBACK');return {error:'recipe-version-conflict'};}
     }
     if(data.lines.some(line=>line.recipeId===id))throw new Error('recipe-ingredient-cycle');
-    const previous=await client.query('SELECT yield_amount,yield_unit_id,production_type,output_units,separate_starch,serving_weights FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL',[id,data.householdId]);
+    const previous=await client.query('SELECT yield_amount,yield_unit_id,production_type,output_units,separate_starch,serving_weights,recipe_archived,replaced_by_recipe_id FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL',[id,data.householdId]);
     const old=previous.rows[0];
     if(!old){await client.query('ROLLBACK');return null;}
+    if(old.recipe_archived){
+      await client.query('ROLLBACK');
+      return {error:'recipe-replaced',replacementId:old.replaced_by_recipe_id};
+    }
     const keys=data.separateStarch?[...new Set(data.lines.map(line=>line.servingPart??'main'))].sort().join(','):'';
     const oldKeys=old.separate_starch?Object.keys(old.serving_weights??{}).sort().join(','):'';
-    const outputUnitsChanged=Object.entries({...old.output_units,...data.outputUnits}).some(([unit])=>old.output_units?.[unit]!==data.outputUnits?.[unit]);
-    if(old.yield_unit_id!==data.yield.unitId || Number(old.yield_amount)!==data.yield.amount || old.production_type!==data.productionType || oldKeys!==keys || outputUnitsChanged){
-      const prepared=await client.query(`WITH RECURSIVE parents(id) AS (
-        SELECT $2::uuid UNION SELECT r.id FROM parents p JOIN recipe_lines l ON l.ingredient_recipe_id=p.id JOIN recipes r ON r.id=l.recipe_id WHERE r.household_id=$1
-      ) SELECT 1 FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
-        JOIN recipes used ON used.id=i.recipe_id WHERE m.household_id=$1 AND (m.prepared_at IS NOT NULL OR EXISTS(SELECT 1 FROM recipe_stock_uses u WHERE u.meal_id=m.id AND u.automatic AND u.cancelled_at IS NULL))
-        AND (used.id IN(SELECT id FROM parents) OR used.parent_recipe_id IN(SELECT id FROM parents)) LIMIT 1`,[data.householdId,id]);
-      if(prepared.rowCount){await client.query('ROLLBACK');return {error:'recipe-used-in-prepared-meal'};}
-    }
-    if(old.yield_unit_id!==data.yield.unitId || oldKeys!==keys){
-      const history=await client.query(`SELECT 1 FROM recipe_stock_uses u JOIN recipes r ON r.id=u.recipe_id
-        WHERE u.household_id=$1 AND (r.id=$2 OR r.parent_recipe_id=$2)
-        UNION ALL SELECT 1 FROM stock_lots s JOIN recipes r ON r.id=s.recipe_id
-        WHERE s.household_id=$1 AND (r.id=$2 OR r.parent_recipe_id=$2) AND $3::boolean LIMIT 1`,[data.householdId,id,old.yield_unit_id!==data.yield.unitId]);
-      if(history.rowCount){await client.query('ROLLBACK');return {error:'recipe-output-in-use'};}
+    const outputUnitsChanged=Object.keys({...old.output_units,...data.outputUnits}).some(unit=>unit!==data.yield.unitId&&old.output_units?.[unit]!==data.outputUnits?.[unit]);
+    if(old.yield_unit_id!==data.yield.unitId || old.production_type!==data.productionType || oldKeys!==keys || outputUnitsChanged){
+      if(await hasRecipeReferences(client,id,data.householdId) || (!data.separateStarch && oldKeys.includes(','))){
+        const revised=await replaceRecipe(client,id,data);
+        await client.query('COMMIT');
+        return revised;
+      }
     }
     if (!data.separateStarch) await restoreOriginalServingMode(client,id);
     const updated = await client.query(
@@ -276,7 +297,7 @@ export async function updateRecipe(pool, id, data, expectedVersion=null) {
 export async function readRecipe(client, id, path=[]) {
   if(path.includes(id))throw new Error('recipe-ingredient-cycle');
   const recipeResult = await client.query(
-    `SELECT id, household_id,output_units, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type,minimum_production_amount,minimum_production_unit_id, meal_moments,separate_starch,serving_weights,cooking_factors,parent_recipe_id,serving_part,serving_part_active,version,
+    `SELECT id, household_id,output_units, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type,minimum_production_amount,minimum_production_unit_id, meal_moments,separate_starch,serving_weights,cooking_factors,parent_recipe_id,serving_part,serving_part_active,version,recipe_archived,replaced_by_recipe_id,
             EXISTS (SELECT 1 FROM recipe_images WHERE recipe_id=recipes.id) AS image_available,
             (SELECT count(*) FROM recipes siblings WHERE siblings.parent_recipe_id=recipes.parent_recipe_id AND siblings.serving_part_active) AS sibling_count,
             (SELECT parent.name FROM recipes parent WHERE parent.id=recipes.parent_recipe_id) AS parent_recipe_name,
@@ -371,7 +392,7 @@ export async function readRecipe(client, id, path=[]) {
     separateStarch:row.separate_starch ?? false,servingWeights:row.serving_weights ?? {},cookingFactors:row.cooking_factors ?? {main:1,starch:3},parentRecipeId:row.parent_recipe_id ?? null,parentRecipeName:row.parent_recipe_name??null,servingPart:row.serving_part ?? null,servingPartActive:row.serving_part_active??true,servingParts,archivedServingParts,imageAvailable:Boolean(row.image_available),
     id: row.id, version: Number(row.version ?? 0), name: row.name, description: row.description, instructions: row.instructions ?? '', sourceUrl: row.source_url ?? null,
     recipeType: row.recipe_type ?? 'dish', productionType: row.production_type ?? 'none', mealMoments: row.meal_moments ?? [],
-    outputUnits:row.output_units??{},minimumProductionAmount:Number(row.minimum_production_amount??0),minimumProductionUnitId:row.minimum_production_unit_id??row.yield_unit_id,
+    recipeArchived:row.recipe_archived??false,replacedByRecipeId:row.replaced_by_recipe_id??null,outputUnits:row.output_units??{},minimumProductionAmount:Number(row.minimum_production_amount??0),minimumProductionUnitId:row.minimum_production_unit_id??row.yield_unit_id,
     yield: { amount: Number(row.yield_amount), unitId: row.yield_unit_id },
     lines: lines.map((line, index) => ({ ...line, foodName: line.foodName??foodById.get(line.foodId)?.name ?? null, resolved: !nutrition.unresolvedLineIndexes.includes(index) })),
     nutrition,
