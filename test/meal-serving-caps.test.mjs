@@ -9,10 +9,10 @@ const rows=(parts,loads,densities,steps=[])=>parts.map((servingPart,i)=>({parent
 const quantities=result=>result.proposals.map(row=>row.quantity);
 const close=(a,b)=>assert.ok(Math.abs(a-b)<0.00005,a+' vs '+b);
 
-test('two-part plate fixes the raw meat serving and lets starch vary with the budget',()=>{
+test('two-part plate adjusts the mixed main and prioritizes starch while respecting the raw meat cap',()=>{
   const plate=rows(['main','starch'],[{meat:.5},{starch:1}],[1,1]);
   const ratios={whole:{main:1},separate:{main:.66,starch:.34},three:{main:.25,starch:.25,vegetables:.5}};
-  assert.deepEqual(quantities(cappedMealPortions(plate,300,ratios)),[250,50]);
+  assert.deepEqual(quantities(cappedMealPortions(plate,300,ratios)),[200,100]);
   assert.deepEqual(quantities(cappedMealPortions(plate,430)),[250,180]);
   assert.deepEqual(quantities(cappedMealPortions(plate,900)),[250,200]);
 });
@@ -34,6 +34,37 @@ test('only the actual calories of extras are reserved before sizing a plate',()=
   const limited=cappedMealPortions(plate,300,undefined,{starch:60});
   assert.deepEqual(quantities(limited),[125,60,120]);
   assert.match(limited.warnings.join(' '),/80 g/);
+});
+
+test('keeps the 80 g minimum and the vegetable ratio even when the target is exceeded',()=>{
+  const plate=rows(['main','starch','vegetables'],[{meat:1},{starch:1},{vegetables:1}],[2,1,.5]);
+  const result=cappedMealPortions(plate,300);
+  assert.deepEqual(quantities(result),[125,80,160]);
+  assert.equal(result.estimatedKcal,410);
+  assert.equal(result.withinBudget,false);
+});
+
+test('a mixed gram dish adapts to the meal and uses the configured served-weight cap',()=>{
+  const plate=rows(['main'],[{meat:.1,vegetables:.8}],[.5]);
+  assert.deepEqual(quantities(cappedMealPortions(plate,172)),[350]);
+  assert.deepEqual(quantities(cappedMealPortions(plate,500)),[750]);
+  assert.deepEqual(quantities(cappedMealPortions(plate,500,undefined,{mixed:550})),[550]);
+});
+
+test('mixed pieces use each meal target and account for explicit additions',()=>{
+  const dish={recipeUnit:'piece',role:'main',recipeKcal:200,budgetFraction:1,quantity:3};
+  const sauce={recipeUnit:'portion',role:'sauce',recipeKcal:100,quantity:1,assignment:{}};
+  assert.deepEqual(quantities(cappedMealPortions([dish,sauce],390)),[1,1]);
+  assert.deepEqual(quantities(cappedMealPortions([dish,sauce],690)),[2,1]);
+});
+
+test('the two-part soup does not scale its entire mixed main up to the meat cap',()=>{
+  const plate=rows(['main','starch'],[{meat:125/1162.88437,vegetables:.8},{starch:1}],[.486,1.51]);
+  const [soup,starch]=quantities(cappedMealPortions(plate,390));
+  assert.ok(soup>=300&&soup<500);
+  assert.ok(starch>=80);
+  assert.equal(soup%10,0);
+  assert.equal(starch%10,0);
 });
 
 test('counted eggs cannot exceed three and bread rounds down if the next slice exceeds 200 g',()=>{

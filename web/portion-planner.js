@@ -50,13 +50,13 @@ export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, r
   const available = preserveMealTarget ? Math.max(remaining, mealTarget) : remaining;
   if (!available && preserveWholePiece && recipeUnit==='piece')return {quantity:1,reason:'whole-piece-exceeds-budget',slotBudgetKcal:0,estimatedKcal:recipeEnergy};
   if (!available) return { quantity: null, reason: 'daily-budget-used' };
-  const slotBudget = Math.min(mealTarget + 100, available);
+  const slotBudget = preserveMealTarget ? mealTarget : Math.min(mealTarget + 100, available);
   const count = Math.max(1, Math.floor(Number(recipeCount) || 1));
   const share = Math.max(0, Math.min(1, Number(budgetShare) || 0));
   const energyPerRecipe = slotBudget * share / count;
-  const step = NATURAL_STEPS[recipeUnit] ?? 0.5;
+  const step = recipeUnit==='slice'?1:NATURAL_STEPS[recipeUnit] ?? 0.5;
   const raw = energyPerRecipe / recipeEnergy;
-  const quantity = Math.floor((raw + 1e-9) / step) * step;
+  const quantity = preserveMealTarget && recipeUnit==='g' ? Math.ceil((raw-1e-9)/step)*step : Math.floor((raw + 1e-9) / step) * step;
   if (quantity < step && preserveWholePiece && recipeUnit==='piece')return {quantity:1,reason:'whole-piece-exceeds-budget',slotBudgetKcal:slotBudget,estimatedKcal:recipeEnergy};
   if (quantity < step) return { quantity: null, reason: 'no-natural-portion-fits', slotBudgetKcal: slotBudget };
   return { quantity: Number(quantity.toFixed(4)), slotBudgetKcal: slotBudget, estimatedKcal: quantity * recipeEnergy };
@@ -246,7 +246,7 @@ export function suggestPlatePortions(proposals, budget, plateRatios=DEFAULT_PLAT
     }
     const proteinKnown=output.every(row=>!row.quantity || Number.isFinite(Number(row.proteinG)) && row.proteinG!=null);
     if(total()>budget+1e-6)warnings.push('Dépassement conservé : le plat principal et les portions indivisibles ne sont pas réduits.');
-    return {proposals:output,warnings,proportionsApplied:plates.length>0,withinBudget:total()<=budget+1e-6,estimatedKcal:total(),proteinKnown,estimatedProteinG:proteinKnown?output.reduce((sum,row)=>sum+(Number(row.quantity)||0)*Number(row.proteinG),0):null,proteinTargetMet:null};
+    return {proposals:output,warnings,proportionsApplied:plates.some(plate=>plate.mode!=='whole'),estimatedKcal:total(),withinBudget:total()<=budget+1e-6,estimatedKcal:total(),proteinKnown,estimatedProteinG:proteinKnown?output.reduce((sum,row)=>sum+(Number(row.quantity)||0)*Number(row.proteinG),0):null,proteinTargetMet:null};
   }
   const result=rebalanceNaturalPortions([...proposals.filter(row=>!grouped.has(row)).map(row=>({...row,sourceRow:row})),...plates],budget);
   const expanded=new Map();
@@ -265,10 +265,11 @@ export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RA
   const ratios=validPlateRatios(plateRatios)?plateRatios:DEFAULT_PLATE_RATIOS;
   const rows=proposals.map(row=>({...row}));
   const remaining=effectiveServingCaps(overrides),groups=new Map(),warnings=new Set();
-  const validBudget=Number.isFinite(budget)&&budget>=0&&rows.every(row=>Number.isFinite(row.recipeKcal)&&row.recipeKcal>0);
+  const validBudget=Number.isFinite(budget)&&budget>=0;
   const loads=row=>row.servingLoad??(row.servingPart==='starch'?{starch:1}:{});
   const limit=row=>{
     let max=row.maxQuantity??Infinity;
+    if(row.recipeUnit==='g'&&row.role==='main'&&(!row.parentRecipeId||row.plateParts?.length===1))max=Math.min(max,remaining.mixed);
     for(const [key,value] of Object.entries(loads(row))){
       if(!Number.isFinite(remaining[key]))continue;
       if(value==null){warnings.add('Un poids cru ou une équivalence d’ingrédient manque : vérifie la portion signalée.');return 0;}
@@ -283,11 +284,12 @@ export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RA
   const floor=(value,step=0.00001)=>Number((Math.floor((value+1e-9)/step)*step).toFixed(5));
   const fit=(row,desired,maximum=Infinity,roundNearest=false)=>{
     const cap=Math.min(limit(row),maximum);
-    const countStep=row.countStep>0?row.countStep:row.recipeUnit==='piece'?1:0;
+    const countStep=row.countStep>0?row.countStep:['piece','slice'].includes(row.recipeUnit)?1:0;
     if(countStep){
       const wanted=roundNearest?Math.round(desired/countStep)*countStep:desired;
       return floor(Math.min(wanted,cap),countStep);
     }
+    if(row.recipeUnit==='g')return floor(Math.min(Math.ceil((desired-1e-8)/10)*10,cap));
     return floor(Math.min(desired,cap),row.recipeUnit==='portion'&&!row.assignment?0.5:undefined);
   };
   const byRow=new Set();
@@ -296,21 +298,26 @@ export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RA
     groups.get(row.parentRecipeId).push(row);
   }
   const plates=[];
-  if(validBudget)for(const members of groups.values()){
+  if(validBudget&&budget>0)for(const members of groups.values()){
     const expected=members[0].plateParts;
-    if(!expected?.length||expected.length!==members.length||expected.some(part=>members.filter(row=>row.servingPart===part).length!==1)||members.some(row=>row.recipeUnit!=='g')){
+    if(!expected?.length||expected.length!==members.length||expected.some(part=>members.filter(row=>row.servingPart===part).length!==1)||members.some(row=>row.recipeUnit!=='g'||!(row.recipeKcal>0))){
       warnings.add('Parties manquantes ou répétées : proportions non appliquées à cette préparation.');continue;
     }
     const mode=expected.includes('vegetables')?'three':expected.includes('starch')?'separate':'whole';
     plates.push({members,mode,shares:ratios[mode]});
     members.forEach(row=>byRow.add(row));
   }
+  if(validBudget&&budget>0)for(const row of rows){
+    if(!row.parentRecipeId&&!row.assignment&&row.role==='main'&&row.budgetFraction>0&&['g','piece','slice'].includes(row.recipeUnit)&&row.recipeKcal>0){
+      plates.push({members:[row],mode:'whole',shares:ratios.whole});
+      byRow.add(row);
+    }
+  }
   // Explicit additions keep their existing role in the kcal calculation.
   // Their ingredient loads still share the same per-meal limits.
   for(const row of rows.filter(row=>!byRow.has(row))){
-    const fixed=hasFixedProtein(row)&&!row.assignment&&row.reason!=='no-slot-budget';
-    if(row.quantity==null&&!fixed)continue;
-    const desired=fixed?limit(row):Math.max(0,Number(row.quantity)||0);
+    if(row.quantity==null)continue;
+    const desired=Math.max(0,Number(row.quantity)||0);
     row.quantity=fit(row,desired);
     if(row.quantity+1e-5<desired&&Object.keys(loads(row)).length)warnings.add('Une portion a été réduite pour respecter les plafonds ou les unités.');
     if(!row.quantity&&desired>0&&!row.assignment)row.quantity=null;
@@ -329,74 +336,43 @@ export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RA
     const put=(row,quantity)=>{
       row.quantity=quantity;consume(row,quantity);left-=quantity*row.recipeKcal;
     };
-    const main=members.find(row=>row.servingPart==='main');
+    const main=members.find(row=>row.servingPart==='main')??members[0];
     const starch=members.find(row=>row.servingPart==='starch');
     const veg=members.find(row=>row.servingPart==='vegetables');
-    const fixed=hasFixedProtein(main);
+    const fixed=mode==='three'&&hasFixedProtein(main);
     if(fixed)put(main,fit(main,limit(main)));
-    if(mode==='three'){
-      if(!fixed)put(main,fit(main,kcal/energy*shares.main,left/main.recipeKcal,true));
-      const ratio=shares.vegetables/shares.starch;
-      let starchTarget=Math.max(0,Math.min(left/(starch.recipeKcal+ratio*veg.recipeKcal),limit(veg)/ratio));
-      // If both sides draw on the same cap, reserve their joint load at the
-      // configured ratio before assigning either side.
-      for(const key of Object.keys(remaining)){
-        const use=(loads(starch)[key]??0)+ratio*(loads(veg)[key]??0);
-        if(use>0)starchTarget=Math.min(starchTarget,remaining[key]/use);
-      }
-      put(starch,fit(starch,starchTarget));
-      put(veg,fit(veg,starch.quantity*ratio,Math.max(0,left)/veg.recipeKcal));
+    if(mode==='whole'){
+      const desired=kcal/main.recipeKcal;
+      const wholePiece=['piece','slice'].includes(main.recipeUnit);
+      put(main,fit(main,wholePiece?Math.max(1,desired):desired));
     }else{
-      const ordered=members.filter(row=>!fixed||row!==main).sort((a,b)=>Number(b.countStep>0)-Number(a.countStep>0));
-      for(const row of ordered)put(row,fit(row,kcal/energy*shares[row.servingPart],Math.max(0,left)/row.recipeKcal,true));
-      if(mode==='separate')for(const row of fixed?[starch]:[starch,main]){
-        if(!(left>1e-7))break;
-        const delta=fit({...row,maxQuantity:Math.max(0,(row.maxQuantity??Infinity)-row.quantity)},left/row.recipeKcal);
-        row.quantity=Number((row.quantity+delta).toFixed(5));
-        consume(row,delta);left-=delta*row.recipeKcal;
+      const starchLoad=loads(starch).starch??0;
+      const minimum=starchLoad>0?80/starchLoad:0;
+      const countStep=starch.countStep>0?starch.countStep:0;
+      const practicalMinimum=countStep?Math.ceil((minimum-1e-9)/countStep)*countStep:minimum;
+      const ratio=veg?shares.vegetables/shares.starch:0;
+      const sideEnergy=starch.recipeKcal+ratio*(veg?.recipeKcal??0);
+      if(!fixed){
+        const reserved=Math.min(practicalMinimum,limit(starch))*sideEnergy;
+        const mainTarget=Math.min(kcal/energy*shares.main,Math.max(0,kcal-reserved)/main.recipeKcal);
+        put(main,fit(main,mainTarget,Infinity,true));
       }
+      let starchCap=limit(starch);
+      if(veg){
+        starchCap=Math.min(starchCap,limit(veg)/ratio);
+        for(const key of Object.keys(remaining)){
+          const load=(loads(starch)[key]??0)+ratio*(loads(veg)[key]??0);
+          if(load>0)starchCap=Math.min(starchCap,remaining[key]/load);
+        }
+      }
+      put(starch,fit(starch,Math.max(practicalMinimum,left/sideEnergy,0),starchCap,true));
+      if(veg)put(veg,fit(veg,starch.quantity*ratio,Infinity,true));
+      if(starchLoad>0&&starch.quantity*starchLoad<80-1e-5)
+        warnings.add('Les plafonds ou les unités empêchent de servir les 80 g de féculents cuits.');
     }
-    if(left>1)warnings.add('Le budget kcal peut rester partiellement inutilisé lorsque les plafonds ou les unités sont atteints.');
+    if(left>1)warnings.add('Une partie de l’objectif calorique reste disponible après application des plafonds et des unités.');
     if(members.some(row=>!row.quantity))warnings.add('Une partie ne tient pas dans les plafonds ou le budget : vérifie les quantités proposées.');
     for(const row of members)if(!row.quantity)row.quantity=null;
   }
-  if(validBudget){
-    for(const dessert of rows.filter(row=>row.role==='dessert'&&!row.parentRecipeId&&row.quantity>0)){
-      if(total()<=budget+1e-6)break;
-      dessert.quantity=0;
-    }
-    while(total()>budget+1e-6){
-      const row=rows.find(r=>r.parentRecipeId&&r.servingPart==='starch'&&r.quantity>=(r.countStep||10)*2);
-      if(!row)break;
-      const veg=plates.find(plate=>plate.mode==='three'&&plate.members.includes(row))?.members.find(member=>member.servingPart==='vegetables');
-      const before=row.quantity;
-      row.quantity=Number((before-(row.countStep||10)).toFixed(5));
-      if(veg?.quantity>0)veg.quantity=floor(veg.quantity*row.quantity/before,veg.countStep||0.00001);
-    }
-  }
-  const roundedRemaining=effectiveServingCaps(overrides);
-  const keys=Object.keys(roundedRemaining);
-  for(const row of rows)for(const key of keys)roundedRemaining[key]-=(loads(row)[key]??0)*(row.quantity??0);
-  const beforeRounding=total();
-  const roundUp=value=>Math.ceil((value-1e-8)/10)*10;
-  for(const {members,shares} of plates){
-    const starch=members.find(row=>row.servingPart==='starch');
-    if(!starch)continue;
-    const veg=members.find(row=>row.servingPart==='vegetables');
-    const roundedStarch=starch.quantity>0&&!starch.countStep?roundUp(starch.quantity):starch.quantity;
-    const roundedVeg=veg?.quantity>0&&!veg.countStep
-      ?roundUp(Math.max(veg.quantity,roundedStarch*shares.vegetables/shares.starch)):veg?.quantity;
-    const changes=[[starch,roundedStarch]];
-    if(veg)changes.push([veg,roundedVeg]);
-    const extraLoad=key=>changes.reduce((sum,[row,quantity])=>sum+(loads(row)[key]??0)*((quantity??0)-(row.quantity??0)),0);
-    if(changes.every(([row,quantity])=>(quantity??0)<=(row.maxQuantity??Infinity))&&keys.every(key=>extraLoad(key)<=roundedRemaining[key]+1e-8)){
-      for(const key of keys)roundedRemaining[key]-=extraLoad(key);
-      for(const [row,quantity] of changes)row.quantity=quantity;
-    }
-    if(starch.recipeUnit==='g'&&!starch.countStep&&(starch.quantity??0)*(loads(starch).starch??0)<80-1e-5)
-      warnings.add('Le repère de 80 g de féculents cuits ne tient pas dans le budget ou les plafonds de cette assiette.');
-  }
-  if(validBudget&&beforeRounding<=budget+1e-6&&total()>budget+1e-6)
-    warnings.add('L’arrondi des accompagnements dépasse le budget de calcul.');
-  return {proposals:rows,warnings:[...warnings],proportionsApplied:plates.length>0,withinBudget:!validBudget||total()<=budget+1e-6,proteinKnown:rows.every(row=>!row.quantity||row.proteinG!=null)};
+  return {proposals:rows,warnings:[...warnings],proportionsApplied:plates.length>0,estimatedKcal:total(),withinBudget:!validBudget||total()<=budget+1e-6,proteinKnown:rows.every(row=>!row.quantity||row.proteinG!=null)};
 }

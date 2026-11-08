@@ -23,7 +23,7 @@ test('per-profile caps persist, validate household ownership and can be reset to
     await db.query("INSERT INTO people(id,household_id,display_name) VALUES($1,$4,'A'),($2,$4,'B'),($3,$5,'Other')",[a,b,foreign,h,other]);
     const endpoint='/api/serving-caps',url=endpoint+'?householdId='+h;
     assert.deepEqual((await request(db,'GET',url)).body,{caps:{}});
-    const caps={[a]:{starch:150,vegetables:280},[b]:{starch:250,eggs:4}};
+    const caps={[a]:{starch:150,vegetables:280,mixed:650},[b]:{starch:250,eggs:4}};
     assert.deepEqual((await request(db,'PUT',endpoint,{householdId:h,caps})).body,{caps});
     for(const invalid of [{[foreign]:{starch:250}},{[a]:{eggs:2.5}},{[a]:{starch:-1}},{[a]:{other:10}}]){
       assert.equal((await request(db,'PUT',endpoint,{householdId:h,caps:invalid})).status,400);

@@ -27,6 +27,8 @@ test('editor shows current kcal versus the profile meal objective, including ind
   assert.equal(context.summary(items,['p']).children[0].children[1].textContent,'Kcal : 570 / 800');
   context.state.mealRatios={lunch:0.35};
   assert.equal(context.summary(items,['p']).children[0].children[1].textContent,'Kcal : 570 / 700');
+  context.state.mealRatios={lunch:0.25};
+  assert.equal(context.summary(items,['p']).children[0].children[1].textContent,'Kcal : 570 / 500 (+70 kcal)');
   context.latestProfile=()=>({dailyEnergyKcal:null});
   assert.equal(context.summary(items,['p']).children[0].children[1].textContent,'Kcal : 570 / —');
   context.state.people.push({id:'b',displayName:'Bibou'},{id:'l',displayName:'Lapinou'},{id:'t',displayName:'Titus'});

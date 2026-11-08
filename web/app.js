@@ -3423,16 +3423,6 @@ function updateMealType() {
   if(isOccasion)renderOccasionEnergy();
 }
 
-function plannedCaloriesForPerson(meal, personId) {
-  if (!meal.attendees?.some((person) => person.id === personId)) return 0;
-  if(meal.isOccasion)return Number(meal.occasionEnergy?.find(entry=>entry.personId===personId)?.kcal??0);
-  return (meal.items ?? []).reduce((sum, item) => {
-    const amount = item.amounts?.find((entry) => entry.personId === personId);
-    const energy = item.recipe?.nutrition?.perYieldUnit?.energyKcal;
-    return amount && energy != null ? sum + amount.quantity * energy : sum;
-  }, 0);
-}
-
 function applyAutomaticPortions(items, attendeeIds) {
   const date = $('#meal-form').elements.mealDate.value;
   const slot = $('#meal-form').elements.slot.value;
@@ -3443,11 +3433,6 @@ function applyAutomaticPortions(items, attendeeIds) {
     const commonCount=selectedForPerson.filter(item=>!isIndividualMealItem(item)).length||1;
     const person = state.people.find((entry) => entry.id === personId);
     const profile = person && latestProfile(person, date);
-    const plannedOtherKcal = state.calendarMeals
-      .filter((meal) => meal.mealDate === date && meal.id !== state.calendarMealId && !meal.isOccasion)
-      .reduce((sum, meal) => sum + plannedCaloriesForPerson(meal, personId), 0);
-    const preserveMealTarget=['lunch','dinner'].includes(slot)&&selectedForPerson.some(item=>
-      !isIndividualMealItem(item)&&allPlanningRecipes().find(recipe=>recipe.id===item.recipeId)?.servingPart==='starch');
     const proposals = [];
     for (const item of selectedForPerson) {
       const role = item.role ?? 'main';
@@ -3466,23 +3451,18 @@ function applyAutomaticPortions(items, attendeeIds) {
         if (kcal == null) messages.add(`${recipe?.name ?? (role === 'sauce' ? 'Une sauce' : 'Une boisson')} : calories inconnues, le respect du budget ne peut pas être vérifié.`);
         continue;
       }
-      const extraSaving=Number(state.calendarReserveOverview?.accounts?.find(account=>account.personId===personId)?.savingsPlans?.find(plan=>plan.startsOn<=date&&plan.endsOn>=date)?.dailyKcal??0);
-      const effectiveTarget=profile?.dailyEnergyKcal?Math.max(1,Number(profile.dailyEnergyKcal)-extraSaving):null;
+      const effectiveTarget=profile?.dailyEnergyKcal;
       const suggestion = suggestQuantity({
         dailyTargetKcal: effectiveTarget,
         slot,
-        plannedOtherKcal,
         recipeKcal: kcal,
         recipeUnit,
         recipeCount:commonCount,
         budgetShare:1,
         slotRatios: state.mealRatios ?? SLOT_RATIOS,
         preserveWholePiece:role==='main',
-        preserveMealTarget,
+        preserveMealTarget:true,
       });
-      const remainingDailyKcal=Math.max(0,effectiveTarget-plannedOtherKcal);
-      if(preserveMealTarget&&effectiveTarget&&suggestion.slotBudgetKcal>remainingDailyKcal)
-        messages.add(`${person?.displayName ?? 'Une personne'} : objectif du repas maintenu malgré seulement ${format(remainingDailyKcal)} kcal restantes sur la journée.`);
       item.amounts ??= {};
       const fallbackQuantity = suggestion.quantity == null && ['daily-target-missing', 'recipe-energy-missing'].includes(suggestion.reason)
         ? (recipeUnit === 'g' ? 10 : 1)
@@ -3515,7 +3495,7 @@ function applyAutomaticPortions(items, attendeeIds) {
         if (proposal.assignment) proposal.assignment.quantity = String(proposal.quantity??0);
         else proposal.item.amounts[personId] = proposal.quantity == null ? '' : String(proposal.quantity);
       });
-      if (!result.withinBudget) messages.add(`${person?.displayName ?? 'Une personne'} : budget de calcul dépassé après ajustement des portions. Vérifie le total de la journée.`);
+      if (!result.withinBudget) messages.add(`${person?.displayName ?? 'Une personne'} : dépassement de ${format(result.estimatedKcal-budget)} kcal après ajustement des portions.`);
       if (!result.proteinKnown) messages.add(`${person?.displayName ?? 'Une personne'} : données protéiques incomplètes ; l’apport reste informatif.`);
     }
   }
@@ -3551,7 +3531,9 @@ function mealProteinSummary(items, attendeeIds) {
     const energyTag=document.createElement('span');
     energyTag.className=`protein-tag ${!energy.known || objective==null?'protein-unknown':energy.kcal<=objective?'protein-sufficient':'protein-low'}`;
     energyTag.textContent=`Kcal : ${energy.known?format(energy.kcal):'—'} / ${objective==null?'—':format(objective)}`;
-    energyTag.title=objective==null?'Objectif quotidien à renseigner dans le profil':`Objectif du repas : ${ratio*100} % du besoin quotidien. Les propositions automatiques utilisent jusqu’à 100 kcal de marge. Pour un déjeuner ou dîner avec féculents séparés, l’objectif du repas reste disponible même si le budget quotidien restant est inférieur.`;
+    energyTag.title=objective==null?'Objectif quotidien à renseigner dans le profil':`Objectif du repas : ${ratio*100} % du besoin quotidien. Les portions proposées utilisent l’objectif du repas. Un minimum ou l’arrondi peut entraîner un dépassement.`;
+    if(energy.known&&objective!=null&&energy.kcal>objective+1e-6)
+      energyTag.textContent+=' (+'+format(energy.kcal-objective)+' kcal)';
     row.append(name,energyTag,tag);root.append(row);
   }
   return root;
