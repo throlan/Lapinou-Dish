@@ -33,6 +33,7 @@ export const SERVING_CAP_FIELDS = Object.freeze({
   fish:{label:'Poisson (g crus)',defaultValue:150,max:5000},
   eggs:{label:'Œufs entiers',defaultValue:3,max:100},
   starch:{label:'Féculents (g servis)',defaultValue:200,max:5000},
+  mixed:{label:'Plat mélangé (g servis)',defaultValue:750,max:5000},
   vegetables:{label:'Légumes (g servis)',defaultValue:Infinity,max:5000},
 });
 

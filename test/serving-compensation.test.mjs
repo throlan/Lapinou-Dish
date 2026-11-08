@@ -74,7 +74,7 @@ test('the actual recalculation calls the original planner then calorie compensat
   const people=[{id:'a',displayName:'Adult A'},{id:'b',displayName:'Adult B'}];
   const root={replaceChildren(){}};
   const context={...planner,roundServingCalories,state:{recipes:rs,people,calendarMeals:[]},allPlanningRecipes:()=>rs,isIndividualRole:()=>false,isIndividualMealItem:()=>false,
-    latestProfile:person=>({dailyEnergyKcal:person.id==='a'?1850:2500}),formatQty:String,
+    latestProfile:person=>({dailyEnergyKcal:person.id==='a'?1850:2500}),format:String,formatQty:String,
     document:{createElement:()=>({append(){}})},$:selector=>selector==='#planned-items'?root:{elements:{mealDate:{value:'2026-10-20'},slot:{value:'dinner'}}}};
   runInNewContext(source.slice(start,end)+'\nglobalThis.apply=applyAutomaticPortions;',context);
   const items=Object.fromEntries(rows().map((row,i)=>[i,{recipeId:row.servingPart,role:row.role,amounts:{}}]));

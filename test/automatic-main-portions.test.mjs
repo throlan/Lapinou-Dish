@@ -42,7 +42,7 @@ test('linked rice uses the configured plate proportion instead of a one-gram acc
   const people=[{id:'bibinette',displayName:'Bibinette'}];
   const items={0:{recipeId:'main',role:'main',amounts:{}},1:{recipeId:'rice',role:'accompaniment',categoryId:'accompaniment',amounts:{}}};
   const root={replaceChildren(){}};
-  const context={...planner,roundServingCalories,state:{recipes:[parent],people,calendarMeals:[],plateRatios:{whole:{main:1},separate:{main:0.66,starch:0.34},three:{main:0.25,starch:0.25,vegetables:0.5}}},
+  const context={...planner,roundServingCalories,format:String,state:{recipes:[parent],people,calendarMeals:[],plateRatios:{whole:{main:1},separate:{main:0.66,starch:0.34},three:{main:0.25,starch:0.25,vegetables:0.5}}},
     $:selector=>selector==='#meal-form'?{elements:{mealDate:{value:'2026-10-31'},slot:{value:'dinner'}}}:root,
     allPlanningRecipes:()=>[parent,main,rice],latestProfile:()=>({dailyEnergyKcal:1000}),plannedCaloriesForPerson:()=>0,
     document:{createElement:()=>({append(){}})}};
@@ -52,8 +52,8 @@ test('linked rice uses the configured plate proportion instead of a one-gram acc
   const mainGrams=Number(items[0].amounts.bibinette),riceGrams=Number(items[1].amounts.bibinette);
   assert.ok(riceGrams>1,`rice should be a real plate part, received ${riceGrams} g`);
   assert.equal(riceGrams%10,0);
-  assert.ok(Math.abs(mainGrams/(mainGrams+riceGrams)-0.66)<0.02);
-  assert.ok(mainGrams*0.58+riceGrams*1.3<=1000*planner.SLOT_RATIOS.dinner+113);
+  assert.ok(Math.abs(mainGrams/(mainGrams+riceGrams)-0.66)<0.04);
+  assert.ok(mainGrams*0.58+riceGrams*1.3<=1000*planner.SLOT_RATIOS.dinner+20);
 });
 
 test('a split dinner uses its 390 kcal target even when only 233.2 kcal remain for the day',()=>{
@@ -75,7 +75,7 @@ test('a split dinner uses its 390 kcal target even when only 233.2 kcal remain f
   runInNewContext(source.slice(start,end)+'\nglobalThis.calculate=applyAutomaticPortions;',context);
   context.calculate(items,[person.id]);
   assert.deepEqual(parts.map(part=>Number(items[part].amounts.bibinette)),[125,100,200]);
-  assert.match(notice.children[1].textContent,/objectif du repas maintenu/);
+  assert.match(notice.children[1].textContent,/dépassement de \d+(?:\.\d+)? kcal/);
 });
 
 test('protein adjustment cannot bypass the main serving ceiling; piece recipes keep their own portions', () => {

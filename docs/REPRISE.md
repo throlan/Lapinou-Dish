@@ -1,5 +1,9 @@
 # Cahier de reprise — 6 novembre 2026
 
+## Portions automatiques par type de service — 0.3.30
+
+Le recalcul se base sur le profil et l’objectif du repas. Les pièces et tranches restent entières. Les grammes s’arrondissent à la dizaine supérieure dans les plafonds. Dans Administration → Assiettes, « Plat mélangé (g servis) » fixe un maximum par personne, à 750 g par défaut. En deux parties, le mélange varie avec le profil et les féculents ajustent en priorité l’accompagnement. En trois parties, la protéine séparée garde sa quantité commune à réglages identiques et les légumes suivent le rapport configuré avec les féculents. Le minimum de 80 g cuits est conservé même si l’objectif calorique est dépassé, sous réserve des plafonds et des unités. Le dépassement est affiché et la saisie manuelle reste possible.
+
 ## Rendement des recettes déjà produites — 0.3.29
 
 Le rendement et les ingrédients sont modifiables sans réécrire les lots déjà produits. Quand un changement d’unité, de service, d’équivalence ou de suivi de production implique des références existantes, la recette actuelle est remplacée. Les anciens lots, repas et recettes liées gardent leur fiche de référence, identifiée « ancienne version ». Les nouveaux menus proposent la version actuelle.
