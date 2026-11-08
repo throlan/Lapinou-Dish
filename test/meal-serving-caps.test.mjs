@@ -67,6 +67,18 @@ test('the two-part soup does not scale its entire mixed main up to the meat cap'
   assert.equal(starch%10,0);
 });
 
+test('fish and eggs in a single protein component share the same serving ceiling',()=>{
+  const plate=rows(['main','starch','vegetables'],
+    [{fish:150/396.8,eggs:3/396.8},{starch:1},{vegetables:1}],[1.5,1,.5]);
+  const small=cappedMealPortions(plate,390);
+  const large=cappedMealPortions(plate,650);
+  assert.deepEqual(quantities(small),[198.4,80,160]);
+  assert.equal(large.proposals[0].quantity,198.4);
+  const personalized=cappedMealPortions(plate,390,undefined,{fish:100,eggs:2});
+  assert.ok(Math.abs(personalized.proposals[0].quantity-396.8/3)<.00001);
+  assert.equal(cappedMealPortions(plate,390,undefined,{fish:150,eggs:3}).proposals[0].quantity,198.4);
+});
+
 test('counted eggs cannot exceed three and bread rounds down if the next slice exceeds 200 g',()=>{
   const plate=rows(['main','starch','vegetables'],[{eggs:1/50},{starch:1},{}],[1.5,2,.5],[50,45]);
   const [egg,bread,veg]=quantities(cappedMealPortions(plate,1200));
