@@ -114,6 +114,24 @@ test('calendar forecast compares the week total with the sum of dated weekly tar
   assert.equal(planner.calculateWeeklyEnergyTarget(person,'2026-10-19',context.latestProfile,context.addDays).kcal,9000);
 });
 
+test('calendar alerts distinguish daily and weekly overages, and keep partial totals explicit',async()=>{
+  const source=await readFile(new URL('../web/app.js',import.meta.url),'utf8');
+  const start=source.indexOf('function renderCalendarEnergyAlerts('),end=source.indexOf('function renderCalendarSummary(',start);
+  const element=()=>({children:[],append(...children){this.children.push(...children);},replaceChildren(){this.children=[];}});
+  const root=element();
+  const context={...planner,$:()=>root,document:{createElement:element},displayDate:String,format:String,
+    addDays:(date,days)=>new Date(Date.parse(date)+days*86400000).toISOString().slice(0,10),
+    latestProfile:()=>({dailyEnergyKcal:1000})};
+  runInNewContext(source.slice(start,end)+'\nglobalThis.render=renderCalendarEnergyAlerts;',context);
+  const person={id:'p',displayName:'A'};
+  const meal=kcal=>({mealDate:'2026-11-02',items:[{amounts:[{personId:'p',quantity:1}],recipe:{nutrition:{complete:false,perYieldUnit:{energyKcal:kcal}}}}]});
+  context.render([meal(900)],[person],'2026-11-02');assert.equal(root.hidden,true);
+  context.render([meal(1200)],[person],'2026-11-02');assert.equal(root.hidden,false);
+  assert.deepEqual(root.children[1].children.map(node=>node.textContent),['A · 2026-11-02 · +200 kcal au minimum']);
+  context.render([meal(7200)],[person],'2026-11-02');
+  assert.equal(root.children[1].children[1].textContent,'A · semaine · +200 kcal au minimum');
+});
+
 test('calendar days tag each slot for its category color',async()=>{
   const source=await readFile(new URL('../web/app.js',import.meta.url),'utf8');
   const styles=await readFile(new URL('../web/style.css',import.meta.url),'utf8');

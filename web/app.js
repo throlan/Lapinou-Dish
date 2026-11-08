@@ -10,7 +10,7 @@ import { batchCookingWindow } from './preparation-weeks.js';
 import { clampFoodPageOffset } from './food-pagination.js';
 import {catalogueCurrent,catalogueSame,catalogueSelectionIssue,catalogueExclusion,filterCatalogueReview,catalogueReviewCsv} from './catalogue-review.js';
 import { groupPreparations, suggestedProductionQuantity, suggestedServingQuantities, scaledIngredients, scaledSourceIngredients, productionRecipe, cookingYield } from './cooking-sheet.js';
-import { ingredientCookingFactor, recipeServiceChoices, recipeServiceMode, recipeDisplayPreferences, filterRecipeDirectory, recipeCardForSource, recipeMissingData, recipeMomentLabel, recipeTypeLabel, recipePlanningLabel } from './recipe-directory.js';
+import { recipeEnergyBadge, ingredientCookingFactor, recipeServiceChoices, recipeServiceMode, recipeDisplayPreferences, filterRecipeDirectory, recipeCardForSource, recipeMissingData, recipeMomentLabel, recipeTypeLabel, recipePlanningLabel } from './recipe-directory.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -2477,6 +2477,19 @@ async function requestRecipeDeletion(recipe,button,message){
   }
 }
 
+function renderRecipeServingBadges(recipe){
+  const badges=document.createElement('div');badges.className='recipe-serving-badges';
+  const energy=recipeEnergyBadge(recipe);
+  if(energy){
+    const badge=document.createElement('span');badge.className=energy.dense?'recipe-energy-dense':'recipe-energy';
+    badge.textContent=`${format(energy.kcal)} kcal / ${energy.label}`;
+    badge.title=energy.label==='100 g'?'Calculé à partir du poids servi renseigné ou estimé.':'Calculé à partir du rendement de la recette.';
+    badges.append(badge);
+  }
+  if(recipe.containsWhey){const badge=document.createElement('span');badge.className='recipe-whey';badge.textContent='Contient de la whey';badges.append(badge);}
+  return energy||recipe.containsWhey?badges:null;
+}
+
 function recipeCard(recipe) {
   const card = document.createElement('article'); card.className = 'recipe-card';card.dataset.recipeId=recipe.id;
   const header=document.createElement('div');header.className='recipe-row-header';
@@ -2517,6 +2530,7 @@ function recipeCard(recipe) {
   nameInput.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();saveName();}if(event.key==='Escape'&&!renameSave.disabled){event.preventDefault();closeRename();}});
   renameSave.addEventListener('click',saveName);
   identity.append(heading,renameEditor,subtitle,serviceDescription);
+  const badges=renderRecipeServingBadges(recipe);if(badges)identity.append(badges);
   const nutrition=document.createElement('p');nutrition.className='recipe-nutrition';
   nutrition.textContent=`${format(recipe.nutrition.perYieldUnit.energyKcal)} kcal · P ${format(recipe.nutrition.perYieldUnit.proteinG)} g / ${recipe.yield.unitId}`;
   const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='Modifier';edit.setAttribute('aria-label',`Modifier ${recipe.name}`);edit.addEventListener('click',()=>openRecipeEditor(recipe.id));
@@ -2631,6 +2645,7 @@ function recipeCard(recipe) {
 function renderRecipe(recipe) {
   const result = $('#recipe-result'); result.classList.remove('hidden'); result.replaceChildren();
   const title = document.createElement('h3'); title.textContent = `${recipe.name} · ${recipe.yield.amount} ${recipe.yield.unitId}`; result.append(title);
+  const badges=renderRecipeServingBadges(recipe);if(badges)result.append(badges);
   if (recipe.nutrition.unresolvedLineIndexes?.length) {
     const partial = document.createElement('p'); partial.className = 'warning';
     partial.textContent = `Sous-total partiel : calculé avec ${recipe.nutrition.calculatedLineIndexes?.length ?? 0} ingrédient(s) convertible(s). Les autres sont exclus tant que leur poids n’est pas connu.`;
@@ -3083,7 +3098,9 @@ async function refreshCalendar() {
     }
     grid.replaceChildren(...Array.from({ length: 7 }, (_, index) => renderCalendarDay(addDays(state.calendarWeekStart, index), plan.meals ?? [], today)));
     renderCalendarSummary(plan.meals ?? [], state.people, state.calendarWeekStart);
+    renderCalendarEnergyAlerts(plan.meals ?? [],state.people,state.calendarWeekStart);
   } catch (error) {
+    $('#calendar-energy-alerts').hidden=true;
     grid.replaceChildren(emptyMessage(`Calendrier indisponible : ${error.body?.error ?? error.message}`));
   }
 }
@@ -3117,14 +3134,16 @@ function renderDailyEnergySummary(date,meals) {
   const heading=document.createElement('strong');heading.textContent='Kcal prévues / objectif · protéines / minimum';footer.append(heading);
   for(const person of state.people) {
     const daily=calculateDailyEnergy(meals,person.id,date),target=latestProfile(person,date)?.dailyEnergyKcal;
-    const hasOccasion=meals.some(meal=>meal.mealDate===date&&meal.isOccasion&&meal.attendees.some(attendee=>attendee.id===person.id));
     const savings=state.calendarReserveOverview?.accounts?.find(account=>account.personId===person.id)?.savingsPlans?.find(plan=>plan.startsOn<=date&&plan.endsOn>=date);
     const line=document.createElement('div');line.className='daily-energy-person';
     const name=document.createElement('span');name.textContent=person.displayName;
     const value=document.createElement('strong');value.className='daily-energy-value';
     value.textContent=`${daily.kcal==null?'—':format(daily.kcal)} / ${target>0?format(target):'—'} kcal`;
     if(daily.incomplete){value.classList.add('incomplete');value.title='Sous-total partiel : certaines valeurs nutritionnelles sont inconnues.';}
-    else if(!hasOccasion&&target>0 && daily.kcal>target)value.classList.add('over-target');
+    if(target>0&&daily.kcal>target+1e-6){
+      value.classList.add('over-target');
+      value.textContent+=` · +${format(daily.kcal-target)} kcal${daily.incomplete?' au minimum':''}`;
+    }
     line.append(name,value);
     if(savings){const budget=document.createElement('small');budget.textContent=`Budget repas ajusté : ${format(Math.max(0,Number(target)-savings.dailyKcal))} kcal (épargne ${format(savings.dailyKcal)} kcal)`;line.append(budget);}
     if(daily.incomplete){const note=document.createElement('small');note.textContent='Données incomplètes';line.append(note);}
@@ -3316,6 +3335,35 @@ function renderMealCard(meal) {
 
 $('#print-calendar')?.addEventListener('click', () => window.print());
 
+function renderCalendarEnergyAlerts(meals,people,weekStart){
+  const root=$('#calendar-energy-alerts');
+  const entries=[];
+  for(const person of people){
+    const weeklyTarget=calculateWeeklyEnergyTarget(person,weekStart,latestProfile,addDays).kcal;
+    let weekKcal=0;
+    let incomplete=false;
+    for(let index=0;index<7;index++){
+      const date=addDays(weekStart,index);
+      const day=calculateDailyEnergy(meals,person.id,date);
+      const target=Number(latestProfile(person,date)?.dailyEnergyKcal);
+      weekKcal+=day.kcal??0;
+      incomplete||=day.incomplete;
+      if(target>0&&day.kcal>target+1e-6){
+        entries.push(`${person.displayName} · ${displayDate(date)} · +${format(day.kcal-target)} kcal${day.incomplete?' au minimum':''}`);
+      }
+    }
+    if(weeklyTarget!=null&&weekKcal>weeklyTarget+1e-6)
+      entries.push(`${person.displayName} · semaine · +${format(weekKcal-weeklyTarget)} kcal${incomplete?' au minimum':''}`);
+  }
+  root.hidden=!entries.length;
+  root.replaceChildren();
+  if(!entries.length)return;
+  const title=document.createElement('strong');title.textContent='Dépassements prévus';
+  const list=document.createElement('ul');
+  for(const message of entries){const item=document.createElement('li');item.textContent=message;list.append(item);}
+  root.append(title,list);
+}
+
 function renderCalendarSummary(meals, people, weekStart) {
   const summary = $('#calendar-summary');
   summary.replaceChildren();
@@ -3325,10 +3373,15 @@ function renderCalendarSummary(meals, people, weekStart) {
     const row = document.createElement('article'); row.className = 'person-forecast';
     const name = document.createElement('strong'); name.textContent = person.displayName;
     const total = document.createElement('span');
-    let totalKcal = 0; let incomplete = false; let daysPlanned = 0;
+    let totalKcal = 0; let incomplete = false; let daysPlanned = 0; let daysWithMissingSlots=0;
+    const ratios=state.mealRatios??SLOT_RATIOS;
+    const expectedSlots=Object.keys(ratios).filter(slot=>ratios[slot]>0);
     for (let i = 0; i < 7; i++) {
       const date = addDays(weekStart, i); let daily = 0; let hasPlan = false;
-      for (const meal of meals.filter((entry) => entry.mealDate === date && entry.attendees.some((p) => p.id === person.id))) {
+      const dailyMeals=meals.filter(entry=>entry.mealDate===date&&entry.attendees.some(p=>p.id===person.id));
+      const plannedSlots=new Set(dailyMeals.map(meal=>meal.slot));
+      if(expectedSlots.some(slot=>!plannedSlots.has(slot)))daysWithMissingSlots++;
+      for (const meal of dailyMeals) {
         if(meal.isOccasion){const entry=meal.occasionEnergy?.find(value=>value.personId===person.id);hasPlan=true;if(entry)daily+=Number(entry.kcal);else incomplete=true;continue;}
         for (const item of meal.items) {
           const amount = item.amounts.find((entry) => entry.personId === person.id);
@@ -3346,11 +3399,18 @@ function renderCalendarSummary(meals, people, weekStart) {
     row.append(name, total);
     const weeklyTarget = calculateWeeklyEnergyTarget(person, weekStart, latestProfile, addDays);
     if (weeklyTarget.kcal != null) {
+      if(totalKcal>weeklyTarget.kcal+1e-6){
+        const excess=document.createElement('small');excess.className='energy-overage';
+        excess.textContent=`Dépassement hebdomadaire : +${format(totalKcal-weeklyTarget.kcal)} kcal${incomplete?' au minimum':''}`;row.append(excess);
+      }
       const target = document.createElement('small'); target.textContent = `Repère hebdomadaire : ${format(weeklyTarget.kcal)} kcal`; row.append(target);
     } else if (weeklyTarget.daysWithTarget) {
       const target = document.createElement('small'); target.textContent = `Repère hebdomadaire partiel : ${format(weeklyTarget.partialKcal)} kcal (${weeklyTarget.daysWithTarget}/7 jours renseignés)`; row.append(target);
     } else {
       const target = document.createElement('small'); target.className = 'muted'; target.textContent = 'Repère hebdomadaire non renseigné'; row.append(target);
+    }
+    if(daysWithMissingSlots){
+      const gaps=document.createElement('small');gaps.textContent=`Créneaux non renseignés sur ${daysWithMissingSlots} j / 7`;row.append(gaps);
     }
     const reserve=state.calendarReserveOverview?.accounts?.find(account=>account.personId===person.id);
     if(reserve){const balance=document.createElement('b');balance.textContent=`Épargne 30 j : ${format(reserve.balanceKcal)} kcal`;if(reserve.balanceKcal<0)balance.classList.add('reserve-negative');row.append(balance);}

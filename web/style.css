@@ -707,3 +707,12 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 #foods-view #food-list-message:empty { display:none; }
 #serving-caps-fields fieldset { margin:0 0 1rem; min-width:0; }
 .serving-caps-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr)); gap:.65rem; }
+
+.recipe-serving-badges { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.recipe-serving-badges span { border-radius:999px; padding:.2rem .55rem; font-size:.75rem; font-weight:650; }
+.recipe-serving-badges .recipe-energy { background:#e9eee9; color:#254b3c; }
+.recipe-serving-badges .recipe-energy-dense { background:#fff1d5; color:#713e10; }
+.recipe-serving-badges .recipe-whey { background:#f2e2ee; color:#6f234c; }
+.calendar-energy-alerts { margin:0 0 .8rem; padding:.7rem .9rem; border:1px solid #e8c48d; border-radius:.75rem; background:#fff5e3; color:#673811; }
+.calendar-energy-alerts ul { margin:.35rem 0 0; padding-left:1.25rem; }
+.calendar-summary .energy-overage { color:#9a2e35; font-weight:700; }

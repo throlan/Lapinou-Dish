@@ -10,6 +10,24 @@ export function recipeMissingData(recipe) {
   return missing;
 }
 
+export function recipeEnergyBadge(recipe) {
+  const kcal=recipe.nutrition?.batch?.energyKcal;
+  if(recipe.energyKnown===false||!Number.isFinite(kcal)||kcal<0)return null;
+  const {amount,unitId}=recipe.yield;
+  const units={piece:'pièce',slice:'tranche'};
+  for(const unit of new Set([unitId,'slice','piece'])){
+    if(!Object.hasOwn(units,unit))continue;
+    const label=units[unit];
+    const count=unitId===unit?amount:recipe.outputUnits?.[unit];
+    if(count>0)return {kcal:kcal/count,label,dense:kcal/count>=250};
+  }
+  if(recipe.servingWeightG>0){
+    const energy=kcal*100/recipe.servingWeightG;
+    return {kcal:energy,label:'100 g',dense:energy>=250};
+  }
+  return null;
+}
+
 export function filterRecipeDirectory(recipes, filters) {
   const query = normalize(filters.query ?? '');
   return recipes.filter(recipe => {

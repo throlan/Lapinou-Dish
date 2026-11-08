@@ -34,6 +34,23 @@ async function fixture(){
   return {db,pool,householdId,personId,other,food,data,create,meal,lot,tracked,stockG,shopping,preparations};
 }
 
+test('the whey badge follows direct ingredient edits and nested preparations',async t=>{
+  const f=await fixture();t.after(()=>f.db.close());
+  const whey=await f.food('Isolat de whey vanille',400,80);
+  const flour=await f.food('Farine',300,10);
+  const base=await f.create({name:'Pâte maison',lines:[{foodId:flour,quantity:80,unitId:'g'}]});
+  const parent=await f.create({name:'Muffins',yield:{amount:2,unitId:'piece'},lines:[{recipeId:base.id,quantity:1,unitId:'portion'}]});
+  assert.equal(parent.containsWhey,false);
+  const added=await updateRecipe(f.pool,base.id,f.data({...base,lines:[...base.lines,{foodId:whey,quantity:20,unitId:'g'}]}));
+  assert.equal(added.containsWhey,true);
+  const nested=await readRecipe(f.pool,parent.id);
+  assert.equal(nested.containsWhey,true);
+  assert.equal(nested.servingWeightG,100);
+  assert.equal(nested.nutrition.batch.energyKcal,320);
+  await updateRecipe(f.pool,base.id,f.data({...base,lines:base.lines}));
+  assert.equal((await readRecipe(f.pool,parent.id)).containsWhey,false);
+});
+
 test('bagels by piece feed gram menus, shopping, bread production and assembly without deducting flour twice',async t=>{
   const f=await fixture();t.after(()=>f.db.close());
   const flour=await f.food('Synthetic flour'),beef=await f.food('Synthetic meat',100,20);

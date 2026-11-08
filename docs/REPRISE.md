@@ -1,5 +1,9 @@
 # Cahier de reprise — 6 novembre 2026
 
+## Alertes kcal et badges recettes — 0.3.32
+
+Le calendrier signale les dépassements journaliers et hebdomadaires dans l’application, par profil, avec l’écart en kcal. Les alertes sont informatives. Les créneaux manquants et les sous-totaux partiels sont identifiés. Les fiches recettes affichent les kcal par pièce, tranche ou 100 g selon les données disponibles et un badge whey calculé depuis les ingrédients, y compris les préparations maison.
+
 ## Portion commune de protéines — 0.3.31
 
 Dans un repas servi en trois parties, si la partie protéinée combine plusieurs types de protéines, ils se partagent une seule portion. Le calcul additionne les fractions des plafonds configurés pour la viande crue, le poisson cru et les œufs, puis conserve les proportions des ingrédients de la recette.
