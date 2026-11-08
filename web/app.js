@@ -1981,7 +1981,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
       'cooking-factor-required':'Renseigne le coefficient de cuisson dans la fiche de cet aliment avant de choisir « Cuit dans cette recette ».',
       'serving-parts-cannot-be-disabled':'Le retour aux proportions de la recette est prévu pour « Préparation servie ensemble ». Les modes avec plusieurs parties ne peuvent pas être regroupés automatiquement.',
       'serving-part-removal-not-supported':'Une partie déjà utilisée ne peut pas être supprimée implicitement. Conserve les parties existantes pour protéger le planning et le stock.',
-      'recipe-used-in-prepared-meal':'Cette recette est liée à un repas déjà marqué préparé. Annule d’abord la préparation de ce repas pour modifier ses ingrédients.',
+      'recipe-used-in-prepared-meal':'Un repas préparé utilise cette recette. Tu peux modifier ses ingrédients, mais son rendement, son découpage et son suivi de production sont protégés.',
     };
     showMessage(message,servingErrors[error.body?.error] ?? `Enregistrement impossible : ${error.body?.error ?? error.message}`);
   }
@@ -2595,7 +2595,7 @@ function recipeCard(recipe) {
       await Promise.allSettled([refreshShopping(),refreshDashboard()]);
     }catch(error){const code=error.body?.error;status.textContent=({
       'recipe-version-conflict':'Recette modifiée ailleurs. Actualise la liste.',
-      'recipe-used-in-prepared-meal':'Repas déjà préparé : change d’abord son état.',
+      'recipe-used-in-prepared-meal':'Un repas préparé utilise cette recette. Le rendement, le découpage et le suivi de production sont protégés.',
       'recipe-output-in-use':'Unité utilisée dans un historique : crée une variante.',
       'starch-ingredients-required':'Affecte au moins un ingrédient aux féculents.',
       'vegetable-ingredients-required':'Affecte au moins un ingrédient aux légumes.',
@@ -3441,6 +3441,8 @@ function applyAutomaticPortions(items, attendeeIds) {
     const plannedOtherKcal = state.calendarMeals
       .filter((meal) => meal.mealDate === date && meal.id !== state.calendarMealId && !meal.isOccasion)
       .reduce((sum, meal) => sum + plannedCaloriesForPerson(meal, personId), 0);
+    const preserveMealTarget=['lunch','dinner'].includes(slot)&&selectedForPerson.some(item=>
+      !isIndividualMealItem(item)&&allPlanningRecipes().find(recipe=>recipe.id===item.recipeId)?.servingPart==='starch');
     const proposals = [];
     for (const item of selectedForPerson) {
       const role = item.role ?? 'main';
@@ -3471,7 +3473,11 @@ function applyAutomaticPortions(items, attendeeIds) {
         budgetShare:1,
         slotRatios: state.mealRatios ?? SLOT_RATIOS,
         preserveWholePiece:role==='main',
+        preserveMealTarget,
       });
+      const remainingDailyKcal=Math.max(0,effectiveTarget-plannedOtherKcal);
+      if(preserveMealTarget&&effectiveTarget&&suggestion.slotBudgetKcal>remainingDailyKcal)
+        messages.add(`${person?.displayName ?? 'Une personne'} : objectif du repas maintenu malgré seulement ${format(remainingDailyKcal)} kcal restantes sur la journée.`);
       item.amounts ??= {};
       const fallbackQuantity = suggestion.quantity == null && ['daily-target-missing', 'recipe-energy-missing'].includes(suggestion.reason)
         ? (recipeUnit === 'g' ? 10 : 1)
@@ -3504,7 +3510,7 @@ function applyAutomaticPortions(items, attendeeIds) {
         if (proposal.assignment) proposal.assignment.quantity = String(proposal.quantity??0);
         else proposal.item.amounts[personId] = proposal.quantity == null ? '' : String(proposal.quantity);
       });
-      if (!result.withinBudget) messages.add(`${person?.displayName ?? 'Une personne'} : dépassement conservé ; le plat principal n’est pas réduit. Vérifie le total de la journée et le compte épargne.`);
+      if (!result.withinBudget) messages.add(`${person?.displayName ?? 'Une personne'} : budget de calcul dépassé après ajustement des portions. Vérifie le total de la journée.`);
       if (!result.proteinKnown) messages.add(`${person?.displayName ?? 'Une personne'} : données protéiques incomplètes ; l’apport reste informatif.`);
     }
   }
@@ -3540,7 +3546,7 @@ function mealProteinSummary(items, attendeeIds) {
     const energyTag=document.createElement('span');
     energyTag.className=`protein-tag ${!energy.known || objective==null?'protein-unknown':energy.kcal<=objective?'protein-sufficient':'protein-low'}`;
     energyTag.textContent=`Kcal : ${energy.known?format(energy.kcal):'—'} / ${objective==null?'—':format(objective)}`;
-    energyTag.title=objective==null?'Objectif quotidien à renseigner dans le profil':`Objectif du repas : ${ratio*100} % du besoin quotidien. Les propositions automatiques autorisent une marge de 100 kcal, dans le budget quotidien restant.`;
+    energyTag.title=objective==null?'Objectif quotidien à renseigner dans le profil':`Objectif du repas : ${ratio*100} % du besoin quotidien. Les propositions automatiques utilisent jusqu’à 100 kcal de marge. Pour un déjeuner ou dîner avec féculents séparés, l’objectif du repas reste disponible même si le budget quotidien restant est inférieur.`;
     row.append(name,energyTag,tag);root.append(row);
   }
   return root;

@@ -38,7 +38,7 @@ export function calculateWeeklyEnergyTarget(person, weekStart, latestProfile, ad
   return { kcal: daysWithTarget === 7 ? kcal : null, partialKcal: kcal, daysWithTarget };
 }
 
-export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, recipeKcal, recipeUnit = 'portion', recipeCount = 1, budgetShare = 1, slotRatios = SLOT_RATIOS, preserveWholePiece=false }) {
+export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, recipeKcal, recipeUnit = 'portion', recipeCount = 1, budgetShare = 1, slotRatios = SLOT_RATIOS, preserveWholePiece=false, preserveMealTarget=false }) {
   const target = Number(dailyTargetKcal);
   const recipeEnergy = Number(recipeKcal);
   if (!Number.isFinite(target) || target <= 0) return { quantity: null, reason: 'daily-target-missing' };
@@ -46,9 +46,11 @@ export function suggestQuantity({ dailyTargetKcal, slot, plannedOtherKcal = 0, r
   if (!Object.hasOwn(slotRatios, slot)) return { quantity: null, reason: 'invalid-slot' };
   if (!(slotRatios[slot]>0)) return {quantity:null,reason:'no-slot-budget',slotBudgetKcal:0};
   const remaining = Math.max(0, target - Math.max(0, Number(plannedOtherKcal) || 0));
-  if (!remaining && preserveWholePiece && recipeUnit==='piece')return {quantity:1,reason:'whole-piece-exceeds-budget',slotBudgetKcal:0,estimatedKcal:recipeEnergy};
-  if (!remaining) return { quantity: null, reason: 'daily-budget-used' };
-  const slotBudget = Math.min(target * slotRatios[slot] + 100, remaining);
+  const mealTarget = target * slotRatios[slot];
+  const available = preserveMealTarget ? Math.max(remaining, mealTarget) : remaining;
+  if (!available && preserveWholePiece && recipeUnit==='piece')return {quantity:1,reason:'whole-piece-exceeds-budget',slotBudgetKcal:0,estimatedKcal:recipeEnergy};
+  if (!available) return { quantity: null, reason: 'daily-budget-used' };
+  const slotBudget = Math.min(mealTarget + 100, available);
   const count = Math.max(1, Math.floor(Number(recipeCount) || 1));
   const share = Math.max(0, Math.min(1, Number(budgetShare) || 0));
   const energyPerRecipe = slotBudget * share / count;
@@ -314,8 +316,14 @@ export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RA
     if(!row.quantity&&desired>0&&!row.assignment)row.quantity=null;
     consume(row,row.quantity??0);
   }
-  for(const {members,mode,shares} of plates){
-    const kcal=budget*members.reduce((sum,row)=>sum+(row.budgetFraction??0),0);
+  const total=()=>rows.reduce((sum,row)=>sum+(Number(row.quantity)||0)*(Number(row.recipeKcal)||0),0);
+  const plateWeight=({members})=>members.reduce((sum,row)=>sum+(row.budgetFraction??0),0)||1;
+  const extrasKcal=rows.filter(row=>!byRow.has(row)).reduce((sum,row)=>sum+(Number(row.quantity)||0)*(Number(row.recipeKcal)||0),0);
+  const availableForPlates=Math.max(0,budget-extrasKcal);
+  const totalPlateWeight=plates.reduce((sum,plate)=>sum+plateWeight(plate),0);
+  for(const plate of plates){
+    const {members,mode,shares}=plate;
+    const kcal=availableForPlates*plateWeight(plate)/totalPlateWeight;
     const energy=members.reduce((sum,row)=>sum+shares[row.servingPart]*row.recipeKcal,0);
     let left=kcal;
     const put=(row,quantity)=>{
@@ -352,7 +360,6 @@ export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RA
     if(members.some(row=>!row.quantity))warnings.add('Une partie ne tient pas dans les plafonds ou le budget : vérifie les quantités proposées.');
     for(const row of members)if(!row.quantity)row.quantity=null;
   }
-  const total=()=>rows.reduce((sum,row)=>sum+(Number(row.quantity)||0)*(Number(row.recipeKcal)||0),0);
   if(validBudget){
     for(const dessert of rows.filter(row=>row.role==='dessert'&&!row.parentRecipeId&&row.quantity>0)){
       if(total()<=budget+1e-6)break;
@@ -367,5 +374,29 @@ export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RA
       if(veg?.quantity>0)veg.quantity=floor(veg.quantity*row.quantity/before,veg.countStep||0.00001);
     }
   }
+  const roundedRemaining=effectiveServingCaps(overrides);
+  const keys=Object.keys(roundedRemaining);
+  for(const row of rows)for(const key of keys)roundedRemaining[key]-=(loads(row)[key]??0)*(row.quantity??0);
+  const beforeRounding=total();
+  const roundUp=value=>Math.ceil((value-1e-8)/10)*10;
+  for(const {members,shares} of plates){
+    const starch=members.find(row=>row.servingPart==='starch');
+    if(!starch)continue;
+    const veg=members.find(row=>row.servingPart==='vegetables');
+    const roundedStarch=starch.quantity>0&&!starch.countStep?roundUp(starch.quantity):starch.quantity;
+    const roundedVeg=veg?.quantity>0&&!veg.countStep
+      ?roundUp(Math.max(veg.quantity,roundedStarch*shares.vegetables/shares.starch)):veg?.quantity;
+    const changes=[[starch,roundedStarch]];
+    if(veg)changes.push([veg,roundedVeg]);
+    const extraLoad=key=>changes.reduce((sum,[row,quantity])=>sum+(loads(row)[key]??0)*((quantity??0)-(row.quantity??0)),0);
+    if(changes.every(([row,quantity])=>(quantity??0)<=(row.maxQuantity??Infinity))&&keys.every(key=>extraLoad(key)<=roundedRemaining[key]+1e-8)){
+      for(const key of keys)roundedRemaining[key]-=extraLoad(key);
+      for(const [row,quantity] of changes)row.quantity=quantity;
+    }
+    if(starch.recipeUnit==='g'&&!starch.countStep&&(starch.quantity??0)*(loads(starch).starch??0)<80-1e-5)
+      warnings.add('Le repère de 80 g de féculents cuits ne tient pas dans le budget ou les plafonds de cette assiette.');
+  }
+  if(validBudget&&beforeRounding<=budget+1e-6&&total()>budget+1e-6)
+    warnings.add('L’arrondi des accompagnements dépasse le budget de calcul.');
   return {proposals:rows,warnings:[...warnings],proportionsApplied:plates.length>0,withinBudget:!validBudget||total()<=budget+1e-6,proteinKnown:rows.every(row=>!row.quantity||row.proteinG!=null)};
 }

@@ -216,17 +216,21 @@ export async function updateRecipe(pool, id, data, expectedVersion=null) {
       if(Number(found.rows[0].version)!==expectedVersion){await client.query('ROLLBACK');return {error:'recipe-version-conflict'};}
     }
     if(data.lines.some(line=>line.recipeId===id))throw new Error('recipe-ingredient-cycle');
-    const prepared=await client.query(`WITH RECURSIVE parents(id) AS (
-      SELECT $2::uuid UNION SELECT r.id FROM parents p JOIN recipe_lines l ON l.ingredient_recipe_id=p.id JOIN recipes r ON r.id=l.recipe_id WHERE r.household_id=$1
-    ) SELECT 1 FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
-      JOIN recipes used ON used.id=i.recipe_id WHERE m.household_id=$1 AND (m.prepared_at IS NOT NULL OR EXISTS(SELECT 1 FROM recipe_stock_uses u WHERE u.meal_id=m.id AND u.automatic AND u.cancelled_at IS NULL))
-      AND (used.id IN(SELECT id FROM parents) OR used.parent_recipe_id IN(SELECT id FROM parents)) LIMIT 1`,[data.householdId,id]);
-    if(prepared.rowCount){await client.query('ROLLBACK');return {error:'recipe-used-in-prepared-meal'};}
-    const previous=await client.query('SELECT yield_unit_id,separate_starch,serving_weights FROM recipes WHERE id=$1 AND household_id=$2',[id,data.householdId]);
+    const previous=await client.query('SELECT yield_amount,yield_unit_id,production_type,output_units,separate_starch,serving_weights FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL',[id,data.householdId]);
     const old=previous.rows[0];
+    if(!old){await client.query('ROLLBACK');return null;}
     const keys=data.separateStarch?[...new Set(data.lines.map(line=>line.servingPart??'main'))].sort().join(','):'';
-    const oldKeys=old?.separate_starch?Object.keys(old.serving_weights??{}).sort().join(','):'';
-    if(old && (old.yield_unit_id!==data.yield.unitId || oldKeys!==keys)){
+    const oldKeys=old.separate_starch?Object.keys(old.serving_weights??{}).sort().join(','):'';
+    const outputUnitsChanged=Object.entries({...old.output_units,...data.outputUnits}).some(([unit])=>old.output_units?.[unit]!==data.outputUnits?.[unit]);
+    if(old.yield_unit_id!==data.yield.unitId || Number(old.yield_amount)!==data.yield.amount || old.production_type!==data.productionType || oldKeys!==keys || outputUnitsChanged){
+      const prepared=await client.query(`WITH RECURSIVE parents(id) AS (
+        SELECT $2::uuid UNION SELECT r.id FROM parents p JOIN recipe_lines l ON l.ingredient_recipe_id=p.id JOIN recipes r ON r.id=l.recipe_id WHERE r.household_id=$1
+      ) SELECT 1 FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id
+        JOIN recipes used ON used.id=i.recipe_id WHERE m.household_id=$1 AND (m.prepared_at IS NOT NULL OR EXISTS(SELECT 1 FROM recipe_stock_uses u WHERE u.meal_id=m.id AND u.automatic AND u.cancelled_at IS NULL))
+        AND (used.id IN(SELECT id FROM parents) OR used.parent_recipe_id IN(SELECT id FROM parents)) LIMIT 1`,[data.householdId,id]);
+      if(prepared.rowCount){await client.query('ROLLBACK');return {error:'recipe-used-in-prepared-meal'};}
+    }
+    if(old.yield_unit_id!==data.yield.unitId || oldKeys!==keys){
       const history=await client.query(`SELECT 1 FROM recipe_stock_uses u JOIN recipes r ON r.id=u.recipe_id
         WHERE u.household_id=$1 AND (r.id=$2 OR r.parent_recipe_id=$2)
         UNION ALL SELECT 1 FROM stock_lots s JOIN recipes r ON r.id=s.recipe_id

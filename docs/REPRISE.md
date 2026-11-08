@@ -1,5 +1,11 @@
 # Cahier de reprise — 6 novembre 2026
 
+## Recalcul des assiettes et recettes préparées — 0.3.28
+
+- Pour un déjeuner ou dîner avec féculents séparés, l’objectif du créneau reste disponible si les autres repas ont entamé le budget quotidien. Le détail signale cet écart. Les ajouts consomment leurs kcal réelles.
+- Les accompagnements en grammes s’arrondissent à la dizaine supérieure lorsque les plafonds le permettent. Le détail signale si les 80 g de féculents cuits ne sont pas atteints.
+- Une recette liée à un repas préparé reste modifiable pour les ingrédients. Le stock déjà déduit et la structure du rendement sont protégés. Les valeurs nutritionnelles affichées suivent la fiche actuelle.
+
 ## Plafonds personnalisés par repas — 0.3.27
 
 Administration → Assiettes permet de fixer, pour chaque personne, les plafonds de viande crue, poisson cru, œufs entiers, féculents servis et légumes servis. Un champ vide reprend le défaut (125 g, 150 g, 3 œufs, 200 g, aucun plafond légumes). À réglages identiques, la part principale de viande, poisson ou œufs est la même quel que soit le budget kcal ; un plafond personnalisé peut la modifier. Le calcul conserve le rapport féculents/légumes en trois parties et applique la première limite atteinte, sans imposer de remplir le budget kcal. Les menus déjà enregistrés ne sont pas réécrits. Migration additive 20261107_person_serving_caps.sql.
