@@ -78,7 +78,10 @@ test('bread slices use a declared equivalence, direct and nested menus share sto
   const prepared=await setMealPrepared(f.pool,f.householdId,meal.id,true);assert.equal(prepared.error,undefined);assert.equal(await f.stockG(flour),4000);
   const stock=(await listStock(f.pool,f.householdId)).find(r=>r.recipeId===bread.id);assert.ok(Math.abs(stock.availableQuantity-0.3)<1e-8);
   assert.equal((await setMealPrepared(f.pool,f.householdId,meal.id,true)).replayed,true);
-  assert.equal((await updateRecipe(f.pool,bread.id,f.data({...bread,lines:bread.lines}))).error,'recipe-used-in-prepared-meal');
+  const edited=await updateRecipe(f.pool,bread.id,f.data({...bread,lines:bread.lines.map(line=>({...line,quantity:1200}))}));
+  assert.equal(edited.lines[0].quantity,1200);
+  assert.equal(await f.stockG(flour),4000);
+  assert.ok(Math.abs((await listStock(f.pool,f.householdId)).find(r=>r.recipeId===bread.id).availableQuantity-0.3)<1e-8);
   await setMealPrepared(f.pool,f.householdId,meal.id,false);
   assert.equal(await deletePlannedMeal(f.pool,meal.id,f.householdId),true);
   const remaining=(await listStock(f.pool,f.householdId)).find(r=>r.recipeId===bread.id);assert.equal(remaining.availableQuantity,0.5);

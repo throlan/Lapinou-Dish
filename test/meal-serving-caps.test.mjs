@@ -20,9 +20,20 @@ test('two-part plate fixes the raw meat serving and lets starch vary with the bu
 test('three-part plate reallocates to starch and vegetables, then leaves unused calories at the starch cap',()=>{
   const plate=rows(['main','starch','vegetables'],[{fish:1.25},{starch:1},{}],[1,1,1]);
   let q=quantities(cappedMealPortions(plate,500));
-  close(q[0],120);close(q[1],126.66667);close(q[2],253.33333);
+  close(q[0],120);close(q[1],130);close(q[2],260);
   q=quantities(cappedMealPortions(plate,900));
   close(q[0],120);close(q[1],200);close(q[2],400);
+});
+
+test('only the actual calories of extras are reserved before sizing a plate',()=>{
+  const plate=rows(['main','starch','vegetables'],[{meat:1},{starch:1},{vegetables:1}],[1,1,.5]);
+  plate.forEach(row=>row.budgetFraction=.25);
+  const extra={role:'sauce',assignment:{},quantity:1,recipeUnit:'portion',recipeKcal:15};
+  const result=cappedMealPortions([...plate,extra],300);
+  assert.deepEqual(quantities(result),[125,80,160,1]);
+  const limited=cappedMealPortions(plate,300,undefined,{starch:60});
+  assert.deepEqual(quantities(limited),[125,60,120]);
+  assert.match(limited.warnings.join(' '),/80 g/);
 });
 
 test('counted eggs cannot exceed three and bread rounds down if the next slice exceeds 200 g',()=>{

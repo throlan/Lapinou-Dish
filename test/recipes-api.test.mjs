@@ -32,7 +32,8 @@ test('recipe update returns 404 and rolls back when the recipe is outside the ho
   assert.equal(response.status, 404);
   assert.deepEqual(response.body, { error: 'recipe-not-found' });
   assert.equal(calls[0], 'BEGIN');
-  assert.ok(calls.some(sql=>/UPDATE recipes/.test(sql)));
+  assert.ok(calls.some(sql=>sql.startsWith('SELECT yield_amount,yield_unit_id,production_type')));
+  assert.ok(!calls.some(sql=>sql.startsWith('UPDATE recipes')));
   assert.equal(calls.at(-1), 'ROLLBACK');
 });
 
@@ -44,6 +45,7 @@ test('recipe update replaces its lines atomically and recalculates nutrition', a
   let updateValues;
   const client = { query: async (sql, values) => {
     calls.push(sql);
+    if (sql.startsWith('SELECT yield_amount,yield_unit_id,production_type')) return { rows: [{yield_amount:'2',yield_unit_id:'piece',production_type:'none',output_units:{}}] };
     if (sql.includes('m.prepared_at IS NOT NULL')) return { rowCount: 0, rows: [] };
     if (sql.startsWith('UPDATE recipes')) updateValues = values;
     if (sql.startsWith('UPDATE recipes')) return { rowCount: 1, rows: [{ id: recipeId }] };
