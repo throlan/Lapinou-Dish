@@ -44,7 +44,9 @@ export function recipeWeight(graph,recipeId,path=[]) {
     let grams;
     if(line.recipeId){
       const fraction=recipeFraction(graph,line.recipeId,line.quantity,line.unitId,[...path,recipeId]);
-      grams=recipeWeight(graph,line.recipeId,[...path,recipeId])*fraction;
+      const weight=recipeWeight(graph,line.recipeId,[...path,recipeId]);
+      if(weight==null)return null;
+      grams=weight*fraction;
     }else grams=toGrams(line.quantity,line.unitId,line);
     if(grams==null || !Number.isFinite(grams))return null;
     // Components are already prepared; never reapply a rice/pasta cooking factor.

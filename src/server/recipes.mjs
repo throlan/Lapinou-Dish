@@ -352,10 +352,15 @@ export async function readRecipe(client, id, path=[]) {
   });
   const nutritionLines=lines.map(line=>({...line}));
   const servingLoad={};
+  let containsWhey=foods.some(food=>[food.name,food.category].some(value=>{
+    const name=String(value??'').normalize('NFD').replace(/\p{M}/gu,'').toLowerCase();
+    return !/\bsans\s+(?:whey|lactoserum)\b/.test(name)&&/\b(?:whey|lactoserum)\b/.test(name);
+  }));
   const graph=lines.some(line=>line.recipeId)?await loadRecipeGraph(client,row.household_id):null;
   for(const [index,line] of lines.entries())if(line.recipeId){
     const component=await readRecipe(client,line.recipeId,[...path,id]);
     const fraction=recipeFraction(graph,line.recipeId,line.quantity,line.unitId);
+    containsWhey ||= component.containsWhey;
     if(/^(?:pains?|bagels?|baguettes?)\b/i.test(component.name)){
       addServingLoad(servingLoad,{...component.servingLoad,starch:recipeWeight(graph,line.recipeId)/component.yield.amount||null},fraction*component.yield.amount);
     }else addServingLoad(servingLoad,component.servingLoad,fraction*component.yield.amount);
@@ -363,6 +368,7 @@ export async function readRecipe(client, id, path=[]) {
     foods.push({id:line.recipeId,name:component.name,nutrientsPer100g:component.nutrition.batch,gramsPerUnit:{}});
     nutritionLines[index]={...line,foodId:line.recipeId,quantity:fraction*100,unitId:'g'};
     if(!component.nutrition.complete)line.componentIncomplete=true;
+    line.componentEnergyKnown=component.energyKnown;
   }
   const nutrition = calculateRecipeNutrition(nutritionLines, foods, Number(row.yield_amount));
   for(const [index,line] of lines.entries())if(line.componentIncomplete){
@@ -385,8 +391,16 @@ export async function readRecipe(client, id, path=[]) {
   const counted=Number(row.sibling_count)>1 && row.yield_unit_id==='g' && lines.length===1 && ['piece','slice'].includes(lines[0].unitId) ? lines[0] : null;
   const servingDisplay=counted?{unitId:counted.unitId,amount:counted.quantity,gramsPerUnit:Number(row.yield_amount)/counted.quantity,
     ingredientName:counted.foodName??foodById.get(counted.foodId)?.name??null}:null;
+  const servingWeightG=recipeWeight(graph??new Map([[id,{
+    yield:{amount:Number(row.yield_amount),unitId:row.yield_unit_id},outputUnits:row.output_units??{},
+    separateStarch:row.separate_starch,cookingFactors:row.cooking_factors??{},
+    lines:lines.map(line=>({gramsPerUnit:{},...foodById.get(line.foodId),...line})),
+  }]]),id);
+  const energyKnown=nutrition.batch.energyKcal!=null&&!nutrition.lineIssues.some(issue=>
+    issue.reason==='component-data-missing'?lines[issue.lineIndex].componentEnergyKnown!==true:
+      issue.reason!=='nutrient-data-missing'||issue.missingNutrients.includes('energyKcal'));
   return {
-    servingDisplay,
+    containsWhey,servingWeightG,energyKnown,servingDisplay,
     eggServingStep:lines.length===1&&lines[0].foodId&&servingLoad.eggs>0?Number(row.yield_amount)/servingLoad.eggs:null,
     servingLoad:Object.fromEntries(Object.entries(servingLoad).map(([key,value])=>[key,value==null?null:value/Number(row.yield_amount)])),
     separateStarch:row.separate_starch ?? false,servingWeights:row.serving_weights ?? {},cookingFactors:row.cooking_factors ?? {main:1,starch:3},parentRecipeId:row.parent_recipe_id ?? null,parentRecipeName:row.parent_recipe_name??null,servingPart:row.serving_part ?? null,servingPartActive:row.serving_part_active??true,servingParts,archivedServingParts,imageAvailable:Boolean(row.image_available),

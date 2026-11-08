@@ -6,6 +6,15 @@ import {createRecipe,readRecipe,updateRecipeSettings,validateRecipeInput,validat
 import {ingredientCookingFactor,cookingFactorChoices,recipeServiceMode,filterRecipeDirectory,recipeDisplayPreferences} from '../web/recipe-directory.js';
 import {handleRequest} from '../src/server/app.mjs';
 
+test('energy badge uses the native piece or slice and falls back to a known 100 g value',async()=>{
+  const {recipeEnergyBadge}=await import('../web/recipe-directory.js');
+  const recipe={energyKnown:true,nutrition:{batch:{energyKcal:800}},yield:{amount:4,unitId:'piece'},servingWeightG:400};
+  assert.deepEqual(recipeEnergyBadge(recipe),{kcal:200,label:'pièce',dense:false});
+  assert.deepEqual(recipeEnergyBadge({...recipe,yield:{amount:2,unitId:'slice'}}),{kcal:400,label:'tranche',dense:true});
+  assert.deepEqual(recipeEnergyBadge({...recipe,yield:{amount:4,unitId:'portion'}}),{kcal:200,label:'100 g',dense:false});
+  assert.equal(recipeEnergyBadge({...recipe,energyKnown:false}),null);
+});
+
 test('service filter combines with existing filters and distinguishes all four saved modes',()=>{
   const recipes=[{name:'Cake',recipeType:'dessert'},
     {name:'Soupe',separateStarch:true,servingParts:[{servingPart:'main'}]},
