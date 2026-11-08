@@ -52,7 +52,6 @@ test('quick recipe settings update only taxonomy and carry it to serving parts',
     INSERT INTO planned_meal_items(id,meal_id,recipe_id)
       VALUES ('44444444-4444-4444-8444-444444444444','33333333-3333-4333-8333-333333333333','${childId}');
   `);
-  assert.deepEqual(await updateRecipeSettings(pool, recipeId, { ...input, version: saved.version, productionType: 'none' }), { error: 'recipe-used-in-prepared-meal' });
   const retagged = await updateRecipeSettings(pool, recipeId, { ...input, version: saved.version, mealMoments: ['lunch'] });
   assert.deepEqual(retagged.mealMoments, ['lunch']);
   assert.equal(retagged.productionType, 'batch_cooking');
@@ -73,5 +72,9 @@ test('quick recipe settings update only taxonomy and carry it to serving parts',
   assert.deepEqual(partAfter.lines,partBefore.lines);assert.deepEqual(partAfter.yield,partBefore.yield);
   assert.deepEqual(await updateRecipeSettings(pool,recipeId,validation.data),{error:'recipe-version-conflict'});
   assert.equal(await updateRecipeSettings(pool,recipeId,{...validation.data,version:renamed.version,householdId:otherHouseholdId}),null);
+  const revised=await updateRecipeSettings(pool,recipeId,{...input,version:renamed.version,productionType:'none'});
+  assert.equal(revised.replacesRecipeId,recipeId);
+  assert.equal(revised.productionType,'none');
+  assert.equal((await readRecipe(pool,childId)).productionType,'batch_cooking');
 
 });

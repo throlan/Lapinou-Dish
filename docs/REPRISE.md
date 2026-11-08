@@ -1,5 +1,9 @@
 # Cahier de reprise — 6 novembre 2026
 
+## Rendement des recettes déjà produites — 0.3.29
+
+Le rendement et les ingrédients sont modifiables sans réécrire les lots déjà produits. Quand un changement d’unité, de service, d’équivalence ou de suivi de production implique des références existantes, la recette actuelle est remplacée. Les anciens lots, repas et recettes liées gardent leur fiche de référence, identifiée « ancienne version ». Les nouveaux menus proposent la version actuelle.
+
 ## Recalcul des assiettes et recettes préparées — 0.3.28
 
 - Pour un déjeuner ou dîner avec féculents séparés, l’objectif du créneau reste disponible si les autres repas ont entamé le budget quotidien. Le détail signale cet écart. Les ajouts consomment leurs kcal réelles.

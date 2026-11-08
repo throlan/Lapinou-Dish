@@ -75,9 +75,7 @@ test('quick service and yield PATCH reuse editor transactions, conversions and h
   const invalid=await patch({...request,version:recipe.version,configuration:{...config,lineParts:['main','main','main']}});
   assert.equal(invalid.body.error,'starch-ingredients-required');
   assert.equal((await readRecipe(pool,recipe.id)).version,recipe.version);
-  const removed=await patch({...request,version:recipe.version,configuration:{...config,servingMode:'original'}});
-  assert.equal(removed.body.error,'serving-parts-cannot-be-disabled');
-  assert.equal(recipeServiceMode(await readRecipe(pool,recipe.id)),'three');
+
   // Changing the native yield recomputes dependent recipes, without copying nutrients.
   const component=await createRecipe(pool,validateRecipeInput({...original,name:'Synthetic bread',yield:{amount:10,unitId:'slice'},outputUnits:{slice:10},lines:[{foodId:food,quantity:500,unitId:'g'}]}).data);
   const parent=await createRecipe(pool,validateRecipeInput({...original,name:'Synthetic sandwich',lines:[{recipeId:component.id,quantity:2,unitId:'slice'}]}).data);
@@ -87,7 +85,8 @@ test('quick service and yield PATCH reuse editor transactions, conversions and h
   // Stock histories keep the existing native-unit protection of the complete editor.
   await db.exec(`INSERT INTO stock_lots(id,household_id,recipe_id,produced_on,quantity,storage) VALUES('ffffffff-ffff-4fff-8fff-ffffffffffff','${h}','${component.id}','2026-10-21',3,'freezer');`);
   const blocked=await updateRecipeSettings(pool,component.id,{householdId:h,version:changed.version,productionType:'none',mealMoments:[],configuration:{...config,servingMode:'original',yield:{amount:1,unitId:'piece'},lineParts:['main']}});
-  assert.equal(blocked.error,'recipe-output-in-use');assert.equal((await readRecipe(pool,component.id)).yield.unitId,'slice');
+  assert.equal(blocked.replacesRecipeId,component.id);assert.equal(blocked.yield.unitId,'piece');
+  assert.equal((await readRecipe(pool,component.id)).yield.unitId,'slice');
   // Legacy defaults are materialized per line with identical weights and nutrition.
   const oldWeights={...recipe.servingWeights},oldNutrition=recipe.nutrition.batch;
   const explicitFactors=recipe.lines.map(line=>ingredientCookingFactor(recipe,line));
@@ -107,8 +106,9 @@ test('quick service and yield PATCH reuse editor transactions, conversions and h
   assert.deepEqual(await updateRecipe(pool,recipe.id,checked,1),{error:'recipe-version-conflict'});
   await db.exec(`INSERT INTO planned_meals(id,household_id,meal_date,slot,prepared_at) VALUES('dddddddd-dddd-4ddd-8ddd-dddddddddddd','${h}','2026-10-21','dinner',now());
     INSERT INTO planned_meal_items(id,meal_id,recipe_id) VALUES('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','dddddddd-dddd-4ddd-8ddd-dddddddddddd','${recipe.servingParts[0].id}');`);
-  assert.equal((await patch({...request,version:recipe.version,configuration:{...config,yield:{amount:8,unitId:'piece'}}})).body.error,'recipe-used-in-prepared-meal');
-  assert.deepEqual((await readRecipe(pool,recipe.id)).yield,recipe.yield);
-  // Tag-only edits still remain possible on prepared recipes, as before.
-  assert.ok((await updateRecipeSettings(pool,recipe.id,{householdId:h,version:recipe.version,productionType:recipe.productionType,mealMoments:['snack']})).id);
+  const revised=await patch({...request,version:recipe.version,configuration:{...config,yield:{amount:8,unitId:'piece'}}});
+  assert.equal(revised.code,200,JSON.stringify(revised.body));
+  assert.equal(revised.body.recipe.id,recipe.id);
+  assert.deepEqual((await readRecipe(pool,recipe.id)).yield,{amount:8,unitId:'piece'});
+  assert.equal((await readRecipe(pool,recipe.id)).recipeArchived,false);
 });

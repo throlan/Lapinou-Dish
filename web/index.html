@@ -11,7 +11,7 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.3.28">
+    <link rel="stylesheet" href="/style.css?v=0.3.29">
     <link rel="stylesheet" href="/editorial.css?v=0.3.17">
   </head>
   <body>
@@ -218,6 +218,7 @@
           <label>Instructions<textarea name="instructions" rows="4" maxlength="20000" placeholder="Étapes de préparation"></textarea></label>
           <label>Production à suivre (facultatif)<select name="productionType"><option value="none">Aucune</option><option value="batch_cooking">Batch cooking</option><option value="pasta">Pâtes</option><option value="pastry">Pâtisserie</option><option value="bread">Pain</option></select><span class="hint">Le type sert à classer les préparations. Le lot minimum se règle juste dessous, pour cette recette uniquement.</span></label>
           <div class="yield-row"><label>Rendement<input name="yieldAmount" required type="number" min="0.01" step="any" value="4"></label><label>Unité<select name="yieldUnit"><option value="portion">portions</option><option value="piece">pièces</option><option value="slice">tranches</option><option value="g">grammes</option><option value="ml">millilitres</option></select></label></div>
+          <p class="hint">Le rendement s’applique aux prochaines productions. Pour modifier la quantité d’un lot déjà produit, utilise le stock des préparations.</p>
           <fieldset class="recipe-production-minimum"><legend>Lot minimum pour cette recette</legend><p class="hint">Exemples : 1 pain entier (équivalence avec ses tranches), 24 bagels ou 36 pancakes. La liste de courses calcule les ingrédients nécessaires au lot.</p><div class="yield-row"><label>Minimum<input name="minimumProductionAmount" type="number" min="0" max="100000" step="any" value="0"></label><label>Unité<select name="minimumProductionUnitId"><option value="piece">pièce(s)</option><option value="slice">tranche(s)</option><option value="portion">portion(s)</option><option value="g">g</option><option value="ml">ml</option></select></label></div></fieldset>
           <details class="recipe-output-units"><summary>Utiliser cette recette à la pièce, à la tranche…</summary>
             <p class="hint">Équivalences pour toute la recette de base. Exemple : 1 pain = 20 tranches. Le rendement ci-dessus reste la référence ; laisse vides les unités inutiles. Le poids est estimé depuis les ingrédients, sauf si tu renseignes un poids ici.</p>
@@ -477,6 +478,6 @@
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
     <script type="module" src="/install-app.js?v=0.3.17"></script>
-    <script type="module" src="/app.js?v=0.3.28"></script>
+    <script type="module" src="/app.js?v=0.3.29"></script>
   </body>
 </html>
