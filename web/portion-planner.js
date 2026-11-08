@@ -277,7 +277,16 @@ export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RA
     }
     return Math.max(0,max);
   };
-  const hasFixedProtein=row=>row.role==='main'&&row.fixedProteinEligible!==false&&row.reason!=='no-slot-budget'&&['meat','fish','eggs'].some(key=>loads(row)[key]>0);
+  const proteinKeys=['meat','fish','eggs'];
+  const sharedProteinLimit=row=>{
+    const load=loads(row);
+    const proteins=proteinKeys.filter(key=>load[key]>0);
+    if(proteins.length<2)return Infinity;
+    // Each ingredient uses a fraction of its own maximum. The fractions share one serving.
+    const fractionPerUnit=proteins.reduce((sum,key)=>sum+load[key]/remaining[key],0);
+    return 1/fractionPerUnit;
+  };
+  const hasFixedProtein=row=>row.role==='main'&&row.fixedProteinEligible!==false&&row.reason!=='no-slot-budget'&&proteinKeys.some(key=>loads(row)[key]>0);
   const consume=(row,quantity)=>{
     for(const [key,value] of Object.entries(loads(row)))if(value>0&&key in remaining)remaining[key]=Math.max(0,remaining[key]-quantity*value);
   };
@@ -340,7 +349,10 @@ export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RA
     const starch=members.find(row=>row.servingPart==='starch');
     const veg=members.find(row=>row.servingPart==='vegetables');
     const fixed=mode==='three'&&hasFixedProtein(main);
-    if(fixed)put(main,fit(main,limit(main)));
+    if(fixed){
+      const maximum=sharedProteinLimit(main);
+      put(main,fit(main,Math.min(limit(main),maximum),maximum));
+    }
     if(mode==='whole'){
       const desired=kcal/main.recipeKcal;
       const wholePiece=['piece','slice'].includes(main.recipeUnit);
