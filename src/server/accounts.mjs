@@ -241,6 +241,24 @@ async function accountRoutes(pool,request,response,url,actor,appPassword){
   const id=await transaction(pool,client=>createAccount(client,body,body.applicationAdmin===true));
   return sendAccount(response,201,{id});
  }
+ const assignment=url.pathname.match(/^\/api\/accounts\/households\/([a-f0-9-]{36})\/members$/i);
+ if(assignment&&method==='PUT'){
+  applicationAdmin(actor);const body=await jsonBody(request);
+  if(!uuid(body.accountId)||!['manager','member'].includes(body.role))throw accountError('invalid-account');
+  await transaction(pool,async client=>{
+   await lockAdministration(client);
+   const personId=await checkProfile(client,body.personId,assignment[1]);
+   const account=await client.query('SELECT 1 FROM app_accounts WHERE id=$1 AND active',[body.accountId]);
+   if(!account.rows.length)throw accountError('account-not-found',404);
+   const current=(await client.query('SELECT role FROM household_memberships WHERE household_id=$1 AND account_id=$2',[assignment[1],body.accountId])).rows[0];
+   if(current?.role==='manager'&&body.role!=='manager'){
+    const others=await client.query("SELECT 1 FROM household_memberships m JOIN app_accounts a ON a.id=m.account_id AND a.active WHERE m.household_id=$1 AND m.role='manager' AND m.account_id<>$2",[assignment[1],body.accountId]);
+    if(!others.rows.length)throw accountError('last-household-manager',409);
+   }
+   await client.query('INSERT INTO household_memberships(account_id,household_id,person_id,role) VALUES($1,$2,$3,$4) ON CONFLICT(account_id,household_id) DO UPDATE SET person_id=EXCLUDED.person_id,role=EXCLUDED.role',[body.accountId,assignment[1],personId,body.role]);
+  });
+  return sendAccount(response,200,{saved:true});
+ }
  const house=url.pathname.match(/^\/api\/accounts\/households\/([a-f0-9-]{36})(?:\/(join))?$/i);
  if(house&&method==='PUT'&&!house[2]){
   applicationAdmin(actor);const body=await jsonBody(request);
@@ -259,7 +277,9 @@ async function accountRoutes(pool,request,response,url,actor,appPassword){
   applicationAdmin(actor);
   const accounts=(await pool.query('SELECT id,login,display_name AS "displayName",application_admin AS "applicationAdmin",active FROM app_accounts ORDER BY display_name')).rows;
   const households=(await pool.query('SELECT id,name FROM households ORDER BY created_at,id')).rows;
-  return sendAccount(response,200,{accounts,households});
+  const memberships=(await pool.query('SELECT account_id AS "accountId",household_id AS "householdId",person_id AS "personId",role FROM household_memberships')).rows;
+  const profiles=(await pool.query('SELECT id,household_id AS "householdId",display_name AS "displayName" FROM people ORDER BY display_name')).rows;
+  return sendAccount(response,200,{accounts,households,memberships,profiles});
  }
  const personRoute=route.match(/^\/api\/accounts\/profiles\/([a-f0-9-]{36})$/i);
  if(personRoute&&method==='PUT'){

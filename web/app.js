@@ -1,3 +1,4 @@
+import {createRecipeReviews} from './recipe-reviews.js';
 import {createAccountUI,accountMessage} from './accounts-ui.js';
 import { breakfastServingLimit, calculateDailyEnergy, calculateDailyProtein, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, dailyProteinTarget, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';
 import {mountCookingInstagram} from './cooking-instagram.js';
@@ -17,6 +18,8 @@ const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const state = { offset: 0, limit: 50, query: '', foodCategory: '', missingField: '', onlyIncomplete: false, total: 0, household: null, selectedFoodIds:new Set(), mealAdditions:[], productionTypes:[], productionTypesHouseholdId:null, debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, editingFoodFromShopping: false, editingOrderLinkId: null, importingDraftId: null, generateImportedImage: false, people: [], recipes: [], plannedRecipeIds: [], plannedRecipeLookupError: null, preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, proteinTargets: {}, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
 const accountUI=createAccountUI({api,onSession:session=>{state.account=session.account??null;}});
+const recipeReviews=createRecipeReviews({api,getAccount:()=>state.account,onChange:()=>renderFilteredRecipes()});
+recipeReviews.addFilter(document.querySelector('.recipe-display-toolbar'));
 let recipeImageConfig={enabled:false}, imageRecipeId=null;
 const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbohydrateG', 'g gluc.'], ['fatG', 'g lip.']];
 const selectedStoreFoods=new Map();
@@ -172,7 +175,8 @@ async function refreshDashboard() {
       api(`/api/planning?householdId=${encodeURIComponent(state.household.id)}&weekStart=${mondayOf(today)}`),
       api(`/api/people?householdId=${encodeURIComponent(state.household.id)}`),
       api(`/api/household-planning?householdId=${encodeURIComponent(state.household.id)}`),
-      api(`/api/energy-reserve?householdId=${encodeURIComponent(state.household.id)}&asOf=${today}`)
+      api(`/api/energy-reserve?householdId=${encodeURIComponent(state.household.id)}&asOf=${today}`),
+      recipeReviews.load().catch(()=>{})
     ]);
     state.reserveOverview=reserve;
     const meals=plan.meals??[];
@@ -237,6 +241,7 @@ async function refreshDashboard() {
       menu.append(day);
     }
     const sidebar=document.createElement('div');sidebar.className='dashboard-sidebar';
+    recipeReviews.renderHome(sidebar);
     const profiles=dashboardPanel('Repères personnels');
     if(!people.length)profiles.append(emptyMessage('Ajoute les membres du foyer dans Profils.'));
     for(const person of people){
@@ -1167,6 +1172,10 @@ function foodRow(food, recipes = null) {
     try{await api(`/api/foods/${food.id}`,{method:'DELETE'});showMessage($('#food-list-message'),`« ${food.name} » a été supprimé du catalogue.`,true);await refreshFoods();await refreshFoodCategories().catch(()=>{});}
     catch(error){const body=error.body??{};const refs=[...(body.recipes??[])];const details=refs.length?` Recettes concernées : ${refs.join(', ')}.`:'';const stocks=body.stockCount?` Fiche suivie dans ${body.stockCount} stock(s).`:'';showMessage($('#food-list-message'),body.error==='food-in-use'?`Suppression impossible : cet aliment est encore utilisé.${details}${stocks}`:`Suppression impossible : ${body.error??error.message}`);remove.disabled=false;}
   });actionButtons.append(remove);action.append(actionButtons);
+  if(state.account&&!state.account.applicationAdmin){
+    remove.hidden=true;button.textContent='Proposer une correction';button.setAttribute('aria-label','Proposer une correction pour '+food.name);
+    if(state.account.role!=='manager'){const propose=document.createElement('button');propose.type='button';propose.className='secondary';propose.textContent='Proposer une correction';propose.setAttribute('aria-label','Proposer une correction pour '+food.name);propose.addEventListener('click',()=>openFoodEditor(food.id));action.append(propose);}
+  }
   row.append(selectCell,name,recipeUsage,source,values,action); return row;
 }
 
@@ -1448,7 +1457,8 @@ async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = 
   purchaseSettings.classList.toggle('hidden', !state.household);
   purchaseSettings.disabled = !state.household;
   $('#food-purchase-unit-status').textContent = state.household ? 'Réglage propre au foyer ; les unités des recettes restent inchangées.' : 'Crée un foyer pour définir une unité d’achat.';
-  delete form.dataset.officialReadonly;
+  delete form.dataset.officialReadonly;delete form.dataset.originalCanonical;
+  form.querySelector('[type=submit]').textContent='Enregistrer';
   for(const name of ['name','brand','foodCategory','aliases','energyKcal','proteinG','carbohydrateG','fatG','fibreG','gramsPerMillilitre','cookingFactor','tspGrams','tbspGrams','pinchGrams','scoopGrams','pieceGrams'])if(form.elements[name])form.elements[name].disabled=false;
   delete form.dataset.duplicateSource;
   delete form.dataset.duplicateSourceNote;
@@ -1474,12 +1484,12 @@ async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = 
       $('#nutrition-completion').classList.remove('hidden');
       $('#nutrition-matches').replaceChildren();
       $('#nutrition-matches').dataset.foodId = food.id;
-      if(food.official&&state.account?.applicationAdmin&&!duplicate)$('#food-message').textContent='Fiche officielle commune à tous les foyers. Duplique-la pour créer une variante privée.';
+      if(food.official&&state.account?.applicationAdmin&&!duplicate)$('#food-message').textContent='Aliment du catalogue commun : les modifications s’appliquent à tous les foyers.';
       if(food.official&&!state.account?.applicationAdmin&&!duplicate){
-        form.dataset.officialReadonly='true';
-        for(const name of ['name','brand','foodCategory','aliases','energyKcal','proteinG','carbohydrateG','fatG','fibreG','gramsPerMillilitre','cookingFactor','tspGrams','tbspGrams','pinchGrams','scoopGrams','pieceGrams'])if(form.elements[name])form.elements[name].disabled=true;
+        form.dataset.officialReadonly='proposal';form.dataset.originalCanonical=JSON.stringify(food);
+        form.querySelector('[type=submit]').textContent='Proposer la correction';
         $('#nutrition-completion').classList.add('hidden');
-        $('#food-message').textContent='Aliment officiel partagé. Duplique-le pour créer une variante privée. Les réglages d’achat restent propres à ton foyer.';
+        $('#food-message').textContent='Propose tes corrections : l’administrateur les examinera avant de modifier cet aliment commun. Les réglages d’achat restent propres à ton foyer.';
       }
       if (duplicate) {
         const reference = food.source_reference ? `, référence ${food.source_reference}` : '';
@@ -1524,6 +1534,7 @@ async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = 
       showFoodShoppingUnit(form);
     }catch{shoppingSettings.disabled=true;$('#food-shopping-settings-status').textContent='Réglages des courses indisponibles. Les autres champs restent modifiables.';}
   }
+  if(state.account?.role!=='manager'){ $('#food-shopping-settings').disabled=true;$('#food-purchase-unit-settings').disabled=true;}
   $('#food-dialog').showModal();
   if (id && searchExternal) $('#find-external-nutrition').click();
 }
@@ -1670,10 +1681,19 @@ $('#food-form').addEventListener('submit', async (event) => {
   const id = form.elements.id.value;
   let savedFood = false;
   try {
-    const result = form.dataset.officialReadonly==='true'?{food:{id}}:await api(id ? `/api/foods/${id}` : '/api/foods', { method: id ? 'PATCH' : 'POST', body: JSON.stringify(payload) });
+    let proposed=false,result;
+    if(form.dataset.officialReadonly==='proposal'){
+      const before=JSON.parse(form.dataset.originalCanonical);
+      const stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,stable(value[key])])):value;
+      if(Object.keys(payload).some(key=>JSON.stringify(stable(payload[key]))!==JSON.stringify(stable(before[key])))){
+        await api('/api/community/food-proposals',{method:'POST',body:JSON.stringify({foodId:id,input:payload})});proposed=true;
+      }
+      result={food:{id}};
+    }else result=await api(id ? '/api/foods/'+id : '/api/foods', {method:id?'PATCH':'POST',body:JSON.stringify(payload)});
+    if(proposed)showMessage($('#food-list-message'),'Correction proposée à l’administrateur. La fiche commune reste inchangée jusqu’à sa validation.',true);
     savedFood = true;
     form.elements.id.value = result.food.id;
-    if (state.household && form.dataset.purchaseUnitReady === 'true') {
+    if (state.household && state.account?.role==='manager' && form.dataset.purchaseUnitReady === 'true') {
       if (hasPurchaseUnit) {
         await api('/api/household-purchase-units', { method: 'PUT', body: JSON.stringify({
           householdId: state.household.id, foodId: result.food.id,
@@ -1689,7 +1709,7 @@ $('#food-form').addEventListener('submit', async (event) => {
         form.dataset.purchaseUnitExists = 'false';
       }
     }
-    if(state.household&&form.dataset.shoppingSettingsReady==='true'&&form.dataset.shoppingSettingsDirty==='true'){
+    if(state.household&&state.account?.role==='manager'&&form.dataset.shoppingSettingsReady==='true'&&form.dataset.shoppingSettingsDirty==='true'){
       await api('/api/food-shopping-settings',{method:'PUT',body:JSON.stringify({householdId:state.household.id,foodId:result.food.id,
         unitId:form.elements.shoppingUnitId.value,groupId:form.elements.shoppingGroupId.value,
         packageQuantity:form.elements.shoppingPackageQuantity.value===''?null:Number(form.elements.shoppingPackageQuantity.value),
@@ -2197,7 +2217,7 @@ try{
 }catch{}
 function renderFilteredRecipes(){
   const currentRecipes=state.recipes.filter(recipe=>!recipe.recipeArchived);
-  const recipes=filterRecipeDirectory(currentRecipes,{...recipeFilters,plannedRecipeIds:state.plannedRecipeIds});
+  const recipes=recipeReviews.filterRecipes(filterRecipeDirectory(currentRecipes,{...recipeFilters,plannedRecipeIds:state.plannedRecipeIds}));
   const recipesPerPage=recipeDisplay.perPage;
   const root=$('#recipe-list');root.classList.toggle('recipe-list-view',recipeDisplay.view==='list');
   root.style.setProperty('--recipe-columns',String(recipeDisplay.columns));root.style.setProperty('--recipe-tablet-columns',String(Math.min(2,recipeDisplay.columns)));
@@ -2258,6 +2278,7 @@ async function refreshRecipes() {
       api(`/api/planning/recipe-ids?householdId=${encodeURIComponent(state.household.id)}&fromDate=${encodeURIComponent(monthStart)}`).then(value=>({value}),error=>({error})),
     ]);
     state.recipes = recipes;
+    await recipeReviews.load().catch(()=>{});
     state.plannedRecipeIds = plannedLookup.value?.recipeIds ?? [];
     state.plannedRecipeLookupError = plannedLookup.error ?? null;
     renderFilteredRecipes();
@@ -2499,7 +2520,8 @@ function renderRecipeServingBadges(recipe){
     badges.append(badge);
   }
   if(recipe.containsWhey){const badge=document.createElement('span');badge.className='recipe-whey';badge.textContent='Contient de la whey';badges.append(badge);}
-  return energy||recipe.containsWhey?badges:null;
+  const rating=recipeReviews.badge(recipe.id);if(rating)badges.append(rating);
+  return energy||recipe.containsWhey||rating?badges:null;
 }
 
 function recipeCard(recipe) {
@@ -3272,6 +3294,7 @@ function openMealDetails(meal) {
   $('#meal-details-title').textContent = `${slotLabels[meal.slot]} · ${displayDate(meal.mealDate)}`;
   $('#meal-details-message').textContent = '';
   body.replaceChildren(); actions.replaceChildren();
+  recipeReviews.renderMeal(body,meal);
   const status = document.createElement('p'); status.className = 'meal-details-status'; status.textContent = mealStatusLabel(meal); body.append(status);
   for (const person of meal.attendees ?? []) {
     const section = document.createElement('section'); section.className = 'meal-details-person';

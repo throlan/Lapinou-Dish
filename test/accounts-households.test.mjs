@@ -55,8 +55,8 @@ test('individual accounts enforce household isolation, roles, sessions and expli
  const switched=await request('PUT','/api/accounts/household',{householdId:other},ownerCookie);assert.equal(switched.status,200);
  assert.equal((await request('GET','/api/people?householdId='+h,null,ownerCookie)).status,403);
  assert.equal((await request('GET','/api/recipes/'+recipeId,null,ownerCookie)).status,404);
- assert.equal((await request('GET','/api/foods/'+foodId,null,ownerCookie)).status,404);
- const forged=await request('POST','/api/recipes',{householdId:other,name:'Forged recipe',yield:{amount:1,unitId:'portion'},lines:[{foodId,quantity:50,unitId:'g'}]},ownerCookie);
+ assert.equal((await request('GET','/api/foods/'+foodId,null,ownerCookie)).status,200);
+ const forged=await request('POST','/api/recipes',{householdId:other,name:'Forged recipe',yield:{amount:1,unitId:'portion'},lines:[{recipeId,quantity:1,unitId:'slice'}]},ownerCookie);
  assert.ok(forged.status>=400,JSON.stringify(forged));
  assert.equal((await request('PUT','/api/accounts/household',{householdId:other},memberCookie)).status,403);
  assert.equal((await request('DELETE','/api/accounts/members/'+setup.body.account.id,null,ownerCookie)).body.error,'last-household-manager');
@@ -90,7 +90,7 @@ test('individual accounts enforce household isolation, roles, sessions and expli
  const removed=await request('DELETE','/api/recipes/'+importedToast.body.id,{householdId:other,version:copiedToast.body.recipe.version},ownerCookie);assert.equal(removed.status,200,JSON.stringify(removed.body));
  const restoredToast=await request('POST','/api/community/import',{publicationId:toastPublication.body.id},ownerCookie);assert.equal(restoredToast.status,201,JSON.stringify(restoredToast.body));assert.notEqual(restoredToast.body.id,importedToast.body.id);
  assert.equal(copied.body.recipe.imageAvailable,true);
- assert.equal(Buffer.from((await pool.query('SELECT image_bytes FROM recipe_images WHERE recipe_id=$1',[imported.body.id])).rows[0].image_bytes).toString(),'synthetic-image');assert.notEqual(copied.body.recipe.lines[0].foodId,foodId);
+ assert.equal(Buffer.from((await pool.query('SELECT image_bytes FROM recipe_images WHERE recipe_id=$1',[imported.body.id])).rows[0].image_bytes).toString(),'synthetic-image');assert.equal(copied.body.recipe.lines[0].foodId,foodId);
  assert.equal((await request('PUT','/api/accounts/application/'+setup.body.account.id,{active:false,applicationAdmin:true},ownerCookie)).body.error,'last-application-admin');
  const changed=await request('PUT','/api/accounts/password',{currentPassword:'personal-password-234',password:'new-personal-password-234'},memberCookie);
  assert.equal(changed.status,200);assert.equal((await request('GET','/api/session',null,memberCookie)).body.authenticated,false);
@@ -109,7 +109,7 @@ test('individual accounts enforce household isolation, roles, sessions and expli
 test('migration preserves each existing household catalogue, recipe references and stock counts',async t=>{
  const db=new PGlite();t.after(()=>db.close());
  const files=(await readdir(new URL('../db/migrations/',import.meta.url))).filter(x=>x.endsWith('.sql')).sort();
- for(const name of files.filter(x=>x!=='20261111_accounts_households.sql'))await db.exec(await readFile(new URL('../db/migrations/'+name,import.meta.url),'utf8'));
+ for(const name of files.filter(x=>x<'20261111_accounts_households.sql'))await db.exec(await readFile(new URL('../db/migrations/'+name,import.meta.url),'utf8'));
  const [a,b,food,ra,rb,lineA,lineB]=Array.from({length:7},()=>randomUUID());
  await db.query("INSERT INTO households(id,name,created_at) VALUES($1,'A','2026-01-01'),($2,'B','2026-01-02')",[a,b]);
  await db.query("INSERT INTO foods(id,canonical_name,source,food_category) VALUES($1,'Legacy flour','manual','Flours')",[food]);

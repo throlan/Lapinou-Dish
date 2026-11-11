@@ -10,8 +10,14 @@ const errorLabels={
  'profile-outside-household':'Le profil sélectionné appartient à un autre foyer.',
  'household-manager-required':'Cette action nécessite le rôle de gestionnaire du foyer.',
  'application-admin-required':'Cette action nécessite le rôle d’administrateur de l’application.',
- 'official-food-readonly':'Aliment officiel partagé. Duplique-le pour créer une variante privée.',
- 'data-access-denied':'Cette donnée est protégée. Duplique un aliment officiel pour créer une variante privée.',
+ 'official-food-readonly':'Cet aliment est commun : propose une correction depuis sa fiche.',
+ 'empty-selection':'Sélectionne au moins une recette.',
+ 'package-too-large':'Un package peut contenir jusqu’à 500 recettes. Réduis la sélection ou crée plusieurs packages.',
+ 'invalid-starter-package':'Renseigne un nom et sélectionne de 1 à 500 recettes pour ce package.',
+ 'food-proposal-stale':'La fiche a changé depuis cette proposition. Réexamine ses valeurs et soumets une nouvelle proposition.',
+ 'meal-not-rateable':'Tu peux noter uniquement un repas passé auquel ton profil a participé.',
+ 'invalid-rating':'Choisis une note entière entre 1 et 5.',
+ 'data-access-denied':'Cette donnée est protégée. Pour un aliment commun, propose une correction depuis sa fiche.',
  'publication-unavailable':'Une recette du package a été retirée du partage. Actualise la liste.',
  'too-many-login-attempts':'Trop de tentatives. Réessaie dans quinze minutes.',
 };
@@ -56,8 +62,25 @@ function form(parent,label,action){
 function details(parent,title){
  const root=document.createElement('details');root.append(element('summary',title));parent.append(root);return root;
 }
+
+function selectionList(parent,items,label,initial=false){
+ const wrapper=element('div',null,'bulk-selection'),search=document.createElement('input');search.type='search';search.placeholder='Rechercher…';search.setAttribute('aria-label','Rechercher dans '+label);
+ const count=element('p',null,'selection-count'),list=element('div',null,'selection-results'),selected=new Set(initial?items.map(i=>i.id):[]);
+ list.setAttribute('aria-label',label);wrapper.append(search,count);parent.append(wrapper);
+ const visible=()=>items.filter(i=>i.name.toLocaleLowerCase('fr').includes(search.value.toLocaleLowerCase('fr')));
+ const update=()=>{count.textContent=selected.size+' sélectionnée(s) · '+visible().length+' résultat(s) sur '+items.length;};
+ function render(){list.replaceChildren();for(const item of visible()){
+  const row=element('label',null,'selection-row'),check=document.createElement('input');check.type='checkbox';check.checked=selected.has(item.id);check.value=item.id;
+  check.addEventListener('change',()=>{if(check.checked)selected.add(item.id);else selected.delete(item.id);update();});
+  const name=element('span',item.name);if(item.detail)name.append(element('small',item.detail));row.append(check,name);list.append(row);
+ }update();}
+ button(wrapper,'Tout sélectionner (résultats filtrés)',async()=>{for(const item of visible())selected.add(item.id);render();});
+ button(wrapper,'Tout désélectionner',async()=>{selected.clear();render();});wrapper.append(list);
+ search.addEventListener('input',render);render();return {values:()=>[...selected]};
+}
+
 export function createAccountUI({api,onSession}){
- let session;
+ let session,accountSection='personal';
  const root=document.querySelector('#account-management');
  const community=document.querySelector('#community-management');
  async function refreshSession(){session=await api('/api/session');onSession(session);renderSession(session);return session;}
@@ -68,6 +91,7 @@ export function createAccountUI({api,onSession}){
  function renderSession(value){
   session=value;
   const account=session.account;
+  document.body.classList.toggle('catalogue-contributor',Boolean(account&&!account.applicationAdmin));
   document.body.classList.toggle('member-mode',Boolean(account&&account.role!=='manager'));
   const banner=document.querySelector('#account-banner');banner.replaceChildren();
   if(!account)return;
@@ -78,7 +102,14 @@ export function createAccountUI({api,onSession}){
   root.replaceChildren();
   if(!session?.account)return;
   const account=session.account;
-  const personal=section(root,'Mon compte');
+  const intro=section(root,'Mes accès');intro.classList.add('account-access-summary');
+  const house=session.households.find(h=>h.id===account.householdId);
+  intro.append(element('p',account.displayName+' · '+account.login));
+  intro.append(element('p','Application : '+(account.applicationAdmin?'Administrateur':'Utilisateur')+' · Foyer actif : '+(house?.name??'Aucun')+' · '+(account.role==='manager'?'Gestionnaire et membre':account.role==='member'?'Membre':'Sans appartenance')));
+  const help=details(intro,'Comprendre les rôles');
+  for(const label of ['Membre du foyer : consulte les données communes, gère son profil et note ses repas.','Gestionnaire du foyer : possède les droits d’un membre et gère les menus, stocks, recettes et membres de ce foyer.','Administrateur de l’application : gère les comptes, les foyers, le catalogue alimentaire commun et les packages. Ce rôle se cumule avec celui du foyer.'])help.append(element('p',label));
+  const navigation=element('nav',null,'account-navigation');navigation.setAttribute('aria-label','Gestion de mon compte et de mes droits');root.append(navigation);
+  const personal=section(root,'Mon compte personnel');personal.dataset.scope='personal';
   personal.append(element('p','Identifiant · '+account.login));
   const password=form(personal,'Changer mon mot de passe',async data=>{
    await api('/api/accounts/password',{method:'PUT',body:JSON.stringify(data)});
@@ -98,14 +129,19 @@ export function createAccountUI({api,onSession}){
   }else personal.append(element('p','Le gestionnaire du foyer peut associer ton compte à un profil existant.'));
   if(account.role==='manager')await members();
   if(account.applicationAdmin)await application();
+  const scopes=[['personal','Mon compte'],...(account.role==='manager'?[['household','Mon foyer']]:[]),...(account.applicationAdmin?[['application','Administration de l’application']]:[])];
+  if(!scopes.some(([key])=>key===accountSection))accountSection='personal';
+  const activate=key=>{accountSection=key;for(const block of root.querySelectorAll('[data-scope]'))block.hidden=block.dataset.scope!==key;for(const control of navigation.children)control.setAttribute('aria-pressed',String(control.dataset.scopeKey===key));};
+  for(const [key,label] of scopes){const control=button(navigation,label,async()=>activate(key));control.dataset.scopeKey=key;}activate(accountSection);
  }
  async function members(){
-  const block=section(root,'Comptes et profils du foyer');
+  const block=section(root,'Membres de mon foyer');block.dataset.scope='household';
+  block.append(element('p','Les droits ci-dessous concernent uniquement le foyer actif. Un profil représente une personne dans les menus ; le compte lui permet de se connecter.'));
   const [{members},{people}]=await Promise.all([api('/api/accounts/members'),api('/api/people?householdId='+session.account.householdId)]);
   const profiles=[['','Sans profil personnel'],...people.map(p=>[p.id,p.displayName])];
-  const roles=[['member','Membre'],['manager','Gestionnaire et membre']];
+  const roles=[['member','Membre — consulter et gérer son profil'],['manager','Gestionnaire — gérer ce foyer (inclut membre)']];
   for(const member of members){
-   const row=details(block,member.displayName+' · '+member.login);
+   const row=details(block,member.displayName+' · '+(member.role==='manager'?'Gestionnaire':'Membre')+' · Profil : '+(people.find(p=>p.id===member.personId)?.displayName??'Non associé'));
    const edit=form(row,'Enregistrer les droits et le profil',async data=>{
     await api('/api/accounts/members/'+member.id,{method:'PUT',body:JSON.stringify(data)});
     await refreshSession();await load();
@@ -139,21 +175,23 @@ export function createAccountUI({api,onSession}){
  }
  async function application(){
   const data=await api('/api/accounts/application');
-  const block=section(root,'Administration de l’application');
+  const block=section(root,'Administration de l’application');block.dataset.scope='application';
+  block.append(element('p','Gère ici les comptes de connexion et les rattachements aux foyers. Les droits du foyer et le rôle d’administrateur de l’application sont indépendants.'));
   const accounts=details(block,'Gestion des comptes');
   const create=form(accounts,'Créer un compte',async value=>{
    await api('/api/accounts/application',{method:'POST',body:JSON.stringify(value)});await load();
   });
   field(create,'Identifiant','login');field(create,'Nom','displayName');field(create,'Mot de passe initial','password','password');
   for(const item of data.accounts){
-   const row=details(accounts,item.displayName+' · '+item.login);
+   const row=details(accounts,item.displayName+' · '+(item.applicationAdmin?'Administrateur application':'Utilisateur')+' · '+(item.active?'Actif':'Désactivé'));
+   row.append(element('p','Foyers : '+data.memberships.filter(m=>m.accountId===item.id).map(m=>(data.households.find(h=>h.id===m.householdId)?.name??'Foyer')+' — '+(m.role==='manager'?'Gestionnaire':'Membre')).join(' · ')));
    const edit=form(row,'Enregistrer le compte',async value=>{
     await api('/api/accounts/application/'+item.id,{method:'PUT',body:JSON.stringify({...value,active:value.active==='yes',applicationAdmin:value.applicationAdmin==='yes'})});
     if(item.id===session.account.id)location.reload();else await load();
    });
    field(edit,'Identifiant','login','text',item.login);field(edit,'Nom du compte','displayName','text',item.displayName);
    select(edit,'Accès à l’application','active',[['yes','Actif'],['no','Désactivé']],item.active?'yes':'no');
-   select(edit,'Administration de l’application','applicationAdmin',[['no','Non'],['yes','Oui']],item.applicationAdmin?'yes':'no');
+   select(edit,'Rôle dans l’application entière','applicationAdmin',[['no','Utilisateur'],['yes','Administrateur de l’application']],item.applicationAdmin?'yes':'no');
    field(edit,'Nouveau mot de passe, si nécessaire','password','password','',false);
   }
   const houses=details(block,'Gestion des foyers');
@@ -164,7 +202,16 @@ export function createAccountUI({api,onSession}){
   field(createHouse,'Nom du foyer','name');
   select(createHouse,'Premier gestionnaire','managerId',data.accounts.filter(a=>a.active).map(a=>[a.id,a.displayName]),session.account.id);
   for(const house of data.households){
-   const row=details(houses,house.name);
+   const roster=data.memberships.filter(m=>m.householdId===house.id);
+   const row=details(houses,house.name+' · '+roster.length+' compte(s)');
+   for(const member of roster)row.append(element('p',(data.accounts.find(a=>a.id===member.accountId)?.displayName??'Compte')+' · '+(member.role==='manager'?'Gestionnaire et membre':'Membre')+' · Profil : '+(data.profiles.find(p=>p.id===member.personId)?.displayName??'Non associé')));
+   const assign=form(row,'Enregistrer le rattachement et les droits',async value=>{
+    await api('/api/accounts/households/'+house.id+'/members',{method:'PUT',body:JSON.stringify(value)});await refreshSession();await load();
+   });
+   const who=select(assign,'Compte à rattacher ou à modifier','accountId',data.accounts.filter(a=>a.active).map(a=>[a.id,a.displayName+' ('+a.login+')']),roster[0]?.accountId);
+   const role=select(assign,'Rôle dans ce foyer','role',[['member','Membre'],['manager','Gestionnaire (inclut membre)']],'member');
+   const profile=select(assign,'Profil personnel dans ce foyer','personId',[['','Sans profil'],...data.profiles.filter(p=>p.householdId===house.id).map(p=>[p.id,p.displayName])],'');
+   const populate=()=>{const current=roster.find(m=>m.accountId===who.value);role.value=current?.role??'member';profile.value=current?.personId??'';};who.addEventListener('change',populate);populate();
    const edit=form(row,'Renommer le foyer',async value=>{await api('/api/accounts/households/'+house.id,{method:'PUT',body:JSON.stringify(value)});await load();});
    field(edit,'Nom','name','text',house.name);
    button(row,'Rejoindre et gérer ce foyer',async()=>{
@@ -179,73 +226,96 @@ export function createAccountUI({api,onSession}){
   if(!session?.account)return;
   const data=await api('/api/community');
   const manager=session.account.role==='manager';
-  const packages=section(community,'Packages de démarrage');
-  if(!data.packages.length)packages.append(element('p','L’administrateur de l’application peut composer un premier package à partir des recettes publiées.'));
-  for(const pack of data.packages){
-   const card=details(packages,pack.name);card.append(element('p',pack.description));
-   if(session.account.applicationAdmin)button(card,'Retirer ce package',async()=>{await api('/api/community/packages/'+pack.id,{method:'DELETE'});await loadCommunity();});
-   const choices=[];
-   for(const id of pack.publicationIds){
-    const publication=data.publications.find(p=>p.id===id);
-    if(!publication)continue;
-    const label=element('label',publication.name),check=document.createElement('input');check.type='checkbox';check.value=id;check.checked=true;
-    label.prepend(check);card.append(label);choices.push(check);
-   }
-   if(manager)button(card,'Ajouter les recettes cochées à mon foyer',async()=>{
-    try{
-     const result=await api('/api/community/packages/import',{method:'POST',body:JSON.stringify({packageId:pack.id,publicationIds:choices.filter(c=>c.checked).map(c=>c.value)})});
-     card.append(element('p',result.results.length+' recette(s) ajoutée(s) ou déjà présente(s).'));
-    }catch(error){card.append(element('p',accountMessage(error)));}
-   });
-  }
+  const intro=section(community,'Recettes à partager et à découvrir');
+  intro.append(element('p','Les aliments sont déjà communs à tous les foyers. Ici, partage et importe les recettes par sélection multiple. Les menus, profils et stocks restent privés.'));
   if(manager){
-   const publish=section(community,'Partager un aliment ou une recette');
-   publish.append(element('p','La publication rend le contenu et les ingrédients nécessaires accessibles aux autres foyers. Les destinataires en récupèrent une copie privée.'));
-   const create=form(publish,'Publier dans le catalogue partagé',async value=>{
-    await api('/api/community/publish',{method:'POST',body:JSON.stringify(value)});await loadCommunity();
-   });
-   const kind=select(create,'Type','kind',[['recipe','Recette'],['food','Aliment']],'recipe');
-   const search=field(create,'Rechercher dans mon catalogue','search','search','',false);
-   const source=select(create,'À partager','id',[],'');
-   const populate=async()=>{
-    const items=kind.value==='recipe'
-     ?(await api('/api/recipes?householdId='+session.account.householdId)).recipes.filter(r=>!r.recipeArchived&&r.name.toLowerCase().includes(search.value.toLowerCase()))
-     :(await api('/api/foods?limit=250&q='+encodeURIComponent(search.value))).foods;
-    source.replaceChildren(...items.map(item=>new Option(item.name,item.id)));
-   };
-   let timer;search.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(()=>populate().catch(()=>{}),250);});
-   kind.addEventListener('change',()=>populate().catch(()=>{}));await populate();
-  }
-  const shared=section(community,'Catalogue partagé');
-  for(const publication of data.publications){
-   const row=details(shared,publication.name+' · '+(publication.kind==='recipe'?'Recette':'Aliment'));
-   row.addEventListener('toggle',async()=>{
-    if(!row.open||row.dataset.loaded)return;row.dataset.loaded='true';
-    try{
-     const {payload}=await api('/api/community/publications/'+publication.id);
-     row.append(element('p','Ingrédients · '+payload.foods.map(food=>food.name).join(', ')));
-     const rootRecipe=payload.recipes.find(recipe=>recipe.id===payload.rootId);if(rootRecipe?.instructions)row.append(element('p',rootRecipe.instructions));
-    }catch(error){row.dataset.loaded='';row.append(element('p',accountMessage(error)));}
-   });
-   if(manager)button(row,'Ajouter une copie à mon foyer',async()=>{
-    try{const result=await api('/api/community/import',{method:'POST',body:JSON.stringify({publicationId:publication.id})});row.append(element('p',result.replayed?'Cette publication a déjà été ajoutée.':'Copie ajoutée à ton foyer.'));}
-    catch(error){row.append(element('p',accountMessage(error)));}
-   });
-   if((manager&&publication.mine)||session.account.applicationAdmin)button(row,'Retirer du partage',async()=>{
-    if(!confirm('Retirer cette publication du catalogue partagé ? Les copies déjà récupérées resteront chez leurs destinataires.'))return;
-    await api('/api/community/publications/'+publication.id,{method:'DELETE'});await loadCommunity();
-   });
-  }
-  if(session.account.applicationAdmin){
-   const admin=section(community,'Composer un package officiel');
-   const selected=[];
-   const create=form(admin,'Créer le package de démarrage',async value=>{
-    await api('/api/community/packages',{method:'POST',body:JSON.stringify({...value,publicationIds:selected.filter(x=>x.checked).map(x=>x.value)})});await loadCommunity();
-   });
-   field(create,'Nom du package','name');field(create,'Description','description','text','',false);
-   for(const publication of data.publications.filter(p=>p.kind==='recipe')){
-    const label=element('label',publication.name),check=document.createElement('input');check.type='checkbox';check.value=publication.id;label.prepend(check);create.append(label);selected.push(check);
+   const publish=section(community,'Partager mes recettes en lot');
+   publish.append(element('p','Recherche, sélectionne tous les résultats ou coche quelques recettes. Une recette déjà publiée est mise à jour sans doublon ; les copies déjà importées restent indépendantes.'));
+   const recipes=(await api('/api/recipes?householdId='+session.account.householdId,{timeoutMs:60000})).recipes.filter(r=>!r.recipeArchived&&!r.parentRecipeId);
+   const published=new Set(data.publications.filter(p=>p.mine).map(p=>p.sourceRecipeId));
+   const selection=selectionList(publish,recipes.map(r=>({id:r.id,name:r.name,detail:published.has(r.id)?'Déjà partagée':'Privée'})),'Mes recettes');
+   const progress=element('p',null,'form-message');progress.setAttribute('role','status');publish.append(progress);
+   async function publishSelected(){
+    const selected=selection.values();if(!selected.length)throw {body:{error:'empty-selection'}};
+    const results=[];
+    for(let offset=0;offset<selected.length;offset+=10){
+     progress.textContent='Publication : '+offset+' / '+selected.length+' recettes…';
+     const result=await api('/api/community/publish-batch',{method:'POST',timeoutMs:120000,body:JSON.stringify({recipeIds:selected.slice(offset,offset+10)})});results.push(...result.results);
+    }
+    progress.textContent=results.length+' recette(s) partagée(s).';return results.map(r=>r.id);
    }
+   form(publish,'Partager la sélection',async()=>{await publishSelected();await loadCommunity();});
+   if(session.account.applicationAdmin){
+    const packageForm=form(publish,'Créer un package avec la sélection',async value=>{
+     if(selection.values().length>500)throw {body:{error:'package-too-large'}};
+     const publicationIds=await publishSelected();
+     await api('/api/community/packages',{method:'POST',body:JSON.stringify({...value,publicationIds})});await loadCommunity();
+    });
+    field(packageForm,'Nom du nouveau package','name');field(packageForm,'Description','description','text','',false);
+   }
+  }
+  const packages=section(community,'Packages de recettes');
+  packages.append(element('p','Un package rassemble des recettes. Les aliments nécessaires sont déjà disponibles dans le catalogue commun. Les rôles des comptes se règlent dans Comptes et foyers.'));
+  if(!data.packages.length)packages.append(element('p','Aucun package pour le moment. L’administrateur peut en créer un directement depuis une sélection de recettes ci-dessus.'));
+  for(const pack of data.packages){
+   const card=details(packages,pack.name+' · '+pack.publicationIds.length+' recettes');card.append(element('p',pack.description));
+   const choices=selectionList(card,pack.publicationIds.map(id=>data.publications.find(p=>p.id===id)).filter(Boolean),'Recettes du package',true);
+   if(manager)form(card,'Importer la sélection dans mon foyer',async()=>{
+    const publicationIds=choices.values();if(!publicationIds.length)throw {body:{error:'empty-selection'}};
+    await api('/api/community/packages/import',{method:'POST',timeoutMs:180000,body:JSON.stringify({packageId:pack.id,publicationIds})});
+   });
+   if(session.account.applicationAdmin)button(card,'Retirer ce package',async()=>{
+    if(!confirm('Retirer ce package ? Les recettes déjà importées restent disponibles.'))return;
+    await api('/api/community/packages/'+pack.id,{method:'DELETE'});await loadCommunity();
+   });
+  }
+  const shared=section(community,'Bibliothèque partagée');
+  const recipes=data.publications.filter(p=>p.kind==='recipe');
+  const choices=selectionList(shared,recipes.map(p=>({...p,detail:p.ratingCount?'★ '+Number(p.ratingAverage).toFixed(1)+' / 5 · '+p.ratingCount+' avis':p.mine?'Mon foyer':'Recette partagée'})),'Recettes partagées');
+  if(manager)form(shared,'Importer les recettes sélectionnées',async()=>{
+   const selected=choices.values();if(!selected.length)throw {body:{error:'empty-selection'}};
+   for(let offset=0;offset<selected.length;offset+=10)await api('/api/community/import-batch',{method:'POST',timeoutMs:120000,body:JSON.stringify({publicationIds:selected.slice(offset,offset+10)})});
+  });
+  const preview=details(shared,'Consulter une recette ou retirer une publication');
+  const source=select(preview,'Recette','publication',recipes.map(p=>[p.id,p.name]),'');
+  const content=element('div');preview.append(content);
+  button(preview,'Afficher la recette',async()=>{
+   content.replaceChildren();try{
+    const {payload}=await api('/api/community/publications/'+source.value);
+    content.append(element('p','Ingrédients · '+payload.foods.map(food=>food.name).join(', ')));
+    const root=payload.recipes.find(recipe=>recipe.id===payload.rootId);if(root?.instructions)content.append(element('p',root.instructions));
+   }catch(error){content.append(element('p',accountMessage(error)));}
+  });
+  if(manager||session.account.applicationAdmin)button(preview,'Retirer cette publication du partage',async()=>{
+   if(!confirm('Retirer la publication sélectionnée ? Les copies déjà importées restent disponibles.'))return;
+   try{await api('/api/community/publications/'+source.value,{method:'DELETE'});await loadCommunity();}catch(error){content.textContent=accountMessage(error);}
+  });
+  if(session.account.applicationAdmin){
+   const compose=details(shared,'Créer un package depuis les publications sélectionnées');
+   const create=form(compose,'Créer ce package',async value=>{
+    const publicationIds=choices.values();if(!publicationIds.length)throw {body:{error:'empty-selection'}};
+    await api('/api/community/packages',{method:'POST',body:JSON.stringify({...value,publicationIds})});await loadCommunity();
+   });field(create,'Nom du package','name');field(create,'Description','description','text','',false);
+  }
+  const corrections=section(community,session.account.applicationAdmin?'Corrections des aliments à examiner':'Mes propositions de correction');
+  corrections.append(element('p','Depuis une fiche aliment, propose des valeurs corrigées. Seul l’administrateur de l’application peut les appliquer au catalogue commun.'));
+  const proposals=(await api('/api/community/food-proposals')).proposals;
+  if(!proposals.length)corrections.append(element('p','Aucune proposition.'));
+  for(const item of proposals){
+   const statuses={pending:'À examiner',approved:'Appliquée',rejected:'Refusée'};
+   const row=details(corrections,item.name+' · '+statuses[item.status]);
+   row.append(element('p',(item.author??'Ancien compte')+(item.reason?' · '+item.reason:'')));
+   const table=element('table');table.className='proposal-diff';
+   const header=element('tr');for(const label of ['Champ','Valeur actuelle à la proposition','Valeur proposée'])header.append(element('th',label));table.append(header);
+   const labels={name:'Nom',brand:'Marque',foodCategory:'Catégorie',nutrientsPer100g:'Nutrition / 100 g',gramsPerUnit:'Mesures (g)',gramsPerMillilitre:'Densité',cookingFactor:'Coefficient de cuisson',aliases:'Autres noms'};
+   const display=value=>value==null?'—':typeof value==='object'?Object.entries(value).map(([key,item])=>key+' : '+(item??'—')).join(' · '):String(value);
+   for(const [key,label] of Object.entries(labels)){
+    if(JSON.stringify(item.before[key]??null)===JSON.stringify(item.proposed[key]??null))continue;
+    const tr=element('tr');for(const value of [label,display(item.before[key]),display(item.proposed[key])])tr.append(element('td',value));table.append(tr);
+   }row.append(table);
+   if(session.account.applicationAdmin&&item.status==='pending')for(const [status,label] of [['approved','Appliquer au catalogue'],['rejected','Refuser']])form(row,label,async()=>{
+    await api('/api/community/food-proposals/'+item.id,{method:'PUT',body:JSON.stringify({status})});await loadCommunity();
+   });
   }
  }
  document.querySelector('#bootstrap-load').addEventListener('click',async()=>{

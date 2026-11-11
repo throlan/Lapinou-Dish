@@ -55,7 +55,7 @@ test('rendered recipe cards visibly expose a named delete action bound to that r
   const element=tag=>({tag,options:[],replaceChildren(){this.options=[];},children:[],attributes:{},handlers:{},classList:{add(){}},append(...items){this.children.push(...items);for(const item of items)if(item&&typeof item==='object')item.parentElement=this;if(tag==='select')this.options.push(...items);},
     dataset:{},setAttribute(key,value){this.attributes[key]=value;},addEventListener(name,fn){this.handlers[name]=fn;}});
   const removed=[];const recipe={id:'card-id',name:'Visible recipe',lines:[],yield:{amount:4,unitId:'portion'},nutrition:{complete:true,perYieldUnit:{}}};
-  const context={recipeEnergyBadge:()=>null,recipeServiceChoices,recipeServiceMode,document:{createElement:element,createTextNode:text=>({textContent:text})},recipeTypeLabel:()=> 'Plat',productionTypeLabel:id=>id,populateProductionTypeSelect:(select,value)=>{select.replaceChildren({value,textContent:'none'});select.value=value;},format:String,
+  const context={recipeReviews:{badge:()=>null},recipeEnergyBadge:()=>null,recipeServiceChoices,recipeServiceMode,document:{createElement:element,createTextNode:text=>({textContent:text})},recipeTypeLabel:()=> 'Plat',productionTypeLabel:id=>id,populateProductionTypeSelect:(select,value)=>{select.replaceChildren({value,textContent:'none'});select.value=value;},format:String,
     recipeMissingData:()=>[],requestRecipeDeletion:(...args)=>removed.push(args)};
   const imageStart=source.indexOf('function recipeImageElement('),imageEnd=source.indexOf('\nfunction dashboardPanel(',imageStart);
   runInNewContext(source.slice(imageStart,imageEnd)+'\n'+source.slice(a,b)+'\nglobalThis.render=recipeCard;',context);
