@@ -12,7 +12,7 @@ export function createRecipeReviews({api,getAccount,onChange}) {
  async function load(){const current=++sequence,data=await api('/api/community/ratings');if(current===sequence)overview=data;return overview;}
  function badge(id){
   const item=overview.recipes.find(r=>r.id===id),label=ratingLabel(item?.average,item?.count??0);
-  return label?node('span',label,'recipe-rating'):null;
+  if(!label)return null;const result=node('span',label,'recipe-rating');result.dataset.average=item.average;result.dataset.count=item.count;result.title=label;return result;
  }
  function filterRecipes(recipes){return recipes.filter(recipe=>{
   const item=overview.recipes.find(r=>r.id===recipe.id);
