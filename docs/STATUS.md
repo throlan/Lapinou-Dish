@@ -1,6 +1,6 @@
 # État du projet — 11 novembre 2026
 
-## Développement des comptes — 0.4.0
+## Développement des comptes — 0.4.1
 
 Comptes individuels, rôles cumulables, sélection du foyer actif, profils personnels, isolation PostgreSQL, partage volontaire et packages de recettes. La référence fonctionnelle reste la release 0.3.32. Voir REPRISE.md pour la première connexion et ROLLBACK.md pour la compatibilité de la base.
 

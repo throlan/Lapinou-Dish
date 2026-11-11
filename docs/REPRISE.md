@@ -1,6 +1,6 @@
 # Cahier de reprise — 11 novembre 2026
 
-## Comptes individuels, foyers privés et partage — 0.4.0
+## Comptes individuels, foyers privés et partage — 0.4.1
 
 Cette version introduit un compte de connexion distinct du profil de personne. Le rôle administrateur de l’application est cumulable avec le rôle gestionnaire ou membre dans chaque foyer. Un compte peut appartenir à plusieurs foyers et choisir son foyer actif. Les profils existants et les profils sans compte restent utilisables.
 

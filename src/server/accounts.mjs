@@ -345,7 +345,7 @@ export async function accountGateway(request,response,pool,appPassword,legacyHan
   const handled=await accountRoutes(pool,request,response,url,actor,appPassword);
   if(handled!==false)return;
   if(!actor)throw accountError('authentication-required',401);
-  if(sharingHandler&&url.pathname.startsWith('/api/community'))return sharingHandler(request,response,pool,actor);
+  if(sharingHandler&&url.pathname.startsWith('/api/community'))return await sharingHandler(request,response,pool,actor);
   if(url.pathname==='/api/households'&&request.method==='GET')return sendAccount(response,200,{households:(await publicSession(pool,actor)).households});
   if(url.pathname==='/api/households')throw accountError('use-account-household-management',403);
   if(!actor.householdId)throw accountError('household-membership-required',403);
