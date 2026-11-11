@@ -1,5 +1,9 @@
 # Prochaines tâches — 6 novembre 2026
 
+## Relecture des recettes — 0.6.0
+
+Utiliser le filtre Non validées pour reprendre les quelque 200 recettes, compléter les temps, la difficulté et les étapes, puis cocher Recette validée. Le repère ne bloque pas les ajustements ultérieurs. Valider l’ergonomie de la fiche Cuisiner après déploiement par l’utilisateur.
+
 ## À vérifier après déploiement de la 0.5.0
 
 Valider les rattachements compte–profil et les rôles dans le nouvel écran, sélectionner les recettes à partager ou à inclure dans un package, puis utiliser les notes dans les repas passés. Les aliments sont désormais communs sans publication individuelle ; les corrections attendent l’administrateur. Les invitations par courriel et la récupération autonome de compte restent ultérieures.

@@ -83,3 +83,7 @@ PR #155 fusionnée au commit `571d72bab17c4970f838a6799234e95d40495077` ; contr�
 ## Migration 0.5.0 — catalogue commun et avis
 
 Tous les aliments existants deviennent communs à la demande de l’utilisateur ; leurs valeurs, identifiants et références sont conservés. Les nouvelles tables stockent les propositions de correction et les avis. Les copies de recettes déjà importées conservent une identité de notation liée à leur origine, sans réécrire leurs ingrédients ou rendements privés. Pour retrouver le comportement antérieur de confidentialité ou de modification des aliments, restaurer la sauvegarde de base prise avant cette migration en même temps que l’image antérieure. La 0.3.32 reste conservée comme référence fonctionnelle.
+
+## Migration 0.6.0 — méthode et relecture
+
+Ajout des informations de préparation, étapes structurées et validation de relecture. Les anciens textes sont conservés. Une ancienne application ignore ces nouveaux champs et peut les désynchroniser si elle réédite les instructions ; un retour complet au comportement antérieur doit donc utiliser la sauvegarde de base correspondante. La 0.3.32 reste figée et nécessite toujours la base antérieure à la gestion des comptes.

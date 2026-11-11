@@ -35,7 +35,7 @@ export async function snapshotPublication(scoped,actor,kind,id){
   // Only recipe content and its food dependencies are published.
   const {data,error}=validateRecipeInput(input);
   if(error)throw accountError(error);
-  const content={...data};delete content.householdId;
+  const content={...data};delete content.householdId;delete content.reviewValidated;
   const reviewKey=(await scoped.query('SELECT review_key FROM recipes WHERE id=$1',[recipeId])).rows[0]?.review_key;
   recipes.set(recipeId,{id:recipeId,...content,reviewKey});
   const photo=await readRecipeImage(scoped,recipeId,actor.householdId);

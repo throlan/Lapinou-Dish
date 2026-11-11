@@ -31,6 +31,7 @@ export function recipeEnergyBadge(recipe) {
 export function filterRecipeDirectory(recipes, filters) {
   const query = normalize(filters.query ?? '');
   return recipes.filter(recipe => {
+    if(filters.validation==='validated'&&!recipe.reviewValidated||filters.validation==='unvalidated'&&recipe.reviewValidated)return false;
     if (filters.service && recipeServiceMode(recipe)!==filters.service) return false;
     if (filters.type && (recipe.recipeType ?? 'dish') !== filters.type) return false;
     if (filters.moment === 'untagged' && recipe.mealMoments?.length) return false;

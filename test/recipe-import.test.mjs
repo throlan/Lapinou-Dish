@@ -61,3 +61,13 @@ function zip(entries) {
   end.writeUInt32LE(centralBytes.length, 12); end.writeUInt32LE(offset, 16);
   return Buffer.concat([...local, centralBytes, end]);
 }
+
+
+test('archive imports retain separate explicit durations and steps without turning passive time into guessed cooking time',()=>{
+ const norish={name:'Bread',servings:4,prepTime:'PT20M',restTime:'PT1H',cookTime:'PT30M',recipeIngredients:[{amount:100,unit:'g',ingredientName:'Flour'}],steps:[{step:'Mix.'},{step:'Rest.'},{step:'Bake.'}]};
+ const imported=parseRecipeArchive(zip({'manifest.json':JSON.stringify({format:'norish-recipes',formatVersion:1}),'bread/recipe.json':JSON.stringify(norish)})).recipes[0];
+ assert.deepEqual(imported.steps,['Mix.','Rest.','Bake.']);assert.deepEqual(imported.cooking,{prepMinutes:20,restMinutes:60,cookMinutes:30});
+ const tandoor={name:'Bread',servings:4,working_time:15,waiting_time:90,steps:[{instruction:'Mix and wait.',ingredients:[{food:{name:'Flour'},unit:{name:'g'},amount:100}]}]};
+ const draft=parseRecipeArchive(zip({'bread.zip':zip({'recipe.json':JSON.stringify(tandoor)})})).recipes[0];
+ assert.equal(draft.cooking.prepMinutes,15);assert.equal(draft.cooking.restMinutes,undefined);assert.equal(draft.cooking.cookMinutes,undefined);assert.match(draft.warnings[0],/90 min/);assert.equal(draft.rawPayload.waiting_time,90);
+});

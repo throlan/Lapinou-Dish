@@ -1,3 +1,5 @@
+import {createRecipeMethodEditor} from './recipe-method-editor.js';
+import {renderCookingMethod} from './cooking-method-view.js';
 import {createRecipeReviews} from './recipe-reviews.js';
 import {createAccountUI,accountMessage} from './accounts-ui.js';
 import { breakfastServingLimit, calculateDailyEnergy, calculateDailyProtein, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, dailyProteinTarget, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';
@@ -17,6 +19,7 @@ import { recipeEnergyBadge, ingredientCookingFactor, recipeServiceChoices, recip
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const state = { offset: 0, limit: 50, query: '', foodCategory: '', missingField: '', onlyIncomplete: false, total: 0, household: null, selectedFoodIds:new Set(), mealAdditions:[], productionTypes:[], productionTypesHouseholdId:null, debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, editingFoodFromShopping: false, editingOrderLinkId: null, importingDraftId: null, generateImportedImage: false, people: [], recipes: [], plannedRecipeIds: [], plannedRecipeLookupError: null, preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, proteinTargets: {}, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
+const recipeMethodEditor=createRecipeMethodEditor(document.querySelector('#recipe-method-editor'),document.querySelector('#recipe-form'));
 const accountUI=createAccountUI({api,onSession:session=>{state.account=session.account??null;}});
 const recipeReviews=createRecipeReviews({api,getAccount:()=>state.account,onChange:()=>renderFilteredRecipes()});
 recipeReviews.addFilter(document.querySelector('.recipe-display-toolbar'));
@@ -1976,7 +1979,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
   try {
     const path = state.editingRecipeId ? `/api/recipes/${state.editingRecipeId}` : '/api/recipes';
     const method = state.editingRecipeId ? 'PUT' : 'POST';
-    const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, productionType: form.elements.productionType.value, minimumProductionAmount:Number(form.elements.minimumProductionAmount.value||0),minimumProductionUnitId:form.elements.minimumProductionUnitId.value, recipeType: form.elements.recipeType.value, mealMoments: [...form.querySelectorAll('input[name="mealMoments"]:checked')].map((input) => input.value), instructions: form.elements.instructions.value, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, outputUnits:Object.fromEntries(['piece','slice','portion','g','ml'].flatMap(unit=>{const value=form.elements['output_'+unit]?.value;return value?[[unit,Number(unit===form.elements.yieldUnit.value?form.elements.yieldAmount.value:value)]]:[];})), ...servingOptions, lines }) });
+    const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, productionType: form.elements.productionType.value, minimumProductionAmount:Number(form.elements.minimumProductionAmount.value||0),minimumProductionUnitId:form.elements.minimumProductionUnitId.value, recipeType: form.elements.recipeType.value, mealMoments: [...form.querySelectorAll('input[name="mealMoments"]:checked')].map((input) => input.value), instructions: form.elements.instructions.value,steps:recipeMethodEditor.steps(),cooking:recipeMethodEditor.cooking(),reviewValidated:form.elements.reviewValidated.checked, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, outputUnits:Object.fromEntries(['piece','slice','portion','g','ml'].flatMap(unit=>{const value=form.elements['output_'+unit]?.value;return value?[[unit,Number(unit===form.elements.yieldUnit.value?form.elements.yieldAmount.value:value)]]:[];})), ...servingOptions, lines }) });
     const generateImage=state.generateImportedImage;state.generateImportedImage=false;
     if (state.importingDraftId) {
       await api(`/api/recipe-imports/${state.importingDraftId}/converted`, { method: 'POST', body: JSON.stringify({ householdId: state.household.id }) });
@@ -1996,6 +1999,9 @@ $('#recipe-form').addEventListener('submit', async (event) => {
     await refreshRecipes();
   } catch (error) {
     const servingErrors={
+      'invalid-recipe-steps':'Vérifie les étapes : au plus 300 étapes et 20 000 caractères au total.',
+      'invalid-cooking-details':'Vérifie les durées en minutes entières et la température entre 0 et 500 °C.',
+      'invalid-recipe-validation':'La validation doit être cochée ou décochée.',
       'recipe-output-in-use':'Cette préparation a déjà été utilisée dans une autre production. Garde son unité et ses parties de service pour préserver l’historique ; duplique-la pour créer un autre format.',
       'recipe-ingredient-cycle':'Une préparation ne peut pas contenir elle-même, même via une autre recette.',
       'recipe-ingredient-not-found':'Une préparation liée est indisponible dans ce foyer. Choisis une recette existante.',
@@ -2024,7 +2030,7 @@ async function openRecipeEditor(id = null, duplicate = false) {
   await refreshProductionTypes();
   const form = $('#recipe-form');
   $('#recipe-import-source')?.remove();
-  form.reset();
+  form.reset();recipeMethodEditor.load();
   populateProductionTypeSelect(form.elements.productionType,'none');
   $('#recipe-lines').replaceChildren();
   $('#recipe-message').textContent = '';
@@ -2049,7 +2055,7 @@ async function openRecipeEditor(id = null, duplicate = false) {
       for (const checkbox of form.querySelectorAll('input[name="mealMoments"]')) checkbox.checked = (recipe.mealMoments ?? []).includes(checkbox.value);
       populateProductionTypeSelect(form.elements.productionType,recipe.productionType ?? 'none');
       form.elements.sourceUrl.value = recipe.sourceUrl ?? '';
-      form.elements.instructions.value = recipe.instructions ?? '';
+      recipeMethodEditor.load(recipe);form.elements.reviewValidated.checked=!duplicate&&Boolean(recipe.reviewValidated);
       form.elements.yieldAmount.value = recipe.yield.amount;
       if(form.elements.yieldUnit.options&&![...form.elements.yieldUnit.options].some(option=>option.value===recipe.yield.unitId))
         form.elements.yieldUnit.add(new Option(recipe.yield.unitId,recipe.yield.unitId));
@@ -2077,12 +2083,12 @@ const recipeFilterChoices={
   type:[['','Tous'],['dish','Plat'],['salad','Salade'],['sauce','Sauce'],['beverage','Boisson'],['accompaniment','Accompagnement'],['dessert','Dessert']],
   moment:[['','Tous'],['breakfast','Petit-déjeuner'],['lunch','Déjeuner'],['snack','Collation'],['dinner','Dîner'],['untagged','Sans tag']],
 };
-const recipeFilters={type:'',moment:'',service:'',query:'',missing:'',page:1};
+const recipeFilters={type:'',moment:'',service:'',query:'',missing:'',validation:'all',page:1};
 let recipeDisplay=recipeDisplayPreferences();
 async function showRecipeCard(recipeId,recipeName=null){
   const recipe=recipeCardForSource(state.recipes,recipeId) ?? (recipeName?{id:recipeId,name:recipeName}:null);
   if(!recipe)return;
-  recipeFilters.type='';recipeFilters.moment='';recipeFilters.service='';recipeFilters.missing='';recipeFilters.query=recipe.name;recipeFilters.page=1;
+  recipeFilters.type='';recipeFilters.moment='';recipeFilters.service='';recipeFilters.missing='';recipeFilters.validation='all';recipeFilters.query=recipe.name;recipeFilters.page=1;
   $('#recipe-search').value=recipe.name;
   $('#recipe-missing-filter').value='';
   await setView('recipes');
@@ -2096,6 +2102,7 @@ function renderCookingIngredients(){
   const servingQuantities=!free&&cookingPartInputs.length?cookingPartInputs.map(({part,input})=>({recipeId:part.recipeId,quantity:Number(input.value)})):undefined;
   if(servingQuantities)form.elements.quantity.value=String(servingQuantities.reduce((sum,part)=>sum+part.quantity,0));
   const quantity=Number(form.elements.quantity.value),root=$('#cook-ingredients');root.replaceChildren();
+  $('#cook-quantity-summary').textContent='Quantités · '+formatQty(quantity)+' '+({portion:'portions',piece:'pièces',slice:'tranches',g:'g',ml:'ml'}[(free?recipe.yield:cookingYield(recipe)).unitId]??'')+(free?' · Hors menus':' · Selon les menus')+' · Ajuster';
   if(cookingState){
     if(free)cookingState.freeQuantity=form.elements.quantity.value;
     else{cookingState.menuQuantity=form.elements.quantity.value;if(servingQuantities)cookingState.menuParts=servingQuantities;}
@@ -2112,7 +2119,8 @@ function renderCookingIngredients(){
     const list=document.createElement('ul');
     for(const line of lines.filter(item=>(item.servingPart??'main')===part)){
       const entry=document.createElement('li'),label=document.createElement('label'),check=document.createElement('input');check.type='checkbox';
-      label.append(check,document.createTextNode(` ${formatQty(line.scaledQuantity)} ${line.unitId} · ${line.foodName??'Aliment à vérifier'}`));entry.append(label);
+      const unitLabel={piece:line.scaledQuantity===1?'pièce':'pièces',slice:line.scaledQuantity===1?'tranche':'tranches',portion:line.scaledQuantity===1?'portion':'portions',tsp:'c. à café',tbsp:'c. à soupe',pinch:'pincée(s)',scoop:'dosette(s)',cup:'tasse(s)'}[line.unitId]??line.unitId;
+      label.append(check,document.createTextNode(` ${formatQty(line.scaledQuantity)} ${unitLabel} · ${line.foodName??'Aliment à vérifier'}`));entry.append(label);
       if(line.recipeId){const link=document.createElement('button');link.type='button';link.className='text-button';link.textContent='Voir la préparation';link.addEventListener('click',()=>{$('#cook-dialog').close();showRecipeCard(line.recipeId);});entry.append(link);}
       list.append(entry);
     }
@@ -2174,7 +2182,7 @@ function openCookingSheet(recipeId,quantity,productionDate,planned,initialMode='
   $('#save-cook').disabled=false;
   form.elements.producedOn.value=productionDate||localDateValue();
   $('#cook-title').textContent=recipe.name;$('#cook-description').textContent=recipe.description??'';
-  $('#cook-instructions').textContent=recipe.instructions?.trim()||'Aucune instruction renseignée dans la recette.';
+  renderCookingMethod(recipe,{imageFactory:r=>recipeImageElement(r,'cook-portrait'),getRating:()=>recipeReviews.badge(recipe.id)});
   const source=$('#cook-source');source.replaceChildren();if(recipe.sourceUrl){const link=document.createElement('a');link.href=recipe.sourceUrl;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Source de la recette';source.append(link);}
   stopCookingInstagram();stopCookingInstagram=mountCookingInstagram($('#cook-video'),recipe.sourceUrl,document);
   const tracked=recipe.productionType&&recipe.productionType!=='none';
@@ -2255,7 +2263,7 @@ function renderFilteredRecipes(){
       return button;
     }));
   }
-  $('#recipe-missing-filter').value=recipeFilters.missing;
+  $('#recipe-missing-filter').value=recipeFilters.missing;$('#recipe-validation-filter').value=recipeFilters.validation;
 }
 function saveRecipeDisplay(){try{localStorage.setItem('lapinou-recipe-display',JSON.stringify(recipeDisplay));}catch{}renderFilteredRecipes();}
 for(const view of ['grid','list'])$('#recipe-view-'+view)?.addEventListener('click',()=>{recipeDisplay.view=view;saveRecipeDisplay();});
@@ -2263,6 +2271,8 @@ $('#recipe-columns')?.addEventListener('change',event=>{recipeDisplay.columns=Nu
 $('#recipe-per-page')?.addEventListener('change',event=>{recipeDisplay.perPage=Number(event.target.value);recipeFilters.page=1;saveRecipeDisplay();});
 $('#recipe-service-filter')?.addEventListener('change',event=>{recipeFilters.service=event.target.value;recipeFilters.page=1;try{localStorage.setItem('lapinou-recipe-filters',JSON.stringify({type:recipeFilters.type,moment:recipeFilters.moment,service:recipeFilters.service}));}catch{}renderFilteredRecipes();});
 $('#recipe-search')?.addEventListener('input',event=>{recipeFilters.query=event.target.value.trim();recipeFilters.page=1;renderFilteredRecipes();});
+$('#recipe-validation-filter')?.addEventListener('change',event=>{recipeFilters.validation=event.target.value;recipeFilters.page=1;try{localStorage.setItem('lapinou-recipe-validation',recipeFilters.validation);}catch{}renderFilteredRecipes();});
+try{const saved=localStorage.getItem('lapinou-recipe-validation');if(['all','validated','unvalidated'].includes(saved))recipeFilters.validation=saved;}catch{}
 $('#recipe-missing-filter')?.addEventListener('change',event=>{recipeFilters.missing=event.target.value;recipeFilters.page=1;renderFilteredRecipes();});
 $('#open-recipe-import')?.addEventListener('click',()=>setView('import'));
 $('#back-to-recipes')?.addEventListener('click',()=>setView('recipes'));
@@ -2320,7 +2330,7 @@ async function openImportDraft(draft) {
   $('#recipe-form-title').textContent = 'Vérifier la recette importée';
   form.elements.name.value = draft.name || '';
   form.elements.description.value = draft.description || '';
-  form.elements.instructions.value = draft.instructions || '';
+  recipeMethodEditor.load(draft);form.elements.reviewValidated.checked=false;
   form.elements.yieldAmount.value = draft.extractionMethod === 'openai' && draft.yieldAmount == null ? '' : draft.yieldAmount || 1;
   form.elements.yieldUnit.value = draft.yieldUnitId || 'portion';
   form.elements.sourceUrl.value = draft.sourceUrl || '';
@@ -2333,7 +2343,7 @@ async function openImportDraft(draft) {
   if (!source) { source = document.createElement('details'); source.id = 'recipe-import-source'; $('#recipe-message').after(source); }
   source.replaceChildren();
   const summary = document.createElement('summary'); summary.textContent = 'Texte original de la recette';
-  const original = document.createElement('pre'); original.style.whiteSpace = 'pre-wrap'; original.textContent = typeof draft.original === 'string' ? draft.original : '';
+  const original = document.createElement('pre'); original.style.whiteSpace = 'pre-wrap'; original.textContent = typeof draft.original === 'string' ? draft.original : draft.original?JSON.stringify(draft.original,null,2):'';
   source.append(summary, original);
   form.classList.remove('hidden'); form.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -2520,8 +2530,9 @@ function renderRecipeServingBadges(recipe){
     badges.append(badge);
   }
   if(recipe.containsWhey){const badge=document.createElement('span');badge.className='recipe-whey';badge.textContent='Contient de la whey';badges.append(badge);}
+  if(recipe.reviewValidated){const reviewed=document.createElement('span');reviewed.className='recipe-validated';reviewed.textContent='✓ Validée';badges.append(reviewed);}
   const rating=recipeReviews.badge(recipe.id);if(rating)badges.append(rating);
-  return energy||recipe.containsWhey||rating?badges:null;
+  return energy||recipe.containsWhey||rating||recipe.reviewValidated?badges:null;
 }
 
 function recipeCard(recipe) {

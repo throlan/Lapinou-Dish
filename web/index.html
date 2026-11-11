@@ -11,7 +11,7 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.5.0">
+    <link rel="stylesheet" href="/style.css?v=0.6.0">
     <link rel="stylesheet" href="/editorial.css?v=0.3.17">
   </head>
   <body>
@@ -192,7 +192,7 @@
             <div><strong>Moment</strong><div id="recipe-moment-filters" class="recipe-filter-buttons"></div></div>
             <label>Type de service<select id="recipe-service-filter"><option value="">Tous les services</option><option value="original">Pièces / portions</option><option value="whole">Ensemble · grammes estimés</option><option value="separate">Viande et légumes + féculents</option><option value="three">Protéines, légumes et féculents séparés</option></select></label>
             <label>Fiches à afficher<select id="recipe-missing-filter"><option value="">Toutes les fiches</option><option value="any">Toute donnée à compléter</option><option value="nutrition">Calcul nutritionnel incomplet</option><option value="nutrition-planned">Nutrition incomplète · au calendrier ce mois et après</option><option value="instructions">Instructions absentes</option><option value="image">Photo absente</option></select></label>
-            <p id="recipe-filter-count" class="muted" role="status"></p>
+            <label>Relecture<select id="recipe-validation-filter"><option value="all">Toutes les recettes</option><option value="unvalidated">Non validées · à revoir</option><option value="validated">Validées</option></select></label><p id="recipe-filter-count" class="muted" role="status"></p>
           </aside>
           <div class="recipe-results">
             <div class="recipe-display-toolbar" aria-label="Affichage des recettes">
@@ -221,7 +221,7 @@
             </fieldset>
           </div>
           <label>Source (facultatif)<input name="sourceUrl" type="url" placeholder="Lien vers la recette d'origine"></label>
-          <label>Instructions<textarea name="instructions" rows="4" maxlength="20000" placeholder="Étapes de préparation"></textarea></label>
+          <input type="hidden" name="instructions"><div id="recipe-method-editor"></div><label class="recipe-validation-choice"><input type="checkbox" name="reviewValidated"> Recette validée<span class="hint">Repère de relecture. La recette reste entièrement modifiable.</span></label>
           <label>Production à suivre (facultatif)<select name="productionType"><option value="none">Aucune</option><option value="batch_cooking">Batch cooking</option><option value="pasta">Pâtes</option><option value="pastry">Pâtisserie</option><option value="bread">Pain</option></select><span class="hint">Le type sert à classer les préparations. Le lot minimum se règle juste dessous, pour cette recette uniquement.</span></label>
           <div class="yield-row"><label>Rendement<input name="yieldAmount" required type="number" min="0.01" step="any" value="4"></label><label>Unité<select name="yieldUnit"><option value="portion">portions</option><option value="piece">pièces</option><option value="slice">tranches</option><option value="g">grammes</option><option value="ml">millilitres</option></select></label></div>
           <p class="hint">Le rendement s’applique aux prochaines productions. Pour modifier la quantité d’un lot déjà produit, utilise le stock des préparations.</p>
@@ -318,15 +318,15 @@
     <dialog id="cook-dialog" class="cook-dialog">
       <form id="cook-form">
         <div class="dialog-heading"><div><p class="eyebrow">FICHE CUISINE</p><h2 id="cook-title"></h2></div><button type="button" class="icon-button" id="close-cook-dialog" aria-label="Fermer">×</button></div>
-        <p id="cook-description" class="muted"></p>
+        <p id="cook-description" class="muted"></p><div id="cook-meta" class="cook-meta" aria-label="Repères de la recette"></div>
+        <details class="cook-adjustments"><summary><span id="cook-quantity-summary">Adapter les quantités</span></summary>
         <label>Mode de préparation<select id="cook-mode"><option value="menus">Selon les menus</option><option value="free">Hors menus — quantité libre</option></select></label>
         <div id="cook-total-quantity" class="yield-row"><label><span id="cook-quantity-label">Quantité à fabriquer</span><input name="quantity" type="number" min="0.001" max="100000" step="any" required></label><p id="cook-unit" class="cook-unit"></p></div>
         <div id="cook-part-quantities" class="yield-row" hidden></div>
         <p id="cook-base-yield" class="hint"></p>
         <p id="cook-equivalent" class="hint" hidden></p>
         <p id="cook-planned" class="hint" hidden></p>
-        <h3>Ingrédients à préparer</h3><div id="cook-ingredients" class="cook-ingredients"></div>
-        <h3>Préparation</h3><div id="cook-instructions" class="cook-instructions"></div>
+        </details><div class="cook-editorial-layout"><aside class="cook-ingredient-column"><div id="cook-photo" class="cook-photo"></div><h3>Les ingrédients</h3><div id="cook-ingredients" class="cook-ingredients"></div></aside><section class="cook-method-column"><h3>Les étapes</h3><div id="cook-instructions" class="cook-instructions"></div></section></div>
         <section id="cook-video" class="cooking-instagram" hidden aria-label="Publication Instagram de la recette"></section>
         <p id="cook-source"></p>
         <div id="cook-production-fields"><div class="yield-row"><label>Date de production<input name="producedOn" type="date" required></label><label>Conservation<select name="storage"><option value="freezer">Congélateur</option><option value="fridge">Réfrigérateur</option><option value="pantry">Placard</option></select></label></div><fieldset class="production-period"><legend>Menus concernés</legend><label class="production-period-choice"><input type="checkbox" name="reservePeriod"> Réserver pour une plage de menus</label><div class="yield-row"><label>Du<input type="date" name="plannedStart" disabled></label><label>Au<input type="date" name="plannedEnd" disabled></label></div><p class="hint">Les portions sont réservées aux repas de cette plage, dans leur ordre. Le surplus peut couvrir les repas suivants. Sans plage, les premiers repas planifiés sont prioritaires.</p></fieldset><label>Note (facultatif)<input name="note" maxlength="500"></label></div>
@@ -500,6 +500,6 @@
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
     <script type="module" src="/install-app.js?v=0.3.17"></script>
-    <script type="module" src="/app.js?v=0.5.0"></script>
+    <script type="module" src="/app.js?v=0.6.0"></script>
   </body>
 </html>
