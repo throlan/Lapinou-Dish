@@ -1,5 +1,13 @@
 # État du projet — 11 novembre 2026
 
+## Publication vérifiée des comptes — 0.4.1
+
+PR fonctionnelle #186 puis correction finale #187 fusionnées. Source applicative : `e36424c9c855974f2ab5ff849078a5f870e4ea1c`. Contrôles et publication réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/43085131322. Suite complète : 395 tests réussis ; parcours Chrome local sur données fictives validé.
+
+Les tags GHCR `0.4.1` et `v0.4.1` ont le digest `sha256:301d3434012c5c5021676616ee09b6b610e586bed47aacae1a4e973876c5d991`. La référence fonctionnelle `0.3.32` / `v0.3.32` conserve le digest `sha256:defb5b021e29975bbc6ab96576d791d54e3ca622a690082ed33341c6d87301ea`.
+
+Avant migration, sauvegarder la base et les photos séparées. Pour un clone de test, privilégier un export/restauration PostgreSQL vers une base et des volumes distincts ; les réglages applicatifs enregistrés en base sont copiés, les paramètres des conteneurs restent propres à l’environnement de test. Ne jamais copier des fichiers PostgreSQL à chaud. Le retour à la 0.3.32 nécessite la base antérieure à la migration des comptes. Aucun accès au serveur Unraid ni à Nginx n’a été effectué.
+
 ## Développement des comptes — 0.4.1
 
 Comptes individuels, rôles cumulables, sélection du foyer actif, profils personnels, isolation PostgreSQL, partage volontaire et packages de recettes. La référence fonctionnelle reste la release 0.3.32. Voir REPRISE.md pour la première connexion et ROLLBACK.md pour la compatibilité de la base.
