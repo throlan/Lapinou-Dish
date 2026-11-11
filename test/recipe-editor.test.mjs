@@ -11,7 +11,7 @@ assert.ok(start>=0 && end>start);
 
 function editor() {
   const boxes=['breakfast','lunch','dinner','snack'].map(value=>({value,checked:false}));
-  const fields=['name','description','recipeType','productionType','minimumProductionAmount','minimumProductionUnitId','sourceUrl','instructions','yieldAmount','yieldUnit','servingMode','mainCookingFactor','starchCookingFactor'];
+  const fields=['name','description','recipeType','productionType','minimumProductionAmount','minimumProductionUnitId','sourceUrl','instructions','reviewValidated','yieldAmount','yieldUnit','servingMode','mainCookingFactor','starchCookingFactor'];
   const form={elements:Object.fromEntries(fields.map(name=>[name,{value:''}])),
     reset(){this.elements.recipeType.value='dish';this.elements.productionType.value='none';boxes.forEach(box=>box.checked=false);},
     querySelectorAll(){return boxes;},classList:{remove(){}},scrollIntoView(){}};
@@ -21,7 +21,7 @@ function editor() {
   const elements={'#recipe-form':form,'#recipe-lines':{replaceChildren(){}},'#recipe-message':{},'#recipe-result':{classList:{add(){}}},'#recipe-form-title':{},'#delete-current-recipe':remove};
   let recipe;
   const copiedLines=[];
-  const context={ ingredientCookingFactor,recipeDisplayPreferences,$:selector=>elements[selector],state:{productionTypes:[],household:null},refreshProductionTypes:async()=>{},populateProductionTypeSelect:(select,value)=>{select.value=value;},api:async()=>({recipe}),addRecipeLine(line){copiedLines.push(line);},updateServingConfiguration(){},showMessage(target,text){target.textContent=text;} };
+  const context={recipeMethodEditor:{load(recipe={}){form.elements.instructions.value=recipe.instructions??'';}}, ingredientCookingFactor,recipeDisplayPreferences,$:selector=>elements[selector],state:{productionTypes:[],household:null},refreshProductionTypes:async()=>{},populateProductionTypeSelect:(select,value)=>{select.value=value;},api:async()=>({recipe}),addRecipeLine(line){copiedLines.push(line);},updateServingConfiguration(){},showMessage(target,text){target.textContent=text;} };
   runInNewContext(source.slice(start,end)+'\nglobalThis.openEditor=openRecipeEditor;',context);
   return {form,boxes,copiedLines,context,remove,async open(value){recipe={name:'Synthetic recipe',yield:{amount:24,unitId:'piece'},nutrition:{lineIssues:[]},lines:[],...value};await context.openEditor('test-id');},async duplicate(value){recipe={name:'Synthetic recipe',yield:{amount:24,unitId:'piece'},nutrition:{lineIssues:[]},lines:[],...value};await context.openEditor('test-id',true);},async create(){await context.openEditor();}};
 }

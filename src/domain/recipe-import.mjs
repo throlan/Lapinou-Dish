@@ -1,3 +1,4 @@
+import {instructionSteps,cookingFromText,durationMinutes} from './recipe-method.mjs';
 import { inflateRawSync } from 'node:zlib';
 
 const MAX_ARCHIVE_ENTRIES = 2000;
@@ -29,7 +30,7 @@ export function parseRecipeText(text, sourceUrl = null) {
     if (section === 'instructions') instructionLines.push(line);
   }
   const description = lines.slice(titleIndex + 1).find((line) => !looksLikeIngredient(line) && !/^(?:pour\s+\d+.*|ingrédients?\s*:?)$/i.test(line)) ?? '';
-  return { data: { name: name.slice(0, 200), description: description.slice(0, 2000), yieldAmount: Number.isFinite(yieldAmount) && yieldAmount > 0 ? yieldAmount : 1, yieldUnitId: /tranche/i.test(servingsMatch?.[2] ?? '') ? 'slice' : /muffin|œuf|oeuf|pièce/i.test(servingsMatch?.[2] ?? '') ? 'piece' : 'portion', ingredients: ingredientLines.slice(0, 300), instructions: instructionLines.join('\n').slice(0, 20_000), sourceUrl, sourceKind: sourceUrl ? platformFor(sourceUrl) : 'clipboard', rawText: text } };
+  return { data: { name: name.slice(0, 200), description: description.slice(0, 2000), yieldAmount: Number.isFinite(yieldAmount) && yieldAmount > 0 ? yieldAmount : 1, yieldUnitId: /tranche/i.test(servingsMatch?.[2] ?? '') ? 'slice' : /muffin|œuf|oeuf|pièce/i.test(servingsMatch?.[2] ?? '') ? 'piece' : 'portion', ingredients: ingredientLines.slice(0, 300), instructions: instructionLines.join('\n').slice(0, 20_000), steps:instructionSteps(instructionLines.join('\n')),cooking:cookingFromText(text),sourceUrl, sourceKind: sourceUrl ? platformFor(sourceUrl) : 'clipboard', rawText: text } };
 }
 
 function looksLikeIngredient(line) {
@@ -89,7 +90,7 @@ export function parseRecipeArchive(input) {
 }
 
 function normalizeNorish(recipe, path) {
-  return { externalId: path.split('/')[0], sourceKind: 'file', sourceUrl: recipe.url ?? null, name: recipe.name ?? 'Recette importée', description: recipe.description ?? '', yieldAmount: positive(recipe.servings, 1), yieldUnitId: 'portion', ingredients: (recipe.recipeIngredients ?? []).map((item) => ({ rawText: [item.amount, item.unit, item.ingredientName].filter(Boolean).join(' '), quantity: positive(item.amount, null), unit: item.unit ?? null, foodName: item.ingredientName ?? '' })), instructions: (recipe.steps ?? []).map((step) => step.step).filter(Boolean).join('\n'), rawPayload: recipe };
+  return { externalId: path.split('/')[0], sourceKind: 'file', sourceUrl: recipe.url ?? null, name: recipe.name ?? 'Recette importée', description: recipe.description ?? '', yieldAmount: positive(recipe.servings, 1), yieldUnitId: 'portion', ingredients: (recipe.recipeIngredients ?? []).map((item) => ({ rawText: [item.amount, item.unit, item.ingredientName].filter(Boolean).join(' '), quantity: positive(item.amount, null), unit: item.unit ?? null, foodName: item.ingredientName ?? '' })), instructions: (recipe.steps ?? []).map((step) => step.step).filter(Boolean).join('\n'),steps:(recipe.steps??[]).map(step=>step.step).filter(Boolean),cooking:archiveCooking(recipe), rawPayload: recipe };
 }
 
 function normalizeTandoor(recipe, path) {
@@ -104,7 +105,7 @@ function normalizeTandoor(recipe, path) {
       ingredients.push({ rawText: [amount, unit, foodName, item.note].filter(Boolean).join(' '), quantity: amount, unit, foodName });
     }
   }
-  return { externalId: path, sourceKind: 'file', sourceUrl: recipe.source_url ?? null, name: recipe.name ?? 'Recette importée', description: recipe.description ?? '', yieldAmount: positive(recipe.servings, 1), yieldUnitId: 'portion', ingredients, instructions: instructions.join('\n'), rawPayload: recipe };
+  return { externalId: path, sourceKind: 'file', sourceUrl: recipe.source_url ?? null, name: recipe.name ?? 'Recette importée', description: recipe.description ?? '', yieldAmount: positive(recipe.servings, 1), yieldUnitId: 'portion', ingredients, instructions: instructions.join('\n'),steps:instructions,cooking:archiveCooking(recipe),warnings:recipe.waiting_time>0?[`Temps d’attente de l’archive : ${recipe.waiting_time} min. Ce format ne distingue pas repos et cuisson ; répartis cette durée après vérification.`]:[], rawPayload: recipe };
 }
 
 function positive(value, fallback) {
@@ -149,4 +150,15 @@ function readZip(buffer) {
     files.set(name, data);
   }
   return files;
+}
+
+function archiveCooking(recipe){
+ const result={...cookingFromText([recipe.description,...(recipe.steps??[]).map(s=>s.instruction??s.step??'')].filter(Boolean).join('\n')),...(recipe.cooking??{})};
+ for(const [key,source] of [['prepMinutes','prepTime'],['restMinutes','restTime'],['cookMinutes','cookTime']]){
+  const value=durationMinutes(recipe[source]);if(value!==null)result[key]=value;
+ }
+ // Tandoor's waiting_time combines passive cooking and rest: keep it in the
+ // original archive rather than guessing which of the two fields it represents.
+ if(recipe.working_time!=null&&durationMinutes(recipe.working_time)!==null)result.prepMinutes=durationMinutes(recipe.working_time);
+ return result;
 }

@@ -16,7 +16,7 @@ export async function saveImportDrafts(pool, householdId, drafts) {
       await client.query(
         `INSERT INTO recipe_import_drafts (id, household_id, source_kind, source_reference, raw_payload, state)
          VALUES ($1, $2, $3, $4, $5::jsonb, 'draft')`,
-        [id, householdId, sourceKind, sourceReference, JSON.stringify({ name: draft.name, description: draft.description, yieldAmount: draft.yieldAmount, yieldUnitId: draft.yieldUnitId, instructions: draft.instructions, sourceUrl: draft.sourceUrl, sourcePlatform: draft.sourceKind, original: draft.rawPayload ?? draft.rawText ?? null, warnings: draft.warnings ?? [], variants: draft.variants ?? [], extractionMethod: draft.extractionMethod ?? 'standard', extractionModel: draft.extractionModel ?? null })],
+        [id, householdId, sourceKind, sourceReference, JSON.stringify({ name: draft.name, description: draft.description, yieldAmount: draft.yieldAmount, yieldUnitId: draft.yieldUnitId, instructions: draft.instructions,steps:draft.steps,cooking:draft.cooking, sourceUrl: draft.sourceUrl, sourcePlatform: draft.sourceKind, original: draft.rawPayload ?? draft.rawText ?? null, warnings: draft.warnings ?? [], variants: draft.variants ?? [], extractionMethod: draft.extractionMethod ?? 'standard', extractionModel: draft.extractionModel ?? null })],
       );
       for (const [index, line] of (draft.ingredients ?? []).entries()) {
         await client.query(
