@@ -28,7 +28,7 @@ test('home page loads the application module as a versioned same-origin asset', 
   await handleRequest({ method: 'GET', url: '/app.js?v=0.2.14', headers: {} }, scriptResponse, {});
   assert.equal(scriptResponse.status, 200);
   assert.match(scriptResponse.headers['Content-Type'], /^text\/javascript/);
-  assert.ok(scriptResponse.body.startsWith("import { breakfastServingLimit, calculateDailyEnergy, calculateDailyProtein, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, dailyProteinTarget, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';"));
+  assert.ok(scriptResponse.body.includes("import { breakfastServingLimit, calculateDailyEnergy, calculateDailyProtein, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, dailyProteinTarget, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';"));
   assert.ok(scriptResponse.body.includes('calendarMeals: []'));
   const plannerResponse = {
     status: 200,
@@ -211,25 +211,18 @@ test('nutrition suggestions search Open Food Facts using the canonical food name
   } finally { globalThis.fetch = originalFetch; }
 });
 
-test('login protects household data with an HTTP-only signed session cookie', async () => {
-  const password = 'lapinou-test-password-2026';
-  const pool = { query: async () => ({ rows: [] }) };
-  const denied = await invoke('/api/households', pool, {}, password);
-  assert.equal(denied.status, 401);
-  const login = await invoke('/api/login', pool, { method: 'POST', body: { password } }, password);
-  assert.equal(login.status, 200);
-  assert.match(login.headers['Set-Cookie'], /HttpOnly; SameSite=Strict/);
-  const cookie = login.headers['Set-Cookie'].split(';')[0];
-  const session = await invoke('/api/session', pool, { headers: { cookie } }, password);
-  assert.deepEqual(session.body, { authenticated: true });
-  const allowed = await invoke('/api/households', pool, { headers: { cookie } }, password);
-  assert.equal(allowed.status, 200);
+test('individual authentication ignores the former collective session cookie',async()=>{
+ const denied=await invoke('/api/households',{query:async()=>{throw Error('must not query household data');}},
+  {headers:{cookie:'lapinou_session=previous.collective.cookie'}},'lapinou-test-password-2026');
+ assert.equal(denied.status,401);
+ assert.equal(denied.body.error,'authentication-required');
 });
 
-test('login rejects an incorrect password', async () => {
-  const response = await invoke('/api/login', { query: async () => ({ rows: [] }) }, { method: 'POST', body: { password: 'incorrect' } }, 'lapinou-test-password-2026');
-  assert.equal(response.status, 401);
-  assert.deepEqual(response.body, { error: 'invalid-password' });
+test('individual passwords receive independent salts and reject short values',async()=>{
+ const {hashPassword}=await import('../src/server/accounts.mjs');
+ const one=await hashPassword('a-long-personal-password'),two=await hashPassword('a-long-personal-password');
+ assert.notEqual(one,two);assert.match(one,/^[a-f0-9]{32}:[a-f0-9]{128}$/);
+ await assert.rejects(hashPassword('short'),/password-too-short/);
 });
 
 async function invoke(url, pool, { method = 'GET', body, headers = {} } = {}, password = null) {

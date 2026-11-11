@@ -30,6 +30,7 @@ try {
     );
     console.log(`Imported Ciqual ${dataset.version}: ${expectedCount} foods.`);
   }
+  await client.query("UPDATE foods SET official=true WHERE source='ciqual' AND owner_household_id IS NULL AND NOT official");
   await applyCommonFoodRefinements(client);
 } finally {
   await client.query('SELECT pg_advisory_unlock(hashtext($1))', ['lapinou-dish:seed:ciqual']);

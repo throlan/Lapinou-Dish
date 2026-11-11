@@ -716,3 +716,25 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .calendar-energy-alerts { margin:0 0 .8rem; padding:.7rem .9rem; border:1px solid #e8c48d; border-radius:.75rem; background:#fff5e3; color:#673811; }
 .calendar-energy-alerts ul { margin:.35rem 0 0; padding-left:1.25rem; }
 .calendar-summary .energy-overage { color:#9a2e35; font-weight:700; }
+
+.account-banner {display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem}
+.account-section {padding:1rem;margin-bottom:1rem;border:1px solid var(--border,#e3d5e4);border-radius:1rem;background:var(--surface,#fff)}
+.account-section details {border-top:1px solid var(--border,#e3d5e4);padding:.75rem 0}
+.account-section summary {cursor:pointer;font-weight:650}
+.account-form {display:flex;flex-direction:column;gap:.7rem;max-width:42rem;margin:.8rem 0}
+.account-form button[type=submit] {order:10;align-self:flex-start}
+.account-form .form-message {order:11}
+.account-form label {display:grid;gap:.35rem}
+.account-form label:has(input[type=checkbox]) {display:flex;gap:.5rem;align-items:center}
+.account-setup-dialog {max-width:38rem;width:calc(100% - 2rem)}
+.account-setup-dialog form {display:grid;gap:.8rem}
+#household-box select {max-width:15rem;font-size:.8rem}
+.member-mode .admin-tabs [data-admin-tab]:not([data-admin-tab=profiles]):not([data-admin-tab=accounts]):not([data-admin-tab=community]),
+.member-mode .profile-create-panel,.member-mode .recipe-card-settings,
+.member-mode .food-actions,.member-mode #add-food,.member-mode #new-recipe,
+.member-mode [data-view=import],.member-mode #save-cook,.member-mode .calendar-add,
+.member-mode #recalculate-portions,.member-mode #save-meal,
+.member-mode .recipe-card-actions button[aria-label^="Modifier"],
+.member-mode .recipe-card-actions button[aria-label^="Dupliquer"],
+.member-mode .recipe-card-actions button[aria-label^="Supprimer"] {display:none!important}
+@media(max-width:600px){.account-section{padding:.75rem}.account-form{max-width:100%}#household-box select{max-width:11rem}}

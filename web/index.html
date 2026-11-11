@@ -11,7 +11,7 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.3.32">
+    <link rel="stylesheet" href="/style.css?v=0.4.0">
     <link rel="stylesheet" href="/editorial.css?v=0.3.17">
   </head>
   <body>
@@ -52,7 +52,10 @@
       <section id="home-view" class="view"><div id="dashboard-content"><p class="empty">Chargement du tableau de bord…</p></div></section>
       <section id="admin-view" class="view hidden">
         <div class="section-heading"><div><h2>Administration du foyer</h2><p>Réglages rangés par rubrique. Choisis un onglet pour afficher uniquement les paramètres concernés.</p></div></div>
+        <div id="account-banner" class="account-banner"></div>
         <nav class="admin-tabs" role="tablist" aria-label="Rubriques d’administration">
+          <button type="button" role="tab" aria-selected="false" aria-controls="admin-panel-accounts" data-admin-tab="accounts">Comptes et foyers</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="admin-panel-community" data-admin-tab="community">Partage et démarrage</button>
           <button type="button" role="tab" aria-selected="true" aria-controls="admin-panel-profiles" data-admin-tab="profiles">Profils</button>
           <button type="button" role="tab" aria-selected="false" aria-controls="admin-panel-meals" data-admin-tab="meals">Repas et kcal</button>
           <button type="button" role="tab" aria-selected="false" aria-controls="admin-panel-productions" data-admin-tab="productions">Productions</button>
@@ -62,6 +65,8 @@
           <button type="button" role="tab" aria-selected="false" aria-controls="admin-panel-catalogue" data-admin-tab="catalogue">Catalogue à compléter</button>
         </nav>
         <div class="admin-panels">
+        <section id="admin-panel-accounts" class="admin-panel" role="tabpanel" data-admin-panel="accounts" hidden><p id="accounts-message" class="form-message" role="status"></p><div id="account-management"></div></section>
+        <section id="admin-panel-community" class="admin-panel" role="tabpanel" data-admin-panel="community" hidden><p id="community-message" class="form-message" role="status"></p><div id="community-management"></div></section>
         <section id="admin-panel-profiles" class="admin-panel" role="tabpanel" tabindex="0" data-admin-panel="profiles">
       <section id="profiles-view" class="admin-profile-section">
         <div class="section-heading"><div><h2>Profils du foyer</h2><p>Mesures et activité saisies par les membres, conservées dans leur historique.</p></div></div>
@@ -461,10 +466,26 @@
       <form id="login-form">
         <p class="eyebrow">ESPACE FAMILIAL</p>
         <h2>Connexion</h2>
-        <p class="muted">Saisis le mot de passe du foyer pour accéder aux aliments et aux recettes.</p>
+        <p class="muted">Connecte-toi avec ton compte personnel.</p>
+        <label>Identifiant<input name="login" type="text" autocomplete="username" required minlength="3" maxlength="100"></label>
         <label>Mot de passe<input name="password" type="password" autocomplete="current-password" required autofocus></label>
         <button class="primary" type="submit">Se connecter</button>
         <p class="form-message" id="login-message" role="alert"></p>
+      </form>
+    </dialog>
+    <dialog id="bootstrap-dialog" class="account-setup-dialog">
+      <form id="bootstrap-form">
+        <h2>Créer le premier compte administrateur</h2>
+        <p>Reprends ton foyer et ton profil existants. Ce compte sera aussi gestionnaire de ton foyer.</p>
+        <label>Mot de passe actuel de l’application<input name="applicationPassword" type="password" required autocomplete="current-password"></label>
+        <button type="button" id="bootstrap-load" class="secondary">Charger les foyers et profils existants</button>
+        <label>Foyer à reprendre<select name="householdId"><option value="">Créer mon premier foyer</option></select></label>
+        <label>Ton profil personnel<select name="personId"><option value="">Créer un profil à mon nom</option></select></label>
+        <label>Nom affiché<input name="displayName" required maxlength="80" autocomplete="name"></label>
+        <label>Identifiant personnel<input name="login" required minlength="3" maxlength="100" autocomplete="username"></label>
+        <label>Nouveau mot de passe personnel<input name="password" type="password" required minlength="12" maxlength="256" autocomplete="new-password"></label>
+        <button type="submit" class="primary">Créer mon compte et reprendre mon foyer</button>
+        <p id="bootstrap-message" class="form-message" role="status"></p>
       </form>
     </dialog>
     <dialog id="recipe-image-dialog" class="recipe-image-dialog">
@@ -479,6 +500,6 @@
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
     <script type="module" src="/install-app.js?v=0.3.17"></script>
-    <script type="module" src="/app.js?v=0.3.32"></script>
+    <script type="module" src="/app.js?v=0.4.0"></script>
   </body>
 </html>

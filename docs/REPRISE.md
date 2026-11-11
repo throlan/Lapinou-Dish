@@ -1,5 +1,32 @@
 # Cahier de reprise — 11 novembre 2026
 
+## Comptes individuels, foyers privés et partage — 0.4.0
+
+Cette version introduit un compte de connexion distinct du profil de personne. Le rôle administrateur de l’application est cumulable avec le rôle gestionnaire ou membre dans chaque foyer. Un compte peut appartenir à plusieurs foyers et choisir son foyer actif. Les profils existants et les profils sans compte restent utilisables.
+
+### Première connexion
+
+L’écran de création du premier administrateur demande le mot de passe actuel de l’application (APP_PASSWORD). « Charger les foyers et profils existants » permet de sélectionner le foyer et le profil à reprendre. Le nouvel identifiant et le nouveau mot de passe personnel servent ensuite à la connexion. La création du premier administrateur est unique et transactionnelle.
+
+Administration → Comptes et foyers permet de changer son mot de passe, gérer son profil personnel, associer les comptes aux profils et administrer les rôles. Le gestionnaire gère les membres et les données communes de son foyer. Le membre consulte les données communes et gère uniquement son propre profil et ses mesures. L’administrateur de l’application gère les comptes et les foyers. Pour gérer les données d’un autre foyer, il s’y rattache explicitement avec « Rejoindre et gérer ce foyer ». Le dernier administrateur actif et le dernier gestionnaire actif d’un foyer sont protégés.
+
+### Isolation et partage
+
+Les requêtes authentifiées utilisent le rôle PostgreSQL restreint lapinou_request avec des politiques de sécurité par ligne. Les données personnelles et les données des foyers sont filtrées côté base et côté serveur. Les mots de passe individuels sont dérivés avec scrypt et un sel aléatoire. Les sessions révocables sont stockées sous forme d’empreintes de jetons aléatoires, avec expiration. Le mot de passe collectif et ses anciennes sessions ne donnent plus accès aux données après cette évolution.
+
+Les aliments Ciqual sont le catalogue officiel commun. Les gestionnaires peuvent en créer des copies privées ; seuls les administrateurs de l’application modifient les fiches officielles. Les autres aliments sont rattachés aux foyers existants. Si plusieurs foyers utilisaient l’ancien catalogue global, les fiches privées sont copiées et leurs références adaptées sans changer les quantités en stock.
+
+Administration → Partage et démarrage permet une publication volontaire d’aliments ou de recettes, puis la récupération d’une copie privée. Les dépendances de préparation maison, les aliments, les rendements, les équivalences et la photo sont inclus. Les menus, profils et stocks sont exclus de la publication. Une publication peut être retirée. Les copies déjà importées restent disponibles.
+
+L’administrateur compose les packages officiels à partir des recettes publiées. Chaque foyer peut choisir les recettes d’un package et les importer, au démarrage ou plus tard. Réimporter la même publication est sans doublon. Les packages sont à composer explicitement ; aucune recette privée du foyer actuel n’est publiée automatiquement.
+
+### Migration et release de référence
+
+La migration 20261111_accounts_households.sql est additive et crée le rôle PostgreSQL restreint ainsi que les comptes, sessions, appartenances et publications. Le compte de migration doit pouvoir créer et attribuer ce rôle, comme le compte PostgreSQL du compose fourni. Les futurs déploiements restent gérés par l’utilisateur. Aucun accès à Unraid ni à Nginx.
+
+La release fonctionnelle 0.3.32 et son digest restent conservés. Après activation des comptes, un retour à la 0.3.32 doit utiliser la sauvegarde de base prise avant migration : cette ancienne application utilise le mot de passe collectif et ignore l’isolation des comptes. Pointer uniquement l’ancienne image sur la base contenant plusieurs foyers privés réexposerait les données de ces foyers.
+
+
 ## Release fonctionnelle de référence — 11 novembre 2026
 
 La version 0.3.32 est conservée comme référence fonctionnelle à la demande de l’utilisateur. Source figée au commit `bab03e3532c923c09da327f70b65b5fcb8fdc7ee`, tag Git `v0.3.32`, release GitHub `https://github.com/throlan/Lapinou-Dish/releases/tag/v0.3.32`. Les futurs développements partent de branches dédiées et utilisent un nouveau numéro applicatif dès qu’ils changent le fonctionnement.

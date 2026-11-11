@@ -1,3 +1,4 @@
+import {accountMessage} from '../web/accounts-ui.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -11,7 +12,7 @@ const loginHandler = source.slice(start, end);
 
 function setupLogin() {
   const form = new EventTarget();
-  form.elements = { password: { value: 'synthetic-test-password' } };
+  form.elements = {login:{value:'synthetic-user'}, password: { value: 'synthetic-test-password' } };
   let resetCount = 0, closeCount = 0, initCount = 0, completion;
   form.reset = () => { resetCount++; form.elements.password.value = ''; };
   const register = form.addEventListener.bind(form);
@@ -21,6 +22,7 @@ function setupLogin() {
   let resolveLogin, rejectLogin, request;
   const pending = new Promise((resolve, reject) => { resolveLogin = resolve; rejectLogin = reject; });
   runInNewContext(loginHandler, {
+    accountMessage,
     $: (selector) => ({ '#login-form': form, '#login-message': message, '#login-dialog': dialog })[selector],
     api: (path, options) => { request = { path, options }; return pending; },
     showMessage: (target, text) => { target.textContent = text; },
@@ -43,7 +45,7 @@ test('successful asynchronous login closes the dialog and initializes without a 
   const login = setupLogin();
   assert.equal(login.request.path, '/api/login');
   assert.equal(login.request.options.method, 'POST');
-  assert.deepEqual(JSON.parse(login.request.options.body), { password: 'synthetic-test-password' });
+  assert.deepEqual(JSON.parse(login.request.options.body), { login:'synthetic-user',password: 'synthetic-test-password' });
   await login.succeed();
   assert.deepEqual(login.counts(), { resetCount: 1, closeCount: 1, initCount: 1 });
   assert.equal(login.message.textContent, '');
@@ -51,14 +53,14 @@ test('successful asynchronous login closes the dialog and initializes without a 
 
 test('invalid password keeps the login dialog and displays the password error', async () => {
   const login = setupLogin();
-  await login.fail(Object.assign(new Error('invalid-password'), { body: { error: 'invalid-password' } }));
+  await login.fail(Object.assign(new Error('invalid-credentials'), { body: { error: 'invalid-credentials' } }));
   assert.deepEqual(login.counts(), { resetCount: 0, closeCount: 0, initCount: 0 });
-  assert.equal(login.message.textContent, 'Mot de passe incorrect.');
+  assert.equal(login.message.textContent, 'Identifiant ou mot de passe incorrect.');
 });
 
 test('failed login request keeps the dialog and displays the connection error', async () => {
   const login = setupLogin();
   await login.fail(new Error('Network unavailable'));
   assert.deepEqual(login.counts(), { resetCount: 0, closeCount: 0, initCount: 0 });
-  assert.equal(login.message.textContent, 'Connexion impossible. Vérifie que le service est prêt.');
+  assert.equal(login.message.textContent, 'Connexion au service impossible.');
 });

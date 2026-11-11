@@ -1,5 +1,10 @@
 # État du projet — 11 novembre 2026
 
+## Développement des comptes — 0.4.0
+
+Comptes individuels, rôles cumulables, sélection du foyer actif, profils personnels, isolation PostgreSQL, partage volontaire et packages de recettes. La référence fonctionnelle reste la release 0.3.32. Voir REPRISE.md pour la première connexion et ROLLBACK.md pour la compatibilité de la base.
+
+
 ## Release fonctionnelle de référence — 11 novembre 2026
 
 La version 0.3.32 est conservée comme référence fonctionnelle à la demande de l’utilisateur. Source figée au commit `bab03e3532c923c09da327f70b65b5fcb8fdc7ee`, tag Git `v0.3.32`, release GitHub `https://github.com/throlan/Lapinou-Dish/releases/tag/v0.3.32`. Les futurs développements partent de branches dédiées et utilisent un nouveau numéro applicatif dès qu’ils changent le fonctionnement.

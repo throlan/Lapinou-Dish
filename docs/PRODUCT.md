@@ -1,5 +1,12 @@
 # Cahier produit Lapinou Dish
 
+## Modèle comptes et foyers validé — 11 novembre 2026
+
+Un compte possède un rôle global d’administration et une appartenance distincte à chaque foyer, avec le rôle gestionnaire ou membre et un profil personnel facultatif. Les profils sans compte sont conservés. Le gestionnaire gère les données du foyer ; le membre consulte les données communes et modifie son profil. L’administrateur gère les comptes et foyers, puis rejoint explicitement un foyer pour en gérer les données.
+
+Les aliments Ciqual sont le catalogue officiel commun. Les publications d’aliments et de recettes sont volontaires. L’import conserve une copie privée, ses dépendances et ses images. Les packages officiels sont composés par l’administrateur à partir des recettes publiées. Les données de menus, profils et stocks restent privées.
+
+
 Dans Administration, « Catalogue à compléter » regroupe les fiches alimentaires en liste simple : valeur actuelle, estimation éditable, provenance et sélection. Les estimations de cuisson s'appliquent uniquement aux fiches que l'utilisateur choisit de valider ; elles ne changent pas les portions déjà enregistrées dans les menus.
 
 Une ligne d'ingrédient indique désormais si l'aliment est servi cru, cuit à partir de sa quantité crue ou ajouté déjà cuit. Le coefficient de cuisson appartient à la fiche aliment et ne s'applique que dans le deuxième cas. Les recettes historiques gardent leur calcul antérieur jusqu'à vérification dans l'éditeur.
