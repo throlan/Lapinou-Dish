@@ -41,6 +41,8 @@ import { fileURLToPath } from 'node:url';
 const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web');
 const staticFiles = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
+  ['/recipe-directory-refresh.css', ['recipe-directory-refresh.css', 'text/css; charset=utf-8']],
+  ['/recipe-permissions.js', ['recipe-permissions.js', 'text/javascript; charset=utf-8']],
   ['/recipe-method.js', ['../src/domain/recipe-method.mjs', 'text/javascript; charset=utf-8']],
   ['/recipe-method-editor.js', ['recipe-method-editor.js', 'text/javascript; charset=utf-8']],
   ['/cooking-method-view.js', ['cooking-method-view.js', 'text/javascript; charset=utf-8']],

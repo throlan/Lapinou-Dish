@@ -18,7 +18,7 @@ function editor() {
   form.elements.recipeType.options=['dish','salad','sauce','beverage','accompaniment','dessert'].map(value=>({value}));
   form.elements.recipeType.add=option=>form.elements.recipeType.options.push(option);
   const remove={hidden:true,classList:{add(){remove.hidden=true;},remove(){remove.hidden=false;}}};
-  const elements={'#recipe-form':form,'#recipe-lines':{replaceChildren(){}},'#recipe-message':{},'#recipe-result':{classList:{add(){}}},'#recipe-form-title':{},'#delete-current-recipe':remove};
+  const elements={'#recipe-type-filters':{addEventListener(){}},'#recipe-moment-filters':{addEventListener(){}},'#recipe-form':form,'#recipe-lines':{replaceChildren(){}},'#recipe-message':{},'#recipe-result':{classList:{add(){}}},'#recipe-form-title':{},'#delete-current-recipe':remove};
   let recipe;
   const copiedLines=[];
   const context={recipeMethodEditor:{load(recipe={}){form.elements.instructions.value=recipe.instructions??'';}}, ingredientCookingFactor,recipeDisplayPreferences,$:selector=>elements[selector],state:{productionTypes:[],household:null},refreshProductionTypes:async()=>{},populateProductionTypeSelect:(select,value)=>{select.value=value;},api:async()=>({recipe}),addRecipeLine(line){copiedLines.push(line);},updateServingConfiguration(){},showMessage(target,text){target.textContent=text;} };

@@ -92,6 +92,7 @@ export function createAccountUI({api,onSession}){
   session=value;
   const account=session.account;
   document.body.classList.toggle('catalogue-contributor',Boolean(account&&!account.applicationAdmin));
+  document.body.classList.toggle('recipe-curator',Boolean(account&&(account.applicationAdmin||account.role==='manager')));
   document.body.classList.toggle('member-mode',Boolean(account&&account.role!=='manager'));
   const banner=document.querySelector('#account-banner');banner.replaceChildren();
   if(!account)return;

@@ -228,6 +228,7 @@ async function hasRecipeReferences(client,id,householdId){
 async function replaceRecipe(client,id,data){
   const replacementId=randomUUID();
   await insertRecipe(client,replacementId,data);
+  await client.query('UPDATE recipes SET created_by_account_id=(SELECT created_by_account_id FROM recipes WHERE id=$1) WHERE id=$2',[id,replacementId]);
   await client.query(`UPDATE recipes SET recipe_archived=true,replaced_by_recipe_id=$2,name=name||' (ancienne version)' WHERE id=$1 OR parent_recipe_id=$1`,[id,replacementId]);
   await client.query('UPDATE recipe_images SET recipe_id=$2 WHERE recipe_id=$1',[id,replacementId]);
   return {...await readRecipe(client,replacementId),replacesRecipeId:id};
@@ -300,7 +301,7 @@ export async function updateRecipe(pool, id, data, expectedVersion=null) {
 export async function readRecipe(client, id, path=[]) {
   if(path.includes(id))throw new Error('recipe-ingredient-cycle');
   const recipeResult = await client.query(
-    `SELECT id, household_id,output_units, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type,minimum_production_amount,minimum_production_unit_id, meal_moments,separate_starch,serving_weights,cooking_factors,parent_recipe_id,serving_part,serving_part_active,version,recipe_archived,replaced_by_recipe_id,cooking_details,instruction_steps,review_validated,
+    `SELECT id, household_id,output_units, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type,minimum_production_amount,minimum_production_unit_id, meal_moments,separate_starch,serving_weights,cooking_factors,parent_recipe_id,serving_part,serving_part_active,version,recipe_archived,replaced_by_recipe_id,cooking_details,instruction_steps,review_validated,created_by_account_id,
             EXISTS (SELECT 1 FROM recipe_images WHERE recipe_id=recipes.id) AS image_available,
             (SELECT count(*) FROM recipes siblings WHERE siblings.parent_recipe_id=recipes.parent_recipe_id AND siblings.serving_part_active) AS sibling_count,
             (SELECT parent.name FROM recipes parent WHERE parent.id=recipes.parent_recipe_id) AS parent_recipe_name,
@@ -407,7 +408,7 @@ export async function readRecipe(client, id, path=[]) {
     eggServingStep:lines.length===1&&lines[0].foodId&&servingLoad.eggs>0?Number(row.yield_amount)/servingLoad.eggs:null,
     servingLoad:Object.fromEntries(Object.entries(servingLoad).map(([key,value])=>[key,value==null?null:value/Number(row.yield_amount)])),
     separateStarch:row.separate_starch ?? false,servingWeights:row.serving_weights ?? {},cookingFactors:row.cooking_factors ?? {main:1,starch:3},parentRecipeId:row.parent_recipe_id ?? null,parentRecipeName:row.parent_recipe_name??null,servingPart:row.serving_part ?? null,servingPartActive:row.serving_part_active??true,servingParts,archivedServingParts,imageAvailable:Boolean(row.image_available),
-    id: row.id, version: Number(row.version ?? 0), name: row.name, description: row.description, instructions: row.instructions ?? '',reviewValidated:Boolean(row.review_validated),steps:row.instruction_steps??instructionSteps(row.instructions),cooking:row.cooking_details??{}, sourceUrl: row.source_url ?? null,
+    id: row.id,createdByAccountId:row.created_by_account_id??null, version: Number(row.version ?? 0), name: row.name, description: row.description, instructions: row.instructions ?? '',reviewValidated:Boolean(row.review_validated),steps:row.instruction_steps??instructionSteps(row.instructions),cooking:row.cooking_details??{}, sourceUrl: row.source_url ?? null,
     recipeType: row.recipe_type ?? 'dish', productionType: row.production_type ?? 'none', mealMoments: row.meal_moments ?? [],
     recipeArchived:row.recipe_archived??false,replacedByRecipeId:row.replaced_by_recipe_id??null,outputUnits:row.output_units??{},minimumProductionAmount:Number(row.minimum_production_amount??0),minimumProductionUnitId:row.minimum_production_unit_id??row.yield_unit_id,
     yield: { amount: Number(row.yield_amount), unitId: row.yield_unit_id },

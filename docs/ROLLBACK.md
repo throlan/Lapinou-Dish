@@ -1,5 +1,10 @@
 # Images versionnées et retour arrière
 
+## Catalogue de recettes — 0.7.0
+
+Migration additive : identité du créateur facultative sur les recettes. Les fiches historiques restent sans créateur. Le retour à la 0.6.0 ignore cette colonne et rétablit les anciens droits de gestion, sans attribuer ni effacer les créateurs enregistrés. La référence 0.3.32 et ses précautions de restauration de base multi-foyers restent inchangées.
+
+
 ## Comptes individuels à partir de la 0.4.0
 
 Avant migration, conserver une sauvegarde de la base pour revenir à la release fonctionnelle 0.3.32. La 0.3.32 ignore les comptes individuels et ne garantit pas l’isolation des foyers ajoutés en 0.4.0. Un retour d’image seul sur la base multi-foyers réexposerait les données au mot de passe collectif. Restaurer la sauvegarde de base antérieure pour retrouver le fonctionnement et les données de la référence stable.

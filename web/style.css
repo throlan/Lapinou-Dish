@@ -730,13 +730,10 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .account-setup-dialog form {display:grid;gap:.8rem}
 #household-box select {max-width:15rem;font-size:.8rem}
 .member-mode .admin-tabs [data-admin-tab]:not([data-admin-tab=profiles]):not([data-admin-tab=accounts]):not([data-admin-tab=community]),
-.member-mode .profile-create-panel,.member-mode .recipe-card-settings,
-.member-mode .food-actions,.member-mode #add-food,.member-mode #new-recipe,
-.member-mode [data-view=import],.member-mode #save-cook,.member-mode .calendar-add,
-.member-mode #recalculate-portions,.member-mode #save-meal,
-.member-mode .recipe-card-actions button[aria-label^="Modifier"],
-.member-mode .recipe-card-actions button[aria-label^="Dupliquer"],
-.member-mode .recipe-card-actions button[aria-label^="Supprimer"] {display:none!important}
+.member-mode .profile-create-panel,.member-mode .food-actions,.member-mode #add-food,
+.member-mode:not(.recipe-curator) #new-recipe,.member-mode:not(.recipe-curator) #open-recipe-import,
+.member-mode:not(.recipe-curator) [data-view=import],.member-mode #save-cook,.member-mode .calendar-add,
+.member-mode #recalculate-portions,.member-mode #save-meal {display:none!important}
 @media(max-width:600px){.account-section{padding:.75rem}.account-form{max-width:100%}#household-box select{max-width:11rem}}
 
 /* Account scopes and large recipe selections */

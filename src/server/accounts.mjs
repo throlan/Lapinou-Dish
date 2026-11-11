@@ -60,7 +60,7 @@ export function nestedPool(client){
 }
 export async function scopedOperation(pool,actor,operation){
  return transaction(pool,async client=>{
-  await client.query("SELECT set_config('app.household_id',$1,true),set_config('app.is_admin',$2,true),set_config('app.person_id',$3,true),set_config('app.is_manager',$4,true)",[actor.householdId??'',String(actor.applicationAdmin),actor.personId??'',String(actor.role==='manager')]);
+  await client.query("SELECT set_config('app.household_id',$1,true),set_config('app.is_admin',$2,true),set_config('app.person_id',$3,true),set_config('app.is_manager',$4,true),set_config('app.account_id',$5,true)",[actor.householdId??'',String(actor.applicationAdmin),actor.personId??'',String(actor.role==='manager'),actor.id??'']);
   await client.query('SET LOCAL ROLE lapinou_request');
   return operation(nestedPool(client));
  });
@@ -337,9 +337,15 @@ function responseBuffer(){
   transform(fn){if(body){try{body=JSON.stringify(fn(JSON.parse(String(body))));}catch{}}},
   flush(response){for(const [key,value] of headers)response.setHeader(key,value);response.writeHead(status);response.end(body);}};
 }
-function assertMemberWrite(actor,request,url){
+async function assertMemberWrite(actor,request,url,pool){
  if(['GET','HEAD'].includes(request.method))return;
  if(actor.role==='manager')return;
+ if(actor.applicationAdmin&&/^\/api\/(recipes|recipe-imports)(?:\/|$)/.test(url.pathname))return;
+ const recipe=url.pathname.match(/^\/api\/recipes\/([a-f0-9-]{36})(?:\/settings)?$/i);
+ if(recipe&&['PUT','PATCH','DELETE'].includes(request.method)){
+  const own=await pool.query('SELECT 1 FROM recipes WHERE id=$1 AND household_id=$2 AND created_by_account_id=$3 AND parent_recipe_id IS NULL',[recipe[1],actor.householdId,actor.id]);
+  if(own.rows.length)return;
+ }
  const person=url.pathname.match(/^\/api\/people\/([a-f0-9-]{36})\/(weights|profile-history)$/i);
  if(person&&person[1]===actor.personId)return;
  throw accountError('household-manager-required',403);
@@ -369,7 +375,7 @@ export async function accountGateway(request,response,pool,appPassword,legacyHan
   if(url.pathname==='/api/households'&&request.method==='GET')return sendAccount(response,200,{households:(await publicSession(pool,actor)).households});
   if(url.pathname==='/api/households')throw accountError('use-account-household-management',403);
   if(!actor.householdId)throw accountError('household-membership-required',403);
-  assertMemberWrite(actor,request,url);
+  await assertMemberWrite(actor,request,url,pool);
   const body=['POST','PUT','PATCH','DELETE'].includes(request.method)?await jsonBody(request):null;
   const requestedHousehold=body?.householdId??url.searchParams.get('householdId');
   if(requestedHousehold&&requestedHousehold!==actor.householdId)throw accountError('household-access-denied',403);

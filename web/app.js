@@ -1,3 +1,4 @@
+import {recipePermissions} from './recipe-permissions.js';
 import {createRecipeMethodEditor} from './recipe-method-editor.js';
 import {renderCookingMethod} from './cooking-method-view.js';
 import {createRecipeReviews} from './recipe-reviews.js';
@@ -22,7 +23,7 @@ const state = { offset: 0, limit: 50, query: '', foodCategory: '', missingField:
 const recipeMethodEditor=createRecipeMethodEditor(document.querySelector('#recipe-method-editor'),document.querySelector('#recipe-form'));
 const accountUI=createAccountUI({api,onSession:session=>{state.account=session.account??null;}});
 const recipeReviews=createRecipeReviews({api,getAccount:()=>state.account,onChange:()=>renderFilteredRecipes()});
-recipeReviews.addFilter(document.querySelector('.recipe-display-toolbar'));
+recipeReviews.addFilter(document.querySelector('#recipe-advanced-controls'));
 let recipeImageConfig={enabled:false}, imageRecipeId=null;
 const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbohydrateG', 'g gluc.'], ['fatG', 'g lip.']];
 const selectedStoreFoods=new Map();
@@ -601,7 +602,7 @@ function preparationRow(group,productionDate) {
   row.append(details);
   if(recipe){
     const link=document.createElement('button');link.type='button';link.className='secondary';link.textContent='Voir la recette';link.addEventListener('click',()=>showRecipeCard(recipe.id));row.append(link);
-    const cook=document.createElement('button');cook.type='button';cook.className='secondary';cook.textContent='Cuisiner';cook.addEventListener('click',()=>openCookingSheet(recipe.id,suggested,productionDate,group));row.append(cook);
+    const cook=document.createElement('button');cook.type='button';cook.className='primary';cook.textContent='Cuisiner';cook.addEventListener('click',()=>openCookingSheet(recipe.id,suggested,productionDate,group));row.append(cook);
   }
   const calendar=document.createElement('button');calendar.type='button';calendar.className='secondary';calendar.textContent='Voir le repas dans le calendrier';
   calendar.addEventListener('click',()=>{state.calendarWeekStart=mondayOf(first.firstDate);setView('calendar');});row.append(calendar);
@@ -2257,14 +2258,32 @@ function renderFilteredRecipes(){
   }
   for(const key of ['type','moment']){
     const choices=key==='type'?typeChoices:recipeFilterChoices[key];
-    const root=$(`#recipe-${key}-filters`);root.replaceChildren(...choices.map(([value,label])=>{
-      const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=label;button.setAttribute('aria-pressed',String(recipeFilters[key]===value));
-      button.addEventListener('click',()=>{recipeFilters[key]=value;recipeFilters.page=1;try{localStorage.setItem('lapinou-recipe-filters',JSON.stringify({type:recipeFilters.type,moment:recipeFilters.moment,service:recipeFilters.service}));}catch{}renderFilteredRecipes();});
-      return button;
-    }));
+    const root=$('#recipe-'+key+'-filters');root.replaceChildren(...choices.map(([value,label])=>new Option(label,value)));root.value=recipeFilters[key];
   }
+  renderActiveRecipeFilters();
   $('#recipe-missing-filter').value=recipeFilters.missing;$('#recipe-validation-filter').value=recipeFilters.validation;
 }
+function persistRecipeFilters(){
+ try{localStorage.setItem('lapinou-recipe-filters',JSON.stringify({type:recipeFilters.type,moment:recipeFilters.moment,service:recipeFilters.service}));localStorage.setItem('lapinou-recipe-validation',recipeFilters.validation);}catch{}
+}
+function renderActiveRecipeFilters(){
+ const root=$('#recipe-active-filters');root.replaceChildren();let advanced=0;
+ const controls={type:'#recipe-type-filters',moment:'#recipe-moment-filters',validation:'#recipe-validation-filter',service:'#recipe-service-filter',missing:'#recipe-missing-filter'};
+ const labels={type:'Type',moment:'Moment',validation:'Relecture',service:'Service',missing:'À compléter'};
+ function chip(text,clear){const button=document.createElement('button');button.type='button';button.className='recipe-filter-chip';button.textContent=text+' ×';button.setAttribute('aria-label','Effacer le filtre '+text);button.addEventListener('click',()=>{clear();recipeFilters.page=1;persistRecipeFilters();renderFilteredRecipes();});root.append(button);}
+ if(recipeFilters.query)chip('Recherche : '+recipeFilters.query,()=>{recipeFilters.query='';$('#recipe-search').value='';});
+ for(const [key,selector] of Object.entries(controls)){
+  const value=recipeFilters[key];if(!value||value==='all')continue;
+  const control=$(selector),label=[...control.options].find(o=>o.value===value)?.textContent??value;
+  if(['service','missing'].includes(key))advanced++;
+  chip(labels[key]+' : '+label,()=>{recipeFilters[key]=key==='validation'?'all':'';});
+ }
+ const ratings=$('#recipe-rating-filter');if(ratings?.value&&ratings.value!=='all'){advanced++;chip('Avis : '+ratings.selectedOptions[0].textContent,()=>{ratings.value='all';ratings.dispatchEvent(new Event('change'));});}
+ $('#recipe-advanced-count').textContent=advanced?'('+advanced+')':'';
+ if(root.children.length){const clear=document.createElement('button');clear.type='button';clear.className='text-button';clear.textContent='Tout effacer';clear.addEventListener('click',()=>{for(const key of ['type','moment','query','missing','service'])recipeFilters[key]='';recipeFilters.validation='all';recipeFilters.page=1;$('#recipe-search').value='';if(ratings){ratings.value='all';ratings.dispatchEvent(new Event('change'));}persistRecipeFilters();renderFilteredRecipes();});root.append(clear);}
+}
+for(const key of ['type','moment'])$('#recipe-'+key+'-filters').addEventListener('change',event=>{recipeFilters[key]=event.target.value;recipeFilters.page=1;persistRecipeFilters();renderFilteredRecipes();});
+
 function saveRecipeDisplay(){try{localStorage.setItem('lapinou-recipe-display',JSON.stringify(recipeDisplay));}catch{}renderFilteredRecipes();}
 for(const view of ['grid','list'])$('#recipe-view-'+view)?.addEventListener('click',()=>{recipeDisplay.view=view;saveRecipeDisplay();});
 $('#recipe-columns')?.addEventListener('change',event=>{recipeDisplay.columns=Number(event.target.value);saveRecipeDisplay();});
@@ -2520,34 +2539,33 @@ async function requestRecipeDeletion(recipe,button,message){
   }
 }
 
-function renderRecipeServingBadges(recipe){
-  const badges=document.createElement('div');badges.className='recipe-serving-badges';
-  const energy=recipeEnergyBadge(recipe);
-  if(energy){
-    const badge=document.createElement('span');badge.className=energy.dense?'recipe-energy-dense':'recipe-energy';
-    badge.textContent=`${format(energy.kcal)} kcal / ${energy.label}`;
-    badge.title=energy.label==='100 g'?'Calculé à partir du poids servi renseigné ou estimé.':'Calculé à partir du rendement de la recette.';
-    badges.append(badge);
-  }
-  if(recipe.containsWhey){const badge=document.createElement('span');badge.className='recipe-whey';badge.textContent='Contient de la whey';badges.append(badge);}
-  if(recipe.reviewValidated){const reviewed=document.createElement('span');reviewed.className='recipe-validated';reviewed.textContent='✓ Validée';badges.append(reviewed);}
-  const rating=recipeReviews.badge(recipe.id);if(rating)badges.append(rating);
-  return energy||recipe.containsWhey||rating||recipe.reviewValidated?badges:null;
+function renderRecipeServingBadges(recipe,overlay=false){
+ const badges=document.createElement('div');badges.className='recipe-serving-badges'+(overlay?' recipe-image-badges':'');
+ const top=document.createElement('div'),bottom=document.createElement('div');top.className='recipe-badges-top';bottom.className='recipe-badges-bottom';
+ const add=(badge,position='bottom')=>{if(overlay)(position==='top'?top:bottom).append(badge);else badges.append(badge);};
+ const energy=recipeEnergyBadge(recipe);
+ if(energy){const badge=document.createElement('span');badge.className=energy.dense?'recipe-energy-dense':'recipe-energy';badge.textContent=format(energy.kcal)+' kcal / '+energy.label;badge.title=energy.label==='100 g'?'Calories pour 100 g servis.':'Calories par '+energy.label+'.';add(badge);}
+ if(recipe.containsWhey){const badge=document.createElement('span');badge.className='recipe-whey';badge.textContent=overlay?'Whey':'Contient de la whey';badge.title='Contient de la whey';add(badge);}
+ if(recipe.reviewValidated){const badge=document.createElement('span');badge.className='recipe-validated';badge.textContent=overlay?'✓':'✓ Validée';badge.title='Recette validée';badge.setAttribute('aria-label','Recette validée');add(badge,'top');}
+ const rating=recipeReviews.badge(recipe.id);if(rating){if(overlay){rating.setAttribute('aria-label',rating.textContent);rating.textContent='★ '+format(rating.dataset.average);}add(rating,'top');}
+ if(overlay)badges.append(top,bottom);
+ return energy||recipe.containsWhey||rating||recipe.reviewValidated?badges:null;
 }
 
 function recipeCard(recipe) {
   const card = document.createElement('article'); card.className = 'recipe-card';card.dataset.recipeId=recipe.id;
+  const permissions=recipePermissions(recipe,typeof state!=='undefined'?state.account:null);
   const header=document.createElement('div');header.className='recipe-row-header';
   const visual=document.createElement('div');visual.className='recipe-card-visual';
   visual.append(recipeImageElement(recipe,'recipe-list-photo'));
   const identity=document.createElement('div');identity.className='recipe-row-identity';
   const title=document.createElement('h3');title.textContent=recipe.name;
   const categoryLabel=typeof state!=='undefined'?state.mealAdditions?.find(item=>item.recipeType===recipe.recipeType)?.label:null;
-  const subtitle=document.createElement('p');subtitle.textContent=`${categoryLabel??recipeTypeLabel(recipe.recipeType)} · ${recipe.lines.length} ingrédient${recipe.lines.length===1?'':'s'} · ${format(recipe.yield.amount)} ${recipe.yield.unitId}`;
+  const subtitle=document.createElement('p');subtitle.textContent=`${categoryLabel??recipeTypeLabel(recipe.recipeType)} · ${format(recipe.yield.amount)} ${{portion:recipe.yield.amount===1?'portion':'portions',piece:recipe.yield.amount===1?'pièce':'pièces',slice:recipe.yield.amount===1?'tranche':'tranches'}[recipe.yield.unitId]??recipe.yield.unitId} · ${recipe.lines.length} ingrédient${recipe.lines.length===1?'':'s'}`;
   const serviceDescription=document.createElement('p');serviceDescription.className='recipe-service-label';serviceDescription.textContent=recipeServiceChoices.find(([value])=>value===recipeServiceMode(recipe))?.[1]??'';
   const heading=document.createElement('div');heading.className='recipe-title-row';
   const rename=document.createElement('button');rename.type='button';rename.className='text-button recipe-rename-button';rename.textContent='Renommer';rename.setAttribute('aria-label',`Renommer ${recipe.name}`);rename.setAttribute('aria-expanded','false');
-  heading.append(title,rename);
+  heading.append(title);
   const renameEditor=document.createElement('div');renameEditor.className='recipe-rename-editor';renameEditor.hidden=true;
   const nameLabel=document.createElement('label');nameLabel.textContent='Titre de la recette';const nameInput=document.createElement('input');nameInput.type='text';nameInput.required=true;nameInput.maxLength=200;nameInput.value=recipe.name;nameLabel.append(nameInput);
   const renameActions=document.createElement('div');renameActions.className='form-actions';
@@ -2555,7 +2573,7 @@ function recipeCard(recipe) {
   const renameCancel=document.createElement('button');renameCancel.type='button';renameCancel.className='secondary';renameCancel.textContent='Annuler';
   const renameStatus=document.createElement('p');renameStatus.className='form-message';renameStatus.setAttribute('role','status');
   renameActions.append(renameSave,renameCancel);renameEditor.append(nameLabel,renameActions,renameStatus);
-  const closeRename=()=>{renameEditor.hidden=true;rename.setAttribute('aria-expanded','false');nameInput.value=recipe.name;renameStatus.textContent='';rename.focus();};
+  const closeRename=()=>{renameEditor.hidden=true;rename.setAttribute('aria-expanded','false');nameInput.value=recipe.name;renameStatus.textContent='';actionToggle.focus();};
   rename.addEventListener('click',()=>{renameEditor.hidden=false;rename.setAttribute('aria-expanded','true');nameInput.value=recipe.name;nameInput.focus();nameInput.select();});
   renameCancel.addEventListener('click',closeRename);
   const saveName=async()=>{
@@ -2566,7 +2584,7 @@ function recipeCard(recipe) {
     try{
       const result=await api(`/api/recipes/${recipe.id}`,{method:'PATCH',body:JSON.stringify({householdId:state.household.id,version:recipe.version,name})});
       Object.assign(recipe,result.recipe);await refreshRecipes();showMessage($('#recipe-list-message'),`Titre enregistré : « ${recipe.name} ».`,true);
-      $('#recipe-list [data-recipe-id="'+recipe.id+'"] .recipe-rename-button')?.focus();
+      $('#recipe-list [data-recipe-id="'+recipe.id+'"] .recipe-action-menu summary')?.focus();
       await Promise.allSettled([refreshShopping(),refreshDashboard()]);
     }catch(error){renameStatus.textContent=error.body?.error==='recipe-version-conflict'?'Recette modifiée ailleurs. Actualise la liste avant de renommer.':`Titre non enregistré : ${error.body?.error??error.message}`;}
     finally{renameSave.disabled=false;renameCancel.disabled=false;nameInput.disabled=false;}
@@ -2574,14 +2592,15 @@ function recipeCard(recipe) {
   nameInput.addEventListener('input',()=>nameInput.setCustomValidity(''));
   nameInput.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();saveName();}if(event.key==='Escape'&&!renameSave.disabled){event.preventDefault();closeRename();}});
   renameSave.addEventListener('click',saveName);
-  identity.append(heading,renameEditor,subtitle,serviceDescription);
-  const badges=renderRecipeServingBadges(recipe);if(badges)identity.append(badges);
+  identity.append(heading,renameEditor,subtitle);
+  const badges=renderRecipeServingBadges(recipe,true);if(badges)visual.append(badges);
   const nutrition=document.createElement('p');nutrition.className='recipe-nutrition';
-  nutrition.textContent=`${format(recipe.nutrition.perYieldUnit.energyKcal)} kcal · P ${format(recipe.nutrition.perYieldUnit.proteinG)} g / ${recipe.yield.unitId}`;
+  const proteinScale=['g','ml'].includes(recipe.yield.unitId)?100:1;
+  nutrition.textContent=`${format(recipe.nutrition.perYieldUnit.proteinG==null?null:recipe.nutrition.perYieldUnit.proteinG*proteinScale)} g protéines / ${{portion:'portion',piece:'pièce',slice:'tranche',g:'100 g',ml:'100 ml'}[recipe.yield.unitId]??recipe.yield.unitId}`;
   const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='Modifier';edit.setAttribute('aria-label',`Modifier ${recipe.name}`);edit.addEventListener('click',()=>openRecipeEditor(recipe.id));
   const duplicate=document.createElement('button');duplicate.type='button';duplicate.className='secondary';duplicate.textContent='Dupliquer';duplicate.setAttribute('aria-label',`Dupliquer ${recipe.name}`);duplicate.addEventListener('click',()=>openRecipeEditor(recipe.id,true));
   const photo=document.createElement('button');photo.type='button';photo.className='secondary';photo.textContent='Photo';photo.addEventListener('click',()=>openRecipeImageEditor(recipe));
-  const cook=document.createElement('button');cook.type='button';cook.className='secondary';cook.textContent='Cuisiner';cook.setAttribute('aria-label',`Cuisiner ${recipe.name}`);cook.addEventListener('click',async()=>{
+  const cook=document.createElement('button');cook.type='button';cook.className='primary';cook.textContent='Cuisiner';cook.setAttribute('aria-label',`Cuisiner ${recipe.name}`);cook.addEventListener('click',async()=>{
     cook.disabled=true;cook.textContent='Cuisiner';
     try{
       const start=$('#shopping-start').value||localDateValue(),end=$('#shopping-end').value||addDays(start,29);
@@ -2597,11 +2616,23 @@ function recipeCard(recipe) {
   const removalMessage=document.createElement('p');removalMessage.className='form-message';removalMessage.setAttribute('role','status');
   const remove=document.createElement('button');remove.type='button';remove.className='secondary danger-button';remove.textContent='Supprimer';remove.setAttribute('aria-label',`Supprimer ${recipe.name}`);
   remove.addEventListener('click',()=>requestRecipeDeletion(recipe,remove,removalMessage));
-  const actions=document.createElement('div');actions.className='recipe-card-actions';actions.append(photo,cook,duplicate,edit,remove);
+  const actions=document.createElement('div');actions.className='recipe-card-actions';
+  const actionMenu=document.createElement('details');actionMenu.className='recipe-action-menu';
+  const actionToggle=document.createElement('summary');actionToggle.textContent='⋯';actionToggle.setAttribute('aria-label','Actions pour '+recipe.name);actionMenu.append(actionToggle);
+  const menuItems=document.createElement('div');menuItems.className='recipe-menu-items';actionMenu.append(menuItems);
+  const menuAction=button=>menuItems.append(button);menuItems.addEventListener('click',()=>{actionMenu.open=false;});
+  if(permissions.photo){photo.setAttribute('aria-label','Photo de '+recipe.name);menuAction(photo);}
+  if(permissions.duplicate)menuAction(duplicate);
+  if(permissions.edit)menuAction(edit);
+  if(permissions.rename)menuAction(rename);
+  if(permissions.remove)menuAction(remove);
+  actionMenu.addEventListener('keydown',event=>{if(event.key==='Escape'){actionMenu.open=false;actionToggle.focus();}});
+  actionMenu.addEventListener('toggle',()=>{if(actionMenu.open){for(const other of document.querySelectorAll('.recipe-action-menu[open]'))if(other!==actionMenu)other.open=false;const rect=actionToggle.getBoundingClientRect();actionMenu.classList.toggle('opens-up',rect.bottom+menuItems.offsetHeight>innerHeight-12&&rect.top>menuItems.offsetHeight+12);}});
+  actions.append(cook);if(permissions.edit||permissions.curate)actions.append(actionMenu);
   header.append(visual,identity,nutrition,actions);card.append(header);
   card.append(removalMessage);
   const missing=recipeMissingData(recipe);
-  if(missing.length){const badges=document.createElement('p');badges.className='recipe-missing-badges';for(const item of missing){const badge=document.createElement('span');badge.textContent=item.label;badges.append(badge);}card.append(badges);}
+
   const settings=document.createElement('div');settings.className='recipe-row-settings';
   const production=document.createElement('label');production.textContent='Production à suivre';
   const select=document.createElement('select');select.setAttribute('aria-label',`Production à suivre pour ${recipe.name}`);
@@ -2671,11 +2702,13 @@ function recipeCard(recipe) {
     finally{select.disabled=false;moments.disabled=false;config.disabled=false;save.disabled=!isDirty();}
   });
   settings.append(production,config,moments,save,status);
-  const settingsDetails=document.createElement('details');settingsDetails.className='recipe-card-settings';const settingsSummary=document.createElement('summary');settingsSummary.textContent='Réglages rapides';settingsDetails.append(settingsSummary,settings);card.append(settingsDetails);
+  const settingsDetails=document.createElement('details');settingsDetails.className='recipe-card-settings';const settingsSummary=document.createElement('summary');settingsSummary.textContent='Réglages rapides';settingsDetails.append(settingsSummary,settings);settingsDetails.hidden=true;
+  if(permissions.edit){card.append(settingsDetails);const quick=document.createElement('button');quick.type='button';quick.textContent='Réglages rapides';quick.addEventListener('click',()=>{actionMenu.open=false;settingsDetails.hidden=false;settingsDetails.open=true;settingsDetails.scrollIntoView({block:'nearest'});});menuItems.append(quick);}
   const more=document.createElement('details');more.className='recipe-row-more';
-  const summary=document.createElement('summary');summary.textContent=recipe.nutrition.complete?'Détails nutritionnels et portions':`Détails · ${recipe.nutrition.lineIssues?.length??0} point(s) à vérifier`;
+  const summary=document.createElement('summary');summary.textContent=missing.length?'Informations · '+missing.length+' à vérifier':'Nutrition et portions';
   more.append(summary);
   const details=document.createElement('div');details.className='recipe-row-more-content';
+  if(missing.length){const note=document.createElement('p');note.className='warning';note.textContent=missing.map(item=>item.label).join(' · ');details.append(note);}
   if (recipe.servingParts?.length) {
     const weights=document.createElement('p'); weights.className='muted'; weights.textContent='Poids estimés du batch : '+recipe.servingParts.map(part=>`${part.servingPart==='starch'?'féculents':part.servingPart==='vegetables'?'légumes':recipe.servingParts.length>2?'viande / protéines':recipe.servingParts.length>1?'viande et légumes':'plat entier'} ${formatQty(part.yield.amount)} g`).join(' · '); details.append(weights);
   }

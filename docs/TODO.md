@@ -1,5 +1,10 @@
 # Prochaines tâches — 6 novembre 2026
 
+## À vérifier après déploiement — 0.7.0
+
+Vérifier les cartes, badges et filtres sur les appareils réels. Pour les recettes historiques sans créateur enregistré, seuls les administrateurs/gestionnaires disposent des actions de gestion ; aucune attribution n’est inventée. Les contrôles et la publication de cette version sont consignés dans la PR fonctionnelle.
+
+
 ## Relecture des recettes — 0.6.0
 
 Utiliser le filtre Non validées pour reprendre les quelque 200 recettes, compléter les temps, la difficulté et les étapes, puis cocher Recette validée. Le repère ne bloque pas les ajustements ultérieurs. Valider l’ergonomie de la fiche Cuisiner après déploiement par l’utilisateur.
