@@ -209,7 +209,7 @@ Le calendrier dispose d’une impression hebdomadaire A4 paysage, avec menus et 
 
 **Livré** : plafond de suggestion automatique à une portion pour les salades, couleurs de créneaux, comparaison kcal hebdomadaire, protéines quotidiennes par personne, minima configurables dans Administration et impression paysage avec quantités par personne (PR #101 à #105). Ne pas remettre ces fonctions dans les tâches restantes.
 
-## Comptes utilisateurs et foyers — 0.4.0
+## Comptes utilisateurs et foyers — 0.4.1
 
 Le modèle a été validé et le développement autorisé le 11 novembre 2026. Les comptes sont distincts des profils. Le rôle global d’administration se cumule avec les rôles propres à chaque foyer. La première livraison comprend l’authentification individuelle, les appartenances, les profils personnels, le partage volontaire et la composition de packages de démarrage. Détails dans REPRISE.md.
 
@@ -221,7 +221,7 @@ Une première expérimentation pourrait se limiter à un catalogue public en lec
 
 ## Prochaines décisions
 
-La liste synthétique à jour est dans [TODO.md](TODO.md). Ordre décidé par l’utilisateur : 1. webapp installable (livrée en 0.2.90), 2. comptes individuels et foyers (développés en 0.4.0), 3. aide à la correction des données nutritionnelles, 4. communauté publique, 5. nettoyage du catalogue. À la demande de l’utilisateur, le nettoyage du catalogue (filtre des aliments inutilisés puis fusion guidée des doublons) passe en dernière priorité : le cahier de recettes doit d’abord être consolidé. Préserver ensuite les références, stocks, conversions et magasins ; aucune suppression automatique. Le design responsive est livré en 0.2.89. Cet ordre reste une proposition ; attendre la demande de l’utilisateur avant de commencer.
+La liste synthétique à jour est dans [TODO.md](TODO.md). Ordre décidé par l’utilisateur : 1. webapp installable (livrée en 0.2.90), 2. comptes individuels et foyers (développés en 0.4.1), 3. aide à la correction des données nutritionnelles, 4. communauté publique, 5. nettoyage du catalogue. À la demande de l’utilisateur, le nettoyage du catalogue (filtre des aliments inutilisés puis fusion guidée des doublons) passe en dernière priorité : le cahier de recettes doit d’abord être consolidé. Préserver ensuite les références, stocks, conversions et magasins ; aucune suppression automatique. Le design responsive est livré en 0.2.89. Cet ordre reste une proposition ; attendre la demande de l’utilisateur avant de commencer.
 
 ## Recettes utilisées comme composants — réalisé en 0.2.82
 
