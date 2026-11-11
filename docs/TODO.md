@@ -1,6 +1,6 @@
 # Prochaines tâches — 6 novembre 2026
 
-## Validation des comptes — 0.4.0
+## Validation des comptes — 0.4.1
 
 Après déploiement par l’utilisateur, reprendre le foyer et le profil existants lors de la création du premier administrateur. Vérifier les associations compte–profil, puis composer le premier package officiel à partir des publications choisies. Les invitations par courriel et la récupération autonome de compte restent hors de cette première livraison ; les mots de passe se réinitialisent depuis un autre compte administrateur. Voir REPRISE.md et ROLLBACK.md.
 

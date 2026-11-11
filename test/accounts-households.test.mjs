@@ -64,6 +64,9 @@ test('individual accounts enforce household isolation, roles, sessions and expli
  await request('PUT','/api/accounts/household',{householdId:h},ownerCookie);
  const publication=await request('POST','/api/community/publish',{kind:'recipe',id:recipeId},ownerCookie);
  assert.equal(publication.status,201,JSON.stringify(publication.body));
+ assert.equal((await request('POST','/api/community/publish',{kind:'recipe',id:recipeId},memberCookie)).status,403);
+ assert.equal((await request('POST','/api/community/publish',{kind:'recipe',id:randomUUID()},ownerCookie)).status,404);
+ assert.equal((await request('GET','/api/community/unknown',null,ownerCookie)).status,404);
  const shared=await request('GET','/api/community',null,memberCookie);assert.equal(shared.body.publications.length,1);
  const foodPublication=await request('POST','/api/community/publish',{kind:'food',id:foodId},ownerCookie);assert.equal(foodPublication.status,201);
  const toast=await request('POST','/api/recipes',{householdId:h,name:'Toast',yield:{amount:1,unitId:'portion'},lines:[{recipeId,quantity:2,unitId:'slice'}]},ownerCookie);assert.equal(toast.status,201,JSON.stringify(toast.body));
