@@ -1,5 +1,9 @@
 # État du projet — 11 novembre 2026
 
+## Compatibilité des photos — 0.4.2, PR #188
+
+La limite du corps JSON authentifié est alignée sur celle du serveur existant (9 500 000 octets), afin de conserver l’envoi des photos de recettes jusqu’à 5 Mio encodées en base64. Un test accepte une charge supérieure à 2 Mo et refuse celle dépassant la limite. Cette correction ne change pas le modèle des comptes ni les données. Les références de publication 0.4.1 ci-dessous restent celles de la livraison précédente ; reprendre la 0.4.2 après vérification de sa publication GitHub/GHCR.
+
 ## Publication vérifiée des comptes — 0.4.1
 
 PR fonctionnelle #186 puis correction finale #187 fusionnées. Source applicative : `e36424c9c855974f2ab5ff849078a5f870e4ea1c`. Contrôles et publication réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/43085131322. Suite complète : 395 tests réussis ; parcours Chrome local sur données fictives validé.

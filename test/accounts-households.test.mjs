@@ -4,7 +4,7 @@ import {readFile,readdir} from 'node:fs/promises';
 import {Readable} from 'node:stream';
 import {randomUUID} from 'node:crypto';
 import {PGlite} from '@electric-sql/pglite';
-import {accountGateway,scopedOperation} from '../src/server/accounts.mjs';
+import {accountGateway,scopedOperation,jsonBody} from '../src/server/accounts.mjs';
 import {communityRoutes} from '../src/server/community.mjs';
 import {handleRequest} from '../src/server/app.mjs';
 
@@ -137,4 +137,10 @@ test('migration preserves each existing household catalogue, recipe references a
   assert.equal((await scoped.query("SELECT name FROM custom_food_categories WHERE name='Skyr'")).rows.length,1);
  });
  assert.equal((await pool.query("SELECT count(*) FROM custom_food_categories WHERE name='Skyr'")).rows[0].count,2);
+});
+
+test('account gateway preserves the existing upload limit for recipe photos',async()=>{
+ const payload={imageBase64:'A'.repeat(3_000_000)};
+ assert.equal((await jsonBody(Readable.from([JSON.stringify(payload)]))).imageBase64.length,3_000_000);
+ await assert.rejects(jsonBody(Readable.from([JSON.stringify({imageBase64:'A'.repeat(9_500_000)})])),error=>error.status===413&&error.message==='body-too-large');
 });

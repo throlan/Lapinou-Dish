@@ -38,7 +38,7 @@ export function sendAccount(response,status,body){
 }
 export async function jsonBody(request){
  let size=0;const chunks=[];
- for await(const chunk of request){const b=Buffer.from(chunk);size+=b.length;if(size>2000000)throw accountError('body-too-large',413);chunks.push(b);}
+ for await(const chunk of request){const b=Buffer.from(chunk);size+=b.length;if(size>9_500_000)throw accountError('body-too-large',413);chunks.push(b);}
  try{return JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}');}catch{throw accountError('invalid-json');}
 }
 export async function transaction(pool,operation){
