@@ -1,5 +1,12 @@
 # Images versionnées et retour arrière
 
+## Release fonctionnelle de référence — 11 novembre 2026
+
+La version 0.3.32 est conservée comme référence fonctionnelle à la demande de l’utilisateur. Source figée au commit `bab03e3532c923c09da327f70b65b5fcb8fdc7ee`, tag Git `v0.3.32`, release GitHub `https://github.com/throlan/Lapinou-Dish/releases/tag/v0.3.32`. Les futurs développements partent de branches dédiées et utilisent un nouveau numéro applicatif dès qu’ils changent le fonctionnement.
+
+Image de référence `ghcr.io/throlan/lapinou-dish:0.3.32`. Référence exacte `ghcr.io/throlan/lapinou-dish@sha256:defb5b021e29975bbc6ab96576d791d54e3ca622a690082ed33341c6d87301ea`. Les tags `0.3.32` et `v0.3.32` ont été vérifiés sur GHCR. Le digest est conservé dans `docker/rollback-images.json` pour les vérifications de publication. Les retours d’image ne restaurent pas la base de données. Examiner les migrations des versions futures avant tout retour à cette référence.
+
+
 ## Version 0.3.11
 
 Réorganisation visuelle de Courses & stocks en onglets, sans migration ni changement de calcul ou de stock. PR #159 fusionnée au commit `36dc404a107b658c3bf0c89297f9e7e2abab5ee3`. Publication réussie : https://github.com/throlan/Lapinou-Dish/actions/runs/41821597464. Tags `0.3.11` et `v0.3.11` vérifiés sur GHCR, digest commun `sha256:36534f81dc4e4648789f2c7e42104559f4499e59a3fa7cc7edeb02df718b7089`.

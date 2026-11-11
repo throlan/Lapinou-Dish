@@ -29,5 +29,6 @@ test('invalid references, registry errors and failed writes cannot silently reta
   await assert.rejects(ensureVersionTags({image,version:'0.2.99',digest},r),/Verification failed/);
   const recovery=JSON.parse(await readFile(new URL('../docker/rollback-images.json',import.meta.url),'utf8'));
   recovery.forEach(release=>validateRelease({...release,image}));
-  assert.deepEqual(recovery.map(r=>r.version),['0.2.95','0.2.96','0.2.97','0.2.98','0.2.99']);
+  assert.equal(recovery.find(release=>release.version==='0.3.32').digest,'sha256:defb5b021e29975bbc6ab96576d791d54e3ca622a690082ed33341c6d87301ea');
+  assert.deepEqual(recovery.map(r=>r.version),['0.2.95','0.2.96','0.2.97','0.2.98','0.2.99','0.3.32']);
 });
