@@ -1,3 +1,5 @@
+import {communityRoutes} from './community.mjs';
+import {accountGateway} from './accounts.mjs';
 import { readServingCaps, saveServingCaps } from './serving-cap-settings.mjs';
 import { listCatalogueProposals } from './catalogue-review.mjs';
 import {listCatalogueEstimates} from './catalogue-estimates.mjs';
@@ -19,7 +21,7 @@ import { readProteinSettings, saveProteinSettings } from './protein-settings.mjs
 import { deleteFoodYieldConversion,listFoodYieldConversions,saveFoodYieldConversion,validateFoodYieldConversion } from './food-yield-conversions.mjs';
 import { deleteSavingPlan, getEnergyReserveOverview, saveSavingPlan, validateSavingPlan } from './energy-reserve.mjs';
 import { countProductInventory, listIngredientStock, recordPurchaseReceipt, saveIngredientStock, validateIngredientStock, validateProductCount, validatePurchaseReceipt } from './ingredient-stock.mjs';
-import { createHmac, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { bulkEditFoods, createFood, deleteFood, deleteFoods, fillMissingNutritionFromExternal, getFood, listCookingFactorConflicts, listFoodRecipeUsage, updateFood, validateBulkFoodEdit, validateFoodInput } from './foods.mjs';
 import { exportFoodCatalog } from './food-export.mjs';
 import { getOpenFoodFactsProduct, searchOpenFoodFacts } from './open-food-facts.mjs';
@@ -39,6 +41,7 @@ import { fileURLToPath } from 'node:url';
 const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web');
 const staticFiles = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
+  ['/accounts-ui.js', ['accounts-ui.js', 'text/javascript; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/food-pagination.js', ['food-pagination.js', 'text/javascript; charset=utf-8']],
   ['/catalogue-review.js', ['catalogue-review.js', 'text/javascript; charset=utf-8']],
@@ -63,15 +66,18 @@ const staticFiles = new Map([
 ]);
 
 export function createApp(pool, { appPassword, recipeAI = {} } = {}) {
-  return createServer((request, response) => handleRequest(request, response, pool, appPassword, recipeAI));
+  return createServer((request,response)=>accountGateway(request,response,pool,appPassword,(req,res,scoped)=>handleRoutes(req,res,scoped,recipeAI),communityRoutes));
 }
 
-const loginAttempts = new Map();
-const SESSION_SECONDS = 604800;
 const activeRecipeImports = new Set();
 const activeImageGenerations = new Set();
 
-export async function handleRequest(request, response, pool, appPassword = null, recipeAI = {}) {
+export async function handleRequest(request,response,pool,appPassword=null,recipeAI={}){
+  if(appPassword&&!request.account)return accountGateway(request,response,pool,appPassword,(req,res,scoped)=>handleRoutes(req,res,scoped,recipeAI),communityRoutes);
+  return handleRoutes(request,response,pool,recipeAI);
+}
+
+async function handleRoutes(request,response,pool,recipeAI={}) {
     const url = new URL(request.url ?? '/', 'http://localhost');
     const staticFile = staticFiles.get(url.pathname);
     if (request.method === 'GET' && staticFile) {
@@ -99,44 +105,6 @@ export async function handleRequest(request, response, pool, appPassword = null,
       } catch {
         return send(response, 503, { status: 'database-unavailable' });
       }
-    }
-
-    if (request.method === 'GET' && url.pathname === '/api/session') {
-      return send(response, 200, { authenticated: Boolean(appPassword && hasSession(request, appPassword)) });
-    }
-    if (request.method === 'POST' && url.pathname === '/api/login') {
-      if (!appPassword) return send(response, 503, { error: 'authentication-not-configured' });
-      const ip = request.socket?.remoteAddress ?? 'unknown';
-      const attempts = loginAttempts.get(ip) ?? { count: 0, startedAt: Date.now() };
-      if (Date.now() - attempts.startedAt > 15 * 60 * 1000) { attempts.count = 0; attempts.startedAt = Date.now(); }
-      if (attempts.count >= 8) {
-        response.setHeader('Retry-After', '900');
-        return send(response, 429, { error: 'too-many-login-attempts' });
-      }
-      const body = await readJson(request);
-      if (body.error) return send(response, body.status ?? 400, { error: body.error });
-      const supplied = typeof body.value?.password === 'string' ? body.value.password : '';
-      const expected = scryptSync(appPassword, 'lapinou-dish-login-v1', 32);
-      const candidate = scryptSync(supplied, 'lapinou-dish-login-v1', 32);
-      if (!timingSafeEqual(expected, candidate)) {
-        attempts.count += 1;
-        loginAttempts.set(ip, attempts);
-        return send(response, 401, { error: 'invalid-password' });
-      }
-      loginAttempts.delete(ip);
-      const issuedAt = Math.floor(Date.now() / 1000).toString();
-      const token = signSession(issuedAt, appPassword);
-      const secure = request.headers?.['x-forwarded-proto'] === 'https' ? '; Secure' : '';
-      response.setHeader('Set-Cookie', `lapinou_session=${issuedAt}.${token}; Path=/; Max-Age=${SESSION_SECONDS}; HttpOnly; SameSite=Strict${secure}`);
-      return send(response, 200, { authenticated: true });
-    }
-    if (request.method === 'POST' && url.pathname === '/api/logout') {
-      response.setHeader('Set-Cookie', 'lapinou_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict');
-      return send(response, 200, { authenticated: false });
-    }
-
-    if (url.pathname.startsWith('/api/') && appPassword && !hasSession(request, appPassword)) {
-      return send(response, 401, { error: 'authentication-required' });
     }
 
     if ((url.pathname === '/api/planning/rebalance-preview' && request.method==='GET') || (url.pathname === '/api/planning/rebalance' && request.method==='POST')) {
@@ -828,7 +796,7 @@ export async function handleRequest(request, response, pool, appPassword = null,
         try {
           const existing = await pool.query('SELECT food_category AS category FROM foods WHERE lower(food_category)=lower($1) ORDER BY food_category LIMIT 1',[category]);
           if (existing.rows.length) return send(response,200,{category:existing.rows[0].category,created:false});
-          const result = await pool.query('INSERT INTO custom_food_categories(name) VALUES($1) ON CONFLICT (lower(name)) DO NOTHING RETURNING name',[category]);
+          const result = await pool.query('INSERT INTO custom_food_categories(name) VALUES($1) ON CONFLICT DO NOTHING RETURNING name',[category]);
           if (result.rows.length) return send(response,201,{category:result.rows[0].name,created:true});
           const saved = await pool.query('SELECT name FROM custom_food_categories WHERE lower(name)=lower($1)',[category]);
           return send(response,200,{category:saved.rows[0].name,created:false});
@@ -1066,24 +1034,6 @@ export async function handleRequest(request, response, pool, appPassword = null,
 function send(response, status, body) {
   response.writeHead(status);
   response.end(JSON.stringify(body));
-}
-
-function signSession(issuedAt, password) {
-  return createHmac('sha256', password).update(issuedAt).digest('base64url');
-}
-
-function hasSession(request, password) {
-  const cookieHeader = request.headers?.cookie ?? '';
-  const cookie = cookieHeader.split(';').map((item) => item.trim()).find((item) => item.startsWith('lapinou_session='));
-  const value = cookie?.slice('lapinou_session='.length) ?? '';
-  const [issuedAt, signature, extra] = value.split('.');
-  if (!issuedAt || !signature || extra || !/^\d+$/.test(issuedAt)) return false;
-  const timestamp = Number(issuedAt);
-  const now = Math.floor(Date.now() / 1000);
-  if (timestamp > now + 60 || now - timestamp > SESSION_SECONDS) return false;
-  const expected = Buffer.from(signSession(issuedAt, password));
-  const provided = Buffer.from(signature);
-  return expected.length === provided.length && timingSafeEqual(expected, provided);
 }
 
 function normalizeSearch(value) {

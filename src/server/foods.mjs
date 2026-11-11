@@ -106,7 +106,7 @@ export async function bulkEditFoods(pool, input) {
     if (dryRun || preview.some(item => item.conflict)) { await client.query('ROLLBACK'); return { preview, applied: 0, conflictCount: preview.filter(item => item.conflict).length }; }
     if(input.field==='foodCategory'){
       for(const name of new Set(preview.filter(item=>item.current!==item.proposed).map(item=>item.proposed))){
-        await client.query('INSERT INTO custom_food_categories(name) SELECT $1 WHERE NOT EXISTS(SELECT 1 FROM foods WHERE lower(food_category)=lower($1)) ON CONFLICT (lower(name)) DO NOTHING',[name]);
+        await client.query('INSERT INTO custom_food_categories(name) SELECT $1 WHERE NOT EXISTS(SELECT 1 FROM foods WHERE lower(food_category)=lower($1)) ON CONFLICT DO NOTHING',[name]);
       }
     }
     for (const item of preview) {
@@ -201,12 +201,12 @@ export function validateFoodInput(input, { creating = false } = {}) {
   return { data };
 }
 
-export async function createFood(pool, data) {
+export async function createFood(pool,data,{allowDuplicate=false}={}) {
   const client = await pool.connect();
   const id = randomUUID();
   try {
     await client.query('BEGIN');
-    const duplicate = await findDuplicate(client, data.name, data.brand, null);
+    const duplicate = allowDuplicate?[]:await findDuplicate(client, data.name, data.brand, null);
     if (duplicate.length) {
       await client.query('ROLLBACK');
       return { error: 'possible-duplicate', matches: duplicate };
@@ -484,7 +484,7 @@ async function writeAliases(client, foodId, name, aliases) {
 
 export async function getFood(client, id) {
   const result = await client.query(
-    `SELECT f.id, f.canonical_name AS name, f.brand, f.source, f.source_reference,
+    `SELECT f.id, f.canonical_name AS name, f.brand, f.source,f.official,f.owner_household_id, f.source_reference,
             f.source_note, f.grams_per_millilitre,f.cooking_factor,f.food_category,f.version,
             jsonb_object_agg(n.id, fn.value_per_100g ORDER BY n.sort_order)
               FILTER (WHERE n.id IS NOT NULL) AS nutrient_values,
@@ -504,7 +504,7 @@ export async function getFood(client, id) {
   const nutrients = row.nutrient_values ?? {};
   const names = Object.fromEntries(Object.entries(nutrientIds).map(([key, nutrientId]) => [key, nutrients[nutrientId] == null ? null : Number(nutrients[nutrientId])]));
   return {
-    id: row.id, name: row.name, brand: row.brand, source: row.source,
+    id: row.id, name: row.name, brand: row.brand, source: row.source,official:row.official??false,ownerHouseholdId:row.owner_household_id??null,
     sourceReference: row.source_reference, sourceNote: row.source_note,
     gramsPerMillilitre: row.grams_per_millilitre === null ? null : Number(row.grams_per_millilitre),
     cookingFactor: row.cooking_factor == null ? null : Number(row.cooking_factor),

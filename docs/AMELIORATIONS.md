@@ -209,20 +209,9 @@ Le calendrier dispose d’une impression hebdomadaire A4 paysage, avec menus et 
 
 **Livré** : plafond de suggestion automatique à une portion pour les salades, couleurs de créneaux, comparaison kcal hebdomadaire, protéines quotidiennes par personne, minima configurables dans Administration et impression paysage avec quantités par personne (PR #101 à #105). Ne pas remettre ces fonctions dans les tâches restantes.
 
-## Comptes utilisateurs et foyer — reportés
+## Comptes utilisateurs et foyers — 0.4.0
 
-**Décision du 18 octobre 2026 : reporter ce chantier.** L’utilisateur envisage une application communautaire distribuable et éventuellement hébergée. Le modèle de compte/profil/appartenance au foyer et les droits doivent être conçus ensemble avant développement. La proposition binaire gestionnaire/membre n’est pas validée ; les éléments ci-dessous restent des pistes de cadrage. Aucun code de comptes individuels n’a été ajouté. Ne pas relancer sans nouvelle demande.
-
-Aujourd’hui, l’accès est centré sur le foyer et ses profils de personnes. L’évolution doit distinguer explicitement le compte de connexion de la personne dont les menus et données sont suivis :
-
-- Un compte appartient à un foyer et est associé à un profil de personne de ce foyer. Le foyer peut conserver des profils sans compte, notamment pour les enfants.
-- Une personne connectée peut consulter son profil, ses mesures et son historique, modifier les informations autorisées et consulter les menus de la semaine du foyer.
-- Prévoir des rôles compréhensibles, au minimum gestionnaire du foyer et membre. Le gestionnaire invite ou retire un membre et gère les profils du foyer ; les droits d’un membre sur les données des autres personnes doivent être définis explicitement.
-- Prévoir invitation sécurisée, acceptation, révocation, départ d’un foyer, transfert de gestion et récupération de compte. Éviter le partage d’un mot de passe unique par toute la famille.
-- Protéger particulièrement les informations de poids, taille, âge et besoins nutritionnels. Les membres mineurs nécessitent une gestion par un adulte responsable et ne devraient pas recevoir de compte autonome sans décision explicite.
-- Définir les règles de conservation, d’export et de suppression du compte et des données du foyer avant la mise en production.
-
-Une première étape raisonnable serait un compte par adulte, une association explicite à une personne du foyer, un rôle gestionnaire/membre et un contrôle d’accès côté serveur à chaque opération. Les invitations et la récupération de compte peuvent suivre dans un second temps.
+Le modèle a été validé et le développement autorisé le 11 novembre 2026. Les comptes sont distincts des profils. Le rôle global d’administration se cumule avec les rôles propres à chaque foyer. La première livraison comprend l’authentification individuelle, les appartenances, les profils personnels, le partage volontaire et la composition de packages de démarrage. Détails dans REPRISE.md.
 
 ## Projet communautaire public
 
@@ -232,7 +221,7 @@ Une première expérimentation pourrait se limiter à un catalogue public en lec
 
 ## Prochaines décisions
 
-La liste synthétique à jour est dans [TODO.md](TODO.md). Ordre décidé par l’utilisateur : 1. webapp installable (livrée en 0.2.90), 2. comptes individuels et foyers (reportés, modèle à cadrer avant développement), 3. aide à la correction des données nutritionnelles, 4. communauté publique, 5. nettoyage du catalogue. À la demande de l’utilisateur, le nettoyage du catalogue (filtre des aliments inutilisés puis fusion guidée des doublons) passe en dernière priorité : le cahier de recettes doit d’abord être consolidé. Préserver ensuite les références, stocks, conversions et magasins ; aucune suppression automatique. Le design responsive est livré en 0.2.89. Cet ordre reste une proposition ; attendre la demande de l’utilisateur avant de commencer.
+La liste synthétique à jour est dans [TODO.md](TODO.md). Ordre décidé par l’utilisateur : 1. webapp installable (livrée en 0.2.90), 2. comptes individuels et foyers (développés en 0.4.0), 3. aide à la correction des données nutritionnelles, 4. communauté publique, 5. nettoyage du catalogue. À la demande de l’utilisateur, le nettoyage du catalogue (filtre des aliments inutilisés puis fusion guidée des doublons) passe en dernière priorité : le cahier de recettes doit d’abord être consolidé. Préserver ensuite les références, stocks, conversions et magasins ; aucune suppression automatique. Le design responsive est livré en 0.2.89. Cet ordre reste une proposition ; attendre la demande de l’utilisateur avant de commencer.
 
 ## Recettes utilisées comme composants — réalisé en 0.2.82
 

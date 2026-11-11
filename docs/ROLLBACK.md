@@ -1,5 +1,10 @@
 # Images versionnées et retour arrière
 
+## Comptes individuels à partir de la 0.4.0
+
+Avant migration, conserver une sauvegarde de la base pour revenir à la release fonctionnelle 0.3.32. La 0.3.32 ignore les comptes individuels et ne garantit pas l’isolation des foyers ajoutés en 0.4.0. Un retour d’image seul sur la base multi-foyers réexposerait les données au mot de passe collectif. Restaurer la sauvegarde de base antérieure pour retrouver le fonctionnement et les données de la référence stable.
+
+
 ## Release fonctionnelle de référence — 11 novembre 2026
 
 La version 0.3.32 est conservée comme référence fonctionnelle à la demande de l’utilisateur. Source figée au commit `bab03e3532c923c09da327f70b65b5fcb8fdc7ee`, tag Git `v0.3.32`, release GitHub `https://github.com/throlan/Lapinou-Dish/releases/tag/v0.3.32`. Les futurs développements partent de branches dédiées et utilisent un nouveau numéro applicatif dès qu’ils changent le fonctionnement.

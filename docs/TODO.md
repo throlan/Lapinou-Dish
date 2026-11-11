@@ -1,5 +1,10 @@
 # Prochaines tâches — 6 novembre 2026
 
+## Validation des comptes — 0.4.0
+
+Après déploiement par l’utilisateur, reprendre le foyer et le profil existants lors de la création du premier administrateur. Vérifier les associations compte–profil, puis composer le premier package officiel à partir des publications choisies. Les invitations par courriel et la récupération autonome de compte restent hors de cette première livraison ; les mots de passe se réinitialisent depuis un autre compte administrateur. Voir REPRISE.md et ROLLBACK.md.
+
+
 ## Après les filtres du catalogue 0.3.21
 
 Faire examiner les listes CSV filtrées selon les besoins, notamment les aliments utilisés en recette si un export de cet usage est disponible. Les catégories exclues du coefficient de cuisson restent dans le catalogue et les autres champs de revue ; leur exclusion peut être annulée à tout moment. Vérifier les valeurs propres au produit avant de confirmer un lot.

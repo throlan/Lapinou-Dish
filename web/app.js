@@ -1,3 +1,4 @@
+import {createAccountUI,accountMessage} from './accounts-ui.js';
 import { breakfastServingLimit, calculateDailyEnergy, calculateDailyProtein, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, dailyProteinTarget, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';
 import {mountCookingInstagram} from './cooking-instagram.js';
 import {servingUnit,servingUnitLabel,displayServingQuantity,setServingInput,servingInputValue} from './serving-quantities.js';
@@ -15,6 +16,7 @@ import { recipeEnergyBadge, ingredientCookingFactor, recipeServiceChoices, recip
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const state = { offset: 0, limit: 50, query: '', foodCategory: '', missingField: '', onlyIncomplete: false, total: 0, household: null, selectedFoodIds:new Set(), mealAdditions:[], productionTypes:[], productionTypesHouseholdId:null, debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, editingFoodFromShopping: false, editingOrderLinkId: null, importingDraftId: null, generateImportedImage: false, people: [], recipes: [], plannedRecipeIds: [], plannedRecipeLookupError: null, preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, proteinTargets: {}, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
+const accountUI=createAccountUI({api,onSession:session=>{state.account=session.account??null;}});
 let recipeImageConfig={enabled:false}, imageRecipeId=null;
 const nutrientLabels = [['energyKcal', 'kcal'], ['proteinG', 'g prot.'], ['carbohydrateG', 'g gluc.'], ['fatG', 'g lip.']];
 const selectedStoreFoods=new Map();
@@ -63,7 +65,7 @@ function setView(name, { recordHistory=true }={}) {
   if (name === 'calendar') refreshCalendar();
   if (name === 'profiles') refreshPeople();
   if (name === 'shopping') refreshShopping();
-  if (name === 'admin') refreshMealSettings();
+  if (name === 'admin') {if(state.account?.role==='manager')refreshMealSettings();else refreshPeople();}
 }
 $('#app-back')?.addEventListener('click',()=>{
   const previous=appViewHistory.pop();
@@ -75,11 +77,13 @@ function setAdminTab(name){
   $$('.admin-tabs [data-admin-tab]').forEach(button=>{const selected=button.dataset.adminTab===name;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1;});
   $$('[data-admin-panel]').forEach(panel=>{panel.hidden=panel.dataset.adminPanel!==name;});
   if(name==='catalogue')void loadCatalogueEstimates();
+  if(name==='accounts')void accountUI.load().catch(error=>showMessage($('#account-management'),accountMessage(error)));
+  if(name==='community')void accountUI.loadCommunity().catch(error=>showMessage($('#community-management'),accountMessage(error)));
 }
 $$('.admin-tabs [data-admin-tab]').forEach(button=>{
   button.addEventListener('click',()=>setAdminTab(button.dataset.adminTab));
   button.addEventListener('keydown',event=>{
-    const buttons=$$('.admin-tabs [data-admin-tab]'),index=buttons.indexOf(button);
+    const buttons=$('.admin-tabs [data-admin-tab]').filter(button=>getComputedStyle(button).display!=='none'),index=buttons.indexOf(button);
     const next=event.key==='ArrowRight'?(index+1)%buttons.length:event.key==='ArrowLeft'?(index-1+buttons.length)%buttons.length:event.key==='Home'?0:event.key==='End'?buttons.length-1:-1;
     if(next>=0){event.preventDefault();buttons[next].focus();setAdminTab(buttons[next].dataset.adminTab);}
   });
@@ -999,7 +1003,7 @@ async function refreshPeople() {
   try {
     const { people } = await api(`/api/people?householdId=${encodeURIComponent(state.household.id)}`);
     state.people = people;
-    list.replaceChildren(...(people.length ? people.map(profileCard) : [emptyMessage('Aucun profil pour le moment. Ajoute les personnes à planifier.')]));
+    list.replaceChildren(...(people.length ? people.filter(person=>!state.account||state.account.role==='manager'||person.id===state.account.personId).map(profileCard) : [emptyMessage('Aucun profil pour le moment. Ajoute les personnes à planifier.')]));
   } catch (error) {
     list.replaceChildren(emptyMessage(`Profils indisponibles : ${error.body?.error ?? error.message}`));
   }
@@ -1444,6 +1448,8 @@ async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = 
   purchaseSettings.classList.toggle('hidden', !state.household);
   purchaseSettings.disabled = !state.household;
   $('#food-purchase-unit-status').textContent = state.household ? 'Réglage propre au foyer ; les unités des recettes restent inchangées.' : 'Crée un foyer pour définir une unité d’achat.';
+  delete form.dataset.officialReadonly;
+  for(const name of ['name','brand','foodCategory','aliases','energyKcal','proteinG','carbohydrateG','fatG','fibreG','gramsPerMillilitre','cookingFactor','tspGrams','tbspGrams','pinchGrams','scoopGrams','pieceGrams'])if(form.elements[name])form.elements[name].disabled=false;
   delete form.dataset.duplicateSource;
   delete form.dataset.duplicateSourceNote;
   delete form.dataset.duplicateNutrientSourceNote;
@@ -1468,6 +1474,13 @@ async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = 
       $('#nutrition-completion').classList.remove('hidden');
       $('#nutrition-matches').replaceChildren();
       $('#nutrition-matches').dataset.foodId = food.id;
+      if(food.official&&state.account?.applicationAdmin&&!duplicate)$('#food-message').textContent='Fiche officielle commune à tous les foyers. Duplique-la pour créer une variante privée.';
+      if(food.official&&!state.account?.applicationAdmin&&!duplicate){
+        form.dataset.officialReadonly='true';
+        for(const name of ['name','brand','foodCategory','aliases','energyKcal','proteinG','carbohydrateG','fatG','fibreG','gramsPerMillilitre','cookingFactor','tspGrams','tbspGrams','pinchGrams','scoopGrams','pieceGrams'])if(form.elements[name])form.elements[name].disabled=true;
+        $('#nutrition-completion').classList.add('hidden');
+        $('#food-message').textContent='Aliment officiel partagé. Duplique-le pour créer une variante privée. Les réglages d’achat restent propres à ton foyer.';
+      }
       if (duplicate) {
         const reference = food.source_reference ? `, référence ${food.source_reference}` : '';
         const provenance = `${food.source ?? 'source inconnue'}${reference}`;
@@ -1657,7 +1670,7 @@ $('#food-form').addEventListener('submit', async (event) => {
   const id = form.elements.id.value;
   let savedFood = false;
   try {
-    const result = await api(id ? `/api/foods/${id}` : '/api/foods', { method: id ? 'PATCH' : 'POST', body: JSON.stringify(payload) });
+    const result = form.dataset.officialReadonly==='true'?{food:{id}}:await api(id ? `/api/foods/${id}` : '/api/foods', { method: id ? 'PATCH' : 'POST', body: JSON.stringify(payload) });
     savedFood = true;
     form.elements.id.value = result.food.id;
     if (state.household && form.dataset.purchaseUnitReady === 'true') {
@@ -1700,21 +1713,20 @@ $('#food-form').addEventListener('submit', async (event) => {
   }
 });
 
-async function loadHouseholds() {
-  try {
-    const { households } = await api('/api/households');
-    if (households.length) {
-      state.household = households[0];
-      $('#household-box').textContent = `Foyer : ${state.household.name}`;
-    } else {
-      $('#household-box').innerHTML = '<form id="household-form"><label for="household-name">Créer le foyer</label><input id="household-name" required maxlength="120" placeholder="Nom du foyer"><button class="primary">Créer</button></form>';
-      $('#household-form').addEventListener('submit', async (event) => {
-        event.preventDefault();
-        try { await api('/api/households', { method: 'POST', body: JSON.stringify({ name: $('#household-name').value }) }); await loadHouseholds(); await refreshFoods(); }
-        catch { $('#household-box').insertAdjacentText('beforeend', ' — création impossible'); }
-      });
-    }
-  } catch { $('#household-box').textContent = 'Base de données indisponible'; }
+async function loadHouseholds(){
+  const root=$('#household-box');
+  try{
+    const {households}=await api('/api/households');
+    state.household=households.find(h=>h.id===state.account?.householdId)??null;
+    root.replaceChildren();
+    if(!state.household){root.textContent='Aucun foyer associé · Administration → Comptes et foyers';return;}
+    const label=document.createElement('label');label.textContent='Foyer';
+    const select=document.createElement('select');select.setAttribute('aria-label','Foyer actif');
+    for(const house of households)select.add(new Option(house.name,house.id));
+    select.value=state.household.id;select.disabled=households.length<2;
+    select.addEventListener('change',()=>accountUI.changeHousehold(select.value));
+    label.append(select);root.append(label);
+  }catch{root.textContent='Foyer indisponible';}
 }
 
 function addRecipeLine(initial = null) {
@@ -2981,7 +2993,8 @@ $('#plate-ratios-form').addEventListener('submit',async event=>{
 async function init() {
   try {
     const session = await api('/api/session');
-    if (!session.authenticated) { $('#login-dialog').showModal(); return; }
+    if(!session.authenticated){if(session.needsAccountSetup)accountUI.showSetup();else if(!$('#login-dialog').open)$('#login-dialog').showModal();return;}
+    state.account=session.account;accountUI.renderSession(session);
   } catch { $('#login-dialog').showModal(); return; }
   $('#connection').textContent = 'Connexion à la base…';
   const health = api('/api/health').then(() => {
@@ -2992,6 +3005,7 @@ async function init() {
     $('#connection').classList.add('error');
   });
   await loadHouseholds();
+  if(!state.household){await health;setView('admin');setAdminTab('accounts');return;}
   await Promise.all([refreshFoods(), health]);
   await Promise.all([refreshPeople(), refreshCalendar(), refreshDashboard(), refreshRecipeAIConfig()]);
   $('#shopping-start').value = localDateValue(); $('#shopping-end').value = addDays(localDateValue(), 29); $('#production-form').elements.producedOn.value = localDateValue();
@@ -3014,12 +3028,12 @@ $('#login-form').addEventListener('submit', async (event) => {
   const form = event.currentTarget;
   showMessage($('#login-message'), '');
   try {
-    await api('/api/login', { method: 'POST', body: JSON.stringify({ password: form.elements.password.value }) });
+    await api('/api/login', { method: 'POST', body: JSON.stringify({login:form.elements.login.value,password:form.elements.password.value}) });
     form.reset();
     $('#login-dialog').close();
     await init();
   } catch (error) {
-    showMessage($('#login-message'), error.body?.error === 'invalid-password' ? 'Mot de passe incorrect.' : 'Connexion impossible. Vérifie que le service est prêt.');
+    showMessage($('#login-message'), accountMessage(error));
   }
 });
 
