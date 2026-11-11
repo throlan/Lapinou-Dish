@@ -57,9 +57,9 @@ export function createRecipeReviews({api,getAccount,onChange}) {
   }catch(error){panel.append(node('p',accountMessage(error)));}
  }
  function renderHome(parent){
-  const panel=node('section',null,'dashboard-panel dashboard-recipe-reviews');panel.append(node('h3','Vos recettes préférées'));
+  const panel=node('section',null,'dashboard-panel dashboard-recipe-reviews');panel.append(node('h3','Recettes les mieux notées'));
   const best=overview.recipes.filter(r=>r.count>0).sort((a,b)=>b.average-a.average||b.count-a.count||a.name.localeCompare(b.name,'fr')).slice(0,5);
-  if(!best.length)panel.append(node('p','Les notes de vos repas feront apparaître vos recettes favorites ici.'));
+  if(!best.length)panel.append(node('p','Les notes de vos repas feront apparaître le classement de vos recettes ici.'));
   for(const item of best){const row=node('p',null,'recipe-review-favourite');row.append(node('strong',item.name),node('span',ratingLabel(item.average,item.count),'recipe-rating'));panel.append(row);}
   const pending=overview.meals.filter(item=>item.score==null).slice(0,5);
   if(pending.length){panel.append(node('h3','Vos derniers repas à noter'));for(const item of pending)panel.append(voteRow(item));}
