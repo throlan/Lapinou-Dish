@@ -1,10 +1,22 @@
 # Cahier produit Lapinou Dish
 
+## Comptes, catalogue commun et avis — 0.5.0
+
+Les écrans Comptes et foyers séparent Mon compte, Mon foyer et Administration de l’application. Mes accès affiche le rôle global, le foyer actif et le rôle dans ce foyer. Un gestionnaire est aussi membre. L’administrateur peut associer directement un compte, un rôle et un profil dans chaque foyer depuis la gestion des foyers ; les derniers administrateur et gestionnaire actifs restent protégés.
+
+Tous les aliments existants et nouveaux sont communs par défaut, quelle que soit leur provenance. Les stocks, magasins, formats et unités d’achat restent propres au foyer. Les nouvelles fiches peuvent être ajoutées par les gestionnaires ; les modifications de définitions existantes sont réservées à l’administrateur. Les autres utilisateurs proposent une correction depuis la fiche. L’administrateur compare avant/proposé dans Partage et démarrage, puis accepte ou refuse. Une proposition ne change rien avant validation ; une fiche modifiée depuis la proposition provoque un conflit explicite. Aucune valeur nutritionnelle n’est inventée et aucun doublon alimentaire existant n’est fusionné automatiquement.
+
+Le partage des recettes possède une recherche et une sélection multiple, y compris tous les résultats filtrés. Publication en lot, import en lot et création directe d’un package depuis la sélection : jusqu’à 500 recettes par package ou requête serveur. L’interface publie par groupes de dix avec progression, pour éviter les délais des gros catalogues. Une publication existante est mise à jour sans en créer une nouvelle ; les copies privées déjà importées restent indépendantes. Les aliments communs sont réutilisés par identifiant à l’import. Un package contient des recettes, pas des rôles ni un second catalogue d’aliments.
+
+Chaque compte lié à un profil peut donner de 1 à 5 étoiles aux recettes d’un repas passé auquel il participe. Une seule note par compte, repas et recette ; la modifier remplace le vote. Les parties séparées d’une recette ne créent pas plusieurs votes. Un autre repas autorise un nouvel avis. Les copies partagées conservent une identité de notation commune ; seules la moyenne et le nombre d’avis sont publics, pas les participants ou leurs votes individuels. Les cartes affichent un badge et un filtre permet de retrouver les notes de 4 étoiles et plus, de moins de 3 étoiles ou les recettes non notées. L’accueil montre les recettes les mieux notées et les derniers repas à noter ; le détail du repas permet aussi de voter.
+
+Le calcul des portions, les menus et les lots existants restent conservés. La référence 0.3.32 reste figée ; un retour avant la gestion des comptes exige la sauvegarde de base antérieure. Aucun accès à Unraid ni Nginx.
+
 ## Modèle comptes et foyers validé — 11 novembre 2026
 
 Un compte possède un rôle global d’administration et une appartenance distincte à chaque foyer, avec le rôle gestionnaire ou membre et un profil personnel facultatif. Les profils sans compte sont conservés. Le gestionnaire gère les données du foyer ; le membre consulte les données communes et modifie son profil. L’administrateur gère les comptes et foyers, puis rejoint explicitement un foyer pour en gérer les données.
 
-Les aliments Ciqual sont le catalogue officiel commun. Les publications d’aliments et de recettes sont volontaires. L’import conserve une copie privée, ses dépendances et ses images. Les packages officiels sont composés par l’administrateur à partir des recettes publiées. Les données de menus, profils et stocks restent privées.
+Tous les aliments sont communs par défaut. Les corrections de leurs définitions sont validées par l’administrateur. La publication des recettes reste volontaire ; leur import crée une copie privée et réutilise les aliments communs. Les packages officiels sont composés par l’administrateur à partir des recettes publiées. Les données de menus, profils et stocks restent privées.
 
 
 Dans Administration, « Catalogue à compléter » regroupe les fiches alimentaires en liste simple : valeur actuelle, estimation éditable, provenance et sélection. Les estimations de cuisson s'appliquent uniquement aux fiches que l'utilisateur choisit de valider ; elles ne changent pas les portions déjà enregistrées dans les menus.

@@ -738,3 +738,34 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .member-mode .recipe-card-actions button[aria-label^="Dupliquer"],
 .member-mode .recipe-card-actions button[aria-label^="Supprimer"] {display:none!important}
 @media(max-width:600px){.account-section{padding:.75rem}.account-form{max-width:100%}#household-box select{max-width:11rem}}
+
+/* Account scopes and large recipe selections */
+.account-navigation{display:flex;flex-wrap:wrap;gap:.5rem;margin:0 0 1rem}
+.account-navigation button[aria-pressed=true]{background:#98245f;color:#fff;border-color:#98245f}
+.account-access-summary{border-left:4px solid #98245f}
+.account-access-summary>p{margin:.35rem 0}
+.account-section[hidden]{display:none}
+.bulk-selection{margin:1rem 0;padding:.85rem;background:#faf6fa;border:1px solid #eadce6;border-radius:.85rem}
+.bulk-selection>input{width:100%;box-sizing:border-box}
+.bulk-selection>button{margin:0 .4rem .65rem 0}
+.selection-count{font-size:.9rem;color:#65576d}
+.selection-results{max-height:25rem;overflow:auto;overscroll-behavior:contain;border-top:1px solid #e6d8e3}
+.selection-row{display:flex!important;align-items:center;gap:.75rem;padding:.65rem .35rem;border-bottom:1px solid #e6d8e3;cursor:pointer}
+.selection-row input{width:1.15rem!important;height:1.15rem;flex:0 0 1.15rem;accent-color:#98245f}
+.selection-row span{min-width:0;overflow-wrap:anywhere}
+.selection-row small{display:block;color:#746379;font-size:.8rem;margin-top:.15rem}
+.proposal-diff{width:100%;table-layout:fixed;font-size:.9rem;margin:1rem 0}
+.proposal-diff th,.proposal-diff td{padding:.55rem;text-align:left;overflow-wrap:anywhere;vertical-align:top;border-bottom:1px solid #e6d8e3}
+.recipe-serving-badges .recipe-rating,.recipe-rating{display:inline-block;background:#fff0cf;color:#6a4100;border-radius:2rem;padding:.25rem .6rem;font-size:.85rem}
+.recipe-review-row{padding:.85rem 0;border-bottom:1px solid #e6d8e3}
+.recipe-review-row>strong,.recipe-review-row>small{display:block;overflow-wrap:anywhere}
+.recipe-review-row>small{color:#746379;margin:.3rem 0}
+.rating-stars{display:flex;gap:.2rem;flex-wrap:wrap;margin:.4rem 0}
+.rating-stars button{min-width:2.75rem;min-height:2.75rem;padding:.15rem .4rem;color:#8d7b7f;background:transparent;border:1px solid #decddd;font-size:1.5rem;line-height:1}
+.rating-stars button[aria-pressed=true]{color:#9b6000;background:#fff0cf;border-color:#ccaa65}
+.rating-stars button:focus-visible{outline:3px solid #98245f;outline-offset:2px}
+.recipe-review-favourite{display:grid;gap:.35rem;border-bottom:1px solid #e6d8e3;padding-bottom:.7rem}
+.recipe-review-favourite .recipe-rating{justify-self:start}
+.catalogue-contributor #bulk-edit-foods,.catalogue-contributor #bulk-delete-foods,
+.catalogue-contributor [data-admin-tab=catalogue]{display:none!important}
+@media(max-width:600px){.bulk-selection{padding:.65rem}.account-navigation{display:grid;grid-template-columns:1fr}.selection-results{max-height:20rem}.proposal-diff{font-size:.78rem}.proposal-diff th,.proposal-diff td{padding:.3rem}.account-section button{max-width:100%;white-space:normal}}

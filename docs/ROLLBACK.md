@@ -79,3 +79,7 @@ La migration additive ajoute les plages des productions et les sorties automatiq
 ## Livraison 0.3.9 vérifiée
 
 PR #155 fusionnée au commit `571d72bab17c4970f838a6799234e95d40495077` ; contrôles et publication GHCR réussis : https://github.com/throlan/Lapinou-Dish/actions/runs/41302800569. Tags `0.3.9` et `v0.3.9` vérifiés, digest commun `sha256:bf2735d821b157d05562fbc6d9ed28e3ead111e4de5bb12d92640a38b678ea32`. Les cinq versions 0.3.5 à 0.3.9 sont présentes ; les digests antérieurs sont conservés.
+
+## Migration 0.5.0 — catalogue commun et avis
+
+Tous les aliments existants deviennent communs à la demande de l’utilisateur ; leurs valeurs, identifiants et références sont conservés. Les nouvelles tables stockent les propositions de correction et les avis. Les copies de recettes déjà importées conservent une identité de notation liée à leur origine, sans réécrire leurs ingrédients ou rendements privés. Pour retrouver le comportement antérieur de confidentialité ou de modification des aliments, restaurer la sauvegarde de base prise avant cette migration en même temps que l’image antérieure. La 0.3.32 reste conservée comme référence fonctionnelle.

@@ -11,7 +11,7 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.4.2">
+    <link rel="stylesheet" href="/style.css?v=0.5.0">
     <link rel="stylesheet" href="/editorial.css?v=0.3.17">
   </head>
   <body>
@@ -418,7 +418,7 @@
           <p id="food-purchase-unit-status" class="muted" role="status"></p>
         </fieldset>
         <fieldset id="food-shopping-settings"><legend>Courses et magasin du foyer</legend><p class="hint">Ces réglages sont les mêmes depuis les courses, le catalogue et les recettes. Le format et la catégorie s’appliquent à l’unité choisie.</p><div class="food-conversion-row"><label>Unité des courses<select name="shoppingUnitId"><option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="l">l</option><option value="piece">pièce</option><option value="tsp">cuillère à café</option><option value="tbsp">cuillère à soupe</option><option value="cup">tasse</option><option value="pinch">pincée</option><option value="scoop">dosette</option></select></label><label>Catégorie<select name="shoppingGroupId"><option value="bulk">Achats en gros</option><option value="fresh">Produits frais</option><option value="whey_flour">Farines et protéines</option><option value="other">Autres</option></select></label><label>Format de paquet<input name="shoppingPackageQuantity" type="number" min="0.001" step="any" placeholder="Facultatif"></label><label>Magasin habituel<select name="shoppingOrderLinkId"><option value="">Sans magasin</option></select></label></div><p id="food-shopping-settings-status" class="muted" role="status"></p></fieldset>
-        <div class="form-actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" id="save-food" value="default">Enregistrer</button></div>
+        <div class="form-actions"><button class="secondary" value="cancel">Annuler</button><button type="submit" class="primary" id="save-food" value="default">Enregistrer</button></div>
         <p class="form-message" id="food-message" role="status"></p>
       </form>
     </dialog>
@@ -500,6 +500,6 @@
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
     <script type="module" src="/install-app.js?v=0.3.17"></script>
-    <script type="module" src="/app.js?v=0.4.2"></script>
+    <script type="module" src="/app.js?v=0.5.0"></script>
   </body>
 </html>
