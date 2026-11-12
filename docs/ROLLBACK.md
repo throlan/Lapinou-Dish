@@ -1,5 +1,9 @@
 # Images versionnées et retour arrière
 
+## Notation historique — 0.7.1
+
+Correctif serveur sans migration ni changement de données. Le retour à la 0.7.0 réintroduit le refus de notation de certaines recettes historiques ; les avis déjà enregistrés restent conservés. Les précautions de retour aux versions antérieures restent applicables.
+
 ## Catalogue de recettes — 0.7.0
 
 Migration additive : identité du créateur facultative sur les recettes. Les fiches historiques restent sans créateur. Le retour à la 0.6.0 ignore cette colonne et rétablit les anciens droits de gestion, sans attribuer ni effacer les créateurs enregistrés. La référence 0.3.32 et ses précautions de restauration de base multi-foyers restent inchangées.

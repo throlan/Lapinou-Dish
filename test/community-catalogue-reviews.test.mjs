@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile,readdir} from 'node:fs/promises';
 import {Readable} from 'node:stream';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
 import {PGlite} from '@electric-sql/pglite';
 import {accountGateway} from '../src/server/accounts.mjs';
 import {communityRoutes} from '../src/server/community.mjs';
@@ -125,4 +125,36 @@ test('migration links the review identity of existing imported and re-shared cop
  const rows=(await db.query('SELECT id,name,yield_amount,review_key FROM recipes WHERE id=ANY($1::uuid[])',[ [ra,rb,rc] ])).rows;
  assert.equal(rows.length,3);assert.ok(rows.every(r=>r.review_key===ra));
  assert.equal(rows.find(r=>r.id===rb).name,'Private B');assert.equal(Number(rows.find(r=>r.id===rc).yield_amount),6);
+});
+
+
+test('several historical breakfast recipes can be rated, revised and removed consecutively',async t=>{
+ const f=await fixture(t);
+ // Migration 0009 casts raw MD5 hashes to PostgreSQL UUIDs without RFC version/variant bits.
+ const recipeIds=['breakfast-nesquik','breakfast-espresso','breakfast-cappuccino'].map(name=>{
+  const hex=createHash('md5').update('11111111-1111-4111-8111-111111111111:'+name).digest('hex');
+  return hex.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/,'$1-$2-$3-$4-$5');
+ });
+ const [first]=await recipes(f,1),mealId=await meal(f,first);
+ for(const [index,id] of recipeIds.entries()){
+  await f.pool.query("INSERT INTO recipes(id,household_id,name,yield_amount,yield_unit_id) VALUES($1,$2,$3,1,'piece')",[id,f.house,'Historical drink '+index]);
+  await f.pool.query('INSERT INTO planned_meal_items(id,meal_id,recipe_id,sort_order) VALUES($1,$2,$3,$4)',[randomUUID(),mealId,id,index+1]);
+ }
+ const vote=(recipeId,score)=>f.request('PUT','/api/community/ratings',{mealId,recipeId,score},f.member);
+ assert.equal((await vote(first,5)).status,200);
+ for(const [index,id] of recipeIds.entries()){
+  const result=await vote(id,index+2);assert.equal(result.status,200,JSON.stringify(result.body));
+ }
+ let overview=(await f.request('GET','/api/community/ratings',null,f.member)).body;
+ assert.equal(overview.meals.filter(item=>item.mealId===mealId&&item.score!=null).length,4);
+ assert.equal((await vote(recipeIds[0],5)).status,200);
+ overview=(await f.request('GET','/api/community/ratings',null,f.member)).body;
+ assert.equal(overview.recipes.find(item=>item.id===recipeIds[0]).count,1);
+ assert.equal(overview.meals.find(item=>item.recipeId===recipeIds[0]).score,5);
+ assert.equal((await f.request('DELETE','/api/community/ratings',{mealId,recipeId:recipeIds[0]},f.member)).status,200);
+ assert.equal((await vote(recipeIds[1],4.5)).body.error,'invalid-rating');
+ assert.equal((await vote('invalid-id',4)).body.error,'invalid-rating');
+ assert.equal((await vote(recipeIds[1],6)).body.error,'invalid-rating');
+ assert.equal((await f.request('PUT','/api/community/ratings',{mealId,recipeId:recipeIds[1],score:4},f.owner)).status,403);
+ assert.equal((await f.pool.query('SELECT count(*)::int AS n FROM recipe_reviews WHERE meal_id=$1',[mealId])).rows[0].n,3);
 });
