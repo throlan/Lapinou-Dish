@@ -158,3 +158,38 @@ test('several historical breakfast recipes can be rated, revised and removed con
  assert.equal((await f.request('PUT','/api/community/ratings',{mealId,recipeId:recipeIds[1],score:4},f.owner)).status,403);
  assert.equal((await f.pool.query('SELECT count(*)::int AS n FROM recipe_reviews WHERE meal_id=$1',[mealId])).rows[0].n,3);
 });
+
+
+test('recipe ratings can be disabled locally without losing votes, and re-enabled with existing permissions',async t=>{
+ const f=await fixture(t),[coffee,cake]=await recipes(f,2),mealId=await meal(f,coffee);
+ await f.pool.query('INSERT INTO planned_meal_items(id,meal_id,recipe_id,sort_order) VALUES($1,$2,$3,1)',[randomUUID(),mealId,cake]);
+ const vote=(recipeId,score)=>f.request('PUT','/api/community/ratings',{mealId,recipeId,score},f.member);
+ assert.equal((await vote(coffee,5)).status,200);assert.equal((await vote(cake,4)).status,200);
+ const current=(await f.request('GET','/api/recipes/'+coffee,null,f.owner)).body.recipe;
+ assert.equal(current.ratingEnabled,true);
+ const input={...current,householdId:f.house,ratingEnabled:false};
+ assert.equal((await f.request('PUT','/api/recipes/'+coffee,input,f.member)).status,403);
+ let changed=await f.request('PUT','/api/recipes/'+coffee,input,f.owner);assert.equal(changed.status,200,JSON.stringify(changed.body));assert.equal(changed.body.recipe.ratingEnabled,false);
+ let overview=(await f.request('GET','/api/community/ratings',null,f.member)).body;
+ assert.ok(!overview.recipes.some(item=>item.id===coffee));assert.ok(!overview.meals.some(item=>item.recipeId===coffee));
+ assert.ok(overview.recipes.some(item=>item.id===cake));assert.equal((await vote(cake,3)).status,200);
+ assert.equal((await vote(coffee,4)).body.error,'recipe-rating-disabled');
+ assert.equal((await f.pool.query('SELECT score FROM recipe_reviews WHERE recipe_id=$1',[coffee])).rows[0].score,5);
+ const legacy={...input,name:'Coffee edited by an old client'};delete legacy.ratingEnabled;
+ changed=await f.request('PUT','/api/recipes/'+coffee,legacy,f.owner);assert.equal(changed.status,200,JSON.stringify(changed.body));assert.equal(changed.body.recipe.ratingEnabled,false);
+ assert.equal((await f.request('PUT','/api/recipes/'+coffee,{...input,ratingEnabled:'false'},f.owner)).status,400);
+ // A creator has the same editing permission as in the existing recipe editor.
+ await f.pool.query('UPDATE recipes SET created_by_account_id=$2 WHERE id=$1',[coffee,f.memberId]);
+ changed=await f.request('PUT','/api/recipes/'+coffee,{...input,ratingEnabled:true},f.member);assert.equal(changed.status,200,JSON.stringify(changed.body));
+ overview=(await f.request('GET','/api/community/ratings',null,f.member)).body;
+ assert.equal(overview.recipes.find(item=>item.id===coffee).count,1);assert.equal(overview.meals.find(item=>item.recipeId===coffee).score,5);
+ await f.request('PUT','/api/recipes/'+coffee,input,f.member);
+ const published=await f.request('POST','/api/community/publish-batch',{recipeIds:[coffee]},f.owner);assert.equal(published.status,201);
+ const publication=(await f.pool.query('SELECT payload FROM shared_publications WHERE id=$1',[published.body.results[0].id])).rows[0].payload;
+ assert.equal(publication.recipes.at(-1).ratingEnabled,undefined,'local rating choice must not be published');
+ await f.request('PUT','/api/accounts/household',{householdId:f.otherHouse},f.owner);
+ const imported=await f.request('POST','/api/community/import-batch',{publicationIds:[published.body.results[0].id]},f.owner);assert.equal(imported.status,201,JSON.stringify(imported.body));
+ const copy=(await f.request('GET','/api/recipes/'+imported.body.results[0].id,null,f.owner)).body.recipe;
+ assert.equal(copy.ratingEnabled,true,'the other household keeps its own rating preference');
+ assert.equal((await f.request('PUT','/api/recipes/'+coffee,{...input,householdId:f.otherHouse},f.owner)).status,404);
+});

@@ -16,6 +16,8 @@ const errorLabels={
  'invalid-starter-package':'Renseigne un nom et sélectionne de 1 à 500 recettes pour ce package.',
  'food-proposal-stale':'La fiche a changé depuis cette proposition. Réexamine ses valeurs et soumets une nouvelle proposition.',
  'meal-not-rateable':'Tu peux noter uniquement un repas passé auquel ton profil a participé.',
+ 'recipe-rating-disabled':'Les avis sont désactivés pour cette recette.',
+ 'invalid-recipe-rating-setting':'Le réglage des avis doit être activé ou désactivé.',
  'invalid-rating':'Choisis une note entière entre 1 et 5.',
  'data-access-denied':'Cette donnée est protégée. Pour un aliment commun, propose une correction depuis sa fiche.',
  'publication-unavailable':'Une recette du package a été retirée du partage. Actualise la liste.',

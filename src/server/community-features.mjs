@@ -21,14 +21,14 @@ export async function ratingsOverview(pool,actor,mealId=null) {
  const recipes=(await pool.query(`SELECT local.id,local.name,
    (SELECT round(avg(v.score)::numeric,2) FROM recipe_reviews v JOIN recipes original ON original.id=v.recipe_id WHERE original.review_key=local.review_key) AS average,
    (SELECT count(*)::int FROM recipe_reviews v JOIN recipes original ON original.id=v.recipe_id WHERE original.review_key=local.review_key) AS count
-  FROM recipes local WHERE local.household_id=$1 AND local.parent_recipe_id IS NULL AND NOT local.recipe_archived`,[actor.householdId])).rows;
+  FROM recipes local WHERE local.household_id=$1 AND local.parent_recipe_id IS NULL AND NOT local.recipe_archived AND local.rating_enabled`,[actor.householdId])).rows;
  const meals=actor.personId?(await pool.query(`SELECT DISTINCT m.id AS "mealId",m.meal_date::text AS date,m.slot,
    root.id AS "recipeId",root.name,review.score
   FROM planned_meals m JOIN planned_meal_attendees a ON a.meal_id=m.id AND a.person_id=$2
   JOIN planned_meal_items i ON i.meal_id=m.id JOIN recipes r ON r.id=i.recipe_id
   JOIN recipes root ON root.id=COALESCE(r.parent_recipe_id,r.id)
   LEFT JOIN recipe_reviews review ON review.meal_id=m.id AND review.recipe_id=root.id AND review.account_id=$3
-  WHERE m.household_id=$1 AND m.meal_date<=$4::date
+  WHERE m.household_id=$1 AND root.rating_enabled AND m.meal_date<=$4::date
    AND (($5::uuid IS NOT NULL AND m.id=$5) OR ($5::uuid IS NULL AND m.meal_date>=$4::date-60))
   ORDER BY date DESC,m.slot,root.name LIMIT 50`,[actor.householdId,actor.personId,actor.id,today(),mealId])).rows:[];
  return {recipes:recipes.map(r=>({...r,average:r.average==null?null:Number(r.average)})),meals};
@@ -51,6 +51,10 @@ export async function communityFeatures(request,response,pool,actor,{snapshotPub
     AND EXISTS(SELECT 1 FROM planned_meal_items i JOIN recipes r ON r.id=i.recipe_id
      WHERE i.meal_id=m.id AND COALESCE(r.parent_recipe_id,r.id)=$4) FOR UPDATE OF m`,[body.mealId,actor.householdId,actor.personId,body.recipeId,today()]);
    if(!meal.rows.length)throw accountError('meal-not-rateable',403);
+   if(method==='PUT'){
+    const recipe=(await client.query('SELECT rating_enabled FROM recipes WHERE id=$1 AND household_id=$2 FOR SHARE',[body.recipeId,actor.householdId])).rows[0];
+    if(recipe?.rating_enabled===false)throw accountError('recipe-rating-disabled',409);
+   }
    if(method==='DELETE')await client.query('DELETE FROM recipe_reviews WHERE account_id=$1 AND meal_id=$2 AND recipe_id=$3',[actor.id,body.mealId,body.recipeId]);
    else await client.query(`INSERT INTO recipe_reviews(account_id,meal_id,recipe_id,score) VALUES($1,$2,$3,$4)
     ON CONFLICT(account_id,meal_id,recipe_id) DO UPDATE SET score=EXCLUDED.score,updated_at=now()`,[actor.id,body.mealId,body.recipeId,body.score]);

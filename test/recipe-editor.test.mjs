@@ -11,7 +11,7 @@ assert.ok(start>=0 && end>start);
 
 function editor() {
   const boxes=['breakfast','lunch','dinner','snack'].map(value=>({value,checked:false}));
-  const fields=['name','description','recipeType','productionType','minimumProductionAmount','minimumProductionUnitId','sourceUrl','instructions','reviewValidated','yieldAmount','yieldUnit','servingMode','mainCookingFactor','starchCookingFactor'];
+  const fields=['name','description','recipeType','productionType','minimumProductionAmount','minimumProductionUnitId','sourceUrl','instructions','reviewValidated','ratingEnabled','yieldAmount','yieldUnit','servingMode','mainCookingFactor','starchCookingFactor'];
   const form={elements:Object.fromEntries(fields.map(name=>[name,{value:''}])),
     reset(){this.elements.recipeType.value='dish';this.elements.productionType.value='none';boxes.forEach(box=>box.checked=false);},
     querySelectorAll(){return boxes;},classList:{remove(){}},scrollIntoView(){}};
@@ -94,4 +94,12 @@ test('duplicating a split dish keeps its serving mode, cooking factors and ingre
   assert.equal(ui.copiedLines[1].cookingFactor,2.5);
   assert.deepEqual(ui.copiedLines.map(line=>line.servingPart),['main','starch']);
   assert.equal(ui.copiedLines[1].cookingFactor,2.5);
+});
+
+
+test('rating preference is restored for existing recipes and copies, and enabled for a new recipe',async()=>{
+ const ui=editor();await ui.open({ratingEnabled:false});assert.equal(ui.form.elements.ratingEnabled.checked,false);
+ await ui.duplicate({ratingEnabled:false});assert.equal(ui.form.elements.ratingEnabled.checked,false);
+ await ui.create();assert.equal(ui.form.elements.ratingEnabled.checked,true);
+ await ui.open({});assert.equal(ui.form.elements.ratingEnabled.checked,true);
 });

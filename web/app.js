@@ -1980,7 +1980,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
   try {
     const path = state.editingRecipeId ? `/api/recipes/${state.editingRecipeId}` : '/api/recipes';
     const method = state.editingRecipeId ? 'PUT' : 'POST';
-    const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, productionType: form.elements.productionType.value, minimumProductionAmount:Number(form.elements.minimumProductionAmount.value||0),minimumProductionUnitId:form.elements.minimumProductionUnitId.value, recipeType: form.elements.recipeType.value, mealMoments: [...form.querySelectorAll('input[name="mealMoments"]:checked')].map((input) => input.value), instructions: form.elements.instructions.value,steps:recipeMethodEditor.steps(),cooking:recipeMethodEditor.cooking(),reviewValidated:form.elements.reviewValidated.checked, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, outputUnits:Object.fromEntries(['piece','slice','portion','g','ml'].flatMap(unit=>{const value=form.elements['output_'+unit]?.value;return value?[[unit,Number(unit===form.elements.yieldUnit.value?form.elements.yieldAmount.value:value)]]:[];})), ...servingOptions, lines }) });
+    const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, productionType: form.elements.productionType.value, minimumProductionAmount:Number(form.elements.minimumProductionAmount.value||0),minimumProductionUnitId:form.elements.minimumProductionUnitId.value, recipeType: form.elements.recipeType.value, mealMoments: [...form.querySelectorAll('input[name="mealMoments"]:checked')].map((input) => input.value), instructions: form.elements.instructions.value,steps:recipeMethodEditor.steps(),cooking:recipeMethodEditor.cooking(),reviewValidated:form.elements.reviewValidated.checked,ratingEnabled:form.elements.ratingEnabled.checked, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, outputUnits:Object.fromEntries(['piece','slice','portion','g','ml'].flatMap(unit=>{const value=form.elements['output_'+unit]?.value;return value?[[unit,Number(unit===form.elements.yieldUnit.value?form.elements.yieldAmount.value:value)]]:[];})), ...servingOptions, lines }) });
     const generateImage=state.generateImportedImage;state.generateImportedImage=false;
     if (state.importingDraftId) {
       await api(`/api/recipe-imports/${state.importingDraftId}/converted`, { method: 'POST', body: JSON.stringify({ householdId: state.household.id }) });
@@ -2031,7 +2031,7 @@ async function openRecipeEditor(id = null, duplicate = false) {
   await refreshProductionTypes();
   const form = $('#recipe-form');
   $('#recipe-import-source')?.remove();
-  form.reset();recipeMethodEditor.load();
+  form.reset();form.elements.ratingEnabled.checked=true;recipeMethodEditor.load();
   populateProductionTypeSelect(form.elements.productionType,'none');
   $('#recipe-lines').replaceChildren();
   $('#recipe-message').textContent = '';
@@ -2056,7 +2056,7 @@ async function openRecipeEditor(id = null, duplicate = false) {
       for (const checkbox of form.querySelectorAll('input[name="mealMoments"]')) checkbox.checked = (recipe.mealMoments ?? []).includes(checkbox.value);
       populateProductionTypeSelect(form.elements.productionType,recipe.productionType ?? 'none');
       form.elements.sourceUrl.value = recipe.sourceUrl ?? '';
-      recipeMethodEditor.load(recipe);form.elements.reviewValidated.checked=!duplicate&&Boolean(recipe.reviewValidated);
+      recipeMethodEditor.load(recipe);form.elements.reviewValidated.checked=!duplicate&&Boolean(recipe.reviewValidated);form.elements.ratingEnabled.checked=recipe.ratingEnabled!==false;
       form.elements.yieldAmount.value = recipe.yield.amount;
       if(form.elements.yieldUnit.options&&![...form.elements.yieldUnit.options].some(option=>option.value===recipe.yield.unitId))
         form.elements.yieldUnit.add(new Option(recipe.yield.unitId,recipe.yield.unitId));
@@ -2349,7 +2349,7 @@ async function openImportDraft(draft) {
   $('#recipe-form-title').textContent = 'Vérifier la recette importée';
   form.elements.name.value = draft.name || '';
   form.elements.description.value = draft.description || '';
-  recipeMethodEditor.load(draft);form.elements.reviewValidated.checked=false;
+  recipeMethodEditor.load(draft);form.elements.reviewValidated.checked=false;form.elements.ratingEnabled.checked=true;
   form.elements.yieldAmount.value = draft.extractionMethod === 'openai' && draft.yieldAmount == null ? '' : draft.yieldAmount || 1;
   form.elements.yieldUnit.value = draft.yieldUnitId || 'portion';
   form.elements.sourceUrl.value = draft.sourceUrl || '';
