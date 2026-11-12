@@ -229,6 +229,7 @@
             </fieldset>
           </div>
           <label>Source (facultatif)<input name="sourceUrl" type="url" placeholder="Lien vers la recette d'origine"></label>
+          <label class="recipe-validation-choice"><input type="checkbox" name="ratingEnabled" checked> Autoriser les avis<span class="hint">Décoche pour masquer les étoiles et ne plus proposer cette recette à noter dans ce foyer. Les notes existantes sont conservées.</span></label>
           <input type="hidden" name="instructions"><div id="recipe-method-editor"></div><label class="recipe-validation-choice"><input type="checkbox" name="reviewValidated"> Recette validée<span class="hint">Repère de relecture. La recette reste entièrement modifiable.</span></label>
           <label>Production à suivre (facultatif)<select name="productionType"><option value="none">Aucune</option><option value="batch_cooking">Batch cooking</option><option value="pasta">Pâtes</option><option value="pastry">Pâtisserie</option><option value="bread">Pain</option></select><span class="hint">Le type sert à classer les préparations. Le lot minimum se règle juste dessous, pour cette recette uniquement.</span></label>
           <div class="yield-row"><label>Rendement<input name="yieldAmount" required type="number" min="0.01" step="any" value="4"></label><label>Unité<select name="yieldUnit"><option value="portion">portions</option><option value="piece">pièces</option><option value="slice">tranches</option><option value="g">grammes</option><option value="ml">millilitres</option></select></label></div>
@@ -508,6 +509,6 @@
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
     <script type="module" src="/install-app.js?v=0.3.17"></script>
-    <script type="module" src="/app.js?v=0.7.1"></script>
+    <script type="module" src="/app.js?v=0.7.2"></script>
   </body>
 </html>

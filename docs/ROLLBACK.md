@@ -1,5 +1,9 @@
 # Images versionnées et retour arrière
 
+## Avis facultatifs — 0.7.2
+
+Migration additive : `recipes.rating_enabled`, booléen activé par défaut. Aucun avis existant n’est supprimé. Une image antérieure ignore ce choix et peut à nouveau afficher les recettes désactivées et accepter leurs votes ; réinstaller la 0.7.2 réapplique le choix conservé. Les sauvegardes de base restent distinctes des images.
+
 ## Notation historique — 0.7.1
 
 Correctif serveur sans migration ni changement de données. Le retour à la 0.7.0 réintroduit le refus de notation de certaines recettes historiques ; les avis déjà enregistrés restent conservés. Les précautions de retour aux versions antérieures restent applicables.

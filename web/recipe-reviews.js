@@ -15,6 +15,7 @@ export function createRecipeReviews({api,getAccount,onChange}) {
   if(!label)return null;const result=node('span',label,'recipe-rating');result.dataset.average=item.average;result.dataset.count=item.count;result.title=label;return result;
  }
  function filterRecipes(recipes){return recipes.filter(recipe=>{
+  if(filter!=='all'&&recipe.ratingEnabled===false)return false;
   const item=overview.recipes.find(r=>r.id===recipe.id);
   return filter==='all'||filter==='unrated'&&!item?.count||filter==='recommended'&&item?.average>=4||filter==='review'&&item?.count>0&&item.average<3;
  });}

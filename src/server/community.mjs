@@ -35,7 +35,7 @@ export async function snapshotPublication(scoped,actor,kind,id){
   // Only recipe content and its food dependencies are published.
   const {data,error}=validateRecipeInput(input);
   if(error)throw accountError(error);
-  const content={...data};delete content.householdId;delete content.reviewValidated;delete content.createdByAccountId;
+  const content={...data};delete content.householdId;delete content.reviewValidated;delete content.ratingEnabled;delete content.createdByAccountId;
   const reviewKey=(await scoped.query('SELECT review_key FROM recipes WHERE id=$1',[recipeId])).rows[0]?.review_key;
   recipes.set(recipeId,{id:recipeId,...content,reviewKey});
   const photo=await readRecipeImage(scoped,recipeId,actor.householdId);
@@ -81,7 +81,7 @@ export async function importPublication(scoped,actor,publication){
  // Dependencies were serialized before the recipes which use them.
  for(const original of snapshot.recipes){
   const lines=original.lines.map(line=>({...line,foodId:line.foodId?foodIds.get(line.foodId):null,recipeId:line.recipeId?recipeIds.get(line.recipeId):null}));
-  const checked=validateRecipeInput({...original,householdId:actor.householdId,lines});
+  const checked=validateRecipeInput({...original,ratingEnabled:undefined,householdId:actor.householdId,lines});
   if(checked.error)throw accountError(checked.error);
   const definition={...checked.data};delete definition.householdId;
   const fingerprint=createHash('sha256').update(original.id+JSON.stringify(definition)).digest('hex');
