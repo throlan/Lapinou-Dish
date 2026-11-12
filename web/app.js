@@ -1,3 +1,4 @@
+import {createRecipeEditorDialog} from './recipe-editor-dialog.js';
 import {recipePermissions} from './recipe-permissions.js';
 import {createRecipeMethodEditor} from './recipe-method-editor.js';
 import {renderCookingMethod} from './cooking-method-view.js';
@@ -20,6 +21,7 @@ import { recipeEnergyBadge, ingredientCookingFactor, recipeServiceChoices, recip
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const state = { offset: 0, limit: 50, query: '', foodCategory: '', missingField: '', onlyIncomplete: false, total: 0, household: null, selectedFoodIds:new Set(), mealAdditions:[], productionTypes:[], productionTypesHouseholdId:null, debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, editingFoodFromShopping: false, editingOrderLinkId: null, importingDraftId: null, generateImportedImage: false, people: [], recipes: [], plannedRecipeIds: [], plannedRecipeLookupError: null, preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, proteinTargets: {}, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
+const recipeEditorDialog=createRecipeEditorDialog(document);
 const recipeMethodEditor=createRecipeMethodEditor(document.querySelector('#recipe-method-editor'),document.querySelector('#recipe-form'));
 const accountUI=createAccountUI({api,onSession:session=>{state.account=session.account??null;}});
 const recipeReviews=createRecipeReviews({api,getAccount:()=>state.account,onChange:()=>renderFilteredRecipes()});
@@ -1932,7 +1934,7 @@ $('#recipe-form').elements.recipeType.addEventListener('change', () => {
   updateServingConfiguration();
 });
 $('#new-recipe').addEventListener('click', () => openRecipeEditor());
-$('#cancel-recipe').addEventListener('click', () => { $('#recipe-form').classList.add('hidden'); $('#recipe-result').classList.add('hidden'); });
+$('#cancel-recipe').addEventListener('click', () => recipeEditorDialog.close());
 $('#delete-current-recipe')?.addEventListener('click',event=>{
   if(state.editingRecipeForDeletion)requestRecipeDeletion(state.editingRecipeForDeletion,event.currentTarget,$('#recipe-delete-message'));
 });
@@ -1946,6 +1948,7 @@ $('#ignore-import-draft').addEventListener('click', async (event) => {
     state.importingDraftId = null;
     state.generateImportedImage = false;
     button.classList.add('hidden');
+    recipeEditorDialog.close({discard:true});
     $('#recipe-form').classList.add('hidden');
     $('#recipe-result').classList.add('hidden');
     $('#recipe-import-source')?.remove();
@@ -1960,10 +1963,11 @@ $('#ignore-import-draft').addEventListener('click', async (event) => {
 $('#recipe-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const message = $('#recipe-message'); message.textContent = '';
+  if(recipeEditorDialog.isBusy()||!recipeEditorDialog.validate())return;
   if (!state.household) { showMessage(message, 'Crée d’abord un foyer en haut de la page.'); return; }
   const lines = $$('.recipe-line').map(recipeLineInput);
   if(lines.some(line=>!line.foodId&&!line.recipeId)){
-    showMessage(message,'Associe chaque ligne à un aliment ou à une préparation maison.');return;
+    recipeEditorDialog.select('ingredients');showMessage(message,'Associe chaque ligne à un aliment ou à une préparation maison.');return;
   }
   const form = event.currentTarget;
   const servingMode = form.elements.servingMode.value;
@@ -1971,12 +1975,13 @@ $('#recipe-form').addEventListener('submit', async (event) => {
   $$('.recipe-line').forEach((row,index) => { lines[index].servingPart = ['separate','three'].includes(servingMode) ? $('select[name="servingPart"]',row).value : 'main'; const factor=$('[name="cookingFactor"]',row).value; lines[index].cookingFactor=factor === '' ? null : Number(factor);if(lines[index].foodId)lines[index].cookingState=$('select[name="cookingState"]',row).value; });
   if (['separate','three'].includes(servingMode) && !lines.some(line=>line.servingPart === 'starch')) {
     showMessage(message,'Affecte le riz ou les autres féculents à « Féculents » sur leurs lignes d’ingrédients avant d’enregistrer. Le service séparé est conservé dans le formulaire.');
-    message.scrollIntoView({behavior:'smooth',block:'center'});
+    recipeEditorDialog.select('ingredients');
     return;
   }
   if (servingMode === 'three' && !lines.some(line=>line.servingPart === 'vegetables')) {
-    showMessage($('#recipe-message'),'Affecte au moins un ingrédient à « Légumes » avant d’enregistrer les trois parties.');return;
+    recipeEditorDialog.select('ingredients');showMessage($('#recipe-message'),'Affecte au moins un ingrédient à « Légumes » avant d’enregistrer les trois parties.');return;
   }
+  recipeEditorDialog.setBusy(true);
   try {
     const path = state.editingRecipeId ? `/api/recipes/${state.editingRecipeId}` : '/api/recipes';
     const method = state.editingRecipeId ? 'PUT' : 'POST';
@@ -1991,13 +1996,14 @@ $('#recipe-form').addEventListener('submit', async (event) => {
     state.editingRecipeId = null;
     state.editingRecipeForDeletion=null;$('#delete-current-recipe')?.classList.add('hidden');
     $('#recipe-form-title').textContent = 'Nouvelle recette';
-    $('#recipe-form').classList.add('hidden');
     if(generateImage&&recipeImageConfig.enabled){
       showMessage(message,'Recette enregistrée. Création de son illustration…',true);
       try{await api(`/api/recipes/${recipe.id}/image/ai`,{method:'POST',body:JSON.stringify({householdId:state.household.id}),signal:AbortSignal.timeout(100_000)});showMessage(message,'Recette enregistrée et illustration créée. Tu peux la remplacer par une photo personnelle.',true);}
       catch(error){showMessage(message,`Recette enregistrée. ${recipeImageErrorMessage(error)} Tu peux réessayer depuis le bouton Photo.`,false);}
     }
     await refreshRecipes();
+    showMessage($('#recipe-list-message'), message.textContent||'Recette enregistrée.',true);
+    recipeEditorDialog.close({discard:true});
   } catch (error) {
     const servingErrors={
       'invalid-recipe-steps':'Vérifie les étapes : au plus 300 étapes et 20 000 caractères au total.',
@@ -2024,7 +2030,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
       'recipe-replaced':'Cette fiche a déjà été remplacée. Ouvre sa version actuelle depuis la liste des recettes.',
     };
     showMessage(message,servingErrors[error.body?.error] ?? `Enregistrement impossible : ${error.body?.error ?? error.message}`);
-  }
+  } finally { recipeEditorDialog.setBusy(false); }
 });
 
 async function openRecipeEditor(id = null, duplicate = false) {
@@ -2071,13 +2077,12 @@ async function openRecipeEditor(id = null, duplicate = false) {
       recipe.lines.forEach((line, index) => addRecipeLine({ ...line, cookingFactor:ingredientCookingFactor(recipe,line), incomplete: incompleteLines.has(index) }));
     } catch (error) {
       showMessage($('#recipe-message'), `Impossible de charger cette recette : ${error.body?.error ?? error.message}`);
-      form.classList.remove('hidden');
+      recipeEditorDialog.open();
       return;
     }
   } else { form.elements.minimumProductionAmount.value=0;form.elements.minimumProductionUnitId.value=['piece','slice','portion','g','ml'].includes(form.elements.yieldUnit.value)?form.elements.yieldUnit.value:'portion';form.elements.servingMode && (form.elements.servingMode.value = 'whole'); addRecipeLine(); }
   if (form.elements.servingMode) updateServingConfiguration();
-  form.classList.remove('hidden');
-  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  recipeEditorDialog.open();
 }
 
 const recipeFilterChoices={
@@ -2087,6 +2092,7 @@ const recipeFilterChoices={
 const recipeFilters={type:'',moment:'',service:'',query:'',missing:'',validation:'all',page:1};
 let recipeDisplay=recipeDisplayPreferences();
 async function showRecipeCard(recipeId,recipeName=null){
+  if(recipeEditorDialog.isOpen()){openCookingSheet(recipeId,undefined,undefined,undefined,'free');return;}
   const recipe=recipeCardForSource(state.recipes,recipeId) ?? (recipeName?{id:recipeId,name:recipeName}:null);
   if(!recipe)return;
   recipeFilters.type='';recipeFilters.moment='';recipeFilters.service='';recipeFilters.missing='';recipeFilters.validation='all';recipeFilters.query=recipe.name;recipeFilters.page=1;
@@ -2359,12 +2365,12 @@ async function openImportDraft(draft) {
   if (draft.variants?.length) reviewNotes.push('Choisis une variante et ajoute ses ingrédients avant d’enregistrer la recette.');
   showMessage($('#recipe-message'), reviewNotes.length ? `À vérifier : ${reviewNotes.join(' ')}` : 'Vérifie le rendement, les quantités et les aliments associés avant d’enregistrer.', true);
   let source = $('#recipe-import-source');
-  if (!source) { source = document.createElement('details'); source.id = 'recipe-import-source'; $('#recipe-message').after(source); }
+  if (!source) { source = document.createElement('details'); source.id = 'recipe-import-source'; $('#recipe-editor-panel-information').append(source); }
   source.replaceChildren();
   const summary = document.createElement('summary'); summary.textContent = 'Texte original de la recette';
   const original = document.createElement('pre'); original.style.whiteSpace = 'pre-wrap'; original.textContent = typeof draft.original === 'string' ? draft.original : draft.original?JSON.stringify(draft.original,null,2):'';
   source.append(summary, original);
-  form.classList.remove('hidden'); form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  recipeEditorDialog.open();
 }
 
 function toUnitId(value = '') {
@@ -2524,7 +2530,7 @@ async function requestRecipeDeletion(recipe,button,message){
   try{
     const result=await api(`/api/recipes/${recipe.id}`,{method:'DELETE',body:JSON.stringify({householdId:state.household.id,version:recipe.version})});
     state.recipes=state.recipes.filter(item=>item.id!==recipe.id);
-    if(state.editingRecipeId===recipe.id){state.editingRecipeId=null;state.editingRecipeForDeletion=null;$('#recipe-form').classList.add('hidden');$('#recipe-result').classList.add('hidden');}
+    if(state.editingRecipeId===recipe.id){state.editingRecipeId=null;state.editingRecipeForDeletion=null;recipeEditorDialog.close({discard:true});$('#recipe-form').classList.add('hidden');$('#recipe-result').classList.add('hidden');}
     renderFilteredRecipes();
     showMessage($('#recipe-list-message'),`« ${recipe.name} » a été supprimée.${result.imageCleanupPending?' Un fichier photo n’a pas pu être nettoyé.':''}`,!result.imageCleanupPending);
     await refreshRecipes();

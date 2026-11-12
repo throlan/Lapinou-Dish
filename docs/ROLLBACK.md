@@ -1,5 +1,9 @@
 # Images versionnées et retour arrière
 
+## Éditeur modal — 0.8.0
+
+Changement d’interface sans migration. Un retour à la 0.7.2 retrouve le formulaire sous la liste avec les mêmes données et réglages. Les protections des images et les précautions de retour aux versions antérieures restent applicables. Aucun déploiement effectué par l’agent.
+
 ## Avis facultatifs — 0.7.2
 
 Migration additive : `recipes.rating_enabled`, booléen activé par défaut. Aucun avis existant n’est supprimé. Une image antérieure ignore ce choix et peut à nouveau afficher les recettes désactivées et accepter leurs votes ; réinstaller la 0.7.2 réapplique le choix conservé. Les sauvegardes de base restent distinctes des images.

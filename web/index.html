@@ -13,6 +13,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
     <link rel="stylesheet" href="/style.css?v=0.7.0">
     <link rel="stylesheet" href="/editorial.css?v=0.3.17"><link rel="stylesheet" href="/recipe-directory-refresh.css?v=0.7.0">
+      <link rel="stylesheet" href="/recipe-editor-dialog.css?v=0.8.0">
   </head>
   <body>
     <header class="topbar">
@@ -212,45 +213,7 @@
             <nav id="recipe-pagination" class="recipe-pagination" aria-label="Pages de recettes"></nav>
           </div>
         </div>
-        <form id="recipe-form" class="card form-card hidden">
-          <div class="section-heading"><div><h2 id="recipe-form-title">Nouvelle recette</h2><p>Choisis les aliments du catalogue et saisis leurs quantités.</p></div><div class="recipe-card-actions"><button type="button" class="secondary danger-button hidden" id="delete-current-recipe">Supprimer la recette</button><button type="button" class="secondary hidden" id="ignore-import-draft">Ignorer ce brouillon</button><button type="button" class="secondary" id="cancel-recipe">Annuler</button></div></div>
-          <p id="recipe-delete-message" class="form-message" role="status"></p>
-          <label>Nom de la recette<input name="name" required maxlength="200" placeholder="Ex. Muffins pomme-cannelle"></label>
-          <label>Description<textarea name="description" rows="2" maxlength="5000" placeholder="Facultatif"></textarea></label>
-          <div class="recipe-taxonomy">
-            <label>Type de préparation<select name="recipeType" id="recipe-type-select">
-              <option value="dish">Plat</option><option value="salad">Salade</option><option value="sauce">Sauce</option><option value="beverage">Boisson</option><option value="accompaniment">Accompagnement</option><option value="dessert">Dessert</option>
-            </select></label>
-            <fieldset class="recipe-moments"><legend>Moments adaptés</legend>
-              <label><input type="checkbox" name="mealMoments" value="breakfast"> Petit-déjeuner</label>
-              <label><input type="checkbox" name="mealMoments" value="lunch"> Déjeuner</label>
-              <label><input type="checkbox" name="mealMoments" value="dinner"> Dîner</label>
-              <label><input type="checkbox" name="mealMoments" value="snack"> Collation</label>
-            </fieldset>
-          </div>
-          <label>Source (facultatif)<input name="sourceUrl" type="url" placeholder="Lien vers la recette d'origine"></label>
-          <label class="recipe-validation-choice"><input type="checkbox" name="ratingEnabled" checked> Autoriser les avis<span class="hint">Décoche pour masquer les étoiles et ne plus proposer cette recette à noter dans ce foyer. Les notes existantes sont conservées.</span></label>
-          <input type="hidden" name="instructions"><div id="recipe-method-editor"></div><label class="recipe-validation-choice"><input type="checkbox" name="reviewValidated"> Recette validée<span class="hint">Repère de relecture. La recette reste entièrement modifiable.</span></label>
-          <label>Production à suivre (facultatif)<select name="productionType"><option value="none">Aucune</option><option value="batch_cooking">Batch cooking</option><option value="pasta">Pâtes</option><option value="pastry">Pâtisserie</option><option value="bread">Pain</option></select><span class="hint">Le type sert à classer les préparations. Le lot minimum se règle juste dessous, pour cette recette uniquement.</span></label>
-          <div class="yield-row"><label>Rendement<input name="yieldAmount" required type="number" min="0.01" step="any" value="4"></label><label>Unité<select name="yieldUnit"><option value="portion">portions</option><option value="piece">pièces</option><option value="slice">tranches</option><option value="g">grammes</option><option value="ml">millilitres</option></select></label></div>
-          <p class="hint">Le rendement s’applique aux prochaines productions. Pour modifier la quantité d’un lot déjà produit, utilise le stock des préparations.</p>
-          <fieldset class="recipe-production-minimum"><legend>Lot minimum pour cette recette</legend><p class="hint">Exemples : 1 pain entier (équivalence avec ses tranches), 24 bagels ou 36 pancakes. La liste de courses calcule les ingrédients nécessaires au lot.</p><div class="yield-row"><label>Minimum<input name="minimumProductionAmount" type="number" min="0" max="100000" step="any" value="0"></label><label>Unité<select name="minimumProductionUnitId"><option value="piece">pièce(s)</option><option value="slice">tranche(s)</option><option value="portion">portion(s)</option><option value="g">g</option><option value="ml">ml</option></select></label></div></fieldset>
-          <details class="recipe-output-units"><summary>Utiliser cette recette à la pièce, à la tranche…</summary>
-            <p class="hint">Équivalences pour toute la recette de base. Exemple : 1 pain = 20 tranches. Le rendement ci-dessus reste la référence ; laisse vides les unités inutiles. Le poids est estimé depuis les ingrédients, sauf si tu renseignes un poids ici.</p>
-            <div class="yield-row"><label>Pièces<input name="output_piece" type="number" min="0.001" max="100000" step="any"></label><label>Tranches<input name="output_slice" type="number" min="0.001" max="100000" step="any"></label><label>Portions<input name="output_portion" type="number" min="0.001" max="100000" step="any"></label><label>Poids total (g)<input name="output_g" type="number" min="0.001" max="100000" step="any"></label><label>Volume total (ml)<input name="output_ml" type="number" min="0.001" max="100000" step="any"></label></div>
-          </details>
 
-          <fieldset id="serving-configuration">
-            <legend>Portions dans le calendrier</legend>
-            <label>Service<select name="servingMode"><option value="original">Proportions du rendement de la recette (pièces / portions)</option><option value="whole">Préparation servie ensemble — grammes estimés</option><option value="separate">Viande et légumes ensemble, féculents à part — grammes estimés</option><option value="three">Viande, légumes et féculents séparés — grammes estimés</option></select></label>
-            <p id="serving-assignment-status" class="hint hidden" role="status"></p>
-            <p class="hint">Le poids cuit estimé se règle dans la fiche de chaque aliment. Les quantités de la recette restent crues ; une préparation maison déjà cuite ne reçoit pas de second coefficient.</p>
-          </fieldset>
-          <div class="line-heading"><h3>Ingrédients</h3><div class="form-actions"><button type="button" class="secondary" id="add-line">+ Aliment</button><button type="button" class="secondary" id="add-recipe-line">+ Préparation maison</button></div></div>
-          <div id="recipe-lines"></div>
-          <div class="form-actions"><button class="primary" type="submit">Enregistrer et calculer</button></div>
-          <p class="form-message" id="recipe-message" role="status"></p>
-        </form>
         <section id="recipe-result" class="card result hidden" aria-live="polite"></section>
       </section>
 
@@ -508,7 +471,63 @@
       <p id="recipe-image-message" class="form-message" role="status"></p>
       <p class="muted">L’illustration IA est générée uniquement à ta demande. Une photo personnelle peut la remplacer ensuite. L’image reste illustrative, pas une référence de quantité.</p>
     </dialog>
+    <dialog id="recipe-editor-dialog" class="recipe-editor-dialog" aria-labelledby="recipe-form-title">
+      <form id="recipe-form" class="recipe-editor-form hidden" novalidate>
+        <header class="recipe-editor-heading"><div><p class="eyebrow">Carnet de recettes</p><h2 id="recipe-form-title">Nouvelle recette</h2></div><button type="button" class="icon-button" id="cancel-recipe" aria-label="Fermer l’éditeur de recette">×</button></header>
+        <nav class="recipe-editor-tabs" role="tablist" aria-label="Étapes de la recette">
+          <button type="button" role="tab" id="recipe-editor-tab-information" data-recipe-editor-tab="information" aria-controls="recipe-editor-panel-information" aria-selected="true" tabindex="0"><span aria-hidden="true">1</span> Informations</button>
+          <button type="button" role="tab" id="recipe-editor-tab-ingredients" data-recipe-editor-tab="ingredients" aria-controls="recipe-editor-panel-ingredients" aria-selected="false" tabindex="-1"><span aria-hidden="true">2</span> Ingrédients</button>
+          <button type="button" role="tab" id="recipe-editor-tab-preparation" data-recipe-editor-tab="preparation" aria-controls="recipe-editor-panel-preparation" aria-selected="false" tabindex="-1"><span aria-hidden="true">3</span> Préparation</button>
+          <button type="button" role="tab" id="recipe-editor-tab-settings" data-recipe-editor-tab="settings" aria-controls="recipe-editor-panel-settings" aria-selected="false" tabindex="-1"><span aria-hidden="true">4</span> Réglages</button>
+        </nav>
+        <div class="recipe-editor-body">
+          <section id="recipe-editor-panel-information" role="tabpanel" aria-labelledby="recipe-editor-tab-information" data-recipe-editor-panel="information">
+          <label>Nom de la recette<input name="name" required maxlength="200" placeholder="Ex. Muffins pomme-cannelle"></label>
+          <label>Description<textarea name="description" rows="2" maxlength="5000" placeholder="Facultatif"></textarea></label>
+          <div class="recipe-taxonomy">
+            <label>Type de préparation<select name="recipeType" id="recipe-type-select">
+              <option value="dish">Plat</option><option value="salad">Salade</option><option value="sauce">Sauce</option><option value="beverage">Boisson</option><option value="accompaniment">Accompagnement</option><option value="dessert">Dessert</option>
+            </select></label>
+            <fieldset class="recipe-moments"><legend>Moments adaptés</legend>
+              <label><input type="checkbox" name="mealMoments" value="breakfast"> Petit-déjeuner</label>
+              <label><input type="checkbox" name="mealMoments" value="lunch"> Déjeuner</label>
+              <label><input type="checkbox" name="mealMoments" value="dinner"> Dîner</label>
+              <label><input type="checkbox" name="mealMoments" value="snack"> Collation</label>
+            </fieldset>
+          </div>
+          <label>Source (facultatif)<input name="sourceUrl" type="url" placeholder="Lien vers la recette d'origine"></label>
+          </section>
+          <section id="recipe-editor-panel-ingredients" role="tabpanel" aria-labelledby="recipe-editor-tab-ingredients" data-recipe-editor-panel="ingredients" hidden>
+          <div class="yield-row"><label>Rendement<input name="yieldAmount" required type="number" min="0.01" step="any" value="4"></label><label>Unité<select name="yieldUnit"><option value="portion">portions</option><option value="piece">pièces</option><option value="slice">tranches</option><option value="g">grammes</option><option value="ml">millilitres</option></select></label></div>
+          <p class="hint">Le rendement s’applique aux prochaines productions. Pour modifier la quantité d’un lot déjà produit, utilise le stock des préparations.</p>
+          <fieldset id="serving-configuration">
+            <legend>Portions dans le calendrier</legend>
+            <label>Service<select name="servingMode"><option value="original">Proportions du rendement de la recette (pièces / portions)</option><option value="whole">Préparation servie ensemble — grammes estimés</option><option value="separate">Viande et légumes ensemble, féculents à part — grammes estimés</option><option value="three">Viande, légumes et féculents séparés — grammes estimés</option></select></label>
+            <p id="serving-assignment-status" class="hint hidden" role="status"></p>
+            <p class="hint">Le poids cuit estimé se règle dans la fiche de chaque aliment. Les quantités de la recette restent crues ; une préparation maison déjà cuite ne reçoit pas de second coefficient.</p>
+          </fieldset>
+          <div class="line-heading"><h3>Ingrédients</h3><div class="form-actions"><button type="button" class="secondary" id="add-line">+ Aliment</button><button type="button" class="secondary" id="add-recipe-line">+ Préparation maison</button></div></div>
+          <div id="recipe-lines"></div>
+          </section>
+          <section id="recipe-editor-panel-preparation" role="tabpanel" aria-labelledby="recipe-editor-tab-preparation" data-recipe-editor-panel="preparation" hidden>
+          <input type="hidden" name="instructions"><div id="recipe-method-editor"></div><label class="recipe-validation-choice"><input type="checkbox" name="reviewValidated"> Recette validée<span class="hint">Repère de relecture. La recette reste entièrement modifiable.</span></label>
+          </section>
+          <section id="recipe-editor-panel-settings" role="tabpanel" aria-labelledby="recipe-editor-tab-settings" data-recipe-editor-panel="settings" hidden>
+          <label>Production à suivre (facultatif)<select name="productionType"><option value="none">Aucune</option><option value="batch_cooking">Batch cooking</option><option value="pasta">Pâtes</option><option value="pastry">Pâtisserie</option><option value="bread">Pain</option></select><span class="hint">Le type sert à classer les préparations. Le lot minimum se règle juste dessous, pour cette recette uniquement.</span></label>
+          <fieldset class="recipe-production-minimum"><legend>Lot minimum pour cette recette</legend><p class="hint">Exemples : 1 pain entier (équivalence avec ses tranches), 24 bagels ou 36 pancakes. La liste de courses calcule les ingrédients nécessaires au lot.</p><div class="yield-row"><label>Minimum<input name="minimumProductionAmount" type="number" min="0" max="100000" step="any" value="0"></label><label>Unité<select name="minimumProductionUnitId"><option value="piece">pièce(s)</option><option value="slice">tranche(s)</option><option value="portion">portion(s)</option><option value="g">g</option><option value="ml">ml</option></select></label></div></fieldset>
+          <details class="recipe-output-units"><summary>Utiliser cette recette à la pièce, à la tranche…</summary>
+            <p class="hint">Équivalences pour toute la recette de base. Exemple : 1 pain = 20 tranches. Le rendement ci-dessus reste la référence ; laisse vides les unités inutiles. Le poids est estimé depuis les ingrédients, sauf si tu renseignes un poids ici.</p>
+            <div class="yield-row"><label>Pièces<input name="output_piece" type="number" min="0.001" max="100000" step="any"></label><label>Tranches<input name="output_slice" type="number" min="0.001" max="100000" step="any"></label><label>Portions<input name="output_portion" type="number" min="0.001" max="100000" step="any"></label><label>Poids total (g)<input name="output_g" type="number" min="0.001" max="100000" step="any"></label><label>Volume total (ml)<input name="output_ml" type="number" min="0.001" max="100000" step="any"></label></div>
+          </details>
+
+          <label class="recipe-validation-choice"><input type="checkbox" name="ratingEnabled" checked> Autoriser les avis<span class="hint">Décoche pour masquer les étoiles et ne plus proposer cette recette à noter dans ce foyer. Les notes existantes sont conservées.</span></label>
+            <div class="recipe-editor-secondary-actions"><button type="button" class="secondary danger-button hidden" id="delete-current-recipe">Supprimer la recette</button><button type="button" class="secondary hidden" id="ignore-import-draft">Ignorer ce brouillon</button></div><p id="recipe-delete-message" class="form-message" role="status"></p>
+          </section>
+        </div>
+        <footer class="recipe-editor-footer"><p class="form-message" id="recipe-message" role="status"></p><div class="recipe-editor-footer-actions"><button type="button" class="text-button" id="recipe-editor-cancel">Annuler</button><div class="recipe-editor-navigation"><button type="button" class="secondary" id="recipe-editor-previous">Précédent</button><button type="button" class="secondary" id="recipe-editor-next">Suivant</button><button class="primary" type="submit" id="save-recipe">Enregistrer et calculer</button></div></div></footer>
+      </form>
+    </dialog>
     <script type="module" src="/install-app.js?v=0.3.17"></script>
-    <script type="module" src="/app.js?v=0.7.2"></script>
+    <script type="module" src="/app.js?v=0.8.0"></script>
   </body>
 </html>

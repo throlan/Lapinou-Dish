@@ -12,7 +12,7 @@ function deletionUI(){
   const recipe={id:'delete-this',name:'Duplicate',version:7},duplicate={id:'keep-this',name:'Duplicate',version:1};
   const elements=new Map(),requests=[],hidden=[];
   const $=key=>{if(!elements.has(key))elements.set(key,{classList:{add:value=>hidden.push([key,value])}});return elements.get(key);};
-  const context={$,confirm:()=>true,state:{household:{id:'household'},recipes:[recipe,duplicate],editingRecipeId:recipe.id,editingRecipeForDeletion:recipe},
+  const context={recipeEditorDialog:{close(){}},$,confirm:()=>true,state:{household:{id:'household'},recipes:[recipe,duplicate],editingRecipeId:recipe.id,editingRecipeForDeletion:recipe},
     api:async(url,options)=>{requests.push({url,...options});return {deleted:true};},showMessage:(element,text)=>{element.textContent=text;},
     renderFilteredRecipes(){},refreshRecipes:async()=>{}};
   runInNewContext(source.slice(start,end)+'\nglobalThis.removeRecipe=requestRecipeDeletion;',context);
