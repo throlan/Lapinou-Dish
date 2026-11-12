@@ -1,0 +1,26 @@
+html:has(.recipe-editor-dialog[open]){overflow:hidden;scrollbar-gutter:stable}
+.recipe-editor-dialog{width:min(1100px,calc(100vw - 40px));max-width:none;max-height:calc(100dvh - 40px);padding:0;border:1px solid var(--line);border-radius:22px;background:var(--panel);color:var(--text);box-shadow:0 30px 100px #25132745;overflow:hidden}
+.recipe-editor-dialog::backdrop{background:#261b36a6;backdrop-filter:blur(4px)}
+.recipe-editor-form{display:flex;flex-direction:column;max-height:calc(100dvh - 42px);min-height:0;margin:0}
+.recipe-editor-heading{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.2rem 1.5rem .9rem;border-bottom:1px solid var(--line)}
+.recipe-editor-heading .eyebrow{margin:0 0 .2rem;font-size:.72rem}.recipe-editor-heading h2{margin:0;font-size:clamp(1.35rem,2.5vw,1.9rem)}
+.recipe-editor-heading .icon-button{flex:none;width:44px;height:44px;padding:0;font-size:1.6rem}
+.recipe-editor-tabs{display:flex;gap:.35rem;flex:none;overflow-x:auto;padding:.7rem 1.5rem;border-bottom:1px solid var(--line);background:var(--panel)}
+.recipe-editor-tabs button{display:flex;align-items:center;justify-content:center;gap:.5rem;flex:1;white-space:nowrap;background:transparent;border:1px solid transparent;border-radius:.75rem;padding:.65rem .8rem;color:var(--muted);font-weight:650}
+.recipe-editor-tabs button span{display:grid;place-items:center;width:1.5rem;height:1.5rem;flex:none;border-radius:50%;background:#eee7f1;font-size:.75rem}
+.recipe-editor-tabs button[aria-selected=true]{background:#f3e1ec;color:#7b1d50;border-color:#dfbdd2}.recipe-editor-tabs button[aria-selected=true] span{background:#922157;color:white}
+.recipe-editor-tabs button:focus-visible{outline:3px solid #ba5b92;outline-offset:-3px}
+.recipe-editor-body{overflow-y:auto;overscroll-behavior:contain;min-height:0;padding:1.2rem 1.5rem;scrollbar-gutter:stable}
+.recipe-editor-body [role=tabpanel][hidden]{display:none!important}
+.recipe-editor-body [role=tabpanel]>label{display:block;margin:0 0 1rem}.recipe-editor-body [role=tabpanel]>label>input,.recipe-editor-body [role=tabpanel]>label>textarea,.recipe-editor-body [role=tabpanel]>label>select{display:block;width:100%}
+.recipe-editor-body [role=tabpanel]>.recipe-validation-choice{display:grid}.recipe-editor-body [role=tabpanel]>.recipe-validation-choice>input{width:auto;justify-self:start}
+.recipe-editor-body .recipe-taxonomy,.recipe-editor-body fieldset{margin-bottom:1rem;min-width:0}.recipe-editor-body .recipe-line{min-width:0}.recipe-editor-body .line-heading{flex-wrap:wrap}
+.recipe-editor-body .recipe-output-units{margin:1rem 0}.recipe-editor-secondary-actions{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1rem}
+.recipe-editor-footer{flex:none;border-top:1px solid var(--line);padding:.75rem 1.5rem 1rem;background:var(--panel)}
+.recipe-editor-footer .form-message{margin:0 0 .65rem;max-height:5rem;overflow:auto}.recipe-editor-footer .form-message:empty{display:none}
+.recipe-editor-footer-actions{display:flex;align-items:center;justify-content:space-between;gap:.7rem}.recipe-editor-navigation{display:flex;gap:.5rem;align-items:center}
+@media(max-width:650px){
+ .recipe-editor-dialog{width:calc(100vw - 16px);max-height:calc(100dvh - 16px);border-radius:16px}
+ .recipe-editor-form{max-height:calc(100dvh - 18px)}.recipe-editor-heading{padding:.8rem 1rem}.recipe-editor-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible;padding:.5rem .7rem;gap:.25rem}.recipe-editor-tabs button{min-width:0;flex:none;padding:.6rem .65rem;font-size:.8rem;gap:.35rem}.recipe-editor-tabs button span{width:1.25rem;height:1.25rem}
+ .recipe-editor-body{padding:1rem;scrollbar-gutter:auto}.recipe-editor-footer{padding:.65rem .8rem calc(.65rem + env(safe-area-inset-bottom))}.recipe-editor-footer-actions{display:grid;grid-template-columns:auto 1fr 1fr;align-items:center;gap:.45rem}.recipe-editor-footer-actions>.text-button{justify-self:start}.recipe-editor-navigation{display:contents}.recipe-editor-navigation .primary{grid-column:1/-1}.recipe-editor-body .yield-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
