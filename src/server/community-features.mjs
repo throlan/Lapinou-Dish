@@ -3,6 +3,9 @@ import {jsonBody,sendAccount,accountError,uuid,scopedOperation,transaction,neste
 import {getFood,updateFood,validateFoodInput} from './foods.mjs';
 import {lockHouseholdInventory} from './ingredient-stock.mjs';
 
+// Historical recipes from migration 0009 use raw MD5 UUIDs accepted by PostgreSQL.
+const recipeIdentifier=value=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+
 function ids(value) {
  if(!Array.isArray(value)||!value.length||value.length>500||value.some(id=>!uuid(id))||new Set(value).size!==value.length)
   throw accountError('invalid-selection');
@@ -39,7 +42,7 @@ export async function communityFeatures(request,response,pool,actor,{snapshotPub
  }
  if(url.pathname==='/api/community/ratings'&&['PUT','DELETE'].includes(method)) {
   const body=await jsonBody(request);
-  if(!uuid(body.mealId)||!uuid(body.recipeId)||method==='PUT'&&(!Number.isInteger(body.score)||body.score<1||body.score>5))throw accountError('invalid-rating');
+  if(!uuid(body.mealId)||!recipeIdentifier(body.recipeId)||method==='PUT'&&(!Number.isInteger(body.score)||body.score<1||body.score>5))throw accountError('invalid-rating');
   if(!actor.personId)throw accountError('profile-not-linked',409);
   await transaction(pool,async client=>{
    const meal=await client.query(`SELECT m.id FROM planned_meals m

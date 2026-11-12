@@ -1,5 +1,11 @@
 # Prochaines tâches — 6 novembre 2026
 
+## Notation des recettes historiques — 0.7.1
+
+Certaines recettes historiques (notamment les boissons ajoutées par la migration 0009) possèdent un identifiant PostgreSQL issu d’un MD5, sans bits de version/variante RFC. La notation les refusait avec le message trompeur « Choisis une note entière entre 1 et 5 ». La validation du seul identifiant recette des votes accepte désormais ces UUID au format canonique. Les notes restent des entiers de 1 à 5 ; participation au repas, date, foyer et identité du compte restent contrôlés. Plusieurs recettes peuvent être notées à la suite, puis la note modifiée ou retirée sans double vote.
+
+Aucune migration, réécriture des identifiants, modification des calculs, des menus, des stocks ou des historiques. Aucun accès à Unraid ni Nginx ; déploiement par l’utilisateur uniquement. Validation : 410 tests complets réussis, dont une reproduction qui échouait avant correction. Vérification dans Chrome local temporaire : quatre recettes fictives notées successivement, modification et retrait d’une note, trois votes restants confirmés côté serveur. Publication GitHub/GHCR à vérifier après fusion.
+
 ## À vérifier après déploiement — 0.7.0
 
 Vérifier les cartes, badges et filtres sur les appareils réels. Pour les recettes historiques sans créateur enregistré, seuls les administrateurs/gestionnaires disposent des actions de gestion ; aucune attribution n’est inventée. Les contrôles et la publication de cette version sont consignés dans la PR fonctionnelle.
