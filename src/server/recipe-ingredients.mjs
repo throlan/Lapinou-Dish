@@ -102,7 +102,7 @@ export async function availableRecipeStock(client,householdId) {
 
 // Expand missing quantities only, sharing the same finished-stock pool for direct
 // menus and nested uses. Earlier menus reserve first, exactly as before.
-export async function recipeRequirements(client,householdId,startDate,endDate) {
+export async function recipeRequirements(client,householdId,startDate,endDate,{mealId=null,includeUntracked=false,includeMealIds=false}={}) {
   const [graph,stock]=await Promise.all([loadRecipeGraph(client,householdId),availableRecipeStock(client,householdId)]);
   for(const recipe of graph.values()){
     recipe.minimumProductionQuantity=recipeMinimumInYield(recipe);
@@ -127,21 +127,21 @@ export async function recipeRequirements(client,householdId,startDate,endDate) {
       for(const part of r.parts)demand(part.id,quantity/r.yield.amount*part.yield.amount,event,[...path,recipeId]);
       return;
     }
-    const covered=event.extra||r.productionType==='none'?0:takeStock(buckets,recipeId,quantity,event.date).quantity;
+    const covered=event.extra||r.productionType==='none'?0:takeStock(buckets,recipeId,quantity,event.date,event.id).quantity;
     const missing=quantity-covered;
-    const inRange=event.date>=startDate;
+    const inRange=event.date>=startDate&&(!mealId||event.id===mealId);
     const produceQuantity=r.productionType!=='none'&&missing>0
       ?Math.max(missing,inRange?r.minimumProductionQuantity??0:0):0;
     if(r.productionType!=='none'){
       addPlannedStock(buckets,recipeId,event.extra?produceQuantity:produceQuantity-missing,event.date);
       if(!event.extra)reservations.set(recipeId,(reservations.get(recipeId)??0)+quantity);
     }
-    if(inRange && r.productionType!=='none'&&!event.extra){
+    if(inRange && (r.productionType!=='none'||includeUntracked)&&!event.extra){
       const p=preparations.get(recipeId)??{recipeId,parentRecipeId:r.parentRecipeId,name:r.name,productionType:r.productionType,
         unitId:r.yield.unitId,yieldAmount:r.yield.amount,plannedQuantity:0,coveredQuantity:0,toMakeQuantity:0,
         minimumProductionQuantity:r.minimumProductionQuantity??0,minimumProductionAmount:r.minimumProductionAmount??0,
         minimumProductionUnitId:r.minimumProductionUnitId??r.yield.unitId,stockQuantity:initialStock.get(recipeId)??0,firstDate:event.date,lastDate:event.date,meals:new Set()};
-      p.plannedQuantity+=quantity;p.coveredQuantity+=covered;p.toMakeQuantity+=produceQuantity;p.lastDate=event.date;p.meals.add(event.id);preparations.set(recipeId,p);
+      p.plannedQuantity+=quantity;p.coveredQuantity+=covered;p.toMakeQuantity+=r.productionType==='none'?missing:produceQuantity;p.lastDate=event.date;p.meals.add(event.id);preparations.set(recipeId,p);
     }
     const ingredientQuantity=r.productionType==='none'?missing:produceQuantity;
     for(const line of r.lines){
@@ -162,7 +162,7 @@ export async function recipeRequirements(client,householdId,startDate,endDate) {
     .sort((a,b)=>a.date.localeCompare(b.date)||Number(b.extra)-Number(a.extra)||a.order-b.order);
   for(const event of ordered)demand(event.recipe_id,Number(event.quantity),event);
   return {graph,initialStock,reservations,
-    preparations:[...preparations.values()].map(({meals,...p})=>({...p,plannedQuantity:clean(p.plannedQuantity),coveredQuantity:clean(p.coveredQuantity),toMakeQuantity:clean(p.toMakeQuantity),mealCount:meals.size})).sort((a,b)=>a.firstDate.localeCompare(b.firstDate)||a.name.localeCompare(b.name,'fr')),
+    preparations:[...preparations.values()].map(({meals,...p})=>({...p,plannedQuantity:clean(p.plannedQuantity),coveredQuantity:clean(p.coveredQuantity),toMakeQuantity:clean(p.toMakeQuantity),mealCount:meals.size,...(includeMealIds?{mealIds:[...meals]}:{})})).sort((a,b)=>a.firstDate.localeCompare(b.firstDate)||a.name.localeCompare(b.name,'fr')),
     foods:[...foods.values()].map(({sources,...f})=>({...f,quantity:clean(f.quantity),recipes:[...sources.values()].map(r=>({...r,quantity:clean(r.quantity)})).sort((a,b)=>a.name.localeCompare(b.name,'fr'))})).sort((a,b)=>a.name.localeCompare(b.name,'fr')||a.unitId.localeCompare(b.unitId))};
 }
 

@@ -18,12 +18,12 @@ export async function mealStockReadiness(client,householdId){
    GROUP BY m.id,m.meal_date,m.slot,m.created_at,m.stock_auto_disabled,i.id,i.recipe_id,i.sort_order,u.quantity,u.used_at
    ORDER BY m.meal_date,CASE m.slot WHEN 'breakfast' THEN 1 WHEN 'lunch' THEN 2 WHEN 'snack' THEN 3 WHEN 'dinner' THEN 4 ELSE 5 END,m.created_at,m.id,i.sort_order,i.id`,[householdId]);
  const meals=new Map(),ready=[];
- function reserve(id,quantity,date,path=[]){
+ function reserve(id,quantity,date,path=[],mealId=null){
   if(path.includes(id))throw new Error('recipe-ingredient-cycle');const recipe=graph.get(id);if(!recipe)throw new Error('recipe-ingredient-not-found');
-  if(recipe.productionType!=='none')return takeStock(buckets,id,quantity,date);
+  if(recipe.productionType!=='none')return takeStock(buckets,id,quantity,date,mealId);
   // A bagel in stock does not mean its untracked hamburger is already cooked.
   for(const line of recipe.lines.filter(l=>l.recipeId)){const child=graph.get(line.recipeId),fraction=recipeFraction(graph,line.recipeId,line.quantity*quantity/recipe.yield.amount,line.unitId);
-   for(const part of child.separateStarch&&child.parts.length?child.parts:[child])reserve(part.id,fraction*part.yield.amount,date,[...path,id]);}
+   for(const part of child.separateStarch&&child.parts.length?child.parts:[child])reserve(part.id,fraction*part.yield.amount,date,[...path,id],mealId);}
   return {quantity:0,allocations:[]};
  }
  for(const event of events.rows){
@@ -31,7 +31,7 @@ export async function mealStockReadiness(client,householdId){
   const quantity=Math.max(0,Number(event.quantity)-Number(event.used));
   if(!(quantity>1e-8)){state.usedItemIds.push(event.item_id);state.stockUsedAt=event.used_at;}
   else{
-   const allocation=reserve(event.recipe_id,quantity,event.date);
+   const allocation=reserve(event.recipe_id,quantity,event.date,[],event.meal_id);
    const complete=allocation.quantity+1e-8>=quantity&&!event.stock_auto_disabled;
    if(complete){state.readyItemIds.push(event.item_id);ready.push({...event,quantity,allocations:allocation.allocations});}
    else state.stockReady=false;
