@@ -19,7 +19,7 @@ import { batchCookingWindow } from './preparation-weeks.js';
 import { clampFoodPageOffset } from './food-pagination.js';
 import {catalogueCurrent,catalogueSame,catalogueSelectionIssue,catalogueExclusion,filterCatalogueReview,catalogueReviewCsv} from './catalogue-review.js';
 import { groupPreparations, suggestedProductionQuantity, suggestedServingQuantities, scaledIngredients, scaledSourceIngredients, productionRecipe, cookingYield } from './cooking-sheet.js';
-import { recipeEnergyBadge, ingredientCookingFactor, recipeServiceChoices, recipeServiceMode, recipeDisplayPreferences, filterRecipeDirectory, recipeCardForSource, recipeMissingData, recipeMomentLabel, recipeTypeLabel, recipePlanningLabel } from './recipe-directory.js';
+import { calendarMealTitle, recipeEnergyBadge, ingredientCookingFactor, recipeServiceChoices, recipeServiceMode, recipeDisplayPreferences, filterRecipeDirectory, recipeCardForSource, recipeMissingData, recipeMomentLabel, recipeTypeLabel, recipePlanningLabel } from './recipe-directory.js';
 
 const api=createApiClient();
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -3449,7 +3449,7 @@ function renderMealCard(meal) {
   const photoRecipe=mealPhotoRecipe(meal);
   heading.append(recipeImageElement(photoRecipe,'planned-meal-photo'));
   const details = document.createElement('button'); details.type = 'button';
-  details.textContent = meal.isOccasion ? `✨ ${meal.occasionTitle || 'Repas exceptionnel'} · hors quotas` : [...new Set(meal.items?.filter(item => ['main','accompaniment'].includes(item.role ?? 'main')).map(item => item.recipe?.parentRecipeId ? item.recipe.name.split(' — ')[0] : item.recipe?.name ?? 'Recette supprimée'))].join(' + ') || 'Repas';
+  details.textContent = calendarMealTitle(meal);
   details.setAttribute('aria-label',`Voir les portions du repas : ${details.textContent}`);
   details.addEventListener('click',()=>openMealDetails(meal));heading.append(details);card.append(heading);
   const printItems = document.createElement('div'); printItems.className = 'print-meal-items';

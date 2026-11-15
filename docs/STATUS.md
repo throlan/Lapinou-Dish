@@ -1,5 +1,12 @@
 # État du projet — 12 novembre 2026
 
+## Titres des déclinaisons en collation — 0.11.1
+
+Le calendrier utilisait seulement les éléments de rôle plat/accompagnement pour son titre. Un repas composé d’une pâtisserie individuelle (rôle dessert, par exemple catégorie Pâtisserie en collation) affichait donc Repas. Le titre reprend maintenant les recettes des autres catégories lorsqu’il n’y a pas de plat/accompagnement, en conservant le nom complet du topping. Les parties séparées sont regroupées avec le nom complet de leur parent, sans tronquer une déclinaison après le tiret. Les repas avec plat gardent leur titre principal, les repas exceptionnels leur titre dédié.
+
+Confirmation utilisateur : les ingrédients des déclinaisons sont corrects. Aucun changement de sélection, nutrition, quantité, recette, menu, production ou stock ; aucune migration. Quatre muffins prévus peuvent toujours proposer six à préparer si le minimum de cette recette est six. Validation : 11 tests ciblés réussis ; Chrome sur données fictives avec deux toppings distincts le même jour, au petit-déjeuner et en collation, titre complet et Cuisiner conservant le topping chocolat et le minimum de six pièces. Inspection à 1440/900/390 px. Contrôles complets GitHub et publication finale dans la PR du correctif. Aucun accès à Unraid ni Nginx ; déploiement par l’utilisateur. Référence 0.3.32 conservée.
+
+
 ## Planification multiple, copies de journées/semaines et actualisations stables — 0.11.0
 
 Dans Recettes → Planifier, les périodes proposées sont Cette semaine (lundi–dimanche), La semaine prochaine, Les deux prochaines semaines (les deux semaines complètes à partir du prochain lundi) et Ce mois (mois civil actuel). Les dates exactes sont affichées et restent modifiables avec Autres dates. Le moment du repas filtre les créneaux libres selon les moments de la recette. Plusieurs dates se cochent ensemble, par exemple mercredi et samedi au dîner. Les personnes, variantes, portions et compléments sont vérifiés une seule fois dans le formulaire habituel, puis copiés à l’identique sur toutes les dates ; aucun recalcul propre à une date future n’est inventé. La liste des cibles reste visible et les champs date/moment sont protégés pour une sélection multiple. Pour une seule cible, la date et le moment restent ajustables.

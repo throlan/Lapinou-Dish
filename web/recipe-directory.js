@@ -79,6 +79,13 @@ export function recipePlanningLabel(recipe) {
   return `${recipe.parentRecipeName??recipe.name.split(' — ')[0]} · ${partLabel} · ${details}${recipe.servingPartActive===false?' · ancienne composition':''}`;
 }
 export function recipeMomentLabel(moment) { return MOMENT_LABELS[moment] ?? moment; }
+export function calendarMealTitle(meal){
+  if(meal.isOccasion)return `✨ ${meal.occasionTitle || 'Repas exceptionnel'} · hors quotas`;
+  const items=meal.items??[],main=items.filter(item=>['main','accompaniment'].includes(item.role??'main'));
+  return [...new Set((main.length?main:items).map(item=>item.recipe?.parentRecipeId
+    ? item.recipe.parentRecipeName??item.recipe.name
+    : item.recipe?.name??'Recette supprimée'))].join(' + ')||'Repas';
+}
 function normalize(value) { return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr'); }
 
 export const recipeServiceChoices=[['original','Pièces / portions'],['whole','Ensemble · grammes estimés'],['separate','Viande et légumes + féculents'],['three','Protéines, légumes et féculents séparés']];
