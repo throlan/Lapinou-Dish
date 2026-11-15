@@ -2098,9 +2098,9 @@ const recipeFilterChoices={
 const recipeFilters={type:'',moment:'',service:'',query:'',missing:'',validation:'all',page:1};
 let recipeDisplay=recipeDisplayPreferences();
 async function showRecipeCard(recipeId,recipeName=null){
-  const instance=state.recipes.find(r=>r.id===recipeId);if(instance?.choiceInstance){openCookingSheet(instance.id,undefined,undefined,undefined,'free');return;}
   if(recipeEditorDialog.isOpen()){openCookingSheet(recipeId,undefined,undefined,undefined,'free');return;}
   const recipe=recipeCardForSource(state.recipes,recipeId) ?? (recipeName?{id:recipeId,name:recipeName}:null);
+  if(recipe?.choiceInstance){openCookingSheet(recipe.id,undefined,undefined,undefined,'free');return;}
   if(!recipe)return;
   recipeFilters.type='';recipeFilters.moment='';recipeFilters.service='';recipeFilters.missing='';recipeFilters.validation='all';recipeFilters.query=recipe.name;recipeFilters.page=1;
   $('#recipe-search').value=recipe.name;
