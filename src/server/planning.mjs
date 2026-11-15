@@ -100,13 +100,15 @@ export async function savePlannedMeal(pool, id, data) {
       return { error: 'attendee-not-in-household' };
     }
     const recipes = await client.query(
-      'SELECT id FROM recipes WHERE household_id = $1 AND id = ANY($2::uuid[])',
+      'SELECT id,COALESCE(choice_origin,(SELECT parent.choice_origin FROM recipes parent WHERE parent.id=recipes.parent_recipe_id)) AS choice_origin FROM recipes WHERE household_id = $1 AND id = ANY($2::uuid[])',
       [data.householdId, [...new Set(data.items.map((item) => item.recipeId))]],
     );
     if (recipes.rowCount !== new Set(data.items.map((item) => item.recipeId)).size) {
       await client.query('ROLLBACK');
       return { error: 'recipe-not-in-household' };
     }
+    const combinations=new Map();
+    for(const row of recipes.rows){const origin=row.choice_origin;if(!origin?.templateId)continue;if(combinations.has(origin.templateId)&&combinations.get(origin.templateId)!==origin.key){await client.query('ROLLBACK');return {error:'one-recipe-combination-per-meal'};}combinations.set(origin.templateId,origin.key);}
     const normalizedItems = [];
     for (const item of data.items) {
       const recipe = await client.query('SELECT id,yield_amount,separate_starch FROM recipes WHERE id=$1',[item.recipeId]);

@@ -234,7 +234,7 @@ export function createAccountUI({api,onSession}){
   if(manager){
    const publish=section(community,'Partager mes recettes en lot');
    publish.append(element('p','Recherche, sélectionne tous les résultats ou coche quelques recettes. Une recette déjà publiée est mise à jour sans doublon ; les copies déjà importées restent indépendantes.'));
-   const recipes=(await api('/api/recipes?householdId='+session.account.householdId,{timeoutMs:60000})).recipes.filter(r=>!r.recipeArchived&&!r.parentRecipeId);
+   const recipes=(await api('/api/recipes?householdId='+session.account.householdId,{timeoutMs:60000})).recipes.filter(r=>!r.recipeArchived&&!r.parentRecipeId&&!r.choiceInstance);
    const published=new Set(data.publications.filter(p=>p.mine).map(p=>p.sourceRecipeId));
    const selection=selectionList(publish,recipes.map(r=>({id:r.id,name:r.name,detail:published.has(r.id)?'Déjà partagée':'Privée'})),'Mes recettes');
    const progress=element('p',null,'form-message');progress.setAttribute('role','status');publish.append(progress);

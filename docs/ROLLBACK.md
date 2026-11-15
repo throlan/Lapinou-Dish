@@ -1,5 +1,10 @@
 # Images versionnées et retour arrière
 
+## Recettes modulables — 0.9.0
+
+Migration additive : groupes de choix, listes privées et instantanés de combinaisons. Sauvegarder avant migration. Revenir à 0.8.0 ignore les listes/groupes et peut afficher les instantanés internes comme des recettes ordinaires : l’ancienne interface ne connaît pas leur masquage. Les compositions matérialisées restent des recettes et les repas/lots gardent leurs références ; restaurer la sauvegarde antérieure pour revenir exactement au catalogue d’avant les choix. Ne pas supprimer les tables/colonnes manuellement. Les précautions relatives à la référence 0.3.32 et aux bases multi-foyers restent applicables.
+
+
 ## Éditeur modal — 0.8.0
 
 Changement d’interface sans migration. Un retour à la 0.7.2 retrouve le formulaire sous la liste avec les mêmes données et réglages. Les protections des images et les précautions de retour aux versions antérieures restent applicables. Aucun déploiement effectué par l’agent.

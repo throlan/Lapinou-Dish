@@ -340,6 +340,8 @@ function responseBuffer(){
 async function assertMemberWrite(actor,request,url,pool){
  if(['GET','HEAD'].includes(request.method))return;
  if(actor.role==='manager')return;
+ if(request.method==='POST'&&/^\/api\/recipes\/[a-f0-9-]{36}\/choices\/resolve$/i.test(url.pathname))return;
+ if(actor.applicationAdmin&&url.pathname.startsWith('/api/recipe-choice-lists'))return;
  if(actor.applicationAdmin&&/^\/api\/(recipes|recipe-imports)(?:\/|$)/.test(url.pathname))return;
  const recipe=url.pathname.match(/^\/api\/recipes\/([a-f0-9-]{36})(?:\/settings)?$/i);
  if(recipe&&['PUT','PATCH','DELETE'].includes(request.method)){
