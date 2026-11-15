@@ -1,5 +1,10 @@
 # Prochaines tâches — 12 novembre 2026
 
+## À vérifier après déploiement — 0.12.0
+
+Comparer les protéines sur les vraies recettes depuis Apports selon les choix, vérifier le batch avec des préparations hors menus sur la semaine retenue et actualiser les repas utilisant une ancienne recette après contrôle des unités. L’aperçu de l’éditeur porte sur la version enregistrée ; enregistrer les nouvelles quantités avant comparaison. Une unité sans équivalence nécessite une saisie manuelle et un découpage incompatible une reprise dans le calendrier.
+
+
 ## À vérifier après déploiement — 0.11.0
 
 Essayer la sélection mercredi/samedi, la copie d’une journée et d’une semaine sur les appareils réels. Les copies gardent les quantités ; elles ne sont pas recalculées selon les profils futurs. Les données changées par une autre session peuvent attendre au plus une minute avant actualisation lors de la navigation. Aucun écrasement des créneaux occupés. Les semaines proposées pour planifier sont relatives à aujourd’hui ; les périodes de Cuisiner restent ancrées sur le repas sélectionné, comme en 0.10.0.

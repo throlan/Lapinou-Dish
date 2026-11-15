@@ -2,3 +2,5 @@
 @media(max-width:650px){.choice-option-row{grid-template-columns:repeat(2,minmax(0,1fr))}.choice-dialog{padding:1rem}.choice-dialog form{max-height:calc(90dvh - 2rem)}.choice-dialog .form-actions>*{flex:1}}
 
 .ingredient-choices>label:has(input[type=checkbox]){display:flex;flex-direction:row-reverse;justify-content:flex-end;align-items:center;gap:.6rem}.choice-dialog .choice-search-results button,.choice-dialog .choice-selected-foods button{white-space:normal;text-align:left;max-width:100%;overflow-wrap:anywhere}.choice-option-row>strong{overflow-wrap:anywhere}
+
+.choice-nutrition-preview{border:1px solid var(--line);border-radius:1rem;padding:1rem;margin:.8rem 0;background:var(--bg)}.choice-nutrition-preview h3{font-size:1rem;margin:0}.choice-nutrition-preview>strong{font-size:1.2rem}.choice-energy-badge{display:inline-block;border-radius:1rem;background:var(--panel);padding:.3rem .7rem;margin:.5rem}.choice-macros{display:flex;gap:.5rem 1rem;flex-wrap:wrap;margin:.7rem 0}.choice-nutrition-preview small{display:block;color:var(--muted)}.choice-dialog h2,.choice-nutrition-preview p{overflow-wrap:anywhere}.recipe-variant-nutrition{margin-bottom:.4rem}

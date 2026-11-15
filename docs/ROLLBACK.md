@@ -1,5 +1,10 @@
 # Images versionnées et retour arrière
 
+## Retour depuis la 0.12.0
+
+Aucune migration. Revenir à la 0.11.3 retire les nouveaux contrôles d’aperçu et d’actualisation ; les repas explicitement basculés vers une recette récente restent sur cette recette avec les quantités confirmées. Changer d’image ne restaure pas leurs anciennes quantités. Les anciennes recettes et les lots produits sont conservés. Référence 0.3.32 inchangée ; déploiement/restauration par l’utilisateur.
+
+
 ## Copies de planning — 0.11.0
 
 La table planning_operations est additive. Revenir à l’image 0.10.0 conserve les repas déjà ajoutés et leurs quantités ; les nouveaux contrôles et le rejeu des nouvelles opérations ne sont plus exposés. Ne pas supprimer la table ni réenvoyer depuis l’ancienne interface une opération dont le résultat était incertain. La référence 0.3.32 reste figée et la règle de conservation GHCR reste inchangée. Déploiement et restauration par l’utilisateur uniquement.

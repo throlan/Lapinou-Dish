@@ -7,6 +7,22 @@ import {readRecipeImage,saveRecipeImage} from './recipe-images.mjs';
 const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value);
 const fail=(code,status=400)=>{throw accountError(code,status);};
 
+export async function previewRecipeChoices(pool,id,householdId,selection,expectedVersion){
+ const own=await pool.query('SELECT id FROM recipes WHERE id=$1 AND household_id=$2',[id,householdId]);
+ if(!own.rows.length)fail('recipe-not-found',404);
+ const recipe=await readRecipe(pool,id);
+ if(!recipe||recipe.parentRecipeId||recipe.choiceInstance)fail('recipe-not-found',404);
+ if(recipe.recipeArchived)fail('recipe-replaced',409);
+ if(!Number.isSafeInteger(expectedVersion)||expectedVersion!==recipe.version)fail('recipe-version-conflict',409);
+ const chosen=selectedRecipeLines(recipe,selection);if(chosen.error)fail(chosen.error);
+ const servingMode=!recipe.separateStarch?'original':recipe.servingParts.some(p=>p.servingPart==='vegetables')?'three':recipe.servingParts.some(p=>p.servingPart==='starch')?'separate':'whole';
+ const checked=validateRecipeInput({...recipe,householdId,servingMode,lines:chosen.lines,choiceGroups:[]});if(checked.error)fail(checked.error);
+ const result=await readRecipe(pool,id,[],null,{lines:chosen.lines,name:recipe.name});
+ if(result.version!==expectedVersion)fail('recipe-version-conflict',409);
+ return {name:result.name,version:result.version,labels:chosen.labels,selection,yield:result.yield,outputUnits:result.outputUnits,
+  nutrition:result.nutrition,servingWeightG:result.servingWeightG,energyKnown:result.energyKnown,containsWhey:result.containsWhey};
+}
+
 export async function resolveRecipeChoices(pool,id,householdId,selection,expectedVersion){
  return transaction(pool,async client=>{
   // Serialize with recipe edits and other resolutions, including identical concurrent requests.
@@ -37,6 +53,13 @@ export async function resolveRecipeChoices(pool,id,householdId,selection,expecte
 }
 
 export async function recipeChoiceRoutes(request,response,pool,url){
+ const preview=url.pathname.match(/^\/api\/recipes\/([a-f0-9-]{36})\/choices\/preview$/i);
+ if(preview&&request.method==='GET'){
+  try{const householdId=url.searchParams.get('householdId');if(!uuid(householdId))fail('invalid-household-id');
+   let selection;try{selection=JSON.parse(url.searchParams.get('selection'));}catch{fail('invalid-choice-selection');}
+   sendAccount(response,200,{preview:await previewRecipeChoices(pool,preview[1],householdId,selection,Number(url.searchParams.get('version')))});
+  }catch(error){if(!error.status)throw error;sendAccount(response,error.status,{error:error.message});}return true;
+ }
  const resolve=url.pathname.match(/^\/api\/recipes\/([a-f0-9-]{36})\/choices\/resolve$/i);
  if(resolve&&request.method==='POST'){
   try{const body=await jsonBody(request);if(!uuid(body.householdId))fail('invalid-household-id');

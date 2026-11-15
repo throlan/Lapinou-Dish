@@ -1,3 +1,4 @@
+import {recipeReplacementRoutes} from './recipe-replacements.mjs';
 import {planningCookingRoutes} from './planning-cooking.mjs';
 import {validatePlanningCopy,previewPlanningCopy,copyPlanningPeriod,addPlanningSelection} from './planning-copy.mjs';
 import {recipeChoiceRoutes} from './recipe-choices.mjs';
@@ -50,6 +51,7 @@ const staticFiles = new Map([
   ['/planning-periods.js', ['planning-periods.js', 'text/javascript; charset=utf-8']],
   ['/recipe-planning.js', ['recipe-planning.js', 'text/javascript; charset=utf-8']],
   ['/recipe-planning.css', ['recipe-planning.css', 'text/css; charset=utf-8']],
+  ['/recipe-replacements.js', ['recipe-replacements.js', 'text/javascript; charset=utf-8']],
   ['/recipe-choices.js', ['recipe-choices.js', 'text/javascript; charset=utf-8']],
   ['/recipe-choices.css', ['recipe-choices.css', 'text/css; charset=utf-8']],
   ['/recipe-permissions.js', ['recipe-permissions.js', 'text/javascript; charset=utf-8']],
@@ -558,6 +560,7 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
       }catch{return send(response,500,{error:'planning-copy-failed'});}
     }
     if(await planningCookingRoutes(request,response,pool,url))return;
+    if(await recipeReplacementRoutes(request,response,pool,url))return;
     if(await recipeChoiceRoutes(request,response,pool,url))return;
     if (request.method === 'POST' && url.pathname === '/api/recipes') {
       const body = await readJson(request);

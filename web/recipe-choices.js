@@ -1,3 +1,4 @@
+import {recipeEnergyBadge} from './recipe-directory.js';
 const node=(tag,text,className)=>{const n=document.createElement(tag);if(text)n.textContent=text;if(className)n.className=className;return n;};
 const units=[['g','g'],['kg','kg'],['ml','ml'],['l','l'],['piece','pièce'],['slice','tranche'],['portion','portion'],['tsp','c. à café'],['tbsp','c. à soupe'],['cup','tasse'],['pinch','pincée'],['scoop','scoop']];
 const control=(caption,input)=>{const label=node('label',caption);label.append(input);return label;};
@@ -79,16 +80,39 @@ export function createRecipeChoices({api,getHousehold,getAccount,onFood}){
  }
  function serialize(rows){return rows.flatMap((row,lineIndex)=>{const group=row.recipeChoiceInput?.();return group?[{...group,lineIndex}]:[];});}
 
- function choose(recipe,initialSelection){
+ function choose(recipe,initialSelection,{previewOnly=false}={}){
   if(!recipe?.choiceGroups?.length)return Promise.resolve(recipe);
   return new Promise(resolve=>{
-   const {d,form,body,actions,close}=dialog('Choisir la variante · '+recipe.name);close.textContent='Annuler';
-   body.append(node('p','La même combinaison sera utilisée pour toutes les personnes du repas. Les ingrédients, apports et courses suivront ces choix.'));
+   const {d,form,body,actions,close}=dialog((previewOnly?'Apports selon les choix · ':'Choisir la variante · ')+recipe.name);close.textContent=previewOnly?'Fermer':'Annuler';
+   body.append(node('p',previewOnly?'Compare les combinaisons de cette recette enregistrée. Aucun repas ni aucune déclinaison ne sera créé.':'La même combinaison sera utilisée pour toutes les personnes du repas. Les ingrédients, apports et courses suivront ces choix.'));
    const selections=new Map();for(const group of recipe.choiceGroups){const select=node('select');select.required=true;select.setAttribute('aria-label',group.label);for(const option of group.options)select.add(new Option(option.foodName,option.foodId));if(group.allowNone)select.add(new Option('Sans cet ingrédient','none'));const prior=initialSelection?.[group.id];select.value=prior===null&&group.allowNone?'none':group.options.some(o=>o.foodId===prior)?prior:recipe.lines[group.lineIndex].foodId;selections.set(group.id,select);body.append(control(group.label,select));}
-   const message=node('p',null,'form-message');body.append(message);const submit=node('button','Utiliser cette combinaison','primary');submit.type='submit';actions.prepend(submit);let settled=false;
-   form.addEventListener('submit',async event=>{event.preventDefault();submit.disabled=true;close.disabled=true;try{const {recipe:result}=await api('/api/recipes/'+recipe.id+'/choices/resolve',{method:'POST',body:JSON.stringify({householdId:getHousehold().id,version:recipe.version,selection:Object.fromEntries([...selections].map(([id,input])=>[id,input.value==='none'?null:input.value]))})});settled=true;d.close();resolve(result);}catch(error){message.textContent=error.body?.error==='recipe-version-conflict'?'Cette recette a changé. Annule puis recommence pour revoir les choix.':'Combinaison non enregistrée : '+(error.body?.error??error.message);submit.disabled=false;close.disabled=false;}});
-   d.addEventListener('cancel',event=>{if(submit.disabled)event.preventDefault();});d.addEventListener('close',()=>{if(!settled)resolve(null);});d.showModal();
+   const nutrition=node('section',null,'choice-nutrition-preview');nutrition.setAttribute('aria-live','polite');nutrition.setAttribute('aria-label','Apports de cette combinaison');
+   const message=node('p',null,'form-message');message.setAttribute('role','status');body.append(nutrition,message);const submit=node('button','Utiliser cette combinaison','primary');submit.type='submit';if(!previewOnly)actions.prepend(submit);let settled=false,saving=false,sequence=0,loaded=false;
+   const selection=()=>Object.fromEntries([...selections].map(([id,input])=>[id,input.value==='none'?null:input.value]));
+   async function refreshPreview(){const seq=++sequence;loaded=false;submit.disabled=true;nutrition.textContent='Calcul des apports…';message.textContent='';
+    try{const {preview}=await api('/api/recipes/'+recipe.id+'/choices/preview?householdId='+encodeURIComponent(getHousehold().id)+'&version='+recipe.version+'&selection='+encodeURIComponent(JSON.stringify(selection())));if(seq!==sequence||!d.isConnected)return;
+     const display=variantNutritionValues(preview),format=value=>value==null?'—':Number(value).toLocaleString('fr-FR',{maximumFractionDigits:1});
+     nutrition.replaceChildren(node('h3','Apports de cette combinaison'),node('p',preview.labels.join(' · '),'hint'),node('strong',format(display.values.energyKcal)+' kcal / '+display.label));
+     if(display.badge)nutrition.append(node('span',format(display.badge.kcal)+' kcal / '+display.badge.label,'choice-energy-badge'));
+     const macros=node('div',null,'choice-macros');for(const [key,label] of [['proteinG','Protéines'],['carbohydrateG','Glucides'],['fatG','Lipides'],['fibreG','Fibres']])macros.append(node('span',label+' : '+format(display.values[key])+' g'));nutrition.append(macros);
+     if(!preview.nutrition.complete)nutrition.append(node('p','Données incomplètes : les valeurs inconnues restent indiquées par —. Vérifie les fiches alimentaires.','form-message'));
+     nutrition.append(node('small','Selon les quantités, états et coefficients de cette recette. Les portions du calendrier seront ensuite adaptées aux profils.'));loaded=true;submit.disabled=false;
+    }catch(error){if(seq!==sequence||!d.isConnected)return;nutrition.textContent='Apports indisponibles.';message.textContent=error.body?.error==='recipe-version-conflict'?'Cette recette a changé. Ferme puis rouvre-la pour revoir les choix.':'Impossible de calculer les apports. Change un choix ou réessaie.';nutrition.append(button('Réessayer',refreshPreview));}
+   }
+   for(const input of selections.values())input.addEventListener('change',refreshPreview);
+   form.addEventListener('submit',async event=>{event.preventDefault();if(previewOnly||saving||!loaded)return;saving=true;submit.disabled=true;close.disabled=true;for(const input of selections.values())input.disabled=true;
+    try{const {recipe:result}=await api('/api/recipes/'+recipe.id+'/choices/resolve',{method:'POST',body:JSON.stringify({householdId:getHousehold().id,version:recipe.version,selection:selection()})});settled=true;d.close();resolve(result);}
+    catch(error){message.textContent=error.body?.error==='recipe-version-conflict'?'Cette recette a changé. Annule puis recommence pour revoir les choix.':'Combinaison non enregistrée : '+(error.body?.error??error.message);saving=false;submit.disabled=false;close.disabled=false;for(const input of selections.values())input.disabled=false;}
+   });
+   d.addEventListener('cancel',event=>{if(saving)event.preventDefault();});d.addEventListener('close',()=>{sequence++;if(!settled)resolve(null);});d.showModal();void refreshPreview();
   });
  }
- return {attach,serialize,manage,choose};
+
+ return {attach,serialize,manage,choose,compare:recipe=>choose(recipe,undefined,{previewOnly:true})};
+}
+
+export function variantNutritionValues(preview){
+ const scale=['g','ml'].includes(preview.yield.unitId)?100:1,label=({g:'100 g',ml:'100 ml',piece:'pièce',slice:'tranche',portion:'portion'})[preview.yield.unitId]??preview.yield.unitId;
+ const known=key=>key==='energyKcal'?preview.energyKnown!==false:!preview.nutrition.lineIssues?.some(issue=>issue.reason!=='nutrient-data-missing'||issue.missingNutrients?.includes(key));
+ return {label,values:Object.fromEntries(['energyKcal','proteinG','carbohydrateG','fatG','fibreG'].map(key=>{const value=preview.nutrition.perYieldUnit[key];return [key,known(key)&&Number.isFinite(value)?value*scale:null];})),badge:recipeEnergyBadge(preview)};
 }
