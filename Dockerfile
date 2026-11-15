@@ -1,5 +1,7 @@
 FROM node:24-alpine
 
+LABEL net.unraid.docker.icon="https://raw.githubusercontent.com/throlan/Lapinou-Dish/main/web/icons/app-192.png"
+
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000

@@ -18,6 +18,8 @@ services:
   app:
     build: .
     container_name: lapinou-dish
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/throlan/Lapinou-Dish/main/web/icons/app-192.png"
     restart: unless-stopped
     depends_on:
       db:
