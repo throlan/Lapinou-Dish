@@ -34,6 +34,7 @@ export async function syncServingParts(client, id, data) {
   for (const line of data.lines) {
     const food = foodById.get(line.foodId);
     const grams = line.recipeId ? recipeWeight(graph,line.recipeId)*recipeFraction(graph,line.recipeId,line.quantity,line.unitId) : food ? toGrams(line.quantity,line.unitId,food) : null;
+    if (grams == null && !line.recipeId && line.unitId==='pinch') continue;
     if (grams == null || !(grams>0)) throw new Error('serving-weight-conversion-required');
     const factor=line.recipeId||['served_raw','already_cooked'].includes(line.cookingState)?1:
       line.cookingState==='cooked_from_raw'?(food?.cookingFactor??line.cookingFactor??1):

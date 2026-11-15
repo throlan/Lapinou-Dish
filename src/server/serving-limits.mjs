@@ -18,7 +18,7 @@ function ingredientKind(food,part){
 }
 
 export function servingIngredientLoad(line,food,factors,part){
-  if(!food)return {};
+  if(!food||line.unitId==='pinch')return {};
   const kind=ingredientKind(food,part);
   if(!kind)return {};
   if(kind==='eggs'&&line.unitId==='piece')return {eggs:line.quantity};

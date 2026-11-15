@@ -64,6 +64,7 @@ export function toGrams(quantity: number, unitId: string, food: Food): number | 
   if (density == null) {
     const knownVolume = Object.entries(food.gramsPerUnit)
       .map(([foodUnit, grams]) => ({ millilitres: MILLILITRES_PER_UNIT[key(foodUnit)], grams }))
+      .sort((a, b) => [5, 15, 60, 240].indexOf(a.millilitres) - [5, 15, 60, 240].indexOf(b.millilitres))
       .find((conversion) => conversion.millilitres != null && Number.isFinite(conversion.grams) && conversion.grams > 0);
     if (knownVolume?.millilitres != null) density = knownVolume.grams / knownVolume.millilitres;
   }

@@ -1,4 +1,14 @@
-# Cahier de reprise — 15 novembre 2026
+# Cahier de reprise — 16 novembre 2026
+
+## Fiches alimentaires et corrections guidées — 0.13.0
+
+Les champs essentiels restent visibles : valeurs nutritionnelles pour 100 g, coefficient poids cuit/cru, densité, poids de la cuillère à café, cuillère à soupe, scoop de 60 ml et pièce. La cup de 240 ml complète les mesures de contenants. Marque/autres noms et courses/conditionnement sont repliables. Un seul mode de conditionnement est affiché : quantité par paquet ou unité nommée ; magasin et classement du foyer sont conservés.
+
+Une densité ou une mesure de contenant connue calcule les autres selon les volumes demandés : 5/15/60/240 ml. Les champs calculés portent leur référence ; seuls les poids explicitement saisis sont enregistrés comme mesures pour permettre un recalcul ultérieur. Le poids d’une pièce et le coefficient de cuisson ne se déduisent pas d’un volume. Les valeurs explicites restent prioritaires. En cas de contradiction, les mesures sont conservées et un écart avec la densité est signalé (plus de 5 %, avec tolérance de 0,1 g). La référence de calcul est déterministe : densité, puis café, soupe, scoop, cup ; les conversions directes propres à chaque unité priment toujours. Aucun arbitrage de données réelles ni aucune moyenne externe appliquée automatiquement. Les décisions produit par produit et rendements de cuisson restent à valider par l’utilisateur.
+
+Depuis une erreur nutritionnelle par ingrédient, un bouton ouvre l’aliment au nutriment ou à la mesure à corriger ; une préparation liée reste accessible. Les apports du catalogue de recettes sont actualisés après correction enregistrée. Les aliments communs gardent le circuit de proposition pour les membres et de validation par l’administrateur. Le poids d’une pincée disparaît de la saisie, des filtres de champs manquants et des choix de revue/groupage. Les conversions historiques masquées sont conservées. Les pincées restent dans les ingrédients et les courses, ne bloquent plus le coefficient ou le poids servi faute de conversion, et ne bloquent pas la production faute de poids ; aucun grammage ni débit de stock n’est inventé. Les autres conversions manquantes restent signalées et aucune valeur nutritionnelle absente n’est changée en zéro.
+
+460 tests complets locaux réussis. Tests ciblés : parcours de correction et enregistrement du vrai formulaire, conditionnements exclusifs, mesures calculées réactives sans écrasement, cohérence avec les conversions serveur, conservation des valeurs absentes/historiques, recette à services séparés avec pincée, courses, production et stock fictifs. Vérification visuelle locale non réalisée : le navigateur intégré ne joint pas le serveur local. Pas de migration. Aucun accès à Unraid/Nginx ; déploiement par l’utilisateur. Contrôles et publication à vérifier dans la PR de livraison.
 
 ## Planification assistée — demandes du 15 novembre 2026, non développées
 
@@ -579,7 +589,7 @@ Après une modification autorisée : branche, tests adaptés, commit/push, PR, c
 ```text
 Reprends Lapinou Dish depuis https://github.com/throlan/Lapinou-Dish. Retrouve le dépôt local par son remote, préserve modifications, branches et stashes puis récupère origin/main sans écrasement, reset destructif ni clean. Lis AGENTS.md s’il existe, docs/REPRISE.md, STATUS.md, PRODUCT.md, AMELIORATIONS.md, TODO.md, ROLLBACK.md et le journal le plus récent.
 
-Référence publiée à vérifier : application 0.12.1, PR #202 fusionnée au commit 80f64dcb564e0cfd3f8cc2f5ed7638c36b6d4c71 ; contrôles et publication : https://github.com/throlan/Lapinou-Dish/actions/runs/43765569042. Vérifie GitHub et package.json. La référence fonctionnelle 0.3.32 reste conservée pour retour arrière, selon ROLLBACK.md.
+Référence de livraison à vérifier : application 0.13.0, fiches alimentaires simplifiées et mesures de contenants calculées. Vérifie la dernière PR fusionnée, les contrôles/publication GitHub/GHCR et package.json avant de poursuivre. La référence fonctionnelle 0.3.32 reste conservée pour retour arrière, selon ROLLBACK.md.
 
 Préserver les fonctions livrées : comptes et foyers privés, partage, listes réutilisables de variantes, recettes modifiables après production avec protection des historiques, portions selon les réglages Administration, planification multi-dates et copies journée/semaine, stocks et réservations, batch cooking et préparations hors menus, apports selon les choix. Ne pas repartir des anciennes règles de portions ni redévelopper les fonctions livrées.
 

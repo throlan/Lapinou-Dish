@@ -807,3 +807,14 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .recipe-serving-badges .recipe-validated{background:#e7f2ec;color:#265640}
 @media(max-width:900px){.recipe-time-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cook-editorial-layout{grid-template-columns:minmax(200px,.8fr) minmax(0,1.2fr)}}
 @media(max-width:650px){.cook-dialog{width:calc(100vw - 16px)}.cook-dialog #cook-form{padding:1rem;max-height:92dvh}.cook-editorial-layout{grid-template-columns:1fr}.cook-photo{width:150px;margin-bottom:1rem}.cook-steps>li{padding-left:2rem}.recipe-step-field{grid-template-columns:1fr}.recipe-step-actions{justify-content:flex-end}.recipe-time-grid{grid-template-columns:1fr 1fr}.cook-meta{gap:.35rem}.cook-fact{font-size:.8rem}}
+
+/* Food essentials remain visible; household purchasing has one active package editor. */
+#food-form [hidden] { display:none !important; }
+#food-form .food-secondary { margin:16px 0; padding:14px; border:1px solid var(--line,#e5e1d7); border-radius:14px; }
+#food-form .food-secondary>summary { cursor:pointer; font-weight:650; }
+#food-form .food-secondary[open]>summary { margin-bottom:14px; }
+#food-form #food-measure-comparisons:empty { display:none; }
+#food-form #food-correction-context:not(:empty) { padding:10px; border-left:3px solid var(--accent,#982764); }
+.nutrition-issues .text-button { white-space:normal; text-align:left; }
+
+#food-measures input[data-derived="true"] { border-style:dashed; }

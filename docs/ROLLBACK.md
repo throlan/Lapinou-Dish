@@ -1,5 +1,9 @@
 # Images versionnées et retour arrière
 
+## Retour depuis la 0.13.0
+
+Aucune migration. Revenir à 0.12.1 rétablit les anciens champs de fiche et les blocages de pincées ; les mesures explicitement enregistrées restent conservées. Les valeurs calculées non saisies restent dérivées de leur référence, sans créer de mesures persistantes supplémentaires. Les anciens calculs de volume peuvent choisir une autre référence si plusieurs mesures enregistrées se contredisent : vérifier ces fiches. Aucun retour d’image ne restaure des valeurs de catalogue ou de stock déjà modifiées. Référence 0.3.32 conservée ; restauration par l’utilisateur.
+
 ## Retour depuis la 0.12.0
 
 Aucune migration. Revenir à la 0.11.3 retire les nouveaux contrôles d’aperçu et d’actualisation ; les repas explicitement basculés vers une recette récente restent sur cette recette avec les quantités confirmées. Changer d’image ne restaure pas leurs anciennes quantités. Les anciennes recettes et les lots produits sont conservés. Référence 0.3.32 inchangée ; déploiement/restauration par l’utilisateur.

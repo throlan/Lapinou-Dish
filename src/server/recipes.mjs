@@ -167,7 +167,7 @@ export async function updateRecipeSettings(pool, id, data) {
 }
 
 async function requireCatalogueCookingFactors(client,lines){
-  const ids=[...new Set(lines.filter(line=>line.foodId&&line.cookingState==='cooked_from_raw').map(line=>line.foodId))];
+  const ids=[...new Set(lines.filter(line=>line.foodId&&line.unitId!=='pinch'&&line.cookingState==='cooked_from_raw').map(line=>line.foodId))];
   if(!ids.length)return;
   const missing=await client.query('SELECT id FROM foods WHERE id=ANY($1::uuid[]) AND cooking_factor IS NULL LIMIT 1',[ids]);
   if(missing.rowCount)throw new Error('cooking-factor-required');
