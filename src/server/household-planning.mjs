@@ -126,6 +126,7 @@ export async function completeRoutine(pool, householdId, routineId) {
 }
 
 export function validateProductionInput(input) {
+  if(input?.plannedMealId!=null&&!isUuid(input.plannedMealId))return {error:'invalid-production-period'};
   const split = input?.servingQuantities != null;
   if (!input || typeof input !== 'object' || !isUuid(input.householdId) || !isUuid(input.recipeId)
     || !isDate(input.producedOn)
@@ -147,13 +148,13 @@ export function validateProductionInput(input) {
     note: typeof input.note === 'string' ? input.note.trim() : '',
     requestId: input.requestId ?? null,
     extraProductionId:input.extraProductionId??null,
-    plannedStart:input.plannedStart??null,plannedEnd:input.plannedEnd??null,
+    plannedStart:input.plannedStart??null,plannedEnd:input.plannedEnd??null,...(input.plannedMealId?{plannedMealId:input.plannedMealId}:{}),
     ...(split ? {servingQuantities:input.servingQuantities.map(part=>({recipeId:part.recipeId,quantity:part.quantity}))} : {}),
   } };
 }
 
 export async function addStockLot(pool, input) {
-  if (input.servingQuantities != null || input.plannedStart != null || input.plannedEnd != null) {
+  if (input.servingQuantities != null || input.plannedStart != null || input.plannedEnd != null || input.plannedMealId != null) {
     const validation=validateProductionInput(input);
     if(validation.error)return validation;
     input=validation.data;
@@ -165,6 +166,13 @@ export async function addStockLot(pool, input) {
   try {
     await client.query('BEGIN');
     await lockHouseholdInventory(client, input.householdId);
+    if(input.plannedMealId){
+      const meal=await client.query('SELECT meal_date::text AS date FROM planned_meals WHERE id=$1 AND household_id=$2',[input.plannedMealId,input.householdId]);
+      if(!meal.rows.length||input.plannedStart!==meal.rows[0].date||input.plannedEnd!==meal.rows[0].date){await client.query('ROLLBACK');return {error:'invalid-production-period'};}
+      const used=await client.query('SELECT 1 FROM planned_meal_items i JOIN recipes r ON r.id=i.recipe_id WHERE i.meal_id=$1 AND (r.id=$2 OR r.parent_recipe_id=$2)',[input.plannedMealId,input.recipeId]);
+      if(!used.rows.length){await client.query('ROLLBACK');return {error:'recipe-not-in-meal'};}
+    }
+
     if(input.extraProductionId){
       const plan=await client.query('SELECT recipe_id,quantity,stock_lot_id FROM planned_extra_productions WHERE id=$1 AND household_id=$2 FOR UPDATE',[input.extraProductionId,input.householdId]);
       if(!plan.rowCount){await client.query('ROLLBACK');return {error:'extra-production-not-pending'};}
@@ -188,7 +196,7 @@ export async function addStockLot(pool, input) {
             && Object.entries(requestedParts).every(([key,value])=>Number(savedParts[key])===value)
           : !requestedParts && !savedParts;
         if (!sameParts || lot.recipe_id !== input.recipeId || (!requestedParts && Number(lot.quantity) !== input.quantity)
-          || String(lot.produced_on).slice(0,10) !== input.producedOn || (lot.planned_start?String(lot.planned_start).slice(0,10):null)!==(input.plannedStart??null) || (lot.planned_end?String(lot.planned_end).slice(0,10):null)!==(input.plannedEnd??null) || lot.storage !== input.storage || lot.note !== input.note) return { error:'production-request-conflict' };
+          || String(lot.produced_on).slice(0,10) !== input.producedOn || (lot.planned_start?String(lot.planned_start).slice(0,10):null)!==(input.plannedStart??null) || (lot.planned_end?String(lot.planned_end).slice(0,10):null)!==(input.plannedEnd??null) || (lot.planned_meal_id??null)!==(input.plannedMealId??null) || lot.storage !== input.storage || lot.note !== input.note) return { error:'production-request-conflict' };
         return { id:lot.id, recipeId:input.recipeId, quantity:Number(lot.quantity), replayed:true };
       }
     }
@@ -224,6 +232,7 @@ export async function addStockLot(pool, input) {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11)`,
       [id, input.householdId, input.recipeId, input.producedOn, quantity, input.storage, input.note,input.requestId,requestedParts?JSON.stringify(requestedParts):null,input.plannedStart??null,input.plannedEnd??null],
     );
+    if(input.plannedMealId)await client.query('UPDATE stock_lots SET planned_meal_id=$2 WHERE id=$1',[id,input.plannedMealId]);
     if (recipe.rows[0].separate_starch) {
       parts ??= await client.query('SELECT id,yield_amount FROM recipes WHERE parent_recipe_id=$1 AND serving_part_active FOR SHARE', [input.recipeId]);
       if (!parts.rows.length) throw new Error('serving-parts-missing');
@@ -331,7 +340,7 @@ export async function listStock(pool, householdId) {
     [householdId],
   );
   const lots = await pool.query(
-    `SELECT id, recipe_id AS "recipeId", produced_on::text AS "producedOn", quantity, storage, note,parent_lot_id AS "parentLotId",
+    `SELECT id, recipe_id AS "recipeId", produced_on::text AS "producedOn", quantity, storage, note,parent_lot_id AS "parentLotId",COALESCE(planned_meal_id,(SELECT p.planned_meal_id FROM stock_lots p WHERE p.id=stock_lots.parent_lot_id)) AS "plannedMealId",
        COALESCE(planned_start,(SELECT p.planned_start FROM stock_lots p WHERE p.id=stock_lots.parent_lot_id))::text AS "plannedStart",
        COALESCE(planned_end,(SELECT p.planned_end FROM stock_lots p WHERE p.id=stock_lots.parent_lot_id))::text AS "plannedEnd"
      FROM stock_lots WHERE household_id=$1 AND cancelled_at IS NULL AND NOT is_serving_bundle ORDER BY produced_on DESC, created_at DESC`, [householdId]);

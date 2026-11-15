@@ -1,5 +1,10 @@
 # Images versionnées et retour arrière
 
+## Ciblage d’une production sur un repas — 0.10.0
+
+Migration additive : planned_meal_id facultatif dans stock_lots. Les anciennes versions ignorent ce ciblage précis et peuvent réserver le lot à un autre repas du même jour en utilisant seulement sa plage de dates. Sauvegarder avant migration ; restaurer la sauvegarde antérieure pour retrouver exactement l’ancienne allocation. Aucun retrait manuel de colonne. Les précautions antérieures concernant les choix de recettes, les foyers et la référence 0.3.32 restent applicables.
+
+
 ## Recettes modulables — 0.9.0
 
 Migration additive : groupes de choix, listes privées et instantanés de combinaisons. Sauvegarder avant migration. Revenir à 0.8.0 ignore les listes/groupes et peut afficher les instantanés internes comme des recettes ordinaires : l’ancienne interface ne connaît pas leur masquage. Les compositions matérialisées restent des recettes et les repas/lots gardent leurs références ; restaurer la sauvegarde antérieure pour revenir exactement au catalogue d’avant les choix. Ne pas supprimer les tables/colonnes manuellement. Les précautions relatives à la référence 0.3.32 et aux bases multi-foyers restent applicables.

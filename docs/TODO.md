@@ -1,5 +1,10 @@
 # Prochaines tâches — 12 novembre 2026
 
+## À vérifier après déploiement — 0.10.0
+
+Tester Planifier depuis le catalogue et Cuisiner depuis le calendrier sur les appareils réels. Les créneaux sont proposés selon les moments de la recette ; les compléments restent un choix au moment de planifier. Semaine/deux semaines/mois sont explicitement ancrés sur la date du repas sélectionné, sans changer la période des courses. Les recettes sans suivi de stock conservent ce réglage.
+
+
 ## Après déploiement des recettes modulables — 0.9.0
 
 Vérifier les listes et les choix sur les appareils réels. Configurer progressivement les recettes existantes (ex. flan saveur/topping et bowl légumineuse/protéine) ; aucune fusion ni conversion automatique du catalogue. Les quantités de chaque nouvelle option sont à vérifier pour la recette de base. Les préparations maison restent des ingrédients liés existants ; les nouvelles listes de choix portent sur des aliments du catalogue.

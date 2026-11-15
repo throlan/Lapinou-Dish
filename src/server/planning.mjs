@@ -52,7 +52,7 @@ export function validatePlannedMeal(input) {
     if (!optional && seen.size !== attendeeIds.length) return { error: 'amounts-must-match-attendees' };
     items.push({ recipeId: item.recipeId, role:storedRole, categoryId, amounts });
   }
-  return { data: { householdId: input.householdId, mealDate: input.mealDate, slot: input.slot, notes, attendeeIds, items, isOccasion, occasionTitle, occasionEnergy } };
+  return { data: { householdId: input.householdId, mealDate: input.mealDate, slot: input.slot, notes, attendeeIds, items, isOccasion, occasionTitle, occasionEnergy,...(input.requireEmptySlot===true?{requireEmptySlot:true}:{}) } };
 }
 
 export async function listPlannedMeals(pool,householdId,weekStart){
@@ -91,6 +91,8 @@ export async function savePlannedMeal(pool, id, data) {
   try {
     await client.query('BEGIN');
     await lockHouseholdInventory(client,data.householdId);
+    if(!id&&data.requireEmptySlot){const occupied=await client.query('SELECT 1 FROM planned_meals WHERE household_id=$1 AND meal_date=$2::date AND slot=$3 LIMIT 1',[data.householdId,data.mealDate,data.slot]);if(occupied.rows.length){await client.query('ROLLBACK');return {error:'planning-slot-unavailable'};}}
+
     const people = await client.query(
       'SELECT id FROM people WHERE household_id = $1 AND active = true AND id = ANY($2::uuid[])',
       [data.householdId, data.attendeeIds],

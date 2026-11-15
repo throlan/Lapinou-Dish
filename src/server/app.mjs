@@ -1,3 +1,4 @@
+import {planningCookingRoutes} from './planning-cooking.mjs';
 import {recipeChoiceRoutes} from './recipe-choices.mjs';
 import {communityRoutes} from './community.mjs';
 import {accountGateway} from './accounts.mjs';
@@ -45,6 +46,9 @@ const staticFiles = new Map([
   ['/recipe-editor-dialog.css', ['recipe-editor-dialog.css', 'text/css; charset=utf-8']],
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/recipe-directory-refresh.css', ['recipe-directory-refresh.css', 'text/css; charset=utf-8']],
+  ['/planning-periods.js', ['planning-periods.js', 'text/javascript; charset=utf-8']],
+  ['/recipe-planning.js', ['recipe-planning.js', 'text/javascript; charset=utf-8']],
+  ['/recipe-planning.css', ['recipe-planning.css', 'text/css; charset=utf-8']],
   ['/recipe-choices.js', ['recipe-choices.js', 'text/javascript; charset=utf-8']],
   ['/recipe-choices.css', ['recipe-choices.css', 'text/css; charset=utf-8']],
   ['/recipe-permissions.js', ['recipe-permissions.js', 'text/javascript; charset=utf-8']],
@@ -498,7 +502,7 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
       if (validation.error) return send(response, 400, { error: validation.error });
       try {
         const meal = await savePlannedMeal(pool, null, validation.data);
-        if (meal?.error) return send(response, 400, { error: meal.error });
+        if (meal?.error) return send(response, meal.error==='planning-slot-unavailable'?409:400, { error: meal.error });
         return send(response, 201, { meal });
       } catch { return send(response, 500, { error: 'planning-save-failed' }); }
     }
@@ -529,7 +533,7 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
       try {
         const meal = await savePlannedMeal(pool, plannedMealId, validation.data);
         if (!meal) return send(response, 404, { error: 'planned-meal-not-found' });
-        if (meal.error) return send(response, 400, { error: meal.error });
+        if (meal.error) return send(response, meal.error==='planning-slot-unavailable'?409:400, { error: meal.error });
         return send(response, 200, { meal });
       } catch { return send(response, 500, { error: 'planning-save-failed' }); }
     }
@@ -541,6 +545,7 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
       catch { return send(response, 500, { error: 'planning-delete-failed' }); }
     }
 
+    if(await planningCookingRoutes(request,response,pool,url))return;
     if(await recipeChoiceRoutes(request,response,pool,url))return;
     if (request.method === 'POST' && url.pathname === '/api/recipes') {
       const body = await readJson(request);
