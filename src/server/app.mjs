@@ -59,6 +59,7 @@ const staticFiles = new Map([
   ['/recipe-reviews.js', ['recipe-reviews.js', 'text/javascript; charset=utf-8']],
   ['/accounts-ui.js', ['accounts-ui.js', 'text/javascript; charset=utf-8']],
   ['/api-client.js', ['api-client.js', 'text/javascript; charset=utf-8']],
+  ['/preparation-stock-filters.js', ['preparation-stock-filters.js', 'text/javascript; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/food-pagination.js', ['food-pagination.js', 'text/javascript; charset=utf-8']],
   ['/catalogue-review.js', ['catalogue-review.js', 'text/javascript; charset=utf-8']],

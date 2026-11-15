@@ -1,5 +1,14 @@
 # État du projet — 12 novembre 2026
 
+## Filtres du stock des préparations produites — 0.11.2
+
+Dans Courses & stocks → Stocks → Stock des préparations déjà produites, le filtre par défaut Stocks et besoins masque les préparations dont le restant réel et les réservations sont tous deux nuls, même si des lots historiques existent. Les réservations non couvertes et les stocks négatifs restent visibles. Stocks restants affiche les quantités physiquement présentes, y compris celles réservées ; À refaire affiche le manque après réservation ou un stock négatif. Une préparation partiellement couverte peut donc figurer dans les deux filtres. Tout afficher inclut les préparations épuisées et conserve l’accès aux anciens lots et corrections.
+
+Les compteurs et messages vides suivent le filtre. Le choix est conservé par foyer dans ce navigateur, pendant les actualisations et au prochain chargement. Le changement de filtre est local et ne déclenche pas de nouvelle requête ; après une correction du restant ou une fabrication, les catégories sont recalculées avec les valeurs actualisées. Aucune suppression, migration ni modification des calculs, menus, réservations ou stocks. Référence 0.3.32 conservée ; aucun accès à Unraid ni Nginx.
+
+Validation : 13 tests ciblés réussis (filtres, réservations intégrales ou partielles, stocks négatifs, corrections du restant et invariants des lots). Chrome local sur données fictives : filtre par défaut, stocks restants, à refaire, historique inclus, correction de Banana Bread à zéro et disparition du filtre restant, lots conservés, choix retrouvé après rechargement. Inspection à 1440/900/390 px. Contrôles complets GitHub et publication finale consignés dans la PR du correctif. Déploiement par l’utilisateur.
+
+
 ## Titres des déclinaisons en collation — 0.11.1
 
 Le calendrier utilisait seulement les éléments de rôle plat/accompagnement pour son titre. Un repas composé d’une pâtisserie individuelle (rôle dessert, par exemple catégorie Pâtisserie en collation) affichait donc Repas. Le titre reprend maintenant les recettes des autres catégories lorsqu’il n’y a pas de plat/accompagnement, en conservant le nom complet du topping. Les parties séparées sont regroupées avec le nom complet de leur parent, sans tronquer une déclinaison après le tiret. Les repas avec plat gardent leur titre principal, les repas exceptionnels leur titre dédié.
