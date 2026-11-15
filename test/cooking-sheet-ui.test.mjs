@@ -22,7 +22,7 @@ function cookingUI(){
     servingParts:[{id:'whole',yield:{amount:2760,unitId:'g'}}],lines:[{foodName:'Ingredient',quantity:2760,unitId:'g'}]};
   const $=selector=>{if(!elements.has(selector))elements.set(selector,element());return elements.get(selector);};
   const context={renderCookingMethod:()=>{},$,document:{createElement:element,createTextNode:text=>({textContent:text})},state:{household:{id:'household'},recipes:[recipe]},
-    mountCookingInstagram,productionRecipe,scaledIngredients,scaledSourceIngredients,cookingYield,suggestedServingQuantities,formatQty:q=>String(q),localDateValue:()=> '2026-10-19',
+    mountCookingInstagram,productionRecipe,scaledIngredients,scaledSourceIngredients,cookingYield,suggestedServingQuantities,formatQty:q=>String(q),displayDate:value=>value,localDateValue:()=> '2026-10-19',
     showMessage:(target,text)=>{target.textContent=text;},newProductionRequestId:()=> 'request',
     api:async(path,options)=>{requests.push({path,payload:JSON.parse(options.body)});return {};},
     refreshShopping:async()=>{},refreshDashboard:async()=>{},refreshCalendar:async()=>{}};
@@ -177,4 +177,14 @@ test('free cooking is available without menus and for original units without inv
   ui.recipe.yield={amount:1000,unitId:'g'};ui.open(0,undefined,{parts:[]},'free');
   assert.equal(ui.form.elements.quantity.value,'1000');assert.equal(ui.$('#cook-unit').textContent,'g');
   assert.equal(ui.$('#cook-quantity-label').textContent,'Quantité à fabriquer');
+});
+
+test('cooking a scheduled extra scales its planned portions and confirms the same plan once',async()=>{
+ const ui=cookingUI(),plan={id:'extra-plan',recipeId:ui.recipe.id,quantity:12,plannedOn:'2026-11-16',storage:'fridge',note:'Pour congeler ensuite'};
+ ui.open(12,'2026-11-15',{parts:[],extraProduction:plan,keepMenuComposition:true},'free');
+ assert.equal(ui.form.elements.quantity.value,'12');assert.equal(ui.form.elements.quantity.readOnly,true);assert.equal(ui.$('#cook-mode').disabled,true);assert.equal(ui.form.elements.storage.value,'fridge');assert.equal(ui.form.elements.note.value,plan.note);assert.match(ui.$('#cook-planned').textContent,/prévue le 2026-11-16/);
+ const ingredient=ui.$('#cook-ingredients').children[0].children[0].children[0].children[0].children[1];assert.match(ingredient.textContent,/8280 g/);
+ await ui.submit();assert.equal(ui.requests[0].payload.extraProductionId,'extra-plan');assert.equal(ui.requests[0].payload.recipeId,ui.recipe.id);assert.equal(ui.requests[0].payload.quantity,12);assert.equal(ui.requests[0].payload.storage,'fridge');assert.equal(ui.$('#save-cook').disabled,true);await ui.submit();assert.equal(ui.requests.length,1);
+ // Reopening ordinary cooking must restore its editable mode and quantity.
+ ui.open(4,'2026-11-15',undefined,'free');assert.equal(ui.form.elements.quantity.value,'4');assert.equal(ui.form.elements.quantity.readOnly,false);assert.equal(ui.$('#cook-mode').disabled,false);
 });
