@@ -272,9 +272,10 @@ export async function updateRecipe(pool, id, data, expectedVersion=null) {
       if(Number(found.rows[0].version)!==expectedVersion){await client.query('ROLLBACK');return {error:'recipe-version-conflict'};}
     }
     if(data.lines.some(line=>line.recipeId===id))throw new Error('recipe-ingredient-cycle');
-    const previous=await client.query('SELECT yield_amount,yield_unit_id,production_type,output_units,separate_starch,serving_weights,recipe_archived,replaced_by_recipe_id,choice_instance FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL',[id,data.householdId]);
+    const previous=await client.query('SELECT yield_amount,yield_unit_id,production_type,output_units,separate_starch,serving_weights,recipe_archived,replaced_by_recipe_id,choice_instance,choice_groups FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL',[id,data.householdId]);
     const old=previous.rows[0];
     if(!old){await client.query('ROLLBACK');return null;}
+    if(data.choiceGroups===undefined&&old.choice_groups?.length){await client.query('ROLLBACK');return {error:'recipe-choice-editor-required'};}
     if(old.choice_instance){await client.query('ROLLBACK');return {error:'recipe-choice-instance-readonly'};}
     if(old.recipe_archived){
       await client.query('ROLLBACK');

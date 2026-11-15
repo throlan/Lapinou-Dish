@@ -56,6 +56,7 @@ test('dessert flavour and topping resolve once, drive nutrition, shopping and st
  const lot=await addStockLot(pool,{householdId:h,recipeId:chosen.id,quantity:4,producedOn:'2026-11-16',storage:'freezer',note:'',requestId:randomUUID()});assert.equal(lot.error,undefined);
  const stock=await listIngredientStock(pool,h),quantity=id=>stock.find(x=>x.foodId===id).quantityG;
  assert.equal(quantity(foods.Lait),600);assert.equal(quantity(foods['Pépites chocolat']),960);assert.equal(quantity(foods.Banane),940);assert.equal(quantity(foods.Myrtilles),1000);
+ const oldClient=validateRecipeInput({...input,choiceGroups:undefined});assert.equal((await updateRecipe(pool,source.id,oldClient.data)).error,'recipe-choice-editor-required');
  const edited=structuredClone(input);edited.lines[0].quantity=800;edited.choiceGroups[0].options[1].quantity=100;
  assert.equal((await updateRecipe(pool,source.id,validateRecipeInput(edited).data)).error,undefined);
  const frozen=await readRecipe(pool,chosen.id);assert.equal(frozen.nutrition.batch.energyKcal,448);assert.equal(frozen.lines[0].quantity,400);
