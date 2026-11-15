@@ -48,6 +48,7 @@ export function recipeWeight(graph,recipeId,path=[]) {
       if(weight==null)return null;
       grams=weight*fraction;
     }else grams=toGrams(line.quantity,line.unitId,line);
+    if(grams==null && !line.recipeId && line.unitId==='pinch')continue;
     if(grams==null || !Number.isFinite(grams))return null;
     // Components are already prepared; never reapply a rice/pasta cooking factor.
     const factor=line.recipeId||['served_raw','already_cooked'].includes(line.cookingState)?1:
@@ -191,7 +192,7 @@ export async function preparationInputs(client,householdId,targets,{allowNegativ
     if(!allowNegativeStock&&quantity>(stock.get(recipeId)??0)+0.00000001)return {error:'prepared-component-insufficient',recipeId,name:graph.get(recipeId).name,
       requiredQuantity:quantity,availableQuantity:Math.max(0,stock.get(recipeId)??0),unitId:graph.get(recipeId).yield.unitId};
   }
-  const purchaseFoods=await purchaseProductRequirements(client,householdId,foods);
+  const purchaseFoods=await purchaseProductRequirements(client,householdId,foods.filter(line=>line.unitId!=='pinch'||toGrams(line.quantity,line.unitId,line)!=null));
   if(purchaseFoods.some(row=>row.mappingError))return {error:'ingredient-conversion-missing',name:purchaseFoods.find(row=>row.mappingError).name};
   const tracked=await client.query('SELECT food_id,quantity_g FROM household_ingredient_stock WHERE household_id=$1 ORDER BY food_id FOR UPDATE',[householdId]);
   const byFood=new Map(tracked.rows.map(r=>[r.food_id,Number(r.quantity_g)]));

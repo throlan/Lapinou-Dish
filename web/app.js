@@ -1,3 +1,4 @@
+import {foodCorrectionField,foodMeasurePayload,foodMeasureComparisons,foodPurchaseMode,deriveFoodMeasures,foodMeasureVolumes,foodMeasureLabels} from './food-corrections.js';
 import {createRecipeReplacements} from './recipe-replacements.js';
 import {filterPreparationStock,preparationStockFilters} from './preparation-stock-filters.js';
 import {createApiClient} from './api-client.js';
@@ -1468,10 +1469,15 @@ $('#confirm-bulk-food-delete').addEventListener('click',async event=>{
 
 function format(value) { return value == null ? '—' : new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(Number(value)); }
 
-async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = false, fromShopping = false, duplicate = false, shoppingUnitId = null } = {}) {
+async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = false, fromShopping = false, duplicate = false, shoppingUnitId = null, focusField = null, correctionRecipe = null } = {}) {
   state.editingFoodFromRecipe = fromRecipe;
   state.editingFoodFromShopping = fromShopping;
   const form = $('#food-form'); form.reset(); form.elements.id.value = '';
+  form.dataset.otherUnitConversions='{}';
+  delete form.dataset.foodMeasuredValues;
+  form.dataset.correctionRecipeId=correctionRecipe?.id??'';
+  form.querySelectorAll('details').forEach(details=>{details.open=false;});
+  $('#food-correction-context').textContent=correctionRecipe?'Correction pour « '+correctionRecipe.name+' ». Les apports seront actualisés après enregistrement.':'';
   form.dataset.purchaseUnitReady = String(Boolean(state.household));
   form.dataset.purchaseUnitExists = 'false';
   form.dataset.shoppingSettingsReady='false';form.dataset.shoppingSettingsDirty='false';
@@ -1483,7 +1489,7 @@ async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = 
   $('#food-purchase-unit-status').textContent = state.household ? 'Réglage propre au foyer ; les unités des recettes restent inchangées.' : 'Crée un foyer pour définir une unité d’achat.';
   delete form.dataset.officialReadonly;delete form.dataset.originalCanonical;
   form.querySelector('[type=submit]').textContent='Enregistrer';
-  for(const name of ['name','brand','foodCategory','aliases','energyKcal','proteinG','carbohydrateG','fatG','fibreG','gramsPerMillilitre','cookingFactor','tspGrams','tbspGrams','pinchGrams','scoopGrams','pieceGrams'])if(form.elements[name])form.elements[name].disabled=false;
+  for(const name of ['name','brand','foodCategory','aliases','energyKcal','proteinG','carbohydrateG','fatG','fibreG','gramsPerMillilitre','cookingFactor','tspGrams','tbspGrams','scoopGrams','cupGrams','pieceGrams'])if(form.elements[name])form.elements[name].disabled=false;
   delete form.dataset.duplicateSource;
   delete form.dataset.duplicateSourceNote;
   delete form.dataset.duplicateNutrientSourceNote;
@@ -1502,8 +1508,9 @@ async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = 
       form.elements.cookingFactor.value = food.cookingFactor ?? '';
       form.elements.tspGrams.value = food.gramsPerUnit?.tsp ?? '';
       form.elements.tbspGrams.value = food.gramsPerUnit?.tbsp ?? '';
-      form.elements.pinchGrams.value = food.gramsPerUnit?.pinch ?? '';
+      form.dataset.otherUnitConversions=JSON.stringify(food.gramsPerUnit??{});
       form.elements.scoopGrams.value = food.gramsPerUnit?.scoop ?? '';
+      form.elements.cupGrams.value = food.gramsPerUnit?.cup ?? '';
       form.elements.pieceGrams.value = food.gramsPerUnit?.piece ?? '';
       $('#nutrition-completion').classList.remove('hidden');
       $('#nutrition-matches').replaceChildren();
@@ -1534,6 +1541,7 @@ async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = 
       const rule = units.find(item => item.foodId === id);
       if (rule) {
         form.dataset.purchaseUnitExists = 'true';
+        form.elements.purchaseMode.value='named';
         form.elements.purchaseSingularLabel.value = rule.singularLabel;
         form.elements.purchasePluralLabel.value = rule.pluralLabel;
         form.elements.purchaseCoveredQuantity.value = rule.coveredQuantity;
@@ -1554,12 +1562,16 @@ async function openFoodEditor(id = null, { searchExternal = false, fromRecipe = 
       form.dataset.shoppingSettingsJson=JSON.stringify(settings);form.dataset.shoppingSettingsReady='true';shoppingSettings.disabled=false;
       const store=form.elements.shoppingOrderLinkId;store.replaceChildren(new Option('Sans magasin',''),...settings.links.map(link=>new Option(link.label,link.id)));
       store.value=settings.orderLinkId??'';
-      form.elements.shoppingUnitId.value=shoppingUnitId??settings.packs[0]?.unitId??settings.groups[0]?.unitId??'g';
+      form.elements.shoppingUnitId.value=form.elements.purchaseMode.value==='named'?form.elements.purchaseCoveredUnitId.value:shoppingUnitId??settings.packs[0]?.unitId??settings.groups[0]?.unitId??'g';
       showFoodShoppingUnit(form);
     }catch{shoppingSettings.disabled=true;$('#food-shopping-settings-status').textContent='Réglages des courses indisponibles. Les autres champs restent modifiables.';}
   }
   if(state.account?.role!=='manager'){ $('#food-shopping-settings').disabled=true;$('#food-purchase-unit-settings').disabled=true;}
+  foodPurchaseMode(form);updateFoodMeasureComparisons();
+  form.elements.purchaseMode.disabled=form.dataset.purchaseUnitReady!=='true'||state.account?.role!=='manager';
+  $('#food-shopping-details').classList.toggle('hidden',!state.household);
   $('#food-dialog').showModal();
+  if(focusField&&form.elements[focusField]){const field=form.elements[focusField];field.closest('details')?.setAttribute('open','');field.focus();field.scrollIntoView({block:'center'});}
   if (id && searchExternal) $('#find-external-nutrition').click();
 }
 function showFoodShoppingUnit(form){
@@ -1567,6 +1579,35 @@ function showFoodShoppingUnit(form){
   form.elements.shoppingGroupId.value=settings.groups.find(item=>item.unitId===unit)?.groupId??'bulk';
   form.elements.shoppingPackageQuantity.value=settings.packs.find(item=>item.unitId===unit)?.packageQuantity??'';
 }
+const foodMeasureNames=['gramsPerMillilitre',...Object.keys(foodMeasureVolumes)];
+function foodMeasuredValues(form){
+  return JSON.parse(form.dataset.foodMeasuredValues||JSON.stringify(Object.fromEntries(foodMeasureNames.map(name=>[name,form.elements[name].value===''?null:Number(form.elements[name].value)]))));
+}
+function updateFoodMeasureComparisons(editingField=null){
+  const form=$('#food-form'),explicit=foodMeasuredValues(form);form.dataset.foodMeasuredValues=JSON.stringify(explicit);
+  const derived=deriveFoodMeasures(explicit);
+  for(const [name,item] of Object.entries(derived)){
+    const input=form.elements[name];if(name!==editingField)input.value=item.value==null?'':String(item.value);
+    let hint=input.parentElement.querySelector('[data-measure-hint]');
+    if(!hint){hint=document.createElement('small');hint.dataset.measureHint='true';hint.className='hint';input.parentElement.append(hint);}
+    hint.textContent=item.derived?'Calculé depuis '+foodMeasureLabels[item.source]:item.value==null?'Facultatif':'Valeur saisie · prioritaire';
+    input.dataset.derived=String(item.derived);
+  }
+  const differences=foodMeasureComparisons(Object.fromEntries(Object.entries(derived).map(([name,item])=>[name,item.value])));
+  $('#food-measure-comparisons').textContent=differences.length?'À vérifier : '+differences.map(item=>item.label+' pesée '+format(item.measured)+' g, contre '+format(item.fromDensity)+' g selon la densité').join(' ; ')+'. Les poids saisis par mesure restent prioritaires ; aucune valeur n’est remplacée.':'';
+}
+for(const name of foodMeasureNames)$('#food-form').elements[name].addEventListener('input',event=>{
+  const form=event.currentTarget.form,values=foodMeasuredValues(form);values[name]=event.currentTarget.value===''?null:Number(event.currentTarget.value);
+  form.dataset.foodMeasuredValues=JSON.stringify(values);
+  updateFoodMeasureComparisons(name);
+});
+$('#food-form').elements.purchaseMode.addEventListener('change',event=>{
+  const form=event.currentTarget.form;foodPurchaseMode(form);form.dataset.shoppingSettingsDirty='true';
+  if(form.elements.purchaseMode.value==='named'){form.elements.purchaseCoveredUnitId.value=form.elements.shoppingUnitId.value;}
+});
+$('#food-form').elements.purchaseCoveredUnitId.addEventListener('change',event=>{
+  const form=event.currentTarget.form;form.elements.shoppingUnitId.value=event.currentTarget.value;showFoodShoppingUnit(form);form.dataset.shoppingSettingsDirty='true';
+});
 $('#food-form').elements.shoppingUnitId.addEventListener('change',event=>{showFoodShoppingUnit(event.currentTarget.form);event.currentTarget.form.dataset.shoppingSettingsDirty='true';});
 for(const name of ['shoppingGroupId','shoppingPackageQuantity','shoppingOrderLinkId'])$('#food-form').elements[name].addEventListener('change',event=>{event.currentTarget.form.dataset.shoppingSettingsDirty='true';});
 
@@ -1680,12 +1721,13 @@ $$('.nav-button').forEach((button) => button.addEventListener('click', () => {
 
 $('#food-form').addEventListener('submit', async (event) => {
   event.preventDefault();
+  if(event.submitter?.value==='cancel'){$('#food-dialog').close();return;}
   const form = event.currentTarget;
   const numeric = (name) => form.elements[name].value === '' ? null : Number(form.elements[name].value);
   const purchaseFields = ['purchaseSingularLabel', 'purchasePluralLabel', 'purchaseCoveredQuantity'];
-  const hasPurchaseUnit = purchaseFields.some(name => form.elements[name].value.trim() !== '');
+  const hasPurchaseUnit = form.elements.purchaseMode.value==='named';
   if (form.dataset.purchaseUnitReady === 'true' && hasPurchaseUnit && purchaseFields.some(name => !form.elements[name].value.trim())) {
-    $('#food-purchase-unit-status').textContent = 'Renseigne le nom au singulier, le pluriel et la quantité couverte, ou vide ces trois champs pour retirer le réglage.';
+    $('#food-purchase-unit-status').textContent = 'Renseigne le nom au singulier, le pluriel et la quantité contenue, ou choisis « Quantité par paquet » pour retirer l’unité nommée.';
     return;
   }
   const payload = {
@@ -1694,9 +1736,9 @@ $('#food-form').addEventListener('submit', async (event) => {
     foodCategory: form.elements.foodCategory.value || null,
     aliases: form.elements.aliases.value.split(',').map((value) => value.trim()).filter(Boolean),
     nutrientsPer100g: Object.fromEntries(['energyKcal', 'proteinG', 'carbohydrateG', 'fatG', 'fibreG'].map((key) => [key, numeric(key)])),
-    gramsPerMillilitre: numeric('gramsPerMillilitre'),
+    gramsPerMillilitre: foodMeasuredValues(form).gramsPerMillilitre,
     cookingFactor: numeric('cookingFactor'),
-    gramsPerUnit: Object.fromEntries([['tsp', numeric('tspGrams')], ['tbsp', numeric('tbspGrams')], ['pinch', numeric('pinchGrams')], ['scoop', numeric('scoopGrams')], ['piece', numeric('pieceGrams')]].filter(([, grams]) => grams !== null)),
+    gramsPerUnit: foodMeasurePayload(JSON.parse(form.dataset.otherUnitConversions||'{}'),{...foodMeasuredValues(form),pieceGrams:numeric('pieceGrams')}),
   };
   if (form.dataset.duplicateSource) {
     payload.sourceNote = form.dataset.duplicateSourceNote;
@@ -1736,7 +1778,7 @@ $('#food-form').addEventListener('submit', async (event) => {
     if(state.household&&state.account?.role==='manager'&&form.dataset.shoppingSettingsReady==='true'&&form.dataset.shoppingSettingsDirty==='true'){
       await api('/api/food-shopping-settings',{method:'PUT',body:JSON.stringify({householdId:state.household.id,foodId:result.food.id,
         unitId:form.elements.shoppingUnitId.value,groupId:form.elements.shoppingGroupId.value,
-        packageQuantity:form.elements.shoppingPackageQuantity.value===''?null:Number(form.elements.shoppingPackageQuantity.value),
+        packageQuantity:hasPurchaseUnit||form.elements.shoppingPackageQuantity.value===''?null:Number(form.elements.shoppingPackageQuantity.value),
         orderLinkId:form.elements.shoppingOrderLinkId.value||null})});
     }
     $('#food-dialog').close();
@@ -1745,7 +1787,8 @@ $('#food-form').addEventListener('submit', async (event) => {
     if(state.household)await refreshFoodCookingConflicts();
     if (state.editingFoodFromShopping) { state.editingFoodFromShopping = false; await refreshShoppingList(); }
     await refreshFoodStores();
-    if (state.editingFoodFromRecipe) showMessage($('#recipe-message'), 'Fiche mise à jour. Les valeurs seront recalculées à l’enregistrement de la recette.', true);
+    if (state.editingFoodFromRecipe) showMessage($('#recipe-message'), proposed?'Correction proposée ; les valeurs actuelles restent appliquées.':'Fiche mise à jour. Les valeurs seront recalculées à l’enregistrement de la recette.', true);
+    if(form.dataset.correctionRecipeId&&!proposed){await refreshRecipes();await showRecipeCard(form.dataset.correctionRecipeId);}
     if(!$('#admin-panel-catalogue').hidden){catalogueEstimateSelected.clear();invalidateCatalogueEstimatePreview();await loadCatalogueEstimates(true);}
   } catch (error) {
     if (savedFood) {
@@ -2835,6 +2878,9 @@ function nutritionIssues(recipe) {
     else if (issue.reason === 'unit-conversion-missing') item.textContent = `${name} (${format(line.quantity)} ${line.unitId}) : conversion en grammes inconnue pour cet aliment.`;
     else if (issue.reason === 'food-not-linked') item.textContent = `${name} : aucun aliment du catalogue associé.`;
     else item.textContent = `${name} : valeur${issue.missingNutrients.length > 1 ? 's' : ''} manquante${issue.missingNutrients.length > 1 ? 's' : ''} pour ${issue.missingNutrients.map((key) => nutrientNames[key] ?? key).join(', ')}.`;
+    if(line?.recipeId){const link=document.createElement('button');link.type='button';link.className='text-button';link.textContent='Ouvrir la préparation à corriger';link.addEventListener('click',()=>showRecipeCard(line.recipeId));item.append(' ',link);}
+    else if(line?.foodId){const link=document.createElement('button');link.type='button';link.className='text-button';link.textContent=issue.reason==='unit-conversion-missing'?'Renseigner la conversion':'Compléter la fiche aliment';link.addEventListener('click',()=>openFoodEditor(line.foodId,{focusField:foodCorrectionField(line,issue),correctionRecipe:recipe}));item.append(' ',link);}
+    else if(recipePermissions(recipe,state.account).edit){const link=document.createElement('button');link.type='button';link.className='text-button';link.textContent='Associer un aliment';link.addEventListener('click',()=>openRecipeEditor(recipe.id));item.append(' ',link);}
     list.append(item);
   }
   if (!list.childElementCount) { const item = document.createElement('li'); item.textContent = 'Vérifie les conversions et les valeurs nutritionnelles des aliments.'; list.append(item); }
@@ -2870,7 +2916,7 @@ async function refreshFoodCookingConflicts(){
       const row=document.createElement('article');row.className='food-cooking-conflict';
       const title=document.createElement('strong');title.textContent=conflict.foodName;
       const detail=document.createElement('p');detail.textContent=conflict.recipes.map(recipe=>`${recipe.name} ×${format(recipe.factor)}`).join(' · ');
-      const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='Fixer dans la fiche aliment';edit.addEventListener('click',()=>openFoodEditor(conflict.foodId));
+      const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='Fixer dans la fiche aliment';edit.addEventListener('click',()=>openFoodEditor(conflict.foodId,{focusField:'cookingFactor'}));
       row.append(title,detail,edit);root.append(row);
     }
   }catch(error){root.replaceChildren(emptyMessage(`Conflits indisponibles : ${error.body?.error??error.message}`));}

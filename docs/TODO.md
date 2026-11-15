@@ -1,4 +1,8 @@
-# Prochaines tâches — 15 novembre 2026
+# Prochaines tâches — 16 novembre 2026
+
+## Livré en 0.13.0 — fiches alimentaires
+
+Fiche simplifiée, accès direct depuis les calculs incomplets, conditionnement unique, mesures de contenants calculées depuis une mesure/densité connue (5/15/60/240 ml) et pincées non bloquantes sans poids. Les valeurs contradictoires restent à arbitrer personnellement ; aucune recherche ni correction automatique du catalogue réel. Vérifier le rendu et les mesures sur les appareils réels après déploiement.
 
 ## Planification assistée — demandes du 15 novembre 2026, non développées
 

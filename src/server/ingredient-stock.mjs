@@ -141,6 +141,7 @@ export function ingredientProjection(stock, requirements) {
   let neededG = 0, complete = true;
   for (const row of requirements.filter(row => row.foodId === stock.foodId)) {
     const grams = toGrams(row.quantity, row.unitId, row);
+    if (grams == null && row.unitId==='pinch') continue;
     if (grams == null) complete = false; else neededG += grams;
   }
   const projectedG = stock.quantityG - neededG;
@@ -179,6 +180,7 @@ export function productionDeductions(lines, quantity, yieldAmount, {allowNegativ
       gramsPerMillilitre: line.gramsPerMillilitre == null ? null : Number(line.gramsPerMillilitre),
       gramsPerUnit: Object.fromEntries(Object.entries(line.gramsPerUnit ?? {}).map(([key,value]) => [key,Number(value)])),
     });
+    if (grams == null && line.unitId==='pinch') continue;
     if (grams == null) return { error: 'ingredient-conversion-missing', name: line.name };
     const previous = deductions.get(line.foodId);
     deductions.set(line.foodId,{foodId:line.foodId,name:line.name,quantityG:Number(line.quantityG),usedG:(previous?.usedG ?? 0)+grams});

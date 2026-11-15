@@ -262,7 +262,7 @@ export async function updateFood(pool, id, data) {
       return { error: 'possible-duplicate', matches: duplicate };
     }
     if(data.cookingFactor===null && before.cookingFactor!==null){
-      const used=await client.query("SELECT 1 FROM recipe_lines WHERE food_id=$1 AND cooking_state='cooked_from_raw' LIMIT 1",[id]);
+      const used=await client.query("SELECT 1 FROM recipe_lines WHERE food_id=$1 AND unit_id<>'pinch' AND cooking_state='cooked_from_raw' LIMIT 1",[id]);
       if(used.rowCount){await client.query('ROLLBACK');return {error:'cooking-factor-in-use'};}
     }
     await client.query(
