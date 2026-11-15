@@ -1,3 +1,4 @@
+import {filterPreparationStock,preparationStockFilters} from './preparation-stock-filters.js';
 import {createApiClient} from './api-client.js';
 import {createRecipePlanning} from './recipe-planning.js';
 import {createRecipeChoices} from './recipe-choices.js';
@@ -356,21 +357,17 @@ function preparationStockCount(item){
     }catch(error){showMessage(message,error.body?.error==='preparation-stock-changed'?'Le stock a changé. Actualise la page avant de recommencer.':'Stock non enregistré : '+(error.body?.error??error.message));save.disabled=false;}
   });editor.append(summary,hint,form,message);return editor;
 }
-async function refreshShopping() {
-  if (!state.household) return;
-  const routineMessage = $('#routines-message'); if (routineMessage) routineMessage.textContent = '';
-  try {
-    const [planning, recipesResult] = await Promise.all([
-      api('/api/household-planning?householdId='+encodeURIComponent(state.household.id)),
-      api('/api/recipes?householdId='+encodeURIComponent(state.household.id)),
-    ]);
-    state.recipes = recipesResult.recipes;
-    renderRoutines(planning.routines);
-    state.ingredients = planning.ingredients ?? [];
-    renderIngredientStock(state.ingredients);
-    renderProductionOptions();
-    const stockRoot = $('#stock-list');
-    stockRoot.replaceChildren(...(planning.stock.length ? planning.stock.map((item) => {
+let preparationStock=[],preparationStockHouseholdId=null;
+function renderPreparationStock(){
+ const select=$('#preparation-stock-filter'),householdId=state.household?.id;
+ if(preparationStockHouseholdId!==householdId){preparationStockHouseholdId=householdId;let saved='active';try{saved=localStorage.getItem('lapinou-preparation-stock-filter:'+householdId)??'active';}catch{}select.value=preparationStockFilters.some(([id])=>id===saved)?saved:'active';}
+ const filter=select.value,visible=filterPreparationStock(preparationStock,filter);
+ for(const [id,label] of preparationStockFilters)select.querySelector('option[value='+id+']').textContent=label+' ('+filterPreparationStock(preparationStock,id).length+')';
+ $('#preparation-stock-filter-hint').textContent={active:'Masque les préparations sans restant réel ni réservation.',remaining:'Restant réel, y compris les portions réservées aux menus.',needed:'Réservations non couvertes ou stock négatif.',all:'Inclut les préparations épuisées sans réservation. Les anciens lots restent consultables.'}[filter];
+ const hidden=preparationStock.length-filterPreparationStock(preparationStock).length;
+ $('#preparation-stock-filter-summary').textContent=visible.length+' préparation(s) affichée(s) sur '+preparationStock.length+(filter==='active'&&hidden?' · '+hidden+' sans stock ni réservation masquée(s)':'');
+  const stockRoot = $('#stock-list');
+    stockRoot.replaceChildren(...(visible.length ? visible.map((item) => {
       const card=document.createElement('article'); card.className='stock-row';
       const title=document.createElement('strong'); title.textContent=item.name;
       const details=document.createElement('p'); details.textContent=`Fabriqué : ${formatQty(item.producedQuantity)} ${item.unitId} · restant réel : ${formatQty(item.physicalQuantity)} ${item.unitId} · réservé aux menus : ${formatQty(item.plannedQuantity)} · ${item.availableQuantity<0?'manque':'disponible hors réservations'} : ${formatQty(Math.abs(item.availableQuantity))} ${item.unitId}`;
@@ -397,7 +394,23 @@ async function refreshShopping() {
         row.append(label,cancel);card.append(row);
       }
       return card;
-    }) : [emptyMessage('Aucun stock suivi. Ajoute un type de production à une recette, puis enregistre une production.')]));
+    }) : [emptyMessage(!preparationStock.length?'Aucun stock suivi. Ajoute un type de production à une recette, puis enregistre une production.':filter==='needed'?'Aucune préparation à refaire : les réservations sont couvertes.':filter==='remaining'?'Aucune préparation avec du stock restant.':'Aucune préparation avec du stock ou des réservations. Choisis « Tout afficher » pour consulter les anciens lots.')]));
+}
+$('#preparation-stock-filter').addEventListener('change',()=>{try{localStorage.setItem('lapinou-preparation-stock-filter:'+state.household.id,$('#preparation-stock-filter').value);}catch{}renderPreparationStock();});
+async function refreshShopping() {
+  if (!state.household) return;
+  const routineMessage = $('#routines-message'); if (routineMessage) routineMessage.textContent = '';
+  try {
+    const [planning, recipesResult] = await Promise.all([
+      api('/api/household-planning?householdId='+encodeURIComponent(state.household.id)),
+      api('/api/recipes?householdId='+encodeURIComponent(state.household.id)),
+    ]);
+    state.recipes = recipesResult.recipes;
+    renderRoutines(planning.routines);
+    state.ingredients = planning.ingredients ?? [];
+    renderIngredientStock(state.ingredients);
+    renderProductionOptions();
+    preparationStock=planning.stock;renderPreparationStock();
   } catch(error) {
     $('#routine-list').replaceChildren(emptyMessage('Planning indisponible : '+(error.body?.error ?? error.message)));
     $('#stock-list').replaceChildren(emptyMessage('Stock indisponible.'));

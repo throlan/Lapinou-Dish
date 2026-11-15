@@ -608,3 +608,5 @@
   .food-yield-conversion { align-items:flex-start; flex-direction:column; }
   .food-yield-form .form-grid { grid-template-columns:1fr; }
 }
+
+.preparation-stock-filters{display:flex;align-items:end;flex-wrap:wrap;gap:.8rem;margin:1rem 0 .4rem}.preparation-stock-filters label{display:grid;gap:.4rem;flex:0 1 360px;min-width:0}.preparation-stock-filters select{width:100%;min-width:0}.preparation-stock-filters p{margin:.5rem 0}@media(max-width:650px){.preparation-stock-filters{align-items:stretch}.preparation-stock-filters label{flex:1 1 100%}}
