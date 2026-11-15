@@ -41,16 +41,21 @@ export async function jsonBody(request){
  for await(const chunk of request){const b=Buffer.from(chunk);size+=b.length;if(size>9_500_000)throw accountError('body-too-large',413);chunks.push(b);}
  try{return JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}');}catch{throw accountError('invalid-json');}
 }
-export async function transaction(pool,operation){
+export async function transaction(pool,operation,{serializable=false}={}){
  const client=await pool.connect();
- try{await client.query('BEGIN');const result=await operation(client);await client.query('COMMIT');return result;}
+ try{await client.query(serializable?'BEGIN ISOLATION LEVEL SERIALIZABLE':'BEGIN');const result=await operation(client);await client.query('COMMIT');return result;}
  catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 }
 // Repository transactions become savepoints inside the request's tenant transaction.
-export function nestedPool(client){
+export function nestedPool(client,{serializable=false}={}){
  return {query:(...args)=>client.query(...args),async connect(){
   const savepoint='nested_'+randomBytes(8).toString('hex');
   return {async query(sql,args){
+   if(sql==='BEGIN ISOLATION LEVEL SERIALIZABLE'){
+    // Isolation belongs to the outer transaction, before any tenant query.
+    if(!serializable)throw accountError('serializable-transaction-required',500);
+    return client.query('SAVEPOINT '+savepoint);
+   }
    if(sql==='BEGIN')return client.query('SAVEPOINT '+savepoint);
    if(sql==='COMMIT')return client.query('RELEASE SAVEPOINT '+savepoint);
    if(sql==='ROLLBACK')return client.query('ROLLBACK TO SAVEPOINT '+savepoint);
@@ -58,12 +63,12 @@ export function nestedPool(client){
   },release(){}};
  }};
 }
-export async function scopedOperation(pool,actor,operation){
+export async function scopedOperation(pool,actor,operation,{serializable=false}={}){
  return transaction(pool,async client=>{
   await client.query("SELECT set_config('app.household_id',$1,true),set_config('app.is_admin',$2,true),set_config('app.person_id',$3,true),set_config('app.is_manager',$4,true),set_config('app.account_id',$5,true)",[actor.householdId??'',String(actor.applicationAdmin),actor.personId??'',String(actor.role==='manager'),actor.id??'']);
   await client.query('SET LOCAL ROLE lapinou_request');
-  return operation(nestedPool(client));
- });
+  return operation(nestedPool(client,{serializable}));
+ },{serializable});
 }
 async function sessionActor(pool,request){
  const token=String(request.headers?.cookie??'').match(/(?:^|;\s*)lapinou_account=([a-f0-9]{64})(?:;|$)/)?.[1];
@@ -394,8 +399,11 @@ export async function accountGateway(request,response,pool,appPassword,legacyHan
     }
     await legacyHandler(clone,buffer,scoped);
     if(buffer.status>=400)throw {responseBuffer:buffer};
-   });
-  }catch(error){if(!error.responseBuffer)throw error;}
+   },{serializable:request.method==='POST'&&url.pathname==='/api/planning/rebalance'});
+  }catch(error){
+   if(error.code==='40001'&&request.method==='POST'&&url.pathname==='/api/planning/rebalance')return sendAccount(response,409,{error:'rebalance-preview-stale'});
+   if(!error.responseBuffer)throw error;
+  }
   if(actor.role!=='manager'&&url.pathname==='/api/people'&&request.method==='GET')buffer.transform(data=>({...data,people:data.people?.map(person=>person.id===actor.personId?person:{...person,birthDate:null,weightHistory:[],profileHistory:[]})}));
   buffer.flush(response);
  }catch(error){
