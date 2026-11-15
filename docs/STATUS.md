@@ -1,5 +1,14 @@
 # État du projet — 12 novembre 2026
 
+## Enregistrement du rééquilibrage journalier avec un compte connecté — 0.11.3
+
+Erreur reproduite sur données fictives avec quatre personnes et un muffin décliné en topping chocolat : l’aperçu retire seulement la pièce de Bibinette (1466,8 → 1242,4 kcal pour un objectif de 1300), mais l’application renvoyait daily-rebalance-failed. La transaction du compte et du foyer avait déjà effectué des lectures lorsque le rééquilibrage lançait BEGIN ISOLATION LEVEL SERIALIZABLE ; PostgreSQL refusait le changement d’isolation. Le point de sauvegarde n’avait alors pas été créé pour le retour arrière.
+
+La seule requête POST d’application du rééquilibrage démarre maintenant sa transaction externe en isolation sérialisable, avant les requêtes du foyer. La transaction interne utilise un point de sauvegarde à ce même niveau d’isolation. Les autres requêtes conservent leur fonctionnement. Un conflit de sérialisation, y compris à la validation finale, renvoie un aperçu périmé (409), avec annulation complète des changements, au lieu d’une erreur 500.
+
+Aucune modification de la règle de calcul : l’aperçu proposé, les portions des autres personnes, les mineurs, les ingrédients de la déclinaison et les stocks sont conservés. Pas de migration. Validation : l’erreur a d’abord été reproduite par le vrai chemin HTTP avec authentification, rôle SQL et isolation du foyer. Le test passe après correction ; il vérifie le retrait d’un seul muffin, les autres portions et la variante conservées, l’absence de mouvement de stock, le refus d’un ancien aperçu, une application sans changement, un conflit simulé à la validation finale avec retour arrière, les droits du gestionnaire et le refus d’un autre foyer. Les cinq tests ciblés et les 443 tests complets sont réussis ; publication finale consignée dans la PR. Aucun accès à Unraid ni Nginx ; déploiement par l’utilisateur, référence 0.3.32 conservée.
+
+
 ## Filtres du stock des préparations produites — 0.11.2
 
 Dans Courses & stocks → Stocks → Stock des préparations déjà produites, le filtre par défaut Stocks et besoins masque les préparations dont le restant réel et les réservations sont tous deux nuls, même si des lots historiques existent. Les réservations non couvertes et les stocks négatifs restent visibles. Stocks restants affiche les quantités physiquement présentes, y compris celles réservées ; À refaire affiche le manque après réservation ou un stock négatif. Une préparation partiellement couverte peut donc figurer dans les deux filtres. Tout afficher inclut les préparations épuisées et conserve l’accès aux anciens lots et corrections.
