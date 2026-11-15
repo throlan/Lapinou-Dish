@@ -250,7 +250,7 @@ export async function listRecipes(pool, householdId) {
     ) original ON TRUE WHERE r.household_id=$1 ORDER BY l.sort_order,l.id`,[householdId]);
   const foodIds=[...new Set([...lines.rows.map(l=>l.food_id),...result.rows.flatMap(r=>(r.choice_groups??[]).flatMap(g=>g.options.map(o=>o.foodId)))])].filter(Boolean);
   const foods=foodIds.length?await pool.query(`SELECT f.id, f.canonical_name AS name, f.brand, f.source, f.source_reference,
-            f.source_note, f.grams_per_millilitre, f.food_category,
+            f.source_note, f.grams_per_millilitre, f.food_category,f.cooking_factor AS food_cooking_factor,
             jsonb_object_agg(n.id, fn.value_per_100g ORDER BY n.sort_order)
               FILTER (WHERE n.id IS NOT NULL) AS nutrient_values,
             COALESCE((SELECT jsonb_object_agg(c.unit_id, c.grams_per_unit)
@@ -353,7 +353,7 @@ export async function updateRecipe(pool, id, data, expectedVersion=null) {
   }
 }
 
-export async function readRecipe(client, id, path=[], context=null) {
+export async function readRecipe(client, id, path=[], context=null, preview=null) {
   if(path.includes(id))throw new Error('recipe-ingredient-cycle');
   if(context?.resolved.has(id))return context.resolved.get(id);
   const recipeResult = context ? {rows:context.recipes.has(id)?[context.recipes.get(id)]:[]} : await client.query(
@@ -364,9 +364,9 @@ export async function readRecipe(client, id, path=[], context=null) {
             (SELECT parent.cooking_factors FROM recipes parent WHERE parent.id=recipes.parent_recipe_id) AS parent_cooking_factors
        FROM recipes WHERE id = $1`, [id],
   );
-  const row = recipeResult.rows[0];
+  const row = preview&&recipeResult.rows[0]?{...recipeResult.rows[0],name:preview.name,choice_groups:[]}:recipeResult.rows[0];
   if (!row) return null;
-  const linesResult = context ? {rows:context.lines.get(id)??[]} : await client.query(
+  const linesResult = preview ? {rows:[]} : context ? {rows:context.lines.get(id)??[]} : await client.query(
     `SELECT l.id,l.food_id,l.ingredient_recipe_id,l.quantity,l.unit_id,l.sort_order,l.serving_part,l.cooking_factor,l.cooking_state,f.cooking_factor AS food_cooking_factor,original.cooking_factor AS original_cooking_factor
       FROM recipe_lines l LEFT JOIN foods f ON f.id=l.food_id
       LEFT JOIN LATERAL (
@@ -377,7 +377,7 @@ export async function readRecipe(client, id, path=[], context=null) {
       ) original ON TRUE
       WHERE l.recipe_id = $1 ORDER BY l.sort_order`, [id,row.serving_part_active===false?null:row.parent_recipe_id??null,row.serving_part??null],
   );
-  const lines = linesResult.rows.map((line) => ({
+  const lines = preview ? preview.lines.map(line=>({...line})) : linesResult.rows.map((line) => ({
     id: line.id, foodId: line.food_id, recipeId:line.ingredient_recipe_id??null, quantity: Number(line.quantity), unitId: line.unit_id,
     componentId: null, variantId: null, servingPart: line.serving_part ?? 'main', cookingFactor: line.cooking_factor == null ? null : Number(line.cooking_factor),cookingState:line.cooking_state??'legacy',foodCookingFactor:line.food_cooking_factor==null?null:Number(line.food_cooking_factor),
     originalCookingFactor:line.original_cooking_factor==null?null:Number(line.original_cooking_factor),
@@ -385,7 +385,7 @@ export async function readRecipe(client, id, path=[], context=null) {
   const foodIds = [...new Set([...lines.map(line=>line.foodId),...(row.choice_groups??[]).flatMap(g=>g.options.map(o=>o.foodId))])].filter(Boolean);
   const foodsResult = context ? {rows:foodIds.map(id=>context.foods.get(id)).filter(Boolean)} : foodIds.length ? await client.query(
     `SELECT f.id, f.canonical_name AS name, f.brand, f.source, f.source_reference,
-            f.source_note, f.grams_per_millilitre, f.food_category,
+            f.source_note, f.grams_per_millilitre, f.food_category,f.cooking_factor AS food_cooking_factor,
             jsonb_object_agg(n.id, fn.value_per_100g ORDER BY n.sort_order)
               FILTER (WHERE n.id IS NOT NULL) AS nutrient_values,
             COALESCE((SELECT jsonb_object_agg(c.unit_id, c.grams_per_unit)
@@ -410,6 +410,7 @@ export async function readRecipe(client, id, path=[], context=null) {
       gramsPerMillilitre: food.grams_per_millilitre == null ? null : Number(food.grams_per_millilitre),
     };
   });
+  if(preview)for(const line of lines)if(line.foodId){const food=foodsResult.rows.find(f=>f.id===line.foodId);line.foodCookingFactor=food?.food_cooking_factor==null?null:Number(food.food_cooking_factor);}
   const nutritionLines=lines.map(line=>({...line}));
   const servingLoad={};
   let containsWhey=foods.some(food=>[food.name,food.category].some(value=>{
@@ -444,13 +445,14 @@ export async function readRecipe(client, id, path=[], context=null) {
   if(row.serving_part==='starch'&&!Object.hasOwn(servingLoad,'starch'))servingLoad.starch=Number(row.yield_amount);
   if(row.serving_part==='vegetables')servingLoad.vegetables=Number(row.yield_amount);
   const servingParts = [], archivedServingParts=[];
-  if (row.separate_starch) {
+  if (row.separate_starch && !preview) {
     const children = context ? {rows:[...context.recipes.values()].filter(r=>r.parent_recipe_id===id).sort((a,b)=>String(a.serving_part).localeCompare(String(b.serving_part)))} : await client.query('SELECT id,serving_part_active FROM recipes WHERE parent_recipe_id=$1 ORDER BY serving_part', [id]);
     for (const child of children.rows) (child.serving_part_active?servingParts:archivedServingParts).push(await readRecipe(client,child.id,[...path,id],context));
   }
   const counted=Number(row.sibling_count)>1 && row.yield_unit_id==='g' && lines.length===1 && ['piece','slice'].includes(lines[0].unitId) ? lines[0] : null;
   const servingDisplay=counted?{unitId:counted.unitId,amount:counted.quantity,gramsPerUnit:Number(row.yield_amount)/counted.quantity,
     ingredientName:counted.foodName??foodById.get(counted.foodId)?.name??null}:null;
+  if(preview&&graph)graph.set(id,{...graph.get(id),lines:lines.map(line=>({gramsPerUnit:{},...foodById.get(line.foodId),...line}))});
   const servingWeightG=recipeWeight(graph??new Map([[id,{
     yield:{amount:Number(row.yield_amount),unitId:row.yield_unit_id},outputUnits:row.output_units??{},
     separateStarch:row.separate_starch,cookingFactors:row.cooking_factors??{},

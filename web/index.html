@@ -12,10 +12,10 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
     <link rel="stylesheet" href="/style.css?v=0.7.0">
-    <link rel="stylesheet" href="/editorial.css?v=0.11.3"><link rel="stylesheet" href="/recipe-directory-refresh.css?v=0.7.0">
-      <link rel="stylesheet" href="/recipe-editor-dialog.css?v=0.11.3">
-      <link rel="stylesheet" href="/recipe-choices.css?v=0.11.3">
-      <link rel="stylesheet" href="/recipe-planning.css?v=0.11.3">
+    <link rel="stylesheet" href="/editorial.css?v=0.12.0"><link rel="stylesheet" href="/recipe-directory-refresh.css?v=0.7.0">
+      <link rel="stylesheet" href="/recipe-editor-dialog.css?v=0.12.0">
+      <link rel="stylesheet" href="/recipe-choices.css?v=0.12.0">
+      <link rel="stylesheet" href="/recipe-planning.css?v=0.12.0">
   </head>
   <body>
     <header class="topbar">
@@ -511,7 +511,7 @@
             <p class="hint">Le poids cuit estimé se règle dans la fiche de chaque aliment. Les quantités de la recette restent crues ; une préparation maison déjà cuite ne reçoit pas de second coefficient.</p>
           </fieldset>
           <div class="line-heading"><h3>Ingrédients</h3><div class="form-actions"><button type="button" class="secondary" id="add-line">+ Aliment</button><button type="button" class="secondary" id="add-recipe-line">+ Préparation maison</button></div></div>
-          <div id="recipe-lines"></div>
+          <div id="recipe-lines"></div><div><button type="button" class="secondary" id="recipe-variant-preview" hidden>Comparer les apports de la recette enregistrée</button><p class="hint">Pour comparer de nouveaux ingrédients ou quantités, enregistre d’abord la recette.</p></div>
           </section>
           <section id="recipe-editor-panel-preparation" role="tabpanel" aria-labelledby="recipe-editor-tab-preparation" data-recipe-editor-panel="preparation" hidden>
           <input type="hidden" name="instructions"><div id="recipe-method-editor"></div><label class="recipe-validation-choice"><input type="checkbox" name="reviewValidated"> Recette validée<span class="hint">Repère de relecture. La recette reste entièrement modifiable.</span></label>
@@ -532,6 +532,6 @@
       </form>
     </dialog>
     <script type="module" src="/install-app.js?v=0.3.17"></script>
-    <script type="module" src="/app.js?v=0.11.3"></script>
+    <script type="module" src="/app.js?v=0.12.0"></script>
   </body>
 </html>

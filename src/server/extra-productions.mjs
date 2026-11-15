@@ -21,7 +21,7 @@ export function validateExtraProduction(input){
 
 export async function listExtraProductions(pool,householdId,startDate,endDate){
   const result=await pool.query(`SELECT p.id,p.recipe_id AS "recipeId",r.name,p.planned_on::text AS "plannedOn",
-    p.quantity::float8 AS quantity,r.yield_unit_id AS "unitId",p.storage,p.note,
+    p.quantity::float8 AS quantity,r.yield_unit_id AS "unitId",r.production_type AS "productionType",p.storage,p.note,
     p.stock_lot_id AS "stockLotId",(p.stock_lot_id IS NOT NULL AND l.cancelled_at IS NULL) AS completed
     FROM planned_extra_productions p JOIN recipes r ON r.id=p.recipe_id
     LEFT JOIN stock_lots l ON l.id=p.stock_lot_id
