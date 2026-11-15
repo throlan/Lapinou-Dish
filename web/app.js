@@ -2188,6 +2188,7 @@ function configureCookingMode(){
   renderCookingIngredients();
 }
 async function chooseRecipeCombination(recipe,selection){
+ const seen=new Set();while(recipe?.replacedByRecipeId){if(seen.has(recipe.id))throw new Error('recipe-replacement-cycle');seen.add(recipe.id);recipe=(await api('/api/recipes/'+recipe.replacedByRecipeId)).recipe;}
  if(!recipe?.choiceGroups?.length)return recipe;
  const result=await recipeChoices.choose(recipe,selection);if(result&&!state.recipes.some(r=>r.id===result.id))state.recipes.push(result);return result;
 }

@@ -61,6 +61,7 @@ test('dessert flavour and topping resolve once, drive nutrition, shopping and st
  const frozen=await readRecipe(pool,chosen.id);assert.equal(frozen.nutrition.batch.energyKcal,448);assert.equal(frozen.lines[0].quantity,400);
  assert.equal((await listPlannedMeals(pool,h,'2026-11-16')).find(m=>m.id===meal.id).items[0].recipeId,chosen.id);
  assert.equal((await updateRecipe(pool,chosen.id,validateRecipeInput({...input,choiceGroups:[]}).data)).error,'recipe-choice-instance-readonly');
+ await assert.rejects(resolveRecipeChoices(pool,source.id,h,selection,source.version),/recipe-version-conflict/);
  const fresh=await resolveRecipeChoices(pool,source.id,h,selection);assert.notEqual(fresh.id,chosen.id);assert.equal(fresh.lines[0].quantity,800);
 });
 

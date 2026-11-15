@@ -7,7 +7,7 @@ import {readRecipeImage,saveRecipeImage} from './recipe-images.mjs';
 const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value);
 const fail=(code,status=400)=>{throw accountError(code,status);};
 
-export async function resolveRecipeChoices(pool,id,householdId,selection){
+export async function resolveRecipeChoices(pool,id,householdId,selection,expectedVersion){
  return transaction(pool,async client=>{
   // Serialize with recipe edits and other resolutions, including identical concurrent requests.
   await client.query('SELECT id FROM households WHERE id=$1 FOR UPDATE',[householdId]);
@@ -16,6 +16,7 @@ export async function resolveRecipeChoices(pool,id,householdId,selection){
   const own=await client.query('SELECT id FROM recipes WHERE id=$1 AND household_id=$2',[id,householdId]);
   if(!own.rows.length)fail('recipe-not-found',404);
   if(recipe.recipeArchived)fail('recipe-replaced',409);
+  if(expectedVersion!==undefined&&(!Number.isSafeInteger(expectedVersion)||expectedVersion!==recipe.version))fail('recipe-version-conflict',409);
   if(!recipe.choiceGroups.length)return recipe;
   const chosen=selectedRecipeLines(recipe,selection);if(chosen.error)fail(chosen.error);
   const key=createHash('sha256').update(JSON.stringify([id,recipe.version,recipe.choiceGroups.map(g=>[g.id,selection[g.id]])])).digest('hex');
@@ -39,7 +40,7 @@ export async function recipeChoiceRoutes(request,response,pool,url){
  const resolve=url.pathname.match(/^\/api\/recipes\/([a-f0-9-]{36})\/choices\/resolve$/i);
  if(resolve&&request.method==='POST'){
   try{const body=await jsonBody(request);if(!uuid(body.householdId))fail('invalid-household-id');
-   sendAccount(response,200,{recipe:await resolveRecipeChoices(pool,resolve[1],body.householdId,body.selection)});
+   sendAccount(response,200,{recipe:await resolveRecipeChoices(pool,resolve[1],body.householdId,body.selection,body.version)});
   }catch(error){if(!error.status)throw error;sendAccount(response,error.status,{error:error.message});}return true;
  }
  const list=url.pathname.match(/^\/api\/recipe-choice-lists(?:\/([a-f0-9-]{36}))?$/i);
