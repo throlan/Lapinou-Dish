@@ -10,6 +10,11 @@ export function cookingPeriod(value,scope){
  if(scope==='month'){const first=value.slice(0,7)+'-01',last=new Date(date);last.setUTCMonth(date.getUTCMonth()+1,0);return {start:first,end:last.toISOString().slice(0,10)};}
  throw new Error('invalid-cooking-scope');
 }
+export function planningPeriod(today,scope){
+ if(scope==='next-week'){const week=cookingPeriod(today,'week');return {start:shiftPlanningDate(week.start,7),end:shiftPlanningDate(week.end,7)};}
+ if(scope==='next-fortnight'){const week=cookingPeriod(today,'week');return {start:shiftPlanningDate(week.start,7),end:shiftPlanningDate(week.end,14)};}
+ return cookingPeriod(today,scope);
+}
 export function freePlanningSlots(start,end,occupied,moments=[]){
  if(!validPlanningDate(start)||!validPlanningDate(end)||end<start||(+new Date(end)-+new Date(start))/86400000>62)throw new Error('invalid-planning-period');
  const used=new Set(occupied.map(m=>m.date+':'+m.slot));const slots=['breakfast','lunch','snack','dinner'].filter(s=>!moments.length||moments.includes(s));const result=[];

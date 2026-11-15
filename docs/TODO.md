@@ -1,5 +1,10 @@
 # Prochaines tâches — 12 novembre 2026
 
+## À vérifier après déploiement — 0.11.0
+
+Essayer la sélection mercredi/samedi, la copie d’une journée et d’une semaine sur les appareils réels. Les copies gardent les quantités ; elles ne sont pas recalculées selon les profils futurs. Les données changées par une autre session peuvent attendre au plus une minute avant actualisation lors de la navigation. Aucun écrasement des créneaux occupés. Les semaines proposées pour planifier sont relatives à aujourd’hui ; les périodes de Cuisiner restent ancrées sur le repas sélectionné, comme en 0.10.0.
+
+
 ## À vérifier après déploiement — 0.10.0
 
 Tester Planifier depuis le catalogue et Cuisiner depuis le calendrier sur les appareils réels. Les créneaux sont proposés selon les moments de la recette ; les compléments restent un choix au moment de planifier. Semaine/deux semaines/mois sont explicitement ancrés sur la date du repas sélectionné, sans changer la période des courses. Les recettes sans suivi de stock conservent ce réglage.

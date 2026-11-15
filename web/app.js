@@ -1,3 +1,4 @@
+import {createApiClient} from './api-client.js';
 import {createRecipePlanning} from './recipe-planning.js';
 import {createRecipeChoices} from './recipe-choices.js';
 import {createRecipeEditorDialog} from './recipe-editor-dialog.js';
@@ -20,6 +21,7 @@ import {catalogueCurrent,catalogueSame,catalogueSelectionIssue,catalogueExclusio
 import { groupPreparations, suggestedProductionQuantity, suggestedServingQuantities, scaledIngredients, scaledSourceIngredients, productionRecipe, cookingYield } from './cooking-sheet.js';
 import { recipeEnergyBadge, ingredientCookingFactor, recipeServiceChoices, recipeServiceMode, recipeDisplayPreferences, filterRecipeDirectory, recipeCardForSource, recipeMissingData, recipeMomentLabel, recipeTypeLabel, recipePlanningLabel } from './recipe-directory.js';
 
+const api=createApiClient();
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const state = { offset: 0, limit: 50, query: '', foodCategory: '', missingField: '', onlyIncomplete: false, total: 0, household: null, selectedFoodIds:new Set(), mealAdditions:[], productionTypes:[], productionTypesHouseholdId:null, debounce: null, editingRecipeId: null, editingFoodFromRecipe: false, editingFoodFromShopping: false, editingOrderLinkId: null, importingDraftId: null, generateImportedImage: false, people: [], recipes: [], plannedRecipeIds: [], plannedRecipeLookupError: null, preparations: [], calendarWeekStart: null, calendarMealId: null, calendarMeals: [], routines: [], ingredients: [], reserveOverview: null, calendarReserveOverview: null, proteinTargets: {}, mealOccasionEnergy: {}, openShoppingStores: new Set(), openShoppingProducts: new Set() };
@@ -27,7 +29,7 @@ const recipeEditorDialog=createRecipeEditorDialog(document);
 const recipeMethodEditor=createRecipeMethodEditor(document.querySelector('#recipe-method-editor'),document.querySelector('#recipe-form'));
 const accountUI=createAccountUI({api,onSession:session=>{state.account=session.account??null;}});
 const recipeChoices=createRecipeChoices({api,getHousehold:()=>state.household,getAccount:()=>state.account,onFood:id=>openFoodEditor(id,{fromRecipe:true})});
-const recipePlanning=createRecipePlanning({api,getHousehold:()=>state.household,getAdditions:()=>state.mealAdditions,onPlan:planRecipeFromCatalogue,onCook:openScopedCooking});
+const recipePlanning=createRecipePlanning({api,getHousehold:()=>state.household,getAdditions:()=>state.mealAdditions,onPlan:planRecipeFromCatalogue,onCook:openScopedCooking,onCopied:async(date,count)=>{state.calendarWeekStart=mondayOf(date);calendarSelectedDate=date;showMessage($('#calendar-copy-message'),count+' repas copiés. Personnes et quantités conservées ; copies à préparer.',true);await refreshCalendar();}});
 const recipeReviews=createRecipeReviews({api,getAccount:()=>state.account,onChange:()=>renderFilteredRecipes()});
 recipeReviews.addFilter(document.querySelector('#recipe-advanced-controls'));
 let recipeImageConfig={enabled:false}, imageRecipeId=null;
@@ -39,17 +41,6 @@ let batchCookingSelection={};
 let batchCookingHouseholdId=null;
 let batchCookingRendered=false;
 
-async function api(path, options = {}) {
-  const { timeoutMs, ...requestOptions } = options;
-  const response = await fetch(path, {
-    ...requestOptions,
-    signal: options.signal ?? AbortSignal.timeout(timeoutMs ?? 8000),
-    headers: { 'Content-Type': 'application/json', ...(options.headers ?? {}) },
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw Object.assign(new Error(body.error ?? `HTTP ${response.status}`), { status: response.status, body });
-  return body;
-}
 
 function showMessage(target, text, success = false) {
   target.textContent = text;
@@ -178,7 +169,7 @@ function mealNutritionForPerson(meal,personId) {
 }
 async function refreshDashboard() {
   const root=$('#dashboard-content'); if(!root||!state.household){if(root)root.replaceChildren(emptyMessage('Crée d’abord un foyer.'));return;}
-  root.replaceChildren(emptyMessage('Chargement du tableau de bord…'));
+  if(!root.querySelector('.dashboard-welcome'))root.replaceChildren(emptyMessage('Chargement du tableau de bord…'));
   const today=localDateValue();
   try {
     const [plan,peopleResult,planning,reserve]=await Promise.all([
@@ -294,7 +285,7 @@ async function refreshDashboard() {
     upcoming.forEach(item=>{const row=document.createElement('p');row.className='dashboard-routine';row.textContent=`${displayDate(item.nextDate,{weekday:'short',day:'numeric',month:'short'})} · ${routineLabels[item.routineId]??item.routineId}`;routines.append(row);});
     routines.append(dashboardAction('Gérer le planning','shopping'));sidebar.append(routines);
     layout.append(menu,sidebar);root.append(layout);
-  } catch(error){root.replaceChildren(emptyMessage('Accueil indisponible : '+(error.body?.error??error.message)));}
+  } catch(error){if(!root.querySelector('.dashboard-welcome'))root.replaceChildren(emptyMessage('Accueil indisponible : '+(error.body?.error??error.message)));}
 }
 
 function renderSavingPlanForm(people) {
@@ -2197,7 +2188,7 @@ async function chooseRecipeCombination(recipe,selection){
  if(!recipe?.choiceGroups?.length)return recipe;
  const result=await recipeChoices.choose(recipe,selection);if(result&&!state.recipes.some(r=>r.id===result.id))state.recipes.push(result);return result;
 }
-async function planRecipeFromCatalogue(recipe,slot,companions){
+async function planRecipeFromCatalogue(recipe,slot,companions,targets=[slot]){
  const chosen=await chooseRecipeCombination(recipe);if(!chosen)return false;
  await openMealEditor(slot.date,slot.slot);
  const form=$('#meal-form');for(const box of form.querySelectorAll('#meal-attendees input'))box.checked=true;
@@ -2208,7 +2199,10 @@ async function planRecipeFromCatalogue(recipe,slot,companions){
  else if(role==='main')items[index++]={recipeId:chosen.id,role,categoryId,amounts:{}};
  else items[index++]={recipeId:'',role,categoryId,assignments:Object.fromEntries(attendees.map(id=>[id,{recipeId:chosen.id,quantity:String(individualDefaultQuantity(chosen,role))}]))};
  for(const id of companions){const c=mealAdditionById(id),r=id==='main'?'main':mealAdditionRole(id,slot.slot);if(id!=='main'&&!c)continue;items[index++]={recipeId:'',role:r,categoryId:id,...(r==='main'?{amounts:{}}:{assignments:{}})};}
- state.planningFromCatalogue=true;renderPlannedItems(items,{autoSuggest:true});updateMealType();
+ state.planningFromCatalogue=true;state.planningTargets=targets;state.planningRequest=null;
+ form.elements.mealDate.disabled=form.elements.slot.disabled=targets.length>1;
+ const summary=document.createElement('p');summary.id='planning-target-summary';summary.className='cooking-scope-summary';summary.textContent=targets.length+' repas à ajouter : '+targets.map(t=>displayDate(t.date)+' · '+slotLabels[t.slot]).join(' ; ')+'. Les personnes et quantités vérifiées seront copiées à l’identique.';$('#meal-dialog-title').after(summary);
+ renderPlannedItems(items,{autoSuggest:true});updateMealType();
  $('#meal-message').textContent='Vérifie les personnes et les portions, puis choisis les compléments demandés. Rien n’est enregistré avant Enregistrer le repas.';
 }
 function openScopedCooking(data){
@@ -2342,10 +2336,17 @@ try{const saved=localStorage.getItem('lapinou-recipe-validation');if(['all','val
 $('#recipe-missing-filter')?.addEventListener('change',event=>{recipeFilters.missing=event.target.value;recipeFilters.page=1;renderFilteredRecipes();});
 $('#open-recipe-import')?.addEventListener('click',()=>setView('import'));
 $('#back-to-recipes')?.addEventListener('click',()=>setView('recipes'));
-async function refreshRecipes() {
+let refreshRecipesPending=null,refreshRecipesLoaded=null,refreshRecipesSequence=0;
+async function refreshRecipes(){
+ const key=state.household?.id+':'+api.revision();if(refreshRecipesPending?.key===key)return refreshRecipesPending.promise;
+ if(refreshRecipesLoaded?.key===key&&Date.now()-refreshRecipesLoaded.at<60000&&$('#recipe-list')?.querySelector('.recipe-card'))return Promise.resolve();
+ const entry={key,promise:null},sequence=++refreshRecipesSequence;
+ entry.promise=dorefreshRecipes(sequence).then(success=>{if(success&&sequence===refreshRecipesSequence)refreshRecipesLoaded={key,at:Date.now()};}).finally(()=>{if(refreshRecipesPending===entry)refreshRecipesPending=null;});refreshRecipesPending=entry;return entry.promise;
+}
+async function dorefreshRecipes(sequence) {
   const list = $('#recipe-list');
   if (!state.household) { list.innerHTML = '<p class="empty">Crée d’abord un foyer pour enregistrer des recettes.</p>'; return; }
-  list.innerHTML = '<p class="empty">Chargement des recettes…</p>';
+  const populated=list.querySelector('.recipe-card');if(!populated)list.innerHTML = '<p class="empty">Chargement des recettes…</p>';
   try {
     await refreshProductionTypes();
     const today=localDateValue(),monthStart=`${today.slice(0,7)}-01`;
@@ -2353,13 +2354,16 @@ async function refreshRecipes() {
       api(`/api/recipes?householdId=${encodeURIComponent(state.household.id)}`),
       api(`/api/planning/recipe-ids?householdId=${encodeURIComponent(state.household.id)}&fromDate=${encodeURIComponent(monthStart)}`).then(value=>({value}),error=>({error})),
     ]);
-    state.recipes = recipes;
+    if(sequence!==refreshRecipesSequence)return;
     await recipeReviews.load().catch(()=>{});
+    if(sequence!==refreshRecipesSequence)return;
+    state.recipes = recipes;
     state.plannedRecipeIds = plannedLookup.value?.recipeIds ?? [];
     state.plannedRecipeLookupError = plannedLookup.error ?? null;
-    renderFilteredRecipes();
+    renderFilteredRecipes();return true;
   } catch (error) {
-    const message = document.createElement('p'); message.className = 'empty'; message.textContent = `Liste indisponible : ${error.body?.error ?? error.message}`; list.replaceChildren(message);
+    if(sequence!==refreshRecipesSequence)return;
+    const message = document.createElement('p'); message.className = 'empty'; message.textContent = `Liste indisponible : ${error.body?.error ?? error.message}`; if(populated)showMessage($('#recipe-list-message'),'Actualisation impossible. Les recettes déjà chargées restent affichées ; réessaie en ouvrant Recettes.');else list.replaceChildren(message);
   }
 }
 
@@ -3181,7 +3185,14 @@ function latestProfile(person, date) {
   return (person.profileHistory ?? []).find((entry) => entry.effectiveFrom <= date) ?? null;
 }
 
-async function refreshCalendar() {
+let refreshCalendarPending=null,refreshCalendarLoaded=null,refreshCalendarSequence=0;
+async function refreshCalendar(){
+ const key=state.household?.id+':'+(state.calendarWeekStart??mondayOf(localDateValue()))+':'+api.revision();if(refreshCalendarPending?.key===key)return refreshCalendarPending.promise;
+ if(refreshCalendarLoaded?.key===key&&Date.now()-refreshCalendarLoaded.at<60000&&$('#calendar-grid')?.querySelector('.calendar-day'))return Promise.resolve();
+ const entry={key,promise:null},sequence=++refreshCalendarSequence;
+ entry.promise=dorefreshCalendar(sequence).then(success=>{if(success&&sequence===refreshCalendarSequence)refreshCalendarLoaded={key,at:Date.now()};}).finally(()=>{if(refreshCalendarPending===entry)refreshCalendarPending=null;});refreshCalendarPending=entry;return entry.promise;
+}
+async function dorefreshCalendar(sequence) {
   const grid = $('#calendar-grid');
   if (!grid || !state.household) {
     if (grid) grid.replaceChildren(emptyMessage('Crée d’abord un foyer.'));
@@ -3189,7 +3200,8 @@ async function refreshCalendar() {
   }
   const today = localDateValue();
   state.calendarWeekStart ??= mondayOf(today);
-  grid.replaceChildren(emptyMessage('Chargement de la semaine…'));
+  const requestedWeek=state.calendarWeekStart,requestedHousehold=state.household.id;
+  const populated=grid.dataset.week===requestedWeek&&grid.querySelector('.calendar-day');if(!populated)grid.replaceChildren(emptyMessage('Chargement de la semaine…'));
   try {
     const end = addDays(state.calendarWeekStart, 6);
     const [plan, peopleResult, recipesResult, mealSettings, reserve, plateSettings, proteinSettings, mealAdditionsResult, servingCaps] = await Promise.all([
@@ -3203,6 +3215,8 @@ async function refreshCalendar() {
       api(`/api/meal-additions?householdId=${encodeURIComponent(state.household.id)}`),
       api(`/api/serving-caps?householdId=${encodeURIComponent(state.household.id)}`),
     ]);
+    if(sequence!==refreshCalendarSequence||state.calendarWeekStart!==requestedWeek||state.household?.id!==requestedHousehold)return;
+    grid.dataset.week=requestedWeek;
     state.mealRatios=mealSettings.ratios;
     state.plateRatios=plateSettings.ratios;
     state.proteinTargets=proteinSettings.targets??{};
@@ -3226,8 +3240,10 @@ async function refreshCalendar() {
     }
     grid.replaceChildren(...Array.from({ length: 7 }, (_, index) => renderCalendarDay(addDays(state.calendarWeekStart, index), plan.meals ?? [], today)));
     renderCalendarSummary(plan.meals ?? [], state.people, state.calendarWeekStart);
-    renderCalendarEnergyAlerts(plan.meals ?? [],state.people,state.calendarWeekStart);
+    renderCalendarEnergyAlerts(plan.meals ?? [],state.people,state.calendarWeekStart);return true;
   } catch (error) {
+    if(state.calendarWeekStart!==requestedWeek||state.household?.id!==requestedHousehold)return;
+    if(populated){showMessage($('#calendar-copy-message'),'Actualisation impossible. La semaine déjà chargée reste affichée.');return;}
     $('#calendar-energy-alerts').hidden=true;
     grid.replaceChildren(emptyMessage(`Calendrier indisponible : ${error.body?.error ?? error.message}`));
   }
@@ -3240,6 +3256,7 @@ function renderCalendarDay(date, meals, today) {
   const heading = document.createElement('div'); heading.className = 'calendar-day-heading';
   heading.innerHTML = `<span>${displayDate(date, { weekday: 'short' })}</span><strong>${displayDate(date, { day: '2-digit', month: 'short' })}</strong>`;
   if (date === today) { const badge = document.createElement('small'); badge.className = 'today-badge'; badge.textContent = 'AUJ.'; heading.append(badge); }
+  const copy=document.createElement('button');copy.type='button';copy.className='text-button calendar-copy';copy.textContent='Dupliquer la journée';copy.addEventListener('click',()=>recipePlanning.copyPeriod(date,1));heading.append(copy);
   day.append(heading);
   for (const slot of MEAL_ORDER.filter(slot=>slot!=='evening_snack'||meals.some(meal=>meal.mealDate===date&&meal.slot===slot))) {
     const section = document.createElement('section'); section.className = 'calendar-slot';
@@ -3934,7 +3951,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
 }
 
 async function openMealEditor(date, slot, meal = null) {
-  state.planningFromCatalogue=false;
+  state.planningFromCatalogue=false;state.planningTargets=null;state.planningRequest=null;$('#planning-target-summary')?.remove();$('#meal-form').elements.mealDate.disabled=$('#meal-form').elements.slot.disabled=false;
   if(meal?.preparedAt||meal?.stockUsedAt)return;
   if (!state.people.length || !state.recipes.length) await refreshCalendar();
   state.calendarMealId = meal?.id ?? null;
@@ -4028,6 +4045,7 @@ $('#duplicate-meal-form').addEventListener('submit',async event=>{
   finally{button.disabled=false;}
 });
 
+$('#copy-calendar-week').addEventListener('click',()=>recipePlanning.copyPeriod(state.calendarWeekStart,7));
 $('#previous-week').addEventListener('click', () => { state.calendarWeekStart = addDays(state.calendarWeekStart, -7); refreshCalendar(); });
 $('#next-week').addEventListener('click', () => { state.calendarWeekStart = addDays(state.calendarWeekStart, 7); refreshCalendar(); });
 $('#current-week').addEventListener('click', () => { state.calendarWeekStart = mondayOf(localDateValue()); refreshCalendar(); });
@@ -4112,11 +4130,15 @@ async function saveMeal(event) {
   submitButton.textContent = 'Enregistrement…';
   const payload = { householdId: state.household.id,...(state.planningFromCatalogue?{requireEmptySlot:true}:{}), mealDate: form.elements.mealDate.value, slot: form.elements.slot.value, notes: form.elements.notes.value, attendeeIds, items, isOccasion, occasionTitle:form.elements.occasionTitle.value, occasionEnergy };
   try {
-    await api(state.calendarMealId ? `/api/planning/meals/${state.calendarMealId}` : '/api/planning/meals', { method: state.calendarMealId ? 'PUT' : 'POST', body: JSON.stringify(payload) });
-    if(state.planningFromCatalogue)showMessage($('#recipe-list-message'),'Repas ajouté au planning du '+displayDate(payload.mealDate)+' · '+slotLabels[payload.slot]+'.',true);
+    if(state.planningFromCatalogue){
+      const targets=state.planningTargets?.length>1?state.planningTargets:[{date:payload.mealDate,slot:payload.slot}],selection={householdId:state.household.id,meal:payload,targets},fingerprint=JSON.stringify(selection);
+      if(state.planningRequest?.fingerprint!==fingerprint)state.planningRequest={fingerprint,requestId:newProductionRequestId()};
+      await api('/api/planning/selection',{method:'POST',body:JSON.stringify({...selection,requestId:state.planningRequest.requestId})});
+      showMessage($('#recipe-list-message'),targets.length+' repas ajouté(s) au planning : '+targets.map(t=>displayDate(t.date)+' · '+slotLabels[t.slot]).join(' ; ')+'.',true);
+    }else await api(state.calendarMealId ? `/api/planning/meals/${state.calendarMealId}` : '/api/planning/meals', { method: state.calendarMealId ? 'PUT' : 'POST', body: JSON.stringify(payload) });
     state.planningFromCatalogue=false;$('#meal-dialog').close(); await Promise.all([refreshCalendar(),refreshDashboard()]);
   } catch (error) {
-    showMessage(message,error.body?.error==='planning-slot-unavailable'?'Ce créneau vient d’être occupé. Choisis une autre date ou un autre créneau ; aucun repas existant n’a été modifié.':`Enregistrement impossible : ${error.body?.error ?? error.message}`);
+    showMessage(message,error.body?.error==='planning-slot-unavailable'?'Un créneau sélectionné vient d’être occupé. Ferme ce formulaire et choisis des créneaux libres avec Planifier. Aucun repas de cette sélection n’a été ajouté ni écrasé.':`Enregistrement impossible : ${error.body?.error ?? error.message}`);
     message.scrollIntoView({ behavior: 'smooth', block: 'center' });
   } finally {
     submitButton.disabled = false;
@@ -4129,8 +4151,10 @@ $('#save-meal').addEventListener('click', saveMeal);
 $('#meal-form').elements.isOccasion.addEventListener('change',updateMealType);
 
 
-// Keep an open agenda current after midnight, without interrupting a form.
+// Refresh only when the date changes, rather than rebuilding the agenda every minute.
+let agendaDay=localDateValue();
 setInterval(()=>{
+  const today=localDateValue();if(today===agendaDay||document.hidden)return;
   if(state.household&&!$('#calendar-view').classList.contains('hidden')&&!document.querySelector('dialog[open]')
-    &&!['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName))void refreshCalendar();
+    &&!['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)){agendaDay=today;void refreshCalendar();}
 },60000);

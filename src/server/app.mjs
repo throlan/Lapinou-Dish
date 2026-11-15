@@ -1,4 +1,5 @@
 import {planningCookingRoutes} from './planning-cooking.mjs';
+import {validatePlanningCopy,previewPlanningCopy,copyPlanningPeriod,addPlanningSelection} from './planning-copy.mjs';
 import {recipeChoiceRoutes} from './recipe-choices.mjs';
 import {communityRoutes} from './community.mjs';
 import {accountGateway} from './accounts.mjs';
@@ -57,6 +58,7 @@ const staticFiles = new Map([
   ['/cooking-method-view.js', ['cooking-method-view.js', 'text/javascript; charset=utf-8']],
   ['/recipe-reviews.js', ['recipe-reviews.js', 'text/javascript; charset=utf-8']],
   ['/accounts-ui.js', ['accounts-ui.js', 'text/javascript; charset=utf-8']],
+  ['/api-client.js', ['api-client.js', 'text/javascript; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/food-pagination.js', ['food-pagination.js', 'text/javascript; charset=utf-8']],
   ['/catalogue-review.js', ['catalogue-review.js', 'text/javascript; charset=utf-8']],
@@ -545,6 +547,15 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
       catch { return send(response, 500, { error: 'planning-delete-failed' }); }
     }
 
+    if(request.method==='POST'&&['/api/planning/copy-preview','/api/planning/copy','/api/planning/selection'].includes(url.pathname)){
+      const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
+      try{
+        let result;
+        if(url.pathname==='/api/planning/selection')result=await addPlanningSelection(pool,body.value);
+        else {const valid=validatePlanningCopy(body.value);if(valid.error)return send(response,400,valid);result=url.pathname.endsWith('copy-preview')?await previewPlanningCopy(pool,valid.data):await copyPlanningPeriod(pool,{...valid.data,requestId:body.value.requestId,fingerprint:body.value.fingerprint});}
+        return send(response,result.error?409:url.pathname.endsWith('copy-preview')?200:201,result);
+      }catch{return send(response,500,{error:'planning-copy-failed'});}
+    }
     if(await planningCookingRoutes(request,response,pool,url))return;
     if(await recipeChoiceRoutes(request,response,pool,url))return;
     if (request.method === 'POST' && url.pathname === '/api/recipes') {
