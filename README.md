@@ -78,3 +78,11 @@ La version 0.2.41 passe **138 tests**, dont des intégrations PostgreSQL/PGlite 
 ### Installer la webapp
 
 Depuis la 0.2.90 : ouvre Lapinou Dish avec son adresse HTTPS habituelle, puis **Installer l’app** (sur mobile : **Plus → Installer l’app**). L’invitation native est proposée lorsque le navigateur la fournit ; sinon le guide explique iPhone/iPad, Android et PC. Une connexion au serveur reste nécessaire. Termine tes saisies puis rouvre ou actualise pour charger une mise à jour. Aucun service worker ni cache hors ligne n’est ajouté. Icônes et prompts : [web/icons/README.md](web/icons/README.md).
+
+### Icône du conteneur
+
+L’image publiée à partir de 0.13.1 et le Compose fourni déclarent le logo Lapinou Dish via le label `net.unraid.docker.icon`. Si ton installation a déjà un champ **Icon URL** ou un label personnalisé, renseigne cette adresse dans sa configuration :
+
+`https://raw.githubusercontent.com/throlan/Lapinou-Dish/main/web/icons/app-192.png`
+
+La métadonnée est appliquée lors de la création du conteneur depuis l’image à jour. Un réglage explicite ou le cache d’affichage de l’installation peut primer sur celui de l’image. Aucun volume ni réglage applicatif n’est modifié.
