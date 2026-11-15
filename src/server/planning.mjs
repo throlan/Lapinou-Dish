@@ -85,20 +85,25 @@ export async function listPlannedRecipeIds(pool, householdId, fromDate) {
   return result.rows.map(row => row.recipe_id);
 }
 
-export async function savePlannedMeal(pool, id, data) {
-  const client = await pool.connect();
-  const mealId = id ?? randomUUID();
-  try {
-    await client.query('BEGIN');
-    await lockHouseholdInventory(client,data.householdId);
-    if(!id&&data.requireEmptySlot){const occupied=await client.query('SELECT 1 FROM planned_meals WHERE household_id=$1 AND meal_date=$2::date AND slot=$3 LIMIT 1',[data.householdId,data.mealDate,data.slot]);if(occupied.rows.length){await client.query('ROLLBACK');return {error:'planning-slot-unavailable'};}}
+export async function savePlannedMeal(pool,id,data) {
+ const client=await pool.connect();
+ try {
+  await client.query('BEGIN');await lockHouseholdInventory(client,data.householdId);
+  const saved=await savePlannedMealInTransaction(client,id,data);
+  await client.query(saved?.error||!saved?'ROLLBACK':'COMMIT');return saved;
+ }catch(error){await client.query('ROLLBACK');if(error.code==='23503')return {error:'invalid-planned-reference'};throw error;}finally{client.release();}
+}
+
+export async function savePlannedMealInTransaction(client,id,data,idOnly=false) {
+ const mealId=id??randomUUID();
+    if(!id&&data.requireEmptySlot){const occupied=await client.query('SELECT 1 FROM planned_meals WHERE household_id=$1 AND meal_date=$2::date AND slot=$3 LIMIT 1',[data.householdId,data.mealDate,data.slot]);if(occupied.rows.length){return {error:'planning-slot-unavailable'};}}
 
     const people = await client.query(
       'SELECT id FROM people WHERE household_id = $1 AND active = true AND id = ANY($2::uuid[])',
       [data.householdId, data.attendeeIds],
     );
     if (people.rowCount !== data.attendeeIds.length) {
-      await client.query('ROLLBACK');
+
       return { error: 'attendee-not-in-household' };
     }
     const recipes = await client.query(
@@ -106,29 +111,29 @@ export async function savePlannedMeal(pool, id, data) {
       [data.householdId, [...new Set(data.items.map((item) => item.recipeId))]],
     );
     if (recipes.rowCount !== new Set(data.items.map((item) => item.recipeId)).size) {
-      await client.query('ROLLBACK');
+
       return { error: 'recipe-not-in-household' };
     }
     const combinations=new Map();
-    for(const row of recipes.rows){const origin=row.choice_origin;if(!origin?.templateId)continue;if(combinations.has(origin.templateId)&&combinations.get(origin.templateId)!==origin.key){await client.query('ROLLBACK');return {error:'one-recipe-combination-per-meal'};}combinations.set(origin.templateId,origin.key);}
+    for(const row of recipes.rows){const origin=row.choice_origin;if(!origin?.templateId)continue;if(combinations.has(origin.templateId)&&combinations.get(origin.templateId)!==origin.key){return {error:'one-recipe-combination-per-meal'};}combinations.set(origin.templateId,origin.key);}
     const normalizedItems = [];
     for (const item of data.items) {
       const recipe = await client.query('SELECT id,yield_amount,separate_starch FROM recipes WHERE id=$1',[item.recipeId]);
       if (recipe.rows[0]?.separate_starch) {
         const parts = await client.query('SELECT id,serving_part,yield_amount FROM recipes WHERE parent_recipe_id=$1 AND serving_part_active',[item.recipeId]);
-        if (!parts.rows.length) { await client.query('ROLLBACK'); return {error:'serving-parts-missing'}; }
+        if (!parts.rows.length) {  return {error:'serving-parts-missing'}; }
         for (const part of parts.rows) normalizedItems.push({recipeId:part.id,role:part.serving_part !== 'main' ? 'accompaniment' : item.role,categoryId:part.serving_part !== 'main' ? 'accompaniment' : item.categoryId,amounts:item.amounts.map(amount=>({personId:amount.personId,quantity:amount.quantity/Number(recipe.rows[0].yield_amount)*Number(part.yield_amount)}))});
       } else normalizedItems.push(item);
     }
-    if (normalizedItems.some(item=>item.amounts.some(amount=>!Number.isFinite(amount.quantity) || amount.quantity > 100000))) { await client.query('ROLLBACK'); return {error:'invalid-planned-quantity'}; }
+    if (normalizedItems.some(item=>item.amounts.some(amount=>!Number.isFinite(amount.quantity) || amount.quantity > 100000))) {  return {error:'invalid-planned-quantity'}; }
     if (id) {
       const existing=await client.query('SELECT prepared_at,EXISTS(SELECT 1 FROM recipe_stock_uses u WHERE u.meal_id=planned_meals.id AND u.automatic AND u.cancelled_at IS NULL) AS stock_used FROM planned_meals WHERE id=$1 AND household_id=$2 FOR UPDATE',[id,data.householdId]);
-      if(existing.rows[0]?.prepared_at||existing.rows[0]?.stock_used){await client.query('ROLLBACK');return {error:'prepared-meal-locked'};}
+      if(existing.rows[0]?.prepared_at||existing.rows[0]?.stock_used){return {error:'prepared-meal-locked'};}
       const updated = await client.query(
         'UPDATE planned_meals SET meal_date = $3, slot = $4, notes = $5, is_occasion=$6, occasion_title=$7, updated_at = now() WHERE id = $1 AND household_id = $2 RETURNING id',
         [id, data.householdId, data.mealDate, data.slot, data.notes, data.isOccasion ?? false, data.occasionTitle ?? ''],
       );
-      if (!updated.rowCount) { await client.query('ROLLBACK'); return null; }
+      if (!updated.rowCount) {  return null; }
       await client.query('DELETE FROM planned_meal_attendees WHERE meal_id = $1', [id]);
       await client.query('DELETE FROM planned_meal_items WHERE meal_id = $1', [id]);
       await client.query('DELETE FROM planned_occasion_energy WHERE meal_id=$1',[id]);
@@ -149,16 +154,8 @@ export async function savePlannedMeal(pool, id, data) {
         await client.query('INSERT INTO planned_amounts (planned_item_id, person_id, quantity) VALUES ($1,$2,$3)', [itemId, amount.personId, amount.quantity]);
       }
     }
-    const saved = await readPlannedMeal(client, { id: mealId }, data.householdId);
-    await client.query('COMMIT');
+    const saved = idOnly ? {id:mealId} : await readPlannedMeal(client, { id: mealId }, data.householdId);
     return saved;
-  } catch (error) {
-    await client.query('ROLLBACK');
-    if (error.code === '23503') return { error: 'invalid-planned-reference' };
-    throw error;
-  } finally {
-    client.release();
-  }
 }
 
 export async function deletePlannedMeal(pool,id,householdId){

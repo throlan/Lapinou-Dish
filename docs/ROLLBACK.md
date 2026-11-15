@@ -1,5 +1,10 @@
 # Images versionnées et retour arrière
 
+## Copies de planning — 0.11.0
+
+La table planning_operations est additive. Revenir à l’image 0.10.0 conserve les repas déjà ajoutés et leurs quantités ; les nouveaux contrôles et le rejeu des nouvelles opérations ne sont plus exposés. Ne pas supprimer la table ni réenvoyer depuis l’ancienne interface une opération dont le résultat était incertain. La référence 0.3.32 reste figée et la règle de conservation GHCR reste inchangée. Déploiement et restauration par l’utilisateur uniquement.
+
+
 ## Ciblage d’une production sur un repas — 0.10.0
 
 Migration additive : planned_meal_id facultatif dans stock_lots. Les anciennes versions ignorent ce ciblage précis et peuvent réserver le lot à un autre repas du même jour en utilisant seulement sa plage de dates. Sauvegarder avant migration ; restaurer la sauvegarde antérieure pour retrouver exactement l’ancienne allocation. Aucun retrait manuel de colonne. Les précautions antérieures concernant les choix de recettes, les foyers et la référence 0.3.32 restent applicables.

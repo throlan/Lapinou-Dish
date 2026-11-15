@@ -13,9 +13,9 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
     <link rel="stylesheet" href="/style.css?v=0.7.0">
     <link rel="stylesheet" href="/editorial.css?v=0.3.17"><link rel="stylesheet" href="/recipe-directory-refresh.css?v=0.7.0">
-      <link rel="stylesheet" href="/recipe-editor-dialog.css?v=0.10.0">
-      <link rel="stylesheet" href="/recipe-choices.css?v=0.10.0">
-      <link rel="stylesheet" href="/recipe-planning.css?v=0.10.0">
+      <link rel="stylesheet" href="/recipe-editor-dialog.css?v=0.11.0">
+      <link rel="stylesheet" href="/recipe-choices.css?v=0.11.0">
+      <link rel="stylesheet" href="/recipe-planning.css?v=0.11.0">
   </head>
   <body>
     <header class="topbar">
@@ -165,9 +165,11 @@
         <div class="section-heading"><div><h2>Calendrier familial</h2><p>Prévisions par personne, reliées aux recettes du catalogue.</p></div><button type="button" class="secondary" id="manage-profiles">Gérer les profils</button></div>
         <div class="calendar-toolbar">
           <div class="calendar-week-nav"><button type="button" class="secondary" id="previous-week" aria-label="Semaine précédente">‹</button><strong id="calendar-week-title"></strong><button type="button" class="secondary" id="next-week" aria-label="Semaine suivante">›</button><button type="button" class="secondary" id="current-week">Aujourd’hui</button></div>
+          <button type="button" class="secondary calendar-copy" id="copy-calendar-week">Dupliquer la semaine</button>
           <button type="button" class="secondary calendar-print-button" id="print-calendar">Imprimer la semaine</button>
           <span class="muted">Prévu · les consommations réelles seront journalisées séparément</span>
         </div>
+        <p id="calendar-copy-message" role="status"></p>
         <div id="calendar-energy-alerts" class="calendar-energy-alerts" role="status" aria-live="polite" hidden></div>
         <nav id="calendar-day-picker" class="calendar-day-picker" aria-label="Jour du calendrier sur téléphone"></nav>
         <div class="calendar-layout">
@@ -530,6 +532,6 @@
       </form>
     </dialog>
     <script type="module" src="/install-app.js?v=0.3.17"></script>
-    <script type="module" src="/app.js?v=0.10.0"></script>
+    <script type="module" src="/app.js?v=0.11.0"></script>
   </body>
 </html>
