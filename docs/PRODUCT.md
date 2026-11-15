@@ -255,7 +255,17 @@ Les règles d’achat sont propres au foyer. Une fiche aliment peut définir l�
 
 ## Évolutions produit à cadrer
 
-La page Importer, les vignettes avec photos, les filtres de données manquantes et la réserve kcal sont livrés. Les évolutions restantes — confort mobile/PWA, comptes individuels liés aux personnes et au foyer, communauté publique et nettoyage du catalogue — sont recensées dans [TODO.md](TODO.md) et [AMELIORATIONS.md](AMELIORATIONS.md). Les variantes et la fusion sûre des doublons décrites dans le produit cible ne sont pas à considérer comme entièrement implémentées.
+La page Importer, les vignettes avec photos, les filtres de données manquantes, la réserve kcal, la webapp, les comptes/foyers et les listes réutilisables de variantes sont livrés. Les évolutions à cadrer sont recensées dans [TODO.md](TODO.md) et [AMELIORATIONS.md](AMELIORATIONS.md), notamment la planification assistée décrite ci-dessous. Le nettoyage du catalogue et le filtre des aliments inutilisés sont retirés des chantiers demandés.
+
+## Planification assistée — demandes du 15 novembre 2026, non développées
+
+- **Menus automatiques pour la semaine via l’IA** : proposer une semaine de menus à partir des recettes du catalogue, des profils et des réglages du foyer. Présenter les propositions avant leur ajout au calendrier ; conserver les repas déjà saisis.
+- **Équilibrage automatique des semaines** : proposer un ajustement de la semaine selon les objectifs de chaque personne. Ce chantier est distinct du rééquilibrage journalier et des alertes hebdomadaires déjà livrés ; ses règles et son aperçu restent à définir avant développement.
+- **Compléter une journée selon les kcal restantes** : proposer des recettes et quantités pour les créneaux encore libres, en tenant compte des repas déjà planifiés, du quota journalier de chaque profil, des ratios kcal configurés par repas et des stocks de préparations déjà produits. Exemple demandé : déjeuner et dîner renseignés → suggestions de petit-déjeuner et de collation adaptées au budget restant. Favoriser les stocks disponibles après réservations, sans les compter plusieurs fois ; conserver les plafonds de portions et les variantes choisies. Rendre visibles les écarts et laisser l’utilisateur choisir avant enregistrement.
+
+Ces trois demandes sont inscrites au cahier d’améliorations ; elles ne sont pas encore développées. Leur ordre de réalisation reste à choisir.
+
+Le nettoyage du catalogue, le filtre des aliments inutilisés et la fusion guidée des doublons sont retirés des chantiers à prévoir à la demande de l’utilisateur. Les outils du catalogue déjà livrés restent disponibles ; la fiabilisation des données nutritionnelles, conversions et mesures personnelles reste un sujet distinct.
 
 ## Jalons de validation
 
