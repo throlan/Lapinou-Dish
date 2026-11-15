@@ -1,5 +1,15 @@
 # Cahier des améliorations proposées
 
+## Planification assistée — demandes du 15 novembre 2026, non développées
+
+- **Menus automatiques pour la semaine via l’IA** : proposer une semaine de menus à partir des recettes du catalogue, des profils et des réglages du foyer. Présenter les propositions avant leur ajout au calendrier ; conserver les repas déjà saisis.
+- **Équilibrage automatique des semaines** : proposer un ajustement de la semaine selon les objectifs de chaque personne. Ce chantier est distinct du rééquilibrage journalier et des alertes hebdomadaires déjà livrés ; ses règles et son aperçu restent à définir avant développement.
+- **Compléter une journée selon les kcal restantes** : proposer des recettes et quantités pour les créneaux encore libres, en tenant compte des repas déjà planifiés, du quota journalier de chaque profil, des ratios kcal configurés par repas et des stocks de préparations déjà produits. Exemple demandé : déjeuner et dîner renseignés → suggestions de petit-déjeuner et de collation adaptées au budget restant. Favoriser les stocks disponibles après réservations, sans les compter plusieurs fois ; conserver les plafonds de portions et les variantes choisies. Rendre visibles les écarts et laisser l’utilisateur choisir avant enregistrement.
+
+Ces trois demandes sont inscrites au cahier d’améliorations ; elles ne sont pas encore développées. Leur ordre de réalisation reste à choisir.
+
+Le nettoyage du catalogue, le filtre des aliments inutilisés et la fusion guidée des doublons sont retirés des chantiers à prévoir à la demande de l’utilisateur. Les outils du catalogue déjà livrés restent disponibles ; la fiabilisation des données nutritionnelles, conversions et mesures personnelles reste un sujet distinct.
+
 ## Apports des variantes et cohérence du batch cooking — 0.12.0
 
 Sur une recette modulable, Apports selon les choix ouvre une comparaison consultative depuis la fiche. La fenêtre de choix avant Cuisiner ou Planifier affiche aussi les apports de la combinaison sélectionnée dès le changement d’une protéine, d’une saveur ou d’un topping. Calories par portion/pièce/tranche ou pour 100 g/ml, badge de densité calorique et macronutriments utilisent les quantités, états et coefficients réels de la recette ; aucune moyenne ni remplacement de valeur absente par zéro. Les badges du catalogue portent la mention par défaut. L’éditeur d’une recette existante propose une comparaison de sa version enregistrée : enregistrer les nouvelles quantités/ingrédients avant de les comparer. Les réponses tardives d’un ancien choix sont ignorées. La comparaison GET ne crée ni recette, ni déclinaison, ni repas ; seule l’utilisation explicite d’une combinaison conserve le mécanisme d’instantané existant. Les membres du foyer peuvent comparer.
@@ -338,7 +348,7 @@ Une première expérimentation pourrait se limiter à un catalogue public en lec
 
 ## Prochaines décisions
 
-La liste synthétique à jour est dans [TODO.md](TODO.md). Ordre décidé par l’utilisateur : 1. webapp installable (livrée en 0.2.90), 2. comptes individuels et foyers (développés en 0.4.1), 3. aide à la correction des données nutritionnelles, 4. communauté publique, 5. nettoyage du catalogue. À la demande de l’utilisateur, le nettoyage du catalogue (filtre des aliments inutilisés puis fusion guidée des doublons) passe en dernière priorité : le cahier de recettes doit d’abord être consolidé. Préserver ensuite les références, stocks, conversions et magasins ; aucune suppression automatique. Le design responsive est livré en 0.2.89. Cet ordre reste une proposition ; attendre la demande de l’utilisateur avant de commencer.
+La liste synthétique à jour est dans [TODO.md](TODO.md). Les nouvelles demandes de planification assistée sont détaillées en tête de ce document. L’aide à la correction nutritionnelle et la communauté publique restent à cadrer. Le nettoyage du catalogue et le filtre des aliments inutilisés ont été retirés du périmètre demandé le 15 novembre 2026. Aucun de ces nouveaux chantiers n’est lancé automatiquement.
 
 ## Recettes utilisées comme composants — réalisé en 0.2.82
 
@@ -350,7 +360,7 @@ Calcul initial 0.2.83 conservé, conversion en unités pratiques et arrondi au p
 
 ## Livré — produits d’achat et exclusions, 0.2.87
 
-Acheter sous un produit commun avec équivalence explicite, stock partagé et addition avant arrondi ; sources nutritionnelles distinctes et liens de recettes conservés. Exclusions permanentes ou pour la période, réactivables. Les blancs ne sont pas regroupés automatiquement. La fusion d’aliments du catalogue demeure un chantier distinct.
+Acheter sous un produit commun avec équivalence explicite, stock partagé et addition avant arrondi ; sources nutritionnelles distinctes et liens de recettes conservés. Exclusions permanentes ou pour la période, réactivables. Les blancs ne sont pas regroupés automatiquement. La fusion d’aliments du catalogue ne fait plus partie des chantiers demandés (décision du 15 novembre 2026).
 
 ## Livré — saisie des achats en unités, 0.2.88
 

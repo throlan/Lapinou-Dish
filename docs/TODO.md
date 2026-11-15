@@ -1,4 +1,14 @@
-# Prochaines tâches — 12 novembre 2026
+# Prochaines tâches — 15 novembre 2026
+
+## Planification assistée — demandes du 15 novembre 2026, non développées
+
+- **Menus automatiques pour la semaine via l’IA** : proposer une semaine de menus à partir des recettes du catalogue, des profils et des réglages du foyer. Présenter les propositions avant leur ajout au calendrier ; conserver les repas déjà saisis.
+- **Équilibrage automatique des semaines** : proposer un ajustement de la semaine selon les objectifs de chaque personne. Ce chantier est distinct du rééquilibrage journalier et des alertes hebdomadaires déjà livrés ; ses règles et son aperçu restent à définir avant développement.
+- **Compléter une journée selon les kcal restantes** : proposer des recettes et quantités pour les créneaux encore libres, en tenant compte des repas déjà planifiés, du quota journalier de chaque profil, des ratios kcal configurés par repas et des stocks de préparations déjà produits. Exemple demandé : déjeuner et dîner renseignés → suggestions de petit-déjeuner et de collation adaptées au budget restant. Favoriser les stocks disponibles après réservations, sans les compter plusieurs fois ; conserver les plafonds de portions et les variantes choisies. Rendre visibles les écarts et laisser l’utilisateur choisir avant enregistrement.
+
+Ces trois demandes sont inscrites au cahier d’améliorations ; elles ne sont pas encore développées. Leur ordre de réalisation reste à choisir.
+
+Le nettoyage du catalogue, le filtre des aliments inutilisés et la fusion guidée des doublons sont retirés des chantiers à prévoir à la demande de l’utilisateur. Les outils du catalogue déjà livrés restent disponibles ; la fiabilisation des données nutritionnelles, conversions et mesures personnelles reste un sujet distinct.
 
 ## À vérifier après déploiement — 0.12.0
 
@@ -131,16 +141,15 @@ Référence préparée : **0.2.96**, réglages d’unité d’achat par aliment 
 ## Pistes à choisir et préciser
 
 1. **Webapp — livrée en 0.2.90** : installation, icônes et guide iOS/Android/PC en place, critères vérifiés dans Chrome local. Recueillir le retour sur appareils physiques. Le hors-ligne et la synchronisation restent des chantiers distincts, sans demande de lancement.
-2. **Comptes individuels et foyer — reportés** : décision de l’utilisateur après discussion du futur usage communautaire et d’une distribution/hébergement. Le modèle de comptes, profils, appartenances et droits reste à cadrer ; le choix gestionnaire/membre proposé initialement n’est pas validé. Aucun développement d’authentification individuelle n’a commencé. L’accès actuel reste une session par mot de passe du foyer. Ne pas reprendre ce chantier sans nouvelle demande.
+2. **Comptes individuels et foyers — livrés** : ne pas redévelopper les comptes et droits existants. Les invitations par courriel et la récupération autonome du mot de passe restent à traiter.
 3. **Correction des données nutritionnelles** : les filtres et badges existent. Améliorer l'explication des causes de calcul incomplet et l'accès aux ingrédients/conversions à corriger ; définir les critères avant développement.
 4. **Communauté publique** : cadrer bibliothèque volontaire, droits et attribution des images/recettes, modération et isolation des données privées avant toute ouverture.
-5. **Nettoyage du catalogue alimentaire — dernière priorité, après consolidation du cahier de recettes** : le compteur et les liens « Dans X recettes » sont livrés. Première étape proposée : filtre « inutilisés ». Ensuite, envisager une fusion guidée des doublons, avec aperçu des références et conservation des recettes, conversions, associations magasins et stocks. Ne pas supprimer automatiquement des aliments.
 
-Détails et variantes dans [AMELIORATIONS.md](AMELIORATIONS.md). Les variantes indépendantes de recettes et l'affichage de photos en mode cuisine restent des pistes à confirmer, sans priorité décidée.
+Détails dans [AMELIORATIONS.md](AMELIORATIONS.md). Les listes réutilisables de variantes et les photos en mode cuisine sont déjà livrées. Les nouvelles demandes de planification assistée figurent en tête de ce document.
 
 ## Décisions récentes à conserver
 
-- La gestion des utilisateurs est différée ; les autres pistes restent à choisir, sans lancement automatique.
+- Les comptes et foyers sont livrés ; les nouvelles pistes restent à choisir, sans lancement automatique.
 - Une seule collation est souhaitée, l’après-midi. La suppression du créneau du soir n’est pas implémentée : cadrer la transition et préserver les menus historiques avant de modifier les cinq créneaux actuels.
 - Les répartitions horaires restent actuellement communes au foyer, avec objectifs kcal propres à chaque personne. Aucun quota par âge ni nouvelle répartition nutritionnelle n’a été ajouté à la suite de la recherche documentaire.
 
