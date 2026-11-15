@@ -1,5 +1,22 @@
 # Cahier de reprise — 12 novembre 2026
 
+## Listes de choix et recettes modulables — 0.9.0
+
+Décisions confirmées le 15 novembre : une recette de base avec plusieurs groupes indépendants, pour tous les types (plats, desserts, boissons, sauces, etc.). Exemples : Bowl → légumineuse + protéine ; Flan → saveur + topping. Les listes sont réutilisables et modifiables dans le foyer. Tous leurs ingrédients doivent référencer le catalogue alimentaire ; aucun aliment textuel n’est inventé. La même combinaison est utilisée pour les personnes du repas, avec les portions adaptées par le moteur existant.
+
+Dans Recettes, « Listes de choix » crée, renomme, modifie ou archive les listes. L’éditeur d’une recette permet d’attacher une liste à une ligne d’ingrédient, nommer ce groupe, régler les quantités/unités/états de chaque option et autoriser « Sans cet ingrédient ». Une recette peut avoir plusieurs groupes ; les autres ingrédients restent communs. Le choix par défaut correspond à la ligne existante. Les nouvelles options reprennent la quantité/unité de cette ligne pour préremplissage, sans garantir une équivalence nutritionnelle : vérifier avant enregistrement. Les coefficients restent ceux des fiches alimentaires et des règles d’état déjà livrées.
+
+Une liste est indépendante de ses usages : modifier ou archiver la bibliothèque ne réécrit pas les recettes ni les repas. Dans chaque recette, « Actualiser les choix depuis la liste » reprend volontairement la liste courante, conserve les quantités des options déjà configurées et demande de vérifier les nouvelles. Les listes privées ne sont pas publiées avec leurs identifiants de foyer ; le partage d’une recette transmet ses choix et tous les aliments nécessaires, et l’import garde les références du catalogue.
+
+Le choix est demandé avant Cuisiner hors menus, la planification d’un repas, la production directe ou la planification d’une préparation hors menus. Plusieurs choix du dessert s’appliquent à tous les participants. « Modifier les choix » permet de changer la combinaison du repas. Les ingrédients retenus déterminent nutrition, unités, grammes servis, courses, stocks et productions. Une information nutritionnelle absente reste signalée ; aucun zéro n’est inventé.
+
+Les combinaisons ne sont jamais générées en masse. Seule une combinaison effectivement choisie crée un instantané interne réutilisé pour les mêmes choix et version de recette. Cet instantané garde les lignes et quantités choisies ; une édition future de la recette ou des listes ne le modifie pas. Les données du catalogue restent la source des noms, nutriments et conversions, comme ailleurs dans l’application. Les instantanés sont cachés du catalogue, des suggestions libres et du partage en lot ; ils restent visibles dans les repas, préparations et stocks qui les utilisent. Le serveur refuse deux combinaisons différentes d’une même recette de base dans un même repas.
+
+Les listes sont privées au foyer, lisibles par ses membres et gérées par ses gestionnaires ou l’administrateur de l’application. Les droits des recettes restent inchangés ; un membre peut choisir une combinaison pour consulter Cuisiner sans modifier les stocks. Les instantanés de composition ne sont pas des fiches à éditer : modifier la recette de base ou changer les choix du repas.
+
+Migration additive 20261115_recipe_choices.sql : listes, références aux aliments (suppression protégée), groupes et identité des instantanés. Les recettes sans choix et tous les menus, lots, stocks et calculs existants sont conservés. Aucune conversion automatique des quelque 200 recettes ni fusion/suppression. La référence 0.3.32 reste figée. Aucun accès à Unraid ni Nginx ; déploiement par l’utilisateur uniquement.
+
+
 ## Éditeur de recette en fenêtre et onglets — 0.8.0
 
 La création, la modification, la duplication et la vérification d’un brouillon importé ouvrent maintenant une fenêtre modale centrée, au lieu de descendre sous la liste. Quatre onglets regroupent les champs : Informations (nom, description, type, moments, source), Ingrédients (rendement, service et lignes), Préparation (temps, difficulté, étapes et validation de relecture) et Réglages (production, lot minimum, équivalences et avis).

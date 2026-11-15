@@ -1,3 +1,4 @@
+import {checkChoiceGroups} from './recipe-choice-model.mjs';
 import {validateMethod,instructionSteps} from '../domain/recipe-method.mjs';
 import { addServingLoad, servingIngredientLoad } from './serving-limits.mjs';
 import {componentErrors,loadRecipeGraph,validateRecipeGraph,recipeFraction,recipeWeight} from './recipe-ingredients.mjs';
@@ -45,6 +46,7 @@ export async function deleteRecipe(pool,id,data,imageOptions) {
 }
 
 export function validateRecipeInput(input) {
+  if(input?.choiceGroups!==undefined)return checkChoiceGroups(input,validateRecipeInput);
   if (!input || typeof input !== 'object' || Array.isArray(input)) return { error: 'invalid-body' };
   if (typeof input.name !== 'string' || !input.name.trim() || input.name.trim().length > 200) return { error: 'invalid-name' };
   if (!isUuid(input.householdId)) return { error: 'invalid-household-id' };
@@ -116,6 +118,8 @@ export async function updateRecipeSettings(pool, id, data) {
     if(!current)return null;
     if(current.version!==data.version)return {error:'recipe-version-conflict'};
     const config=data.configuration;
+    if(current.choiceInstance)return {error:'recipe-choice-instance-readonly'};
+    if(current.choiceGroups?.length)return {error:'edit-choice-recipe-in-editor'};
     if(config.lineParts.length!==current.lines.length)return {error:'invalid-serving-parts'};
     // Reuse the complete editor's validation, stock/history protections and parent propagation.
     const outputUnits={...current.outputUnits};
@@ -130,8 +134,9 @@ export async function updateRecipeSettings(pool, id, data) {
   try {
     await client.query('BEGIN');
     await lockHouseholdInventory(client, data.householdId);
-    const current = await client.query('SELECT version, production_type, recipe_archived, replaced_by_recipe_id FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL FOR UPDATE', [id, data.householdId]);
+    const current = await client.query('SELECT version, production_type, recipe_archived, replaced_by_recipe_id,choice_instance FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL FOR UPDATE', [id, data.householdId]);
     if (!current.rowCount) { await client.query('ROLLBACK'); return null; }
+    if(current.rows[0].choice_instance){await client.query('ROLLBACK');return {error:'recipe-choice-instance-readonly'};}
     if(current.rows[0].recipe_archived){await client.query('ROLLBACK');return {error:'recipe-replaced',replacementId:current.rows[0].replaced_by_recipe_id};}
     if (Number(current.rows[0].version) !== data.version) { await client.query('ROLLBACK'); return { error: 'recipe-version-conflict' }; }
     if(data.productionType!==undefined && current.rows[0].production_type!==data.productionType
@@ -168,6 +173,25 @@ async function requireCatalogueCookingFactors(client,lines){
   if(missing.rowCount)throw new Error('cooking-factor-required');
 }
 
+async function saveChoiceGroups(client,id,data){
+ if(data.choiceGroups===undefined)return;
+ const groups=data.choiceGroups;
+ const ids=[...new Set(groups.flatMap(g=>g.options.map(o=>o.foodId)))];
+ if(ids.length){
+  const found=await client.query('SELECT id,canonical_name AS name FROM foods WHERE id=ANY($1::uuid[])',[ids]);
+  if(found.rows.length!==ids.length)throw new Error('unknown-choice-food');
+  for(const group of groups)for(const option of group.options)option.foodName=found.rows.find(f=>f.id===option.foodId).name;
+ }
+ for(const group of groups)if(group.listId){
+  if(!/^[a-f0-9-]{36}$/i.test(group.listId))throw new Error('invalid-choice-list');
+  const own=await client.query('SELECT id FROM recipe_choice_lists WHERE id=$1 AND household_id=$2',[group.listId,data.householdId]);
+  if(!own.rows.length)throw new Error('invalid-choice-list');
+ }
+ await client.query('DELETE FROM recipe_choice_food_refs WHERE recipe_id=$1',[id]);
+ for(const foodId of ids)await client.query('INSERT INTO recipe_choice_food_refs(recipe_id,food_id) VALUES($1,$2)',[id,foodId]);
+ await client.query('UPDATE recipes SET choice_groups=$2::jsonb WHERE id=$1',[id,JSON.stringify(groups)]);
+}
+
 async function insertRecipe(client, id, data) {
     await client.query(
       `INSERT INTO recipes (id, household_id, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type, meal_moments,separate_starch,cooking_factors,output_units,minimum_production_amount,minimum_production_unit_id,cooking_details,instruction_steps,review_validated,rating_enabled)
@@ -181,6 +205,7 @@ async function insertRecipe(client, id, data) {
         [randomUUID(), id, line.foodId, line.quantity, line.unitId, index,line.servingPart ?? 'main',line.cookingFactor ?? null,line.recipeId??null,line.cookingState??'legacy'],
       );
     }
+    await saveChoiceGroups(client,id,data);
     await requireCatalogueCookingFactors(client,data.lines);
     validateRecipeGraph(await loadRecipeGraph(client,data.householdId));
     await syncServingParts(client,id,data);
@@ -199,7 +224,7 @@ export async function createRecipe(pool, data) {
     return recipe;
   } catch (error) {
     await client.query('ROLLBACK');
-    if ([...componentErrors,'cooking-factor-required','serving-weight-conversion-required','invalid-serving-weight','serving-part-removal-not-supported','serving-parts-cannot-be-disabled'].includes(error.message)) return {error:error.message};
+    if ([...componentErrors,'unknown-choice-food','invalid-choice-list','cooking-factor-required','serving-weight-conversion-required','invalid-serving-weight','serving-part-removal-not-supported','serving-parts-cannot-be-disabled'].includes(error.message)) return {error:error.message};
     if (error.code === '23503') return { error: 'unknown-household-food-or-unit' };
     throw error;
   } finally {
@@ -247,9 +272,10 @@ export async function updateRecipe(pool, id, data, expectedVersion=null) {
       if(Number(found.rows[0].version)!==expectedVersion){await client.query('ROLLBACK');return {error:'recipe-version-conflict'};}
     }
     if(data.lines.some(line=>line.recipeId===id))throw new Error('recipe-ingredient-cycle');
-    const previous=await client.query('SELECT yield_amount,yield_unit_id,production_type,output_units,separate_starch,serving_weights,recipe_archived,replaced_by_recipe_id FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL',[id,data.householdId]);
+    const previous=await client.query('SELECT yield_amount,yield_unit_id,production_type,output_units,separate_starch,serving_weights,recipe_archived,replaced_by_recipe_id,choice_instance FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL',[id,data.householdId]);
     const old=previous.rows[0];
     if(!old){await client.query('ROLLBACK');return null;}
+    if(old.choice_instance){await client.query('ROLLBACK');return {error:'recipe-choice-instance-readonly'};}
     if(old.recipe_archived){
       await client.query('ROLLBACK');
       return {error:'recipe-replaced',replacementId:old.replaced_by_recipe_id};
@@ -283,6 +309,7 @@ export async function updateRecipe(pool, id, data, expectedVersion=null) {
         [randomUUID(), id, line.foodId, line.quantity, line.unitId, index,line.servingPart ?? 'main',line.cookingFactor ?? null,line.recipeId??null,line.cookingState??'legacy'],
       );
     }
+    await saveChoiceGroups(client,id,data);
     await requireCatalogueCookingFactors(client,data.lines);
     validateRecipeGraph(await loadRecipeGraph(client,data.householdId));
     await syncServingParts(client,id,data);
@@ -292,7 +319,7 @@ export async function updateRecipe(pool, id, data, expectedVersion=null) {
     return recipe;
   } catch (error) {
     await client.query('ROLLBACK');
-    if ([...componentErrors,'cooking-factor-required','serving-weight-conversion-required','invalid-serving-weight','serving-part-removal-not-supported','serving-parts-cannot-be-disabled'].includes(error.message)) return {error:error.message};
+    if ([...componentErrors,'unknown-choice-food','invalid-choice-list','cooking-factor-required','serving-weight-conversion-required','invalid-serving-weight','serving-part-removal-not-supported','serving-parts-cannot-be-disabled'].includes(error.message)) return {error:error.message};
     if (error.code === '23503') return { error: 'unknown-household-food-or-unit' };
     throw error;
   } finally {
@@ -303,7 +330,7 @@ export async function updateRecipe(pool, id, data, expectedVersion=null) {
 export async function readRecipe(client, id, path=[]) {
   if(path.includes(id))throw new Error('recipe-ingredient-cycle');
   const recipeResult = await client.query(
-    `SELECT id, household_id,output_units, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type,minimum_production_amount,minimum_production_unit_id, meal_moments,separate_starch,serving_weights,cooking_factors,parent_recipe_id,serving_part,serving_part_active,version,recipe_archived,replaced_by_recipe_id,cooking_details,instruction_steps,review_validated,rating_enabled,created_by_account_id,
+    `SELECT id, household_id,output_units, name, description, yield_amount, yield_unit_id, instructions, source_url, recipe_type, production_type,minimum_production_amount,minimum_production_unit_id, meal_moments,separate_starch,serving_weights,cooking_factors,parent_recipe_id,serving_part,serving_part_active,version,recipe_archived,replaced_by_recipe_id,cooking_details,instruction_steps,review_validated,rating_enabled,created_by_account_id,choice_groups,choice_instance,choice_origin,
             EXISTS (SELECT 1 FROM recipe_images WHERE recipe_id=recipes.id) AS image_available,
             (SELECT count(*) FROM recipes siblings WHERE siblings.parent_recipe_id=recipes.parent_recipe_id AND siblings.serving_part_active) AS sibling_count,
             (SELECT parent.name FROM recipes parent WHERE parent.id=recipes.parent_recipe_id) AS parent_recipe_name,
@@ -328,7 +355,7 @@ export async function readRecipe(client, id, path=[]) {
     componentId: null, variantId: null, servingPart: line.serving_part ?? 'main', cookingFactor: line.cooking_factor == null ? null : Number(line.cooking_factor),cookingState:line.cooking_state??'legacy',foodCookingFactor:line.food_cooking_factor==null?null:Number(line.food_cooking_factor),
     originalCookingFactor:line.original_cooking_factor==null?null:Number(line.original_cooking_factor),
   }));
-  const foodIds = [...new Set(lines.map((line) => line.foodId))];
+  const foodIds = [...new Set([...lines.map(line=>line.foodId),...(row.choice_groups??[]).flatMap(g=>g.options.map(o=>o.foodId))])].filter(Boolean);
   const foodsResult = foodIds.length ? await client.query(
     `SELECT f.id, f.canonical_name AS name, f.brand, f.source, f.source_reference,
             f.source_note, f.grams_per_millilitre, f.food_category,
@@ -406,7 +433,7 @@ export async function readRecipe(client, id, path=[]) {
     issue.reason==='component-data-missing'?lines[issue.lineIndex].componentEnergyKnown!==true:
       issue.reason!=='nutrient-data-missing'||issue.missingNutrients.includes('energyKcal'));
   return {
-    containsWhey,servingWeightG,energyKnown,servingDisplay,
+    containsWhey,servingWeightG,energyKnown,servingDisplay,choiceGroups:(row.choice_groups??[]).map(g=>({...g,options:g.options.map(o=>({...o,foodName:foodById.get(o.foodId)?.name??o.foodName}))})),choiceInstance:row.choice_instance??false,choiceOrigin:row.choice_origin??null,
     eggServingStep:lines.length===1&&lines[0].foodId&&servingLoad.eggs>0?Number(row.yield_amount)/servingLoad.eggs:null,
     servingLoad:Object.fromEntries(Object.entries(servingLoad).map(([key,value])=>[key,value==null?null:value/Number(row.yield_amount)])),
     separateStarch:row.separate_starch ?? false,servingWeights:row.serving_weights ?? {},cookingFactors:row.cooking_factors ?? {main:1,starch:3},parentRecipeId:row.parent_recipe_id ?? null,parentRecipeName:row.parent_recipe_name??null,servingPart:row.serving_part ?? null,servingPartActive:row.serving_part_active??true,servingParts,archivedServingParts,imageAvailable:Boolean(row.image_available),

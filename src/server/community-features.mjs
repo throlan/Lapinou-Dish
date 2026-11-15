@@ -18,7 +18,7 @@ function today() {
  return `${value('year')}-${value('month')}-${value('day')}`;
 }
 export async function ratingsOverview(pool,actor,mealId=null) {
- const recipes=(await pool.query(`SELECT local.id,local.name,
+ const recipes=(await pool.query(`SELECT local.id,local.name,local.choice_instance AS "choiceInstance",
    (SELECT round(avg(v.score)::numeric,2) FROM recipe_reviews v JOIN recipes original ON original.id=v.recipe_id WHERE original.review_key=local.review_key) AS average,
    (SELECT count(*)::int FROM recipe_reviews v JOIN recipes original ON original.id=v.recipe_id WHERE original.review_key=local.review_key) AS count
   FROM recipes local WHERE local.household_id=$1 AND local.parent_recipe_id IS NULL AND NOT local.recipe_archived AND local.rating_enabled`,[actor.householdId])).rows;

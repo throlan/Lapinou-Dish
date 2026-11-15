@@ -1,3 +1,4 @@
+import {createRecipeChoices} from './recipe-choices.js';
 import {createRecipeEditorDialog} from './recipe-editor-dialog.js';
 import {recipePermissions} from './recipe-permissions.js';
 import {createRecipeMethodEditor} from './recipe-method-editor.js';
@@ -24,6 +25,7 @@ const state = { offset: 0, limit: 50, query: '', foodCategory: '', missingField:
 const recipeEditorDialog=createRecipeEditorDialog(document);
 const recipeMethodEditor=createRecipeMethodEditor(document.querySelector('#recipe-method-editor'),document.querySelector('#recipe-form'));
 const accountUI=createAccountUI({api,onSession:session=>{state.account=session.account??null;}});
+const recipeChoices=createRecipeChoices({api,getHousehold:()=>state.household,getAccount:()=>state.account,onFood:id=>openFoodEditor(id,{fromRecipe:true})});
 const recipeReviews=createRecipeReviews({api,getAccount:()=>state.account,onChange:()=>renderFilteredRecipes()});
 recipeReviews.addFilter(document.querySelector('#recipe-advanced-controls'));
 let recipeImageConfig={enabled:false}, imageRecipeId=null;
@@ -536,7 +538,7 @@ function renderProductionOptions() {
   const extra=$('#extra-production-recipe');
   const previous=select.value;
   const available=state.recipes.filter(recipe=>recipe.productionType&&recipe.productionType!=='none'&&!recipe.parentRecipeId);
-  const current=available.filter(recipe=>!recipe.recipeArchived);
+  const current=available.filter(recipe=>!recipe.recipeArchived&&!recipe.choiceInstance);
   const plannedIds=new Set(state.preparations.filter(item=>item.toMakeQuantity>0&&item.productionType!=='none')
     .map(item=>item.parentRecipeId??item.recipeId));
   select.replaceChildren(new Option('Choisir une préparation des menus…',''));
@@ -579,7 +581,7 @@ $('#extra-production-plan-form').elements.recipeId.addEventListener('change',eve
 $('#extra-production-plan-form').addEventListener('submit',async event=>{
   event.preventDefault();const form=event.currentTarget,button=$('button[type="submit"]',form);if(!form.reportValidity()||!state.household)return;
   button.disabled=true;
-  try{await api('/api/household-planning/extra-productions',{method:'POST',body:JSON.stringify({householdId:state.household.id,recipeId:form.elements.recipeId.value,plannedOn:form.elements.plannedOn.value,quantity:Number(form.elements.quantity.value),storage:form.elements.storage.value,note:form.elements.note.value})});
+  try{const chosen=await chooseRecipeCombination(state.recipes.find(r=>r.id===form.elements.recipeId.value));if(!chosen)return;await api('/api/household-planning/extra-productions',{method:'POST',body:JSON.stringify({householdId:state.household.id,recipeId:chosen.id,plannedOn:form.elements.plannedOn.value,quantity:Number(form.elements.quantity.value),storage:form.elements.storage.value,note:form.elements.note.value})});
     form.reset();form.elements.plannedOn.value=localDateValue();showMessage($('#extra-production-plan-message'),'Préparation planifiée : ingrédients ajoutés aux courses, stock inchangé.',true);await refreshShopping();}
   catch(error){showMessage($('#extra-production-plan-message'),'Planification impossible : '+(error.body?.error??error.message));}
   finally{button.disabled=false;}
@@ -883,6 +885,8 @@ $('#production-form').addEventListener('submit',async event=>{
   if(pendingProduction?.fingerprint!==fingerprint) pendingProduction={fingerprint,requestId:newProductionRequestId()};
   button.disabled=true;
   try{
+    const chosen=await chooseRecipeCombination(state.recipes.find(r=>r.id===payload.recipeId));if(!chosen)return;payload.recipeId=chosen.id;
+    const resolvedFingerprint=JSON.stringify(payload);if(pendingProduction?.fingerprint!==resolvedFingerprint)pendingProduction={fingerprint:resolvedFingerprint,requestId:newProductionRequestId()};
     const {lot}=await api('/api/household-planning/production',{method:'POST',body:JSON.stringify({...payload,requestId:pendingProduction.requestId})});
     pendingProduction=null;form.reset();setProductionPeriod(form,null);form.elements.producedOn.value=localDateValue();
     const deductions=(lot.deductions??[]).map(item=>`${item.name} : −${formatQty(item.usedG)} g`).join(' · ');
@@ -1855,6 +1859,7 @@ function addRecipeLine(initial = null) {
   const actions=document.createElement('div');actions.className='ingredient-actions';actions.append(changeMatch,editFood);
   foodBox.append(search,select,incompleteTag);row.append(foodBox,controls,hint,actions);$('#recipe-lines').append(row);
   if (initial?.foodId) changeMatch.classList.remove('hidden');
+  recipeChoices.attach(row,initial?.choiceGroup);
   // Imported ingredient names are already a useful search query. Trigger the
   // same lookup as typing so the dropdown is populated during recipe review.
   if (initial?.foodName && !initial?.foodId) search.dispatchEvent(new Event('input'));
@@ -1872,7 +1877,7 @@ function addRecipeIngredientLine(initial=null) {
   const caption=document.createElement('span');caption.textContent='Préparation maison';
   const select=document.createElement('select');select.setAttribute('aria-label','Recette liée');select.required=true;
   select.add(new Option('Choisir une préparation…',''));
-  for(const recipe of state.recipes.filter(r=>r.id!==state.editingRecipeId&&(!r.recipeArchived||r.id===initial?.recipeId)).sort((a,b)=>a.name.localeCompare(b.name,'fr')))select.add(new Option(recipe.name,recipe.id));
+  for(const recipe of state.recipes.filter(r=>r.id!==state.editingRecipeId&&(!r.choiceInstance||r.id===initial?.recipeId)&&(!r.recipeArchived||r.id===initial?.recipeId)).sort((a,b)=>a.name.localeCompare(b.name,'fr')))select.add(new Option(recipe.name,recipe.id));
   select.value=initial?.recipeId??'';
   const quantity=document.createElement('input');quantity.type='number';quantity.min='0.001';quantity.max='100000';quantity.step='any';quantity.required=true;quantity.value=String(initial?.quantity??1);quantity.setAttribute('aria-label','Quantité');
   const unit=document.createElement('select');unit.setAttribute('aria-label','Unité');unit.required=true;
@@ -1933,6 +1938,7 @@ $('#recipe-form').elements.recipeType.addEventListener('change', () => {
   if (['dessert','beverage','sauce'].includes(form.elements.recipeType.value)) form.elements.servingMode.value = 'original';
   updateServingConfiguration();
 });
+$('#recipe-choice-lists').addEventListener('click',()=>recipeChoices.manage());
 $('#new-recipe').addEventListener('click', () => openRecipeEditor());
 $('#cancel-recipe').addEventListener('click', () => recipeEditorDialog.close());
 $('#delete-current-recipe')?.addEventListener('click',event=>{
@@ -1985,7 +1991,7 @@ $('#recipe-form').addEventListener('submit', async (event) => {
   try {
     const path = state.editingRecipeId ? `/api/recipes/${state.editingRecipeId}` : '/api/recipes';
     const method = state.editingRecipeId ? 'PUT' : 'POST';
-    const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, productionType: form.elements.productionType.value, minimumProductionAmount:Number(form.elements.minimumProductionAmount.value||0),minimumProductionUnitId:form.elements.minimumProductionUnitId.value, recipeType: form.elements.recipeType.value, mealMoments: [...form.querySelectorAll('input[name="mealMoments"]:checked')].map((input) => input.value), instructions: form.elements.instructions.value,steps:recipeMethodEditor.steps(),cooking:recipeMethodEditor.cooking(),reviewValidated:form.elements.reviewValidated.checked,ratingEnabled:form.elements.ratingEnabled.checked, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, outputUnits:Object.fromEntries(['piece','slice','portion','g','ml'].flatMap(unit=>{const value=form.elements['output_'+unit]?.value;return value?[[unit,Number(unit===form.elements.yieldUnit.value?form.elements.yieldAmount.value:value)]]:[];})), ...servingOptions, lines }) });
+    const { recipe } = await api(path, { method, body: JSON.stringify({ name: form.elements.name.value, description: form.elements.description.value, productionType: form.elements.productionType.value, minimumProductionAmount:Number(form.elements.minimumProductionAmount.value||0),minimumProductionUnitId:form.elements.minimumProductionUnitId.value, recipeType: form.elements.recipeType.value, mealMoments: [...form.querySelectorAll('input[name="mealMoments"]:checked')].map((input) => input.value), instructions: form.elements.instructions.value,steps:recipeMethodEditor.steps(),cooking:recipeMethodEditor.cooking(),reviewValidated:form.elements.reviewValidated.checked,ratingEnabled:form.elements.ratingEnabled.checked, sourceUrl: form.elements.sourceUrl.value || null, householdId: state.household.id, yield: { amount: Number(form.elements.yieldAmount.value), unitId: form.elements.yieldUnit.value }, outputUnits:Object.fromEntries(['piece','slice','portion','g','ml'].flatMap(unit=>{const value=form.elements['output_'+unit]?.value;return value?[[unit,Number(unit===form.elements.yieldUnit.value?form.elements.yieldAmount.value:value)]]:[];})), ...servingOptions,choiceGroups:recipeChoices.serialize(Array.from(document.querySelectorAll('#recipe-lines > .recipe-line'))), lines }) });
     const generateImage=state.generateImportedImage;state.generateImportedImage=false;
     if (state.importingDraftId) {
       await api(`/api/recipe-imports/${state.importingDraftId}/converted`, { method: 'POST', body: JSON.stringify({ householdId: state.household.id }) });
@@ -2074,7 +2080,7 @@ async function openRecipeEditor(id = null, duplicate = false) {
         form.elements.servingMode.value = recipe.separateStarch ? (recipe.servingParts?.some(part=>part.servingPart==='vegetables') ? 'three' : recipe.servingParts?.some(part=>part.servingPart==='starch') ? 'separate' : 'whole') : 'original';
       }
       const incompleteLines = new Set((recipe.nutrition.lineIssues ?? []).map((issue) => issue.lineIndex));
-      recipe.lines.forEach((line, index) => addRecipeLine({ ...line, cookingFactor:ingredientCookingFactor(recipe,line), incomplete: incompleteLines.has(index) }));
+      recipe.lines.forEach((line, index) => addRecipeLine({ ...line,choiceGroup:recipe.choiceGroups?.find(g=>g.lineIndex===index), cookingFactor:ingredientCookingFactor(recipe,line), incomplete: incompleteLines.has(index) }));
     } catch (error) {
       showMessage($('#recipe-message'), `Impossible de charger cette recette : ${error.body?.error ?? error.message}`);
       recipeEditorDialog.open();
@@ -2092,6 +2098,7 @@ const recipeFilterChoices={
 const recipeFilters={type:'',moment:'',service:'',query:'',missing:'',validation:'all',page:1};
 let recipeDisplay=recipeDisplayPreferences();
 async function showRecipeCard(recipeId,recipeName=null){
+  const instance=state.recipes.find(r=>r.id===recipeId);if(instance?.choiceInstance){openCookingSheet(instance.id,undefined,undefined,undefined,'free');return;}
   if(recipeEditorDialog.isOpen()){openCookingSheet(recipeId,undefined,undefined,undefined,'free');return;}
   const recipe=recipeCardForSource(state.recipes,recipeId) ?? (recipeName?{id:recipeId,name:recipeName}:null);
   if(!recipe)return;
@@ -2180,7 +2187,16 @@ function configureCookingMode(){
   plan.hidden=false;plan.textContent=free?'Préparation hors menus : les proportions de la recette sont conservées, sans ajustement aux objectifs nutritionnels des profils. Les menus ne sont pas modifiés.':planned?.parts.length?`Besoins des menus, toutes les personnes et dates de cette période réunies : ${planned.parts.map(part=>`${part.parentRecipeId?part.name?.split(' — ').at(-1)+' : ':''}${part.minimumProductionQuantity>0?`${formatQty(part.plannedQuantity)} ${part.unitId} prévus · ${formatQty(part.coveredQuantity)} ${part.unitId} couverts par le stock et les lots prévus · ${formatQty(part.toMakeQuantity)} ${part.unitId} à fabriquer (lot minimum pris en compte)`:`${formatQty(part.plannedQuantity)} ${part.unitId} prévus − ${formatQty(part.coveredQuantity)} ${part.unitId} couverts par le stock = ${formatQty(part.toMakeQuantity)} ${part.unitId} à fabriquer`}`).join(' ; ')}. Quantités modifiables.`:'Aucun besoin de menu sur cette période : aucune quantité de recette complète n’est proposée automatiquement.';
   renderCookingIngredients();
 }
+async function chooseRecipeCombination(recipe,selection){
+ if(!recipe?.choiceGroups?.length)return recipe;
+ const result=await recipeChoices.choose(recipe,selection);if(result&&!state.recipes.some(r=>r.id===result.id))state.recipes.push(result);return result;
+}
 function openCookingSheet(recipeId,quantity,productionDate,planned,initialMode='menus'){
+ const template=state.recipes.find(r=>r.id===recipeId);
+ if(template?.choiceGroups?.length&&(initialMode==='free'||!planned?.parts?.length)){
+  void chooseRecipeCombination(template).then(chosen=>{if(chosen)openCookingSheet(chosen.id,quantity,productionDate,undefined,'free');}).catch(()=>showMessage($('#recipe-list-message'),'Impossible de charger les choix de la recette.'));return;
+ }
+
   const recipe=state.recipes.find(item=>item.id===recipeId);if(!recipe)return;
   cookingRecipeId=recipeId;cookingRequest=null;cookingPartInputs=[];
   const form=$('#cook-form');form.reset();$('#cook-mode').value=initialMode;
@@ -2231,7 +2247,7 @@ try{
   recipeDisplay=recipeDisplayPreferences(JSON.parse(localStorage.getItem('lapinou-recipe-display')??'{}'));
 }catch{}
 function renderFilteredRecipes(){
-  const currentRecipes=state.recipes.filter(recipe=>!recipe.recipeArchived);
+  const currentRecipes=state.recipes.filter(recipe=>!recipe.recipeArchived&&!recipe.choiceInstance);
   const recipes=recipeReviews.filterRecipes(filterRecipeDirectory(currentRecipes,{...recipeFilters,plannedRecipeIds:state.plannedRecipeIds}));
   const recipesPerPage=recipeDisplay.perPage;
   const root=$('#recipe-list');root.classList.toggle('recipe-list-view',recipeDisplay.view==='list');
@@ -2550,7 +2566,7 @@ function renderRecipeServingBadges(recipe,overlay=false){
  const top=document.createElement('div'),bottom=document.createElement('div');top.className='recipe-badges-top';bottom.className='recipe-badges-bottom';
  const add=(badge,position='bottom')=>{if(overlay)(position==='top'?top:bottom).append(badge);else badges.append(badge);};
  const energy=recipeEnergyBadge(recipe);
- if(energy){const badge=document.createElement('span');badge.className=energy.dense?'recipe-energy-dense':'recipe-energy';badge.textContent=format(energy.kcal)+' kcal / '+energy.label;badge.title=energy.label==='100 g'?'Calories pour 100 g servis.':'Calories par '+energy.label+'.';add(badge);}
+ if(energy){const badge=document.createElement('span');badge.className=energy.dense?'recipe-energy-dense':'recipe-energy';badge.textContent=format(energy.kcal)+' kcal / '+energy.label;badge.title=recipe.choiceGroups?.length?'Valeur pour les choix par défaut. Les apports suivent la combinaison retenue.':energy.label==='100 g'?'Calories pour 100 g servis.':'Calories par '+energy.label+'.';add(badge);}
  if(recipe.containsWhey){const badge=document.createElement('span');badge.className='recipe-whey';badge.textContent=overlay?'Whey':'Contient de la whey';badge.title='Contient de la whey';add(badge);}
  if(recipe.reviewValidated){const badge=document.createElement('span');badge.className='recipe-validated';badge.textContent=overlay?'✓':'✓ Validée';badge.title='Recette validée';badge.setAttribute('aria-label','Recette validée');add(badge,'top');}
  const rating=recipeReviews.badge(recipe.id);if(rating){if(overlay){rating.setAttribute('aria-label',rating.textContent);rating.textContent='★ '+format(rating.dataset.average);}add(rating,'top');}
@@ -2568,6 +2584,7 @@ function recipeCard(recipe) {
   const title=document.createElement('h3');title.textContent=recipe.name;
   const categoryLabel=typeof state!=='undefined'?state.mealAdditions?.find(item=>item.recipeType===recipe.recipeType)?.label:null;
   const subtitle=document.createElement('p');subtitle.textContent=`${categoryLabel??recipeTypeLabel(recipe.recipeType)} · ${format(recipe.yield.amount)} ${{portion:recipe.yield.amount===1?'portion':'portions',piece:recipe.yield.amount===1?'pièce':'pièces',slice:recipe.yield.amount===1?'tranche':'tranches'}[recipe.yield.unitId]??recipe.yield.unitId} · ${recipe.lines.length} ingrédient${recipe.lines.length===1?'':'s'}`;
+  if(recipe.choiceGroups?.length){const choices=document.createElement('p');choices.className='recipe-choice-count';choices.textContent=recipe.choiceGroups.map(g=>g.label).join(' · ')+' · choix personnalisables';identity.append(choices);}
   const serviceDescription=document.createElement('p');serviceDescription.className='recipe-service-label';serviceDescription.textContent=recipeServiceChoices.find(([value])=>value===recipeServiceMode(recipe))?.[1]??'';
   const heading=document.createElement('div');heading.className='recipe-title-row';
   const rename=document.createElement('button');rename.type='button';rename.className='text-button recipe-rename-button';rename.textContent='Renommer';rename.setAttribute('aria-label',`Renommer ${recipe.name}`);rename.setAttribute('aria-expanded','false');
@@ -3707,7 +3724,7 @@ function plannedItemRoleOptions(currentCategoryId,slot) {
 function recipesForPlanning(slot, role, selectedIds = [], requiredRecipeType = null) {
   const selected = new Set(selectedIds.filter(Boolean));
   const eligible = allPlanningRecipes().filter((recipe) => {
-    if(recipe.recipeArchived)return false;
+    if(recipe.recipeArchived||recipe.choiceInstance)return false;
     const moments = recipe.mealMoments ?? [];
     if (moments.length && !moments.includes(slot === 'evening_snack' ? 'snack' : slot)) return false;
     if (recipe.recipeType) {
@@ -3794,8 +3811,12 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
         input.value = assignment.quantity == null || assignment.quantity === '' ? (personSelect.value ? String(individualDefaultQuantity(recipe,currentRole)) : '0') : assignment.quantity; input.placeholder = '0 = aucun'; input.setAttribute('aria-label', `Quantité de ${choiceLabel.toLowerCase()} pour ${person?.displayName ?? 'personne'}`);
         input.addEventListener('input',updateMealProteinSummary);
         if (!personSelect.value) input.disabled = true;
-        personSelect.addEventListener('change', () => {
+        personSelect.addEventListener('change', async () => {
+          const template=state.recipes.find(recipe=>recipe.id===personSelect.value);
+          let chosen;try{chosen=await chooseRecipeCombination(template);}catch{showMessage($('#meal-message'),'Impossible de charger cette combinaison.');personSelect.value=assignment.recipeId??'';return;}
+          if(template?.choiceGroups?.length&&!chosen){personSelect.value=assignment.recipeId??'';return;}
           const data = currentFormAmounts();
+          if(template?.choiceGroups?.length){data[index]={recipeId:'',role:currentRole,categoryId,assignments:Object.fromEntries(attendees.map(id=>[id,{recipeId:chosen.id,quantity:String(individualDefaultQuantity(chosen,currentRole))}]))};renderPlannedItems(data);return;}
           const rowData = data[index] ?? { recipeId: '', role: currentRole, categoryId, assignments: {} };
           rowData.assignments ??= {};
           const recipeId = personSelect.value;
@@ -3846,10 +3867,12 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
         });
         label.append(input); quantities.append(label);
       }
-      select.addEventListener('change', () => {
+      select.addEventListener('change', async () => {
+        let recipe = state.recipes.find(recipe => recipe.id === select.value);
+        try{recipe=await chooseRecipeCombination(recipe);}catch{showMessage($('#meal-message'),'Impossible de charger cette combinaison.');select.value=item.recipeId??'';return;}
+        if(!recipe){select.value=item.recipeId??'';return;}
         const data = currentFormAmounts();
-        const recipe = state.recipes.find(recipe => recipe.id === select.value);
-        const previousParentId=linkedParentRecipeId(data[index]);
+        const previousParentId=linkedParentRecipeId(item);
         if(previousParentId)removeLinkedRecipeGroup(data,previousParentId);
         if (recipe?.servingParts?.length) {
           const main = recipe.servingParts.find(part => part.servingPart === 'main');
@@ -3862,6 +3885,17 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
         renderPlannedItems(data,{autoSuggest:true});
       });
     }
+    const selectedRoot=state.recipes.find(r=>r.id===linkedRecipeId||r.servingParts?.some(p=>p.id===linkedRecipeId));
+    const origin=selectedRoot?.choiceOrigin;
+    if(origin?.templateId){const change=document.createElement('button');change.type='button';change.className='text-button';change.textContent='Modifier les choix';change.addEventListener('click',async()=>{
+     try{const {recipe:template}=await api('/api/recipes/'+origin.templateId);const chosen=await chooseRecipeCombination(template,origin.selection);if(!chosen)return;
+      const data=currentFormAmounts();if(selectedRoot.servingParts?.length)removeLinkedRecipeGroup(data,selectedRoot.id);
+      if(isIndividualRole(currentRole)&&!linkedRecipe){data[index]={recipeId:'',role:currentRole,categoryId,assignments:Object.fromEntries(attendees.map(id=>[id,{recipeId:chosen.id,quantity:String(individualDefaultQuantity(chosen,currentRole))}]))};}
+      else if(chosen.servingParts?.length){for(const [i,part] of chosen.servingParts.entries())data[i===0?index:Math.max(-1,...Object.keys(data).map(Number))+1]={recipeId:part.id,role:part.servingPart==='main'?'main':'accompaniment',categoryId:part.servingPart==='main'?'main':'accompaniment',amounts:{}};}
+      else data[index]={recipeId:chosen.id,role:currentRole,categoryId,amounts:{}};
+      renderPlannedItems(data,{autoSuggest:true});
+     }catch{showMessage($('#meal-message'),'La recette de base ne peut pas être chargée. La combinaison enregistrée est conservée.');}
+    });top.append(change);}
     row.append(top, quantities);
     if (allPlanningRecipes().find(recipe=>recipe.id===item.recipeId)?.parentRecipeId) {
       const estimate=document.createElement('small'); estimate.className='muted'; const counted=allPlanningRecipes().find(recipe=>recipe.id===item.recipeId)?.servingDisplay; estimate.textContent=counted ? '1 '+servingUnitLabel(counted.unitId)+' = '+formatQty(counted.gramsPerUnit)+' g selon la recette et ses équivalences. Le recalcul garde des unités entières et ajuste les accompagnements dans le budget disponible.' : 'Grammes estimés à partir des ingrédients et du coefficient de cuisson.'; row.append(estimate);

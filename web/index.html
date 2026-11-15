@@ -13,7 +13,8 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
     <link rel="stylesheet" href="/style.css?v=0.7.0">
     <link rel="stylesheet" href="/editorial.css?v=0.3.17"><link rel="stylesheet" href="/recipe-directory-refresh.css?v=0.7.0">
-      <link rel="stylesheet" href="/recipe-editor-dialog.css?v=0.8.0">
+      <link rel="stylesheet" href="/recipe-editor-dialog.css?v=0.9.0">
+      <link rel="stylesheet" href="/recipe-choices.css?v=0.9.0">
   </head>
   <body>
     <header class="topbar">
@@ -185,7 +186,7 @@
 
       <section id="recipes-view" class="view hidden">
         <p id="recipe-list-message" class="form-message" role="status"></p>
-        <div class="section-heading"><div><h2>Recettes</h2><p>Recherche, filtres et fiches visuelles. Les valeurs restent calculées depuis le catalogue alimentaire.</p></div><div class="recipe-page-actions"><button type="button" class="secondary" id="open-recipe-import">Importer une recette</button><button type="button" class="primary" id="new-recipe">+ Nouvelle recette</button></div></div>
+        <div class="section-heading"><div><h2>Recettes</h2><p>Recherche, filtres et fiches visuelles. Les valeurs restent calculées depuis le catalogue alimentaire.</p></div><div class="recipe-page-actions"><button type="button" class="secondary" id="open-recipe-import">Importer une recette</button><button type="button" class="secondary" id="recipe-choice-lists">Listes de choix</button><button type="button" class="primary" id="new-recipe">+ Nouvelle recette</button></div></div>
         <div class="recipe-directory">
           <section id="recipe-filters-anchor" class="recipe-filters" aria-label="Filtrer les recettes">
             <div class="recipe-primary-filters">
@@ -528,6 +529,6 @@
       </form>
     </dialog>
     <script type="module" src="/install-app.js?v=0.3.17"></script>
-    <script type="module" src="/app.js?v=0.8.0"></script>
+    <script type="module" src="/app.js?v=0.9.0"></script>
   </body>
 </html>

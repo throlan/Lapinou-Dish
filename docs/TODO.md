@@ -1,5 +1,10 @@
 # Prochaines tâches — 12 novembre 2026
 
+## Après déploiement des recettes modulables — 0.9.0
+
+Vérifier les listes et les choix sur les appareils réels. Configurer progressivement les recettes existantes (ex. flan saveur/topping et bowl légumineuse/protéine) ; aucune fusion ni conversion automatique du catalogue. Les quantités de chaque nouvelle option sont à vérifier pour la recette de base. Les préparations maison restent des ingrédients liés existants ; les nouvelles listes de choix portent sur des aliments du catalogue.
+
+
 ## Éditeur de recette en fenêtre et onglets — 0.8.0
 
 La création, la modification, la duplication et la vérification d’un brouillon importé ouvrent maintenant une fenêtre modale centrée, au lieu de descendre sous la liste. Quatre onglets regroupent les champs : Informations (nom, description, type, moments, source), Ingrédients (rendement, service et lignes), Préparation (temps, difficulté, étapes et validation de relecture) et Réglages (production, lot minimum, équivalences et avis).
