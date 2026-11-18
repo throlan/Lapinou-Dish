@@ -4,6 +4,8 @@ export const NUTRITION_SOURCES = Object.freeze({
  kidney:'https://doi.org/10.2337/dc26-s011',
  energy:'https://www.nice.org.uk/guidance/ng246/chapter/Physical-activity-and-diet',
  fats:'https://efsa.onlinelibrary.wiley.com/doi/10.2903/j.efsa.2022.7259',
+ protein:'https://doi.org/10.2903/j.efsa.2012.2557',
+ fibre:'https://doi.org/10.2903/j.efsa.2010.1462',
 });
 
 export function idealWeight(heightCm,sex,method) {
@@ -15,7 +17,7 @@ export function idealWeight(heightCm,sex,method) {
 }
 
 export function proposeNutritionPlan(input={}) {
- const {estimate,objective,date}=input,context=input.context??{},conflicts=[],notes=[],sources=new Set([NUTRITION_SOURCES.energy]);
+ const {estimate,objective,date}=input,context=input.context??{},conflicts=[],notes=[],sources=new Set([NUTRITION_SOURCES.energy]),completeDefaults=input.defaultsVersion===1;
  if(!estimate||estimate.error||!(estimate.maintenanceKcal>0)||!Number.isFinite(estimate.age)||estimate.age<18||estimate.age>78||!(estimate.weightKg>0)||!(estimate.heightCm>=50)||!['male','female'].includes(estimate.sex))return {error:'Une estimation adulte complète est nécessaire.'};
  if(!['maintain','lose','gain'].includes(objective))return {error:'Confirme ton objectif : maintien, perte ou prise de poids.'};
  for(const name of ['renal','hypoglycemia','pregnancy','dumping'])if(!['no','yes','unknown'].includes(context[name]))return {error:'Complète les réponses de santé, ou choisis « Je ne sais pas ».'};
@@ -34,17 +36,21 @@ export function proposeNutritionPlan(input={}) {
  }
  if(context.hypoglycemia!=='no')conflicts.push('Traitement à risque d’hypoglycémie ou statut inconnu : faire valider une modification des apports par l’équipe soignante. Aucun traitement n’est modifié ici.');
  let protein=input.proteinG===''||input.proteinG==null?null:Number(input.proteinG),referenceWeight=null;
+ if(completeDefaults&&protein==null&&context.surgery==='none'){
+  protein=Math.ceil(0.83*estimate.weightKg);sources.add(NUTRITION_SOURCES.protein);
+  notes.push(`Repère général adulte EFSA : 0,83 g/kg du poids mesuré, soit ${protein} g/j. Ce repère n’est pas une prescription personnalisée pour une maladie ou la perte de poids.`);
+ }
  if(context.surgery!=='none'){
   sources.add(NUTRITION_SOURCES.bariatric);
   const surgeryDate=context.surgeryDate;
   if(!/^\d{4}-\d{2}-\d{2}$/.test(surgeryDate??'')||!Number.isFinite(Date.parse(surgeryDate))||new Date(surgeryDate+'T00:00:00Z').toISOString().slice(0,10)!==surgeryDate||surgeryDate>date)conflicts.push('Précise une date d’intervention passée et valide.');
   else if((Date.parse(date)-Date.parse(surgeryDate))/86400000<365)conflicts.push('Première année après chirurgie : suivre le protocole nutritionnel de l’équipe bariatrique, sans déficit calculé automatiquement.');
   if(['other','unknown'].includes(context.surgery))conflicts.push('Le type d’intervention doit être précisé avec l’équipe bariatrique.');
-  referenceWeight=idealWeight(estimate.heightCm,estimate.sex,input.idealWeightMethod);
+  referenceWeight=idealWeight(estimate.heightCm,estimate.sex,input.idealWeightMethod||(completeDefaults?'lorentz':null));
   if(referenceWeight==null)conflicts.push('Choisis explicitement la formule de poids idéal médical. Le poids de forme personnel ne la remplace pas.');
   else {
    const recommendation=Math.ceil(Math.max(60,1.1*referenceWeight));
-   notes.push(`HAS 2024 R98 : minimum 60 g/j et idéalement au moins 1,1 g/kg de poids idéal/j. ${input.idealWeightMethod} : ${referenceWeight.toFixed(1)} kg, soit repère ${recommendation} g/j. Ce repère reste à valider individuellement.`);
+   notes.push(`HAS 2024 R98 : minimum 60 g/j et idéalement au moins 1,1 g/kg de poids idéal/j. ${input.idealWeightMethod||'lorentz'} : ${referenceWeight.toFixed(1)} kg, soit repère ${recommendation} g/j. Ce repère reste à valider individuellement.`);
    if(protein==null)protein=recommendation;
    else if(protein<recommendation)conflicts.push(`Le repère protéique saisi (${protein} g) est inférieur au repère bariatrique proposé (${recommendation} g). À arbitrer avec le professionnel.`);
   }
@@ -52,12 +58,14 @@ export function proposeNutritionPlan(input={}) {
  if(context.dumping!=='no'){sources.add(NUTRITION_SOURCES.bariatric);conflicts.push('Dumping ou hypoglycémies après repas, ou statut incertain : personnaliser le fractionnement et les glucides avec l’équipe soignante (HAS R153).');}
  if(protein!=null&&(!Number.isFinite(protein)||protein<0||protein>500))return {error:'Le repère protéique doit être compris entre 0 et 500 g/j.'};
  let fat=null,carbohydrate=null;
- if(input.fatPercent!==''&&input.fatPercent!=null){
-  const percent=Number(input.fatPercent);if(!Number.isFinite(percent)||percent<20||percent>35)return {error:'Pour cette proposition générale, choisis une part de lipides entre 20 et 35 %. Une prescription différente peut être saisie directement.'};
+ const fatPercent=input.fatPercent===''||input.fatPercent==null?(completeDefaults?30:null):Number(input.fatPercent);
+ if(fatPercent!=null){
+  const percent=fatPercent;if(!Number.isFinite(percent)||percent<20||percent>35)return {error:'Pour cette proposition générale, choisis une part de lipides entre 20 et 35 %. Une prescription différente peut être saisie directement.'};
   sources.add(NUTRITION_SOURCES.fats);fat=Math.round(energy*percent/90)/10;
   if(protein!=null){carbohydrate=Math.round((energy-protein*4-fat*9)/4*10)/10;if(carbohydrate<0)conflicts.push('Les protéines et lipides choisis dépassent les calories disponibles.');}
  }
- const fiber=context.diabetes!=='none'?Math.ceil(14*energy/1000):null;
+ const fiber=context.diabetes!=='none'?Math.max(completeDefaults?25:0,Math.ceil(14*energy/1000)):completeDefaults?25:null;
+ if(completeDefaults){sources.add(NUTRITION_SOURCES.fibre);notes.push('Repère général EFSA : 25 g de fibres/j, à adapter à la tolérance digestive et aux consignes postopératoires.');}
  if(fiber!=null)notes.push('ADA 2026 : repère de fibres ≥14 g/1 000 kcal, à adapter à la tolérance digestive et aux consignes postopératoires.');
- return {dailyEnergyKcal:energy,dailyProteinG:protein,dailyFatG:fat,dailyCarbohydrateG:carbohydrate,dailyFibreG:fiber,objective,adjustmentKcal:adjustment,referenceWeight,idealWeightMethod:input.idealWeightMethod||null,context,notes,sources:[...sources],conflicts,estimate};
+ return {dailyEnergyKcal:energy,dailyProteinG:protein,dailyFatG:fat,dailyCarbohydrateG:carbohydrate,dailyFibreG:fiber,objective,adjustmentKcal:adjustment,referenceWeight,idealWeightMethod:input.idealWeightMethod||(completeDefaults&&context.surgery!=='none'?'lorentz':null),context,notes,sources:[...sources],conflicts,estimate};
 }

@@ -1,5 +1,13 @@
 # Cahier des améliorations proposées
 
+## Proposition complète et explications — 0.16.1
+
+Le parcours propose désormais des réglages visibles et modifiables (10 % pour l’ajustement, 30 % pour les lipides, Lorentz pour le repère protéique bariatrique) au lieu d’exiger des choix techniques vides. Ce sont des choix applicatifs présentés comme tels, pas des prescriptions. Le poids médical de référence est expliqué et calculé à l’écran ; il reste distinct du poids de forme personnel.
+
+Une proposition complète contient protéines, lipides, glucides et fibres : repère protéique existant conservé, repère général adulte EFSA 0,83 g/kg si absent hors chirurgie, repère HAS après chirurgie, et fibres ≥25 g/j avec adaptation du repère ADA lorsqu’il est supérieur. Les conflits médicaux restent bloquants pour le report. Les sources EFSA protéines/fibres sont ajoutées. Les nouveaux paramètres sont marqués defaultsVersion:1 ; les questionnaires historiques gardent leurs résultats et leur validation d’origine.
+
+Le résultat affiche les cinq valeurs par jour, le maintien, l’ajustement et la différence avec la cible enregistrée. « Utiliser » ouvre directement l’aperçu final, sans enregistrer automatiquement. La saisie manuelle est repliée et explicitement nommée ; elle ne prétend plus calculer une proposition. Aucune migration, aucune modification automatique des cibles, menus ou stocks existants. Tests locaux : 21 ciblés réussis, dont scénario mini-bypass ancien avec ancienne cible à 1 300 kcal et champs techniques laissés aux valeurs proposées. Contrôles complets et publication à consigner dans la PR.
+
 ## Proposition nutritionnelle guidée — 0.16.0
 
 Le parcours guidé distingue le maintien estimé et la cible proposée. Un poids de forme inférieur au dernier poids mesuré suggère « perte de poids », avec confirmation obligatoire ; aucun déficit n’est choisi automatiquement. L’utilisateur choisit explicitement un ajustement de 10/15/20 % ou une valeur en kcal. Les pourcentages sont des réglages applicatifs, pas une prescription issue d’une recommandation. Les calories restent la base des calculs et les protéines un repère indicatif.

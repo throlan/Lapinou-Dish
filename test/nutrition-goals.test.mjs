@@ -43,7 +43,7 @@ test('target form waits for preview and explicit confirmation and clears a previ
  const make=tag=>({tag,children:[],elements:{},handlers:{},append(...nodes){this.children.push(...nodes);},replaceChildren(...nodes){this.children=nodes;},setAttribute(){},addEventListener(name,handler){this.handlers[name]=handler;},set innerHTML(html){for(const name of html.matchAll(/name="([^"]+)"/g))this.elements[name[1]]=Object.assign(make('input'),{value:''});}});
  globalThis.document={createElement:make};globalThis.FormData=class {constructor(form){this.form=form;}*[Symbol.iterator](){for(const [name,input] of Object.entries(this.form.elements))yield [name,input.value];}};
  const root=make('div'),requests=[];let saved=0;
- renderNutritionGoals(root,{id:'person',birthDate:'1980-01-01',profileHistory:[{effectiveFrom:'2026-01-01',heightCm:165}],weightHistory:[{measuredOn:'2026-11-01',weightKg:76}],weightGoalHistory:[{effectiveFrom:'2026-01-01',comfortableWeightKg:69}],nutritionTargetHistory:[]},{api:async(...args)=>requests.push(args),householdId:'house',today:'2026-11-18',onSaved:async()=>saved++});
+ renderNutritionGoals(root,{id:'person',birthDate:'1980-01-01',profileHistory:[{effectiveFrom:'2026-01-01',heightCm:165}],weightHistory:[{measuredOn:'2026-11-01',weightKg:76}],weightGoalHistory:[{effectiveFrom:'2026-01-01',comfortableWeightKg:69}],nutritionTargetHistory:[{effectiveFrom:'2026-01-01',dailyEnergyKcal:1300,dailyProteinG:80,origin:'manual',method:''}]},{api:async(...args)=>requests.push(args),householdId:'house',today:'2026-11-18',onSaved:async()=>saved++});
  const all=node=>[node,...node.children.flatMap(all)];
  const form=all(root).find(node=>node.tag==='form'&&node.elements.dailyEnergyKcal);
  Object.assign(form.elements.dailyEnergyKcal,{value:'2000'});form.elements.origin.value='manual';form.elements.dailyProteinG.value='90';form.elements.method.value='Choix fictif';
@@ -54,13 +54,15 @@ test('target form waits for preview and explicit confirmation and clears a previ
  await confirmation.handlers.click();assert.equal(requests.length,1);assert.equal(JSON.parse(requests[0][1].body).confirmed,true);assert.equal(saved,1);
  const guided=all(root).find(node=>node.tag==='form'&&node.elements.objective);
  assert.equal(guided.elements.objective.value,'lose');
+ assert.equal(guided.elements.adjustmentChoice.value,'10');assert.equal(guided.elements.fatPercent.value,'30');assert.equal(guided.elements.idealWeightMethod.value,'lorentz');
+ form.requestSubmit=()=>form.handlers.submit({preventDefault(){}});
  guided.elements.objectiveConfirmed.checked=true;
- for(const [key,value] of Object.entries({objective:'lose',adjustmentChoice:'10',sex:'female',pal:'1.4',diabetes:'type2',hypoglycemia:'no',renal:'no',pregnancy:'no',surgery:'none',dumping:'no',proteinG:'90',fatPercent:'30'}))guided.elements[key].value=value;
+ for(const [key,value] of Object.entries({objective:'lose',sex:'female',pal:'1.4',diabetes:'none',hypoglycemia:'no',renal:'no',pregnancy:'no',surgery:'mini_bypass',surgeryDate:'2014-01-01',dumping:'no'}))guided.elements[key].value=value;
  await guided.handlers.submit({preventDefault(){}});
  const use=all(root).find(node=>node.textContent==='Utiliser cette proposition adaptée');assert.ok(use);await use.handlers.click();
  assert.ok(Number(form.elements.dailyEnergyKcal.value)<1900);
- await form.handlers.submit({preventDefault(){}});confirmation=all(root).find(node=>node.textContent==='Valider cette cible');await confirmation.handlers.click();
- const submitted=JSON.parse(requests[1][1].body);assert.equal(submitted.questionnaire.context.diabetes,'type2');assert.ok(validateNutritionTarget(submitted).data);assert.ok(submitted.dailyCarbohydrateG>0);
+ confirmation=all(root).find(node=>node.textContent==='Valider cette cible');assert.ok(confirmation);assert.equal(requests.length,1);await confirmation.handlers.click();
+ const submitted=JSON.parse(requests[1][1].body);assert.equal(submitted.questionnaire.context.diabetes,'none');assert.equal(submitted.dailyProteinG,80);assert.equal(submitted.dailyFibreG,25);assert.ok(Number(submitted.dailyFatG)>0);assert.notEqual(Number(submitted.dailyEnergyKcal),1300);assert.ok(validateNutritionTarget(submitted).data);assert.ok(submitted.dailyCarbohydrateG>0);
  guided.elements.renal.value='yes';await guided.handlers.submit({preventDefault(){}});
  assert.equal(all(root).some(node=>node.textContent==='Utiliser cette proposition adaptée'),false);assert.equal(requests.length,2);
 });
