@@ -4,7 +4,7 @@
 
 Ordre des lots : (1) âge calculé, poids de forme et objectif intermédiaire datés, révisions du profil conservées ; (2) cibles nutritionnelles datées avec origine, méthode et validation ; (3) estimation des besoins explicable et validée séparément ; (4) préférences, allergies et données facultatives privées. Les critères détaillés figurent dans [PRODUCT.md](PRODUCT.md) et [TODO.md](TODO.md). Viennent ensuite l’enrichissement des nutriments, l’optimisation des portions, les scores distincts de qualité de recette et d’adéquation personne/repas, puis la planification assistée. Les allégations réglementées sur les protéines sont un sujet distinct des scores.
 
-Le lot 1 est réalisé dans la branche de livraison 0.14.0, avec 463 tests locaux réussis ; le lot 2 devient le prochain développement après validation de la 0.14.0. La référence de production reste 0.13.1 jusqu’à décision de l’utilisateur.
+Le lot 1 est publié sur GitHub en 0.14.0 (PR #207, 463 tests locaux, contrôles et GHCR réussis) ; le lot 2 devient le prochain développement après validation de la 0.14.0. La référence de production reste 0.13.1 jusqu’à décision de l’utilisateur.
 
 Les valeurs alimentaires inconnues restent inconnues ; les conflits se tranchent fiche par fiche. Une source externe n’applique aucune proposition automatiquement. Le nettoyage du catalogue, le filtre des aliments inutilisés et la fusion guidée des doublons restent retirés des travaux prévus.
 

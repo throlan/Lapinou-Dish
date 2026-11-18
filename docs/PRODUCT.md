@@ -2,7 +2,7 @@
 
 ## État effectif et écarts des profils — 0.13.1
 
-Comptes, foyers privés et droits, variantes choisies, portions individuelles, rééquilibrage journalier avec aperçu, stocks et batch cooking sont livrés. Les profils conservent déjà date de naissance, poids datés, taille, activité et cible kcal avec origine et méthode. L’âge calculé, le poids de forme, l’objectif intermédiaire et les révisions à date identique restent à développer. `nutrition_targets` existe seulement en base ; les objectifs protéiques sont aujourd’hui des réglages du foyer, avec certains secours liés au prénom. Aucun estimateur Mifflin–St Jeor n’est livré. La section « Personnes et objectifs » plus bas décrit aussi la cible future ; [TODO.md](TODO.md) sépare les quatre lots à réaliser.
+Comptes, foyers privés et droits, variantes choisies, portions individuelles, rééquilibrage journalier avec aperçu, stocks et batch cooking sont livrés. Les profils conservent date de naissance, poids datés, taille, activité et cible kcal avec origine et méthode. La 0.14.0 ajoute l’âge calculé, le poids de forme choisi, l’objectif intermédiaire facultatif et les révisions à date identique. `nutrition_targets` existe seulement en base ; les objectifs protéiques sont aujourd’hui des réglages du foyer, avec certains secours liés au prénom. Aucun estimateur Mifflin–St Jeor n’est livré. La section « Personnes et objectifs » plus bas décrit aussi la cible future ; [TODO.md](TODO.md) sépare les lots suivants.
 
 ### Lot 1 réalisé dans la 0.14.0
 
