@@ -2,7 +2,7 @@
 
 ## Lots à livrer dans cet ordre
 
-Le lot 1 est implémenté en 0.14.0, avec 463 tests locaux réussis. PR, contrôles GitHub et publication restent à vérifier avant de le considérer livré ; la 0.13.1 demeure la référence validée en production.
+Le lot 1 est livré sur GitHub en 0.14.0 : PR #207 fusionnée, 463 tests locaux, contrôles et publication GHCR réussis. La 0.13.1 demeure la référence validée en production tant que l’utilisateur n’a pas validé la 0.14.0 sur son installation. Le prochain développement est le lot 2.
 
 1. **Profils et objectifs de poids datés.** Calculer l’âge depuis la date de naissance à la date affichée, avec état inconnu si elle manque. Ajouter poids de forme choisi et objectif intermédiaire facultatif, distincts du poids mesuré, avec dates d’effet passées/futures et révisions conservées à date identique. Une version applicable doit être déterministe. Réutiliser Administration et Mon compte ; tester droits des membres, gestionnaires et profils sans compte, isolation entre foyers, anniversaires, valeurs manquantes et migration additive depuis des données fictives de type 0.13.1. Ne pas toucher au moteur de portions dans ce lot. Livrer sous un nouveau numéro ; la 0.13.1 reste la référence de production jusqu’à validation de l’utilisateur.
 2. **Objectifs nutritionnels datés.** Brancher les cibles sur les écrans et calculs après migration compatible des réglages kcal/protéines existants. Conserver origine, méthode, date et validation, lever les secours liés au prénom sans modifier silencieusement les cibles. Tester les révisions et les permissions.
