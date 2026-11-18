@@ -1,5 +1,11 @@
 # Cahier des améliorations proposées
 
+## Priorités après la 0.13.1 validée
+
+Ordre des lots : (1) âge calculé, poids de forme et objectif intermédiaire datés, révisions du profil conservées ; (2) cibles nutritionnelles datées avec origine, méthode et validation ; (3) estimation des besoins explicable et validée séparément ; (4) préférences, allergies et données facultatives privées. Les critères détaillés figurent dans [PRODUCT.md](PRODUCT.md) et [TODO.md](TODO.md). Viennent ensuite l’enrichissement des nutriments, l’optimisation des portions, les scores distincts de qualité de recette et d’adéquation personne/repas, puis la planification assistée. Les allégations réglementées sur les protéines sont un sujet distinct des scores.
+
+Les valeurs alimentaires inconnues restent inconnues ; les conflits se tranchent fiche par fiche. Une source externe n’applique aucune proposition automatiquement. Le nettoyage du catalogue, le filtre des aliments inutilisés et la fusion guidée des doublons restent retirés des travaux prévus.
+
 ## Fiches alimentaires et corrections guidées — 0.13.0
 
 Les champs essentiels restent visibles : valeurs nutritionnelles pour 100 g, coefficient poids cuit/cru, densité, poids de la cuillère à café, cuillère à soupe, scoop de 60 ml et pièce. La cup de 240 ml complète les mesures de contenants. Marque/autres noms et courses/conditionnement sont repliables. Un seul mode de conditionnement est affiché : quantité par paquet ou unité nommée ; magasin et classement du foyer sont conservés.

@@ -4,6 +4,15 @@
 
 Comptes, foyers privés et droits, variantes choisies, portions individuelles, rééquilibrage journalier avec aperçu, stocks et batch cooking sont livrés. Les profils conservent déjà date de naissance, poids datés, taille, activité et cible kcal avec origine et méthode. L’âge calculé, le poids de forme, l’objectif intermédiaire et les révisions à date identique restent à développer. `nutrition_targets` existe seulement en base ; les objectifs protéiques sont aujourd’hui des réglages du foyer, avec certains secours liés au prénom. Aucun estimateur Mifflin–St Jeor n’est livré. La section « Personnes et objectifs » plus bas décrit aussi la cible future ; [TODO.md](TODO.md) sépare les quatre lots à réaliser.
 
+## Ordre de développement validé — 18 novembre 2026
+
+1. **Profils et poids** : afficher l’âge à la date pertinente si la naissance est connue ; distinguer poids mesuré, poids de forme choisi et objectif intermédiaire facultatif ; conserver dates d’effet et chaque révision, même à date identique. Administration et Mon compte réutilisent les droits existants. Aucun objectif automatique fondé sur un IMC de 24,9.
+2. **Objectifs nutritionnels** : intégrer des cibles datées avec origine, méthode et validation explicite, sans confondre valeurs choisies, prescriptions et estimations. Migrer sans perdre les cibles kcal et protéiques actuelles.
+3. **Estimation des besoins** : calcul explicable, dont Mifflin–St Jeor lorsque les entrées nécessaires sont connues, avec paramètres, méthode, date et validation conservés. L’estimation ne devient jamais une cible sans confirmation ; aucune perte de poids automatique pour mineur ou âge inconnu.
+4. **Préférences et informations privées** : préférences, allergies et informations facultatives privées du profil, protégées par les droits du foyer ; aucune donnée de santé n’est transmise automatiquement à OpenAI ou à un autre service externe.
+
+Après ces lots : enrichir les nutriments, optimiser les portions, puis proposer deux scores distincts — qualité intrinsèque d’une recette et adéquation à une personne et à un repas. Les allégations européennes sur les protéines relèvent d’une règle séparée. La planification assistée reste à développer dans cet ordre d’étude : compléter des créneaux selon les kcal restantes et les stocks, équilibrer une semaine, puis proposer des menus hebdomadaires avec aide IA facultative. Un plat principal reste commun avec quantités individuelles ; accompagnements, desserts et collations peuvent varier. Préserver plats mélangés, composants séparables, variantes, productions, restes et ajustements manuels. Les calculs restent déterministes ; les propositions et modifications de menus exigent aperçu et confirmation.
+
 ## Fiches alimentaires et corrections guidées — 0.13.0
 
 Les champs essentiels restent visibles : valeurs nutritionnelles pour 100 g, coefficient poids cuit/cru, densité, poids de la cuillère à café, cuillère à soupe, scoop de 60 ml et pièce. La cup de 240 ml complète les mesures de contenants. Marque/autres noms et courses/conditionnement sont repliables. Un seul mode de conditionnement est affiché : quantité par paquet ou unité nommée ; magasin et classement du foyer sont conservés.
@@ -190,7 +199,7 @@ Depuis la 0.2.89, la charte validée est **Magazine culinaire · Encre framboise
 
 - Une seule liste globale à l'instance; Ciqual est une source d'import initiale, pas une deuxième base consultée à l'exécution.
 - Chaque aliment a un identifiant stable, un nom canonique, des alias, des valeurs nutritionnelles pour 100 g, leur provenance et les champs inconnus explicitement vides.
-- Les fiches sont corrigibles; les produits de marque sont ajoutables depuis leur étiquette. Les aliments proches ou doublons sont fusionnables avec historique des références.
+- Les fiches sont corrigibles; les produits de marque sont ajoutables depuis leur étiquette. La fusion guidée des doublons a été retirée des travaux prévus ; cette ancienne intention ne déclenche pas de chantier.
 - Les équivalences d'unités dépendent de l'aliment: g et ml ne sont pas interchangeables sans densité; une pièce ou une cuillère peut avoir un poids seulement si une équivalence documentée existe.
 - Les recettes et recherches utilisent le même identifiant alimentaire et affichent le nom canonique. Aucun champ de nom libre parallèle ne sert au calcul.
 - Administration permet de définir, pour le foyer, un rendement explicite entre un aliment de départ (sec/cru) et le produit obtenu (cuit/égoutté). Le coefficient décrit le poids obtenu par gramme de départ. Il suggère le coefficient de cuisson de cet ingrédient et sa conversion inverse peut alimenter les courses ; une règle d’achat explicite prime. Les recettes existantes ne sont pas réécrites.
