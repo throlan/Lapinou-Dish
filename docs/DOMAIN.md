@@ -1,5 +1,11 @@
 # Modèle métier
 
+## Cibles nutritionnelles — 0.15.0
+
+person_nutrition_goals conserve les cibles kcal/protéines confirmées, leurs dates d’effet, origine, méthode, poids de référence et ordre de révision. Les anciennes données restent conservées ; la table initiale nutrition_targets reste historique et n’est pas le support du nouveau formulaire. La vue effective_energy_history réunit les calories historiques et les nouvelles cibles avec priorité déterministe. Les droits du profil sont appliqués dans la passerelle API et par RLS.
+
+web/nutrition-goals.js partage entre Administration et Mon compte l’estimation générale documentée, les bilans mensuels et l’aperçu de validation. Le calendrier et le serveur lisent la cible applicable à la date. Les protéines restent indicatives ; aucune réécriture de menu ni action sur stock. Le bilan suit les anniversaires mensuels de la première pesée et le seuil ±5 kg depuis le poids de référence validé. Aucun calcul ne devient une cible automatiquement.
+
 Ce modèle exprime les concepts métier, pas une liste exacte des tables implémentées. En 0.13.1, comptes, appartenances et rôles par foyer, profils sans compte, variantes par listes de choix, portions individuelles, rééquilibrage journalier, stocks et batch cooking sont livrés. Les entités d’estimation et de cible nutritionnelle décrites ci-dessous incluent encore des intentions : voir les écarts explicites dans [STATUS.md](STATUS.md) et les lots dans [TODO.md](TODO.md). Aucun journal de consommation après repas n’est demandé.
 
 ## Entités principales

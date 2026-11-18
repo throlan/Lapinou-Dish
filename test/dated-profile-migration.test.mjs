@@ -9,13 +9,14 @@ import {effectiveDatedEntry} from '../web/profile-dates.js';
 test('0.13.1 profiles survive additive migration and retain same-day corrections and future goals',async t=>{
   const db=new PGlite();t.after(()=>db.close());
   const migrations=(await readdir(new URL('../db/migrations/',import.meta.url))).filter(name=>name.endsWith('.sql')).sort();
-  for(const name of migrations.filter(name=>name!=='20261118_dated_profile_goals.sql'))await db.exec(await readFile(new URL('../db/migrations/'+name,import.meta.url),'utf8'));
+  for(const name of migrations.filter(name=>name<'20261118_dated_profile_goals.sql'))await db.exec(await readFile(new URL('../db/migrations/'+name,import.meta.url),'utf8'));
   const household=randomUUID(),person=randomUUID(),weight=randomUUID(),profile=randomUUID();
   await db.query('INSERT INTO households(id,name) VALUES($1,$2)',[household,'Foyer fictif']);
   await db.query('INSERT INTO people(id,household_id,display_name,birth_date) VALUES($1,$2,$3,$4)',[person,household,'Profil fictif','1980-11-19']);
   await db.query('INSERT INTO person_weight_entries(id,person_id,measured_on,weight_kg) VALUES($1,$2,$3,$4)',[weight,person,'2026-11-17',80]);
   await db.query("INSERT INTO person_profile_history(id,person_id,effective_from,height_cm,activity_level,daily_energy_kcal,daily_energy_origin) VALUES($1,$2,'2026-11-01',173,'sedentary',2000,'manual')",[profile,person]);
   await db.exec(await readFile(new URL('../db/migrations/20261118_dated_profile_goals.sql',import.meta.url),'utf8'));
+  await db.exec(await readFile(new URL('../db/migrations/20261118_nutrition_goals.sql',import.meta.url),'utf8'));
   const pool={query:(sql,args)=>db.query(sql,args)};
   await addProfileHistory(pool,person,household,{effectiveFrom:'2026-11-01',heightCm:174,activityLevel:'light',dailyEnergyKcal:2100,dailyEnergyOrigin:'clinician',dailyEnergyMethod:'Correction fictive'});
   await addProfileHistory(pool,person,household,{effectiveFrom:'2027-01-01',heightCm:175,activityLevel:'moderate',dailyEnergyKcal:2200,dailyEnergyOrigin:'manual',dailyEnergyMethod:''});

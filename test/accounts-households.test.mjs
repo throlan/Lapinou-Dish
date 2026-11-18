@@ -52,6 +52,11 @@ test('individual accounts enforce household isolation, roles, sessions and expli
  const profileRevision=await request('POST','/api/people/'+profile+'/profile-history',{householdId:h,effectiveFrom:'2026-11-11',heightCm:174},ownerCookie);
  assert.equal(profileFirst.status,201,JSON.stringify(profileFirst.body));assert.equal(profileRevision.status,201,JSON.stringify(profileRevision.body));
  assert.ok(profileRevision.body.profileHistoryEntry.revisionOrder>profileFirst.body.profileHistoryEntry.revisionOrder);
+ const nutritionBody={householdId:h,effectiveFrom:'2026-11-18',dailyEnergyKcal:2000,dailyProteinG:90,origin:'manual',confirmed:true};
+ assert.equal((await request('POST','/api/people/'+ownPerson.body.person.id+'/nutrition-targets',nutritionBody,memberCookie)).status,201);
+ assert.equal((await request('POST','/api/people/'+profile+'/nutrition-targets',nutritionBody,memberCookie)).status,403);
+ assert.equal((await request('POST','/api/people/'+profile+'/nutrition-targets',nutritionBody,ownerCookie)).status,201);
+ assert.equal((await request('POST','/api/people/'+profile+'/nutrition-targets',{...nutritionBody,confirmed:false},ownerCookie)).status,400);
  const ownPeople=await request('GET','/api/people?householdId='+h,null,memberCookie);
  assert.equal(ownPeople.body.people.find(p=>p.id===ownPerson.body.person.id).weightHistory.length,1);
  assert.equal(ownPeople.body.people.find(p=>p.id===profile).weightHistory.length,0);
@@ -59,6 +64,8 @@ test('individual accounts enforce household isolation, roles, sessions and expli
  assert.equal(ownPeople.body.people.find(p=>p.id===profile).weightGoalHistory.length,0);
  assert.equal(ownPeople.body.people.find(p=>p.id===profile).profileHistory.length,0);
  assert.equal(ownPeople.body.people.find(p=>p.id===profile).birthDate,null);
+ assert.equal(ownPeople.body.people.find(p=>p.id===profile).nutritionTargetHistory.length,0);
+ assert.equal(ownPeople.body.people.find(p=>p.id===ownPerson.body.person.id).nutritionTargetHistory.length,1);
  assert.equal((await request('GET','/api/accounts/application',null,memberCookie)).status,403);
  const food=await request('POST','/api/foods',{name:'Private flour',nutrientsPer100g:{energyKcal:300,proteinG:10,carbohydrateG:60,fatG:1,fibreG:1},gramsPerUnit:{},aliases:[]},ownerCookie);
  assert.equal(food.status,201,JSON.stringify(food.body));const foodId=food.body.food.id;

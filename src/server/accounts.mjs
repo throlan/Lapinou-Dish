@@ -353,7 +353,7 @@ async function assertMemberWrite(actor,request,url,pool){
   const own=await pool.query('SELECT 1 FROM recipes WHERE id=$1 AND household_id=$2 AND created_by_account_id=$3 AND parent_recipe_id IS NULL',[recipe[1],actor.householdId,actor.id]);
   if(own.rows.length)return;
  }
- const person=url.pathname.match(/^\/api\/people\/([a-f0-9-]{36})\/(weights|profile-history|weight-goals)$/i);
+ const person=url.pathname.match(/^\/api\/people\/([a-f0-9-]{36})\/(weights|profile-history|weight-goals|nutrition-targets)$/i);
  if(person&&person[1]===actor.personId)return;
  throw accountError('household-manager-required',403);
 }
@@ -404,7 +404,7 @@ export async function accountGateway(request,response,pool,appPassword,legacyHan
    if(error.code==='40001'&&request.method==='POST'&&url.pathname==='/api/planning/rebalance')return sendAccount(response,409,{error:'rebalance-preview-stale'});
    if(!error.responseBuffer)throw error;
   }
-  if(actor.role!=='manager'&&url.pathname==='/api/people'&&request.method==='GET')buffer.transform(data=>({...data,people:data.people?.map(person=>person.id===actor.personId?person:{...person,birthDate:null,weightHistory:[],weightGoalHistory:[],profileHistory:[]})}));
+  if(actor.role!=='manager'&&url.pathname==='/api/people'&&request.method==='GET')buffer.transform(data=>({...data,people:data.people?.map(person=>person.id===actor.personId?person:{...person,birthDate:null,weightHistory:[],weightGoalHistory:[],nutritionTargetHistory:[],profileHistory:[]})}));
   buffer.flush(response);
  }catch(error){
   const known=error.status?error.message:error.code==='23505'?'already-exists':error.code==='42501'?'data-access-denied':null;

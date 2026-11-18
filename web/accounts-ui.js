@@ -1,3 +1,4 @@
+import {renderNutritionGoals} from './nutrition-goals.js';
 import {ageAtDate,effectiveDatedEntry} from './profile-dates.js';
 
 const errorLabels={
@@ -134,6 +135,7 @@ export function createAccountUI({api,onSession}){
    });
    field(profile,'Nom affiché','displayName','text',person?.displayName);
    field(profile,'Date de naissance','birthDate','date',person?.birthDate?.slice(0,10),false);
+   renderNutritionGoals(personal,person,{api,householdId:account.householdId,today,onSaved:load});
    const currentGoal=effectiveDatedEntry(person?.weightGoalHistory,today);
    const goal=form(personal,'Enregistrer mon objectif de poids',async data=>{
     await api('/api/people/'+account.personId+'/weight-goals',{method:'POST',body:JSON.stringify({householdId:account.householdId,...data})});await load();

@@ -1,4 +1,5 @@
 import {recipeReplacementRoutes} from './recipe-replacements.mjs';
+import {validateNutritionTarget,addNutritionTarget} from './nutrition-targets.mjs';
 import {planningCookingRoutes} from './planning-cooking.mjs';
 import {validatePlanningCopy,previewPlanningCopy,copyPlanningPeriod,addPlanningSelection} from './planning-copy.mjs';
 import {recipeChoiceRoutes} from './recipe-choices.mjs';
@@ -60,6 +61,7 @@ const staticFiles = new Map([
   ['/cooking-method-view.js', ['cooking-method-view.js', 'text/javascript; charset=utf-8']],
   ['/recipe-reviews.js', ['recipe-reviews.js', 'text/javascript; charset=utf-8']],
   ['/accounts-ui.js', ['accounts-ui.js', 'text/javascript; charset=utf-8']],
+  ['/nutrition-goals.js', ['nutrition-goals.js', 'text/javascript; charset=utf-8']],
   ['/profile-dates.js', ['profile-dates.js', 'text/javascript; charset=utf-8']],
   ['/api-client.js', ['api-client.js', 'text/javascript; charset=utf-8']],
   ['/preparation-stock-filters.js', ['preparation-stock-filters.js', 'text/javascript; charset=utf-8']],
@@ -246,22 +248,23 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
       try { return send(response, 201, { person: await createPerson(pool, body.value.householdId, validation.data) }); }
       catch (error) { return send(response, error.code === '23505' ? 409 : 500, { error: error.code === '23505' ? 'person-already-exists' : 'person-create-failed' }); }
     }
-    const personAction = url.pathname.match(/^\/api\/people\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(weights|profile-history|weight-goals)$/i);
+    const personAction = url.pathname.match(/^\/api\/people\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(weights|profile-history|weight-goals|nutrition-targets)$/i);
     if (personAction && request.method === 'POST') {
       const body = await readJson(request);
       if (body.error) return send(response, body.status ?? 400, { error: body.error });
       if (!isUuid(body.value?.householdId)) return send(response, 400, { error: 'invalid-household-id' });
       const isWeight = personAction[2] === 'weights';
       const isGoal = personAction[2] === 'weight-goals';
-      const validation = isWeight ? validateWeightInput(body.value) : isGoal ? validateWeightGoalInput(body.value) : validateProfileHistoryInput(body.value);
+      const isNutrition=personAction[2]==='nutrition-targets';
+      const validation = isNutrition?validateNutritionTarget(body.value):isWeight ? validateWeightInput(body.value) : isGoal ? validateWeightGoalInput(body.value) : validateProfileHistoryInput(body.value);
       if (validation.error) return send(response, 400, { error: validation.error });
       try {
-        const result = isWeight
+        const result = isNutrition?await addNutritionTarget(pool,personAction[1],body.value.householdId,validation.data):isWeight
           ? await addWeightEntry(pool, personAction[1], body.value.householdId, validation.data)
           : isGoal ? await addWeightGoal(pool, personAction[1], body.value.householdId, validation.data)
           : await addProfileHistory(pool, personAction[1], body.value.householdId, validation.data);
         if (!result) return send(response, 404, { error: 'person-not-found' });
-        return send(response, 201, { [isWeight ? 'measurement' : isGoal ? 'weightGoalEntry' : 'profileHistoryEntry']: result });
+        return send(response, 201, { [isNutrition ? 'nutritionTargetEntry' : isWeight ? 'measurement' : isGoal ? 'weightGoalEntry' : 'profileHistoryEntry']: result });
       } catch (error) {
         if (error.code === '23505') return send(response, 409, { error: isWeight ? 'weight-entry-already-exists-for-date' : 'profile-entry-already-exists-for-date' });
         return send(response, 500, { error: isWeight ? 'weight-entry-create-failed' : isGoal ? 'weight-goal-create-failed' : 'profile-history-create-failed' });

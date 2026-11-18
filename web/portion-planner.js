@@ -1,3 +1,4 @@
+import {effectiveDatedEntry} from './profile-dates.js';
 import { DEFAULT_MEAL_RATIOS, DEFAULT_PLATE_RATIOS, validPlateRatios, effectiveServingCaps } from './meal-config.js';
 export const SLOT_RATIOS = DEFAULT_MEAL_RATIOS;
 
@@ -88,15 +89,16 @@ export function calculateDailyEnergy(meals, personId, date) {
   return {kcal:incomplete && !knownAmounts ? null : kcal,incomplete,hasPlan};
 }
 
-const DEFAULT_DAILY_PROTEIN_TARGETS = Object.freeze({ bibinette: 90, lapinou: 125, bibou: 85, titus: 50 });
 
-export function dailyProteinTarget(person, savedTargets = {}) {
+export function dailyProteinTarget(person, savedTargets = {}, date = new Date().toISOString().slice(0,10)) {
+  const goal=effectiveDatedEntry(person?.nutritionTargetHistory,date);
+  if(goal)return goal.dailyProteinG;
   if (person?.id && Object.hasOwn(savedTargets, person.id)) {
     const saved = savedTargets[person.id];
     return saved == null ? null : Number(saved);
   }
-  const name = String(person?.displayName ?? '').trim().toLocaleLowerCase('fr');
-  return DEFAULT_DAILY_PROTEIN_TARGETS[name] ?? null;
+  if(Array.isArray(person?.nutritionTargetHistory))return null;
+  return null;
 }
 
 export function calculateDailyProtein(meals, personId, date) {

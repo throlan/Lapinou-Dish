@@ -61,7 +61,8 @@ test('daily protein totals require complete protein data and use the household m
     {amounts,recipe:{nutrition:{perYieldUnit:{proteinG:25}}}},
     {amounts:[{personId:'t',quantity:1}],recipe:{nutrition:{perYieldUnit:{proteinG:null}}}},
   ]}];
-  assert.deepEqual(people.map(planner.dailyProteinTarget),[90,125,85,50]);
+  assert.deepEqual(people.map(person=>planner.dailyProteinTarget(person)),[null,null,null,null]);
+  assert.deepEqual(people.map(person=>planner.dailyProteinTarget(person,{b:90,l:125,bb:85,t:50})),[90,125,85,50]);
   assert.equal(planner.dailyProteinTarget(people[0],{b:105}),105);
   assert.equal(planner.dailyProteinTarget(people[0],{b:null}),null);
   assert.deepEqual(planner.calculateDailyProtein(meals,'b','2026-10-19'),{grams:100,incomplete:false,hasPlan:true});
@@ -75,7 +76,7 @@ test('calendar daily summary colors protein values against each person minimum',
   const start=source.indexOf('function renderDailyEnergySummary('),end=source.indexOf('let dailyRebalancePreview=',start);
   const element=()=>({children:[],classList:{values:[],add(value){this.values.push(value);}},append(...children){this.children.push(...children);},addEventListener(){}});
   const people=[{id:'b',displayName:'Bibinette'},{id:'l',displayName:'Lapinou'},{id:'bb',displayName:'Bibou'},{id:'t',displayName:'Titus'}];
-  const context={...planner,document:{createElement:element},state:{people,calendarReserveOverview:null,recipes:[]},
+  const context={...planner,document:{createElement:element},state:{people,proteinTargets:{b:90,l:125,bb:85,t:50},calendarReserveOverview:null,recipes:[]},
     latestProfile:()=>null,format:value=>String(value)};
   runInNewContext(source.slice(start,end)+'\nglobalThis.render=renderDailyEnergySummary;',context);
   const amounts=people.map((person,index)=>({personId:person.id,quantity:[4,1,4,1][index]}));
