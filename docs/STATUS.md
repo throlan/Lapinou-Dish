@@ -1,4 +1,14 @@
-# État du projet — 16 novembre 2026
+# État du projet — 18 novembre 2026
+
+## Référence validée en production
+
+Version **0.13.1** (`package.json`), PR [#205](https://github.com/throlan/Lapinou-Dish/pull/205), fusion `99eb6d290aedcf022e25dafd16eb4ef1f4dffdb6`. [Contrôles et publication](https://github.com/throlan/Lapinou-Dish/actions/runs/43776135088) réussis ; tags GHCR `0.13.1` et `v0.13.1` : `sha256:4273fb32f8bfdcec16b67936e59b744f31a140e1660f556c5a2c07d704b89e45`. La 0.3.32 est une référence **historique de retour arrière**, pas la version courante. Le changement 0.13.1 ajoute l’icône du conteneur, sans migration ni changement de calcul. Les 460 tests locaux de la 0.13.0 ont réussi ; l’utilisateur a validé la 0.13.1 sur son installation.
+
+Les sections datées ci-dessous retracent les versions précédentes. Toute mention de « référence 0.3.32 » dans ces sections désigne la décision historique prise lors de leur rédaction ; elle ne remplace pas la référence active ci-dessus.
+
+## Architecture et domaine actuels
+
+Comptes et foyers privés avec rôles, profils sans compte, variantes et listes de choix, portions individuelles, aperçu et application du rééquilibrage journalier, stocks et batch cooking sont livrés. L’audit 0.13.1 a exécuté 63 migrations sur PGlite fictif vide (58 tables) et 460 tests locaux réussis. Les profils ont date de naissance, historique du poids, taille, activité et cible kcal avec origine et méthode ; la correction d’un profil à une date identique remplace encore son entrée. `nutrition_targets` existe en schéma mais n’alimente ni les écrans ni les calculs. Les objectifs protéiques résident dans les réglages du foyer, avec certains secours liés au prénom. L’âge calculé, les objectifs de poids historisés, les cibles nutritionnelles datées intégrées et l’estimateur Mifflin–St Jeor restent à développer.
 
 ## Icône du conteneur — 0.13.1
 

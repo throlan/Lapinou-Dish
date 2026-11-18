@@ -1,4 +1,13 @@
-# Prochaines tâches — 16 novembre 2026
+# Prochaines tâches — 18 novembre 2026
+
+## Lots à livrer dans cet ordre
+
+1. **Profils et objectifs de poids datés.** Calculer l’âge depuis la date de naissance à la date affichée, avec état inconnu si elle manque. Ajouter poids de forme choisi et objectif intermédiaire facultatif, distincts du poids mesuré, avec dates d’effet passées/futures et révisions conservées à date identique. Une version applicable doit être déterministe. Réutiliser Administration et Mon compte ; tester droits des membres, gestionnaires et profils sans compte, isolation entre foyers, anniversaires, valeurs manquantes et migration additive depuis des données fictives de type 0.13.1. Ne pas toucher au moteur de portions dans ce lot. Livrer sous un nouveau numéro ; la 0.13.1 reste la référence de production jusqu’à validation de l’utilisateur.
+2. **Objectifs nutritionnels datés.** Brancher les cibles sur les écrans et calculs après migration compatible des réglages kcal/protéines existants. Conserver origine, méthode, date et validation, lever les secours liés au prénom sans modifier silencieusement les cibles. Tester les révisions et les permissions.
+3. **Estimation des besoins et validation.** Séparer besoin estimé et cible choisie. Mifflin–St Jeor exige des paramètres explicites ; conserver entrées, méthode, date et validation. Aucun objectif automatique de perte de poids pour mineurs ou âge inconnu. Une estimation ne devient cible qu’après confirmation.
+4. **Préférences, allergies et informations facultatives privées.** Droits du compte et du foyer vérifiés côté API et base ; aucune inclusion automatique des informations de santé dans les appels externes.
+
+Ensuite : nutriments plus complets, optimisation déterministe des portions, score de qualité intrinsèque et score d’adéquation personne/repas distincts, puis planification assistée (kcal et stocks pour les créneaux libres, équilibre hebdomadaire, menus hebdomadaires avec aide IA facultative). Les allégations européennes sur les protéines restent distinctes. Un plat principal commun garde les quantités individuelles ; aucun changement de menu sans aperçu et confirmation. Le nettoyage du catalogue, le filtre des inutilisés et la fusion guidée des doublons restent hors feuille de route. Les valeurs inconnues ne deviennent pas zéro ; arbitrer les écarts alimentaires au cas par cas sans application externe automatique.
 
 ## Livré en 0.13.0 — fiches alimentaires
 

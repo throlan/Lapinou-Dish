@@ -1,20 +1,20 @@
 # Modèle métier
 
-Ce modèle exprime les concepts métier, pas une liste exacte des tables implémentées. Account/Membership et les variantes indépendantes sont des évolutions à cadrer ; l’accès actuel utilise une session de foyer. Voir [STATUS.md](STATUS.md) pour le livré. Aucun journal de consommation après repas n’est demandé.
+Ce modèle exprime les concepts métier, pas une liste exacte des tables implémentées. En 0.13.1, comptes, appartenances et rôles par foyer, profils sans compte, variantes par listes de choix, portions individuelles, rééquilibrage journalier, stocks et batch cooking sont livrés. Les entités d’estimation et de cible nutritionnelle décrites ci-dessous incluent encore des intentions : voir les écarts explicites dans [STATUS.md](STATUS.md) et les lots dans [TODO.md](TODO.md). Aucun journal de consommation après repas n’est demandé.
 
 ## Entités principales
 
 - **Household** : espace privé et paramètres généraux.
 - **Account / Membership** : connexion et permissions; peut être relié à une **Person**, mais une personne dépendante n'a pas besoin de compte.
 - **Person** : profil du foyer avec identité d'affichage et préférences; peut exister sans compte de connexion.
-- **PersonMeasurement** : relevé saisi par l'utilisateur, avec date et poids en kg; la taille en cm est historisée à chaque mise à jour. Les relevés hebdomadaires ne sont jamais générés automatiquement.
+- **PersonMeasurement** : relevé saisi par l'utilisateur, avec date et poids en kg. Le poids mesuré est distinct du poids de forme et de l’objectif de poids à ajouter. Les relevés hebdomadaires ne sont jamais générés automatiquement. Actuellement, un relevé à une date déjà utilisée est refusé.
 - **ActivityLevelHistory** : niveau d'activité choisi par l'utilisateur et date d'effet; les changements restent consultables.
-- **DailyNeedEstimate** : besoin quotidien estimé, valeur, date, méthode et instantané des données utilisées (âge/taille/poids/activité disponibles), avec origine et validation explicites.
-- **NutritionTarget** : nutriment, valeur, unité, date d'effet, origine (`manual`, `clinician`, `estimate`), méthode et état de validation. Une cible ne remplace ni les mesures ni une estimation de maintien.
+- **DailyNeedEstimate (à développer)** : besoin quotidien estimé, valeur, date, méthode et instantané des données utilisées (âge/taille/poids/activité disponibles), avec origine et validation explicites. Aucun estimateur Mifflin–St Jeor n’existe encore.
+- **NutritionTarget (schéma seulement)** : nutriment, valeur, unité, date d'effet, origine (`manual`, `clinician`, `estimate`), méthode et état de validation. La table existe mais n’est utilisée ni par les écrans ni par les calculs. La cible kcal actuelle vit dans l’historique de profil ; les objectifs protéiques sont des réglages du foyer avec certains secours liés au prénom. Une cible ne remplace ni les mesures ni une estimation de maintien.
 - **Food** : fiche canonique globale, identifiant source optionnel, noms et alias, marque, valeurs nutritionnelles partielles pour 100 g, provenance et version.
 - **FoodUnitConversion** : unité + aliment + quantité équivalente en grammes + source/preuve; conversion absente signifie impossible, pas équivalence 1:1.
 - **Recipe** : titre, instructions, rendements nommés et catégories.
-- **RecipeVariant** : choix explicite d'ingrédients optionnels/alternatifs (ex. sans whey / avec whey).
+- **RecipeVariant** : choix explicite d'ingrédients optionnels/alternatifs, via des listes réutilisables et un instantané de la combinaison utilisée ; les variantes indépendantes de chaque participant ne sont pas impliquées.
 - **RecipeComponent** : catégorie logique d'un composant séparable (protéine, riz, légume, sauce); optionnelle pour recette mélangée.
 - **RecipeLine** : `food_id`, quantité décimale, `unit_id`, état de l'aliment, composant, variante et ordre. Pas de nom alimentaire libre faisant autorité.
 - **MealPlan / PlannedMeal / PlannedItem** : date, créneau, personnes présentes et recettes/composants prévus.
@@ -31,8 +31,8 @@ Ce modèle exprime les concepts métier, pas une liste exacte des tables implém
 3. Un calcul nutritionnel est une fonction déterministe des lignes, de leurs conversions documentées, de la variante et du rendement demandé.
 4. Une valeur inconnue produit un résultat partiel/incomplet. Aucune inconnue n'est convertie en zéro.
 5. Les apports sont prévisionnels, calculés depuis le calendrier ; aucun journal nutritionnel du consommé n’est tenu.
-6. Les mesures corporelles et niveaux d'activité sont des données saisies par l'utilisateur et datées; une modification ajoute une entrée, elle ne réécrit pas l'historique.
-7. Une estimation de besoin quotidien conserve sa méthode, ses entrées, sa provenance et sa validation; elle n'est pas confondue avec une cible alimentaire.
+6. Les mesures corporelles et niveaux d'activité sont des données saisies par l'utilisateur et datées. Actuellement, une correction de profil à la même date remplace l’entrée ; conserver chaque révision est le premier lot à développer.
+7. Une future estimation de besoin quotidien devra conserver sa méthode, ses entrées, sa provenance et sa validation ; elle ne sera pas confondue avec une cible alimentaire.
 8. Le stock se calcule par mouvements explicites. Planifier réserve sans sortie physique ; une production ou un repas marqué « Préparé » déduit les ingrédients sans double prélèvement pour un batch déjà produit.
 9. Les unités restent qualifiées par état: g cru, g sec, g cuit ne sont jamais substitués silencieusement.
 

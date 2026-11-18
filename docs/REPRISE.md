@@ -1,4 +1,18 @@
-# Cahier de reprise — 16 novembre 2026
+# Cahier de reprise — 18 novembre 2026
+
+## Référence actuelle et reprise
+
+La **0.13.1** est la version validée en production par l’utilisateur et la référence fonctionnelle actuelle. `package.json` indique `0.13.1`. PR [#205](https://github.com/throlan/Lapinou-Dish/pull/205), fusion `99eb6d290aedcf022e25dafd16eb4ef1f4dffdb6`, [contrôles et publication](https://github.com/throlan/Lapinou-Dish/actions/runs/43776135088) réussis. Les tags GHCR `0.13.1` et `v0.13.1` désignent `sha256:4273fb32f8bfdcec16b67936e59b744f31a140e1660f556c5a2c07d704b89e45`. La référence historique 0.3.32 et son digest restent conservés dans [ROLLBACK.md](ROLLBACK.md) et `docker/rollback-images.json`.
+
+Pour reprendre : inventorier les worktrees, branches, stashes, modifications et commits locaux avant de récupérer `origin/main` ; ne faire ni reset destructif ni clean. Lire `AGENTS.md` s’il existe, puis REPRISE, STATUS, PRODUCT, AMELIORATIONS, TODO, ROLLBACK, ARCHITECTURE, DOMAIN, le journal le plus récent et `package.json`. Distinguer la version validée en production de la tête de développement si celle-ci avance. Ne jamais accéder à Unraid, Nginx ou à la base de production, même en lecture. L’utilisateur assure le déploiement ; les tests locaux utilisent des données fictives. Les changements passent par tests, commit/push, PR, contrôles réussis, fusion et vérification GitHub/GHCR. Une nouvelle livraison ne remplace la référence de production qu’après validation par l’utilisateur.
+
+## Architecture et profils réellement livrés
+
+Les comptes, foyers privés, droits, variantes, quantités individuelles, aperçu de rééquilibrage journalier, stocks et batch cooking fonctionnent déjà. L’audit 0.13.1 a exécuté 460 tests locaux et 63 migrations sur PGlite fictif vide (58 tables). Date de naissance, poids datés, taille, activité et cible kcal avec origine/méthode sont présents. Une correction du profil à la même date remplace l’entrée actuelle. `nutrition_targets` est une table non utilisée par les écrans ou calculs ; les minima protéiques sont dans les réglages du foyer, avec certains secours liés au prénom. Aucun estimateur Mifflin–St Jeor n’est livré. Les mentions anciennes de « comptes non livrés » ou d’une référence courante 0.3.32 dans les sections historiques ne décrivent plus l’état actuel.
+
+## Prochains lots et garde-fous
+
+Lot 1 : âge à la date pertinente, poids de forme choisi et objectif intermédiaire facultatif datés, révisions de profil conservées même le même jour. Lot 2 : objectifs nutritionnels datés, avec origine, méthode et validation. Lot 3 : estimation des besoins séparée d’une cible, méthode et paramètres explicites, validation obligatoire. Lot 4 : préférences, allergies et informations facultatives privées. Les critères et tests figurent dans [TODO.md](TODO.md). Ensuite viennent nutriments, optimisation des portions, scores séparés de qualité intrinsèque et d’adéquation personne/repas, puis planification assistée. Les allégations européennes sur les protéines restent distinctes des scores. Aucun objectif de perte de poids automatique pour mineur ou âge inconnu ; aucune donnée de santé facultative envoyée automatiquement à un service externe. Préserver les menus, quantités manuelles, stocks, variantes et calculs déterministes ; les propositions de menu nécessitent un aperçu et une confirmation. Les valeurs alimentaires inconnues restent inconnues, les conflits se règlent au cas par cas, aucune suggestion externe ne s’applique seule. Nettoyage du catalogue, filtre des inutilisés et fusion guidée des doublons restent retirés.
 
 ## Icône du conteneur — 0.13.1
 

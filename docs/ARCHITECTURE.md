@@ -4,9 +4,11 @@
 
 Les ADR initiales ci-dessous gardent leur contexte historique. L'implémentation actuelle est décrite dans [STATUS.md](STATUS.md) et les décisions de session ci-après ; l'agent ne doit jamais accéder ni intervenir sur Unraid.
 
-## Architecture actuelle — 0.2.72
+## Architecture actuelle — 0.13.1
 
-Node.js 24+, serveur HTTP monolithique, modules métier JavaScript et domaine TypeScript natif ; interface HTML/CSS/JavaScript sans framework. PostgreSQL via pg, migrations SQL explicites et tests PGlite ; aucun ORM. Session de foyer, comptes individuels non livrés. Images dans un dossier configurable avec repli PostgreSQL. GitHub Actions teste les PR puis publie sur GHCR après fusion sur main. Les propositions historiques de framework/ORM ne sont plus des tâches ouvertes. Aucun accès de l’agent à Unraid ni à Nginx.
+Node.js 24+, serveur HTTP monolithique, modules métier JavaScript et domaine TypeScript natif ; interface HTML/CSS/JavaScript sans framework. PostgreSQL via `pg`, migrations SQL explicites et tests PGlite ; aucun ORM. Comptes individuels et appartenances aux foyers privés livrés, avec rôles global et par foyer, profils pouvant rester sans compte, contrôles API et isolation SQL. Recettes modulables par listes de choix, instantanés des combinaisons utilisées, quantités individuelles, rééquilibrage journalier avec aperçu, stocks de préparations et batch cooking sont livrés. Images dans un dossier configurable avec repli PostgreSQL. GitHub Actions teste les PR puis publie sur GHCR après fusion sur main. Les propositions historiques de framework/ORM ne sont plus des tâches ouvertes. Aucun accès de l’agent à Unraid ni à Nginx.
+
+L’audit de la 0.13.1 a constaté **460 tests locaux réussis** et **63 migrations** exécutées sur une base PGlite fictive vide, donnant **58 tables**. Les profils possèdent déjà date de naissance, relevés de poids, taille, activité et cible kcal avec origine et méthode. Une correction du profil à la même date remplace actuellement l’entrée. `nutrition_targets` existe en base mais n’est pas utilisé par les écrans ou les calculs. Les minima protéiques sont enregistrés dans les réglages du foyer ; certains chemins de secours les relient encore au prénom. Aucun estimateur Mifflin–St Jeor n’est livré. Les lots de développement prévus sont détaillés dans [TODO.md](TODO.md).
 
 ## ADR-0001 — Application neuve, domaine et interface propres
 
@@ -52,6 +54,6 @@ Node.js 24+, serveur HTTP monolithique, modules métier JavaScript et domaine Ty
 - Les parties de service sont des recettes dérivées en grammes, rattachées à la recette mère. Leurs identifiants restent stables ; les lots liés au batch empêchent les doubles déductions d'ingrédients.
 - Répartition kcal : configuration JSON par foyer, validation commune à l'API et à l'interface dans `web/meal-config.js`. Un seul référentiel des cinq créneaux et pourcentages par défaut.
 - Rééquilibrage : calcul séparé dans `src/server/daily-rebalance.mjs`, aperçu sans mutation, empreinte des entrées et propositions, application transactionnelle sérialisable avec verrou du foyer. Les quantités sauvegardées et le stock physique restent distincts.
-- Administration utilise la session existante du foyer ; il n'y a pas de nouveau rôle administrateur ni système de comptes individuel introduit par cet onglet.
+- À la date de cette décision (13 octobre), Administration utilisait une session de foyer. Depuis 0.4.0, les comptes individuels, l’administrateur global et les rôles de foyer sont livrés ; cette phrase est conservée comme historique.
 - Livraison : GitHub/CI/GHCR seulement dans le périmètre de l'agent. L'utilisateur applique lui-même les mises à jour sur son installation. Cette règle prévaut sur les anciennes intentions de validation ou déploiement Unraid des ADR initiales.
 - Les sources importées et valeurs annoncées ne deviennent pas des valeurs nutritionnelles calculées. OpenAI est optionnel, produit des brouillons et reçoit le texte de recette, pas les profils du foyer.
