@@ -1,4 +1,10 @@
-# Cahier de reprise — 16 novembre 2026
+# Cahier de reprise — 18 novembre 2026
+
+## Référence actuelle et reprise
+
+La **0.13.1** est la version validée en production par l’utilisateur et la référence fonctionnelle actuelle. `package.json` indique `0.13.1`. PR [#205](https://github.com/throlan/Lapinou-Dish/pull/205), fusion `99eb6d290aedcf022e25dafd16eb4ef1f4dffdb6`, [contrôles et publication](https://github.com/throlan/Lapinou-Dish/actions/runs/43776135088) réussis. Les tags GHCR `0.13.1` et `v0.13.1` désignent `sha256:4273fb32f8bfdcec16b67936e59b744f31a140e1660f556c5a2c07d704b89e45`. La référence historique 0.3.32 et son digest restent conservés dans [ROLLBACK.md](ROLLBACK.md) et `docker/rollback-images.json`.
+
+Pour reprendre : inventorier les worktrees, branches, stashes, modifications et commits locaux avant de récupérer `origin/main` ; ne faire ni reset destructif ni clean. Lire `AGENTS.md` s’il existe, puis REPRISE, STATUS, PRODUCT, AMELIORATIONS, TODO, ROLLBACK, ARCHITECTURE, DOMAIN, le journal le plus récent et `package.json`. Distinguer la version validée en production de la tête de développement si celle-ci avance. Ne jamais accéder à Unraid, Nginx ou à la base de production, même en lecture. L’utilisateur assure le déploiement ; les tests locaux utilisent des données fictives. Les changements passent par tests, commit/push, PR, contrôles réussis, fusion et vérification GitHub/GHCR. Une nouvelle livraison ne remplace la référence de production qu’après validation par l’utilisateur.
 
 ## Icône du conteneur — 0.13.1
 

@@ -1,5 +1,11 @@
 # Images versionnées et retour arrière
 
+## Référence de production — 0.13.1
+
+La version validée en production est **0.13.1** : `ghcr.io/throlan/lapinou-dish:0.13.1` et `:v0.13.1`, digest commun `sha256:4273fb32f8bfdcec16b67936e59b744f31a140e1660f556c5a2c07d704b89e45`. PR #205, fusion `99eb6d290aedcf022e25dafd16eb4ef1f4dffdb6`, [publication réussie](https://github.com/throlan/Lapinou-Dish/actions/runs/43776135088). La 0.13.1 n’ajoute aucune migration à la 0.13.0. Les références des sections suivantes sont historiques ; leurs digests ne doivent jamais être réécrits.
+
+La **0.3.32** reste une image historique disponible au digest `sha256:defb5b021e29975bbc6ab96576d791d54e3ca622a690082ed33341c6d87301ea`. Son image précède les comptes et l’isolation multi-foyers : ne pas l’exécuter sur une base issue des versions actuelles sans restaurer une sauvegarde compatible antérieure et vérifier les migrations. Un retour d’image, quelle que soit la version, ne restaure ni la base, ni les photos, ni les stocks ou menus modifiés depuis. Sauvegarde, déploiement et restauration restent exclusivement à la charge de l’utilisateur ; aucun accès de l’agent à Unraid ou Nginx.
+
 ## Retour depuis la 0.13.0
 
 Aucune migration. Revenir à 0.12.1 rétablit les anciens champs de fiche et les blocages de pincées ; les mesures explicitement enregistrées restent conservées. Les valeurs calculées non saisies restent dérivées de leur référence, sans créer de mesures persistantes supplémentaires. Les anciens calculs de volume peuvent choisir une autre référence si plusieurs mesures enregistrées se contredisent : vérifier ces fiches. Aucun retour d’image ne restaure des valeurs de catalogue ou de stock déjà modifiées. Référence 0.3.32 conservée ; restauration par l’utilisateur.
