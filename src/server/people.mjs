@@ -60,7 +60,7 @@ export async function listPeople(pool, householdId) {
   ]);
   return people.map((person) => ({
     id: person.id, displayName: person.display_name, birthDate: person.birth_date, active: person.active,
-    nutritionTargetHistory:targets.rows.filter(row=>row.person_id===person.id).map(row=>({id:row.id,effectiveFrom:row.date,revisionOrder:Number(row.revision_order),dailyEnergyKcal:Number(row.daily_energy_kcal),dailyProteinG:row.daily_protein_g==null?null:Number(row.daily_protein_g),origin:row.origin,method:row.method,referenceWeightKg:row.reference_weight_kg==null?null:Number(row.reference_weight_kg),confirmedAt:row.confirmed_at})),
+    nutritionTargetHistory:targets.rows.filter(row=>row.person_id===person.id).map(row=>({id:row.id,effectiveFrom:row.date,revisionOrder:Number(row.revision_order),dailyEnergyKcal:Number(row.daily_energy_kcal),dailyProteinG:row.daily_protein_g==null?null:Number(row.daily_protein_g),dailyFatG:row.daily_fat_g==null?null:Number(row.daily_fat_g),dailyCarbohydrateG:row.daily_carbohydrate_g==null?null:Number(row.daily_carbohydrate_g),dailyFibreG:row.daily_fibre_g==null?null:Number(row.daily_fibre_g),questionnaire:row.questionnaire??null,origin:row.origin,method:row.method,referenceWeightKg:row.reference_weight_kg==null?null:Number(row.reference_weight_kg),confirmedAt:row.confirmed_at})),
     weightHistory: weights.rows.filter((entry) => entry.person_id === person.id).map((entry) => ({ id: entry.id, measuredOn: entry.measured_on, weightKg: Number(entry.weight_kg) })),
     weightGoalHistory: goals.rows.filter((entry) => entry.person_id === person.id).map((entry) => ({
       id: entry.id, effectiveFrom: entry.effective_from, revisionOrder: Number(entry.revision_order),

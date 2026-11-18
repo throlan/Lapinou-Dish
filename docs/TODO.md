@@ -1,5 +1,19 @@
 # Prochaines tâches — 18 novembre 2026
 
+## Proposition nutritionnelle guidée — 0.16.0
+
+Le parcours guidé distingue le maintien estimé et la cible proposée. Un poids de forme inférieur au dernier poids mesuré suggère « perte de poids », avec confirmation obligatoire ; aucun déficit n’est choisi automatiquement. L’utilisateur choisit explicitement un ajustement de 10/15/20 % ou une valeur en kcal. Les pourcentages sont des réglages applicatifs, pas une prescription issue d’une recommandation. Les calories restent la base des calculs et les protéines un repère indicatif.
+
+Le questionnaire facultatif couvre diabète, risque d’hypoglycémie, fonction rénale, grossesse/allaitement, intervention bariatrique et date, dumping. « Je ne sais pas » reste possible. Les réponses ne sont stockées qu’avec la cible confirmée dans person_nutrition_goals.questionnaire, protégée par les mêmes droits API/RLS que le profil ; aucun envoi à l’IA ou à un service externe. Les conflits empêchent le report de la proposition automatique ; les consignes professionnelles restent saisissables directement.
+
+Repères sourcés : HAS 2024 R98 pour les protéines après chirurgie (minimum 60 g/j, idéalement au moins 1,1 g/kg de poids idéal/j), avec formule médicale explicitement choisie (Lorentz/Hamwi/référence théorique IMC 25), distincte du poids de forme personnel. ADA 2026 : aucun ratio universel des trois macronutriments pour le diabète ; repère fibres 14 g/1 000 kcal avec adaptation digestive. EFSA : choix général de lipides entre 20 et 35 % ; glucides calculés comme complément des calories après le repère protéique et les lipides choisis (4/4/9), sans présenter cette répartition comme une prescription. Les sources et conditions sont visibles dans l’aperçu. Voir NUTRITION-RECOMMANDATIONS.md.
+
+Décisions prudentes de l’application : pas de report automatique avec maladie rénale ou statut incertain, risque d’hypoglycémie, grossesse/allaitement, diabète de type 1/inconnu, dumping, première année après chirurgie ou intervention non précisée. Aucune moyenne ni priorité arbitraire entre recommandations contradictoires. Une cible générale ≤1 200 kcal/j renvoie à un accompagnement spécialisé. Une baisse de protéines sous le repère bariatrique est signalée à arbitrer. Ces règles de parcours ne constituent pas un protocole médical individuel.
+
+Les cibles datées ajoutent lipides, glucides et fibres, visibles dans le profil, l’accueil et le calendrier comme repères journaliers. Les valeurs inconnues restent absentes. La note est lisible ; les données du calcul et du questionnaire sont conservées séparément. Une modification manuelle après proposition conserve le contexte et change l’origine en choix personnel, sauf choix explicite d’une autre origine. Les menus, quantités, stocks et rééquilibrages existants ne sont pas réécrits. Migration additive 20261118_nutrition_macros.sql ; les anciennes lignes restent intactes.
+
+Validation : 31 tests ciblés réussis ; suite complète et contrôles/publication à consigner dans la PR de livraison. La 0.13.1 reste la référence explicitement validée en production ; l’utilisateur a utilisé la 0.15.0 et signalé la limite du report de maintien. Déploiement exclusivement par l’utilisateur, aucun accès Unraid/Nginx/base réelle.
+
 ## Cibles datées, estimation et suivi — 0.15.0
 
 Version 0.15.0 : cibles kcal et minima protéiques datés, origine, méthode et confirmation explicite, révisions conservées. Administration et Mon compte partagent le formulaire avec aperçu. Les anciennes cibles et les anciens minima sont repris ; les secours par prénom sont matérialisés une seule fois par identifiant à la migration, puis retirés du calcul courant. Calories utilisées par le calendrier, les propositions, le rééquilibrage journalier et la réserve ; protéines indicatives. Aucun menu, quantité ou stock réécrit.
