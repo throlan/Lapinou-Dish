@@ -1,5 +1,9 @@
 # Cahier produit Lapinou Dish
 
+## État effectif et écarts des profils — 0.13.1
+
+Comptes, foyers privés et droits, variantes choisies, portions individuelles, rééquilibrage journalier avec aperçu, stocks et batch cooking sont livrés. Les profils conservent déjà date de naissance, poids datés, taille, activité et cible kcal avec origine et méthode. L’âge calculé, le poids de forme, l’objectif intermédiaire et les révisions à date identique restent à développer. `nutrition_targets` existe seulement en base ; les objectifs protéiques sont aujourd’hui des réglages du foyer, avec certains secours liés au prénom. Aucun estimateur Mifflin–St Jeor n’est livré. La section « Personnes et objectifs » plus bas décrit aussi la cible future ; [TODO.md](TODO.md) sépare les quatre lots à réaliser.
+
 ## Fiches alimentaires et corrections guidées — 0.13.0
 
 Les champs essentiels restent visibles : valeurs nutritionnelles pour 100 g, coefficient poids cuit/cru, densité, poids de la cuillère à café, cuillère à soupe, scoop de 60 ml et pièce. La cup de 240 ml complète les mesures de contenants. Marque/autres noms et courses/conditionnement sont repliables. Un seul mode de conditionnement est affiché : quantité par paquet ou unité nommée ; magasin et classement du foyer sont conservés.

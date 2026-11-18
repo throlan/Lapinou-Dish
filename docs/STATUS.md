@@ -6,6 +6,10 @@ Version **0.13.1** (`package.json`), PR [#205](https://github.com/throlan/Lapino
 
 Les sections datées ci-dessous retracent les versions précédentes. Toute mention de « référence 0.3.32 » dans ces sections désigne la décision historique prise lors de leur rédaction ; elle ne remplace pas la référence active ci-dessus.
 
+## Architecture et domaine actuels
+
+Comptes et foyers privés avec rôles, profils sans compte, variantes et listes de choix, portions individuelles, aperçu et application du rééquilibrage journalier, stocks et batch cooking sont livrés. L’audit 0.13.1 a exécuté 63 migrations sur PGlite fictif vide (58 tables) et 460 tests locaux réussis. Les profils ont date de naissance, historique du poids, taille, activité et cible kcal avec origine et méthode ; la correction d’un profil à une date identique remplace encore son entrée. `nutrition_targets` existe en schéma mais n’alimente ni les écrans ni les calculs. Les objectifs protéiques résident dans les réglages du foyer, avec certains secours liés au prénom. L’âge calculé, les objectifs de poids historisés, les cibles nutritionnelles datées intégrées et l’estimateur Mifflin–St Jeor restent à développer.
+
 ## Icône du conteneur — 0.13.1
 
 Le Dockerfile déclare maintenant le label net.unraid.docker.icon vers le logo public existant : https://raw.githubusercontent.com/throlan/Lapinou-Dish/main/web/icons/app-192.png. Le service app du Compose fourni porte aussi ce label. Aucun changement fonctionnel ni de données, aucune migration. Le passage à 0.13.1 permet de publier cette métadonnée sans réécrire l’image 0.13.0.

@@ -6,6 +6,10 @@ La **0.13.1** est la version validée en production par l’utilisateur et la r�
 
 Pour reprendre : inventorier les worktrees, branches, stashes, modifications et commits locaux avant de récupérer `origin/main` ; ne faire ni reset destructif ni clean. Lire `AGENTS.md` s’il existe, puis REPRISE, STATUS, PRODUCT, AMELIORATIONS, TODO, ROLLBACK, ARCHITECTURE, DOMAIN, le journal le plus récent et `package.json`. Distinguer la version validée en production de la tête de développement si celle-ci avance. Ne jamais accéder à Unraid, Nginx ou à la base de production, même en lecture. L’utilisateur assure le déploiement ; les tests locaux utilisent des données fictives. Les changements passent par tests, commit/push, PR, contrôles réussis, fusion et vérification GitHub/GHCR. Une nouvelle livraison ne remplace la référence de production qu’après validation par l’utilisateur.
 
+## Architecture et profils réellement livrés
+
+Les comptes, foyers privés, droits, variantes, quantités individuelles, aperçu de rééquilibrage journalier, stocks et batch cooking fonctionnent déjà. L’audit 0.13.1 a exécuté 460 tests locaux et 63 migrations sur PGlite fictif vide (58 tables). Date de naissance, poids datés, taille, activité et cible kcal avec origine/méthode sont présents. Une correction du profil à la même date remplace l’entrée actuelle. `nutrition_targets` est une table non utilisée par les écrans ou calculs ; les minima protéiques sont dans les réglages du foyer, avec certains secours liés au prénom. Aucun estimateur Mifflin–St Jeor n’est livré. Les mentions anciennes de « comptes non livrés » ou d’une référence courante 0.3.32 dans les sections historiques ne décrivent plus l’état actuel.
+
 ## Icône du conteneur — 0.13.1
 
 Le Dockerfile déclare maintenant le label net.unraid.docker.icon vers le logo public existant : https://raw.githubusercontent.com/throlan/Lapinou-Dish/main/web/icons/app-192.png. Le service app du Compose fourni porte aussi ce label. Aucun changement fonctionnel ni de données, aucune migration. Le passage à 0.13.1 permet de publier cette métadonnée sans réécrire l’image 0.13.0.
