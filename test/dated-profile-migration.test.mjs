@@ -1,0 +1,35 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile,readdir} from 'node:fs/promises';
+import {randomUUID} from 'node:crypto';
+import {PGlite} from '@electric-sql/pglite';
+import {addProfileHistory,addWeightGoal,listPeople} from '../src/server/people.mjs';
+import {effectiveDatedEntry} from '../web/profile-dates.js';
+
+test('0.13.1 profiles survive additive migration and retain same-day corrections and future goals',async t=>{
+  const db=new PGlite();t.after(()=>db.close());
+  const migrations=(await readdir(new URL('../db/migrations/',import.meta.url))).filter(name=>name.endsWith('.sql')).sort();
+  for(const name of migrations.filter(name=>name!=='20261118_dated_profile_goals.sql'))await db.exec(await readFile(new URL('../db/migrations/'+name,import.meta.url),'utf8'));
+  const household=randomUUID(),person=randomUUID(),weight=randomUUID(),profile=randomUUID();
+  await db.query('INSERT INTO households(id,name) VALUES($1,$2)',[household,'Foyer fictif']);
+  await db.query('INSERT INTO people(id,household_id,display_name,birth_date) VALUES($1,$2,$3,$4)',[person,household,'Profil fictif','1980-11-19']);
+  await db.query('INSERT INTO person_weight_entries(id,person_id,measured_on,weight_kg) VALUES($1,$2,$3,$4)',[weight,person,'2026-11-17',80]);
+  await db.query("INSERT INTO person_profile_history(id,person_id,effective_from,height_cm,activity_level,daily_energy_kcal,daily_energy_origin) VALUES($1,$2,'2026-11-01',173,'sedentary',2000,'manual')",[profile,person]);
+  await db.exec(await readFile(new URL('../db/migrations/20261118_dated_profile_goals.sql',import.meta.url),'utf8'));
+  const pool={query:(sql,args)=>db.query(sql,args)};
+  await addProfileHistory(pool,person,household,{effectiveFrom:'2026-11-01',heightCm:174,activityLevel:'light',dailyEnergyKcal:2100,dailyEnergyOrigin:'clinician',dailyEnergyMethod:'Correction fictive'});
+  await addProfileHistory(pool,person,household,{effectiveFrom:'2027-01-01',heightCm:175,activityLevel:'moderate',dailyEnergyKcal:2200,dailyEnergyOrigin:'manual',dailyEnergyMethod:''});
+  await addWeightGoal(pool,person,household,{effectiveFrom:'2026-11-01',comfortableWeightKg:70,interimTargetKg:75});
+  await addWeightGoal(pool,person,household,{effectiveFrom:'2026-11-01',comfortableWeightKg:69,interimTargetKg:74});
+  await addWeightGoal(pool,person,household,{effectiveFrom:'2027-02-01',comfortableWeightKg:68,interimTargetKg:null});
+  const [saved]=await listPeople(pool,household);
+  assert.equal(saved.birthDate,'1980-11-19');
+  assert.equal(saved.weightHistory[0].weightKg,80);
+  assert.equal(saved.profileHistory.length,3);
+  assert.equal(saved.profileHistory.find(entry=>entry.id===profile).dailyEnergyKcal,2000);
+  assert.equal(effectiveDatedEntry(saved.profileHistory,'2026-11-18').dailyEnergyKcal,2100);
+  assert.equal(effectiveDatedEntry(saved.profileHistory,'2027-01-02').dailyEnergyKcal,2200);
+  assert.equal(saved.weightGoalHistory.length,3);
+  assert.equal(effectiveDatedEntry(saved.weightGoalHistory,'2026-11-18').comfortableWeightKg,69);
+  assert.equal(effectiveDatedEntry(saved.weightGoalHistory,'2027-02-02').comfortableWeightKg,68);
+});

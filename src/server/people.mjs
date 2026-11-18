@@ -35,6 +35,16 @@ export function validateProfileHistoryInput(input) {
   return { data: { effectiveFrom: input.effectiveFrom, heightCm, activityLevel, dailyEnergyKcal, dailyEnergyOrigin, dailyEnergyMethod } };
 }
 
+export function validateWeightGoalInput(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return { error: 'invalid-body' };
+  if (!isDate(input.effectiveFrom)) return { error: 'invalid-effective-date' };
+  const comfortableWeightKg = Number(input.comfortableWeightKg);
+  if (!Number.isFinite(comfortableWeightKg) || comfortableWeightKg <= 0 || comfortableWeightKg > 500) return { error: 'invalid-comfortable-weight' };
+  const interimTargetKg = input.interimTargetKg == null || input.interimTargetKg === '' ? null : Number(input.interimTargetKg);
+  if (interimTargetKg != null && (!Number.isFinite(interimTargetKg) || interimTargetKg <= 0 || interimTargetKg > 500)) return { error: 'invalid-interim-target' };
+  return { data: { effectiveFrom: input.effectiveFrom, comfortableWeightKg, interimTargetKg } };
+}
+
 export async function listPeople(pool, householdId) {
   const people = (await pool.query(
     'SELECT id, display_name, birth_date::text AS birth_date, active FROM people WHERE household_id = $1 ORDER BY display_name',
@@ -42,15 +52,20 @@ export async function listPeople(pool, householdId) {
   )).rows;
   if (!people.length) return [];
   const ids = people.map((person) => person.id);
-  const [weights, profiles] = await Promise.all([
+  const [weights, profiles, goals] = await Promise.all([
     pool.query('SELECT id, person_id, measured_on::text AS measured_on, weight_kg FROM person_weight_entries WHERE person_id = ANY($1::uuid[]) ORDER BY measured_on DESC', [ids]),
-    pool.query('SELECT id, person_id, effective_from::text AS effective_from, height_cm, activity_level, daily_energy_kcal, daily_energy_origin, daily_energy_method FROM person_profile_history WHERE person_id = ANY($1::uuid[]) ORDER BY effective_from DESC', [ids]),
+    pool.query('SELECT id, person_id, effective_from::text AS effective_from, revision_order, height_cm, activity_level, daily_energy_kcal, daily_energy_origin, daily_energy_method FROM person_profile_history WHERE person_id = ANY($1::uuid[]) ORDER BY effective_from DESC, revision_order DESC', [ids]),
+    pool.query('SELECT id, person_id, effective_from::text AS effective_from, revision_order, comfortable_weight_kg, interim_target_kg FROM person_weight_goals WHERE person_id = ANY($1::uuid[]) ORDER BY effective_from DESC, revision_order DESC', [ids]),
   ]);
   return people.map((person) => ({
     id: person.id, displayName: person.display_name, birthDate: person.birth_date, active: person.active,
     weightHistory: weights.rows.filter((entry) => entry.person_id === person.id).map((entry) => ({ id: entry.id, measuredOn: entry.measured_on, weightKg: Number(entry.weight_kg) })),
+    weightGoalHistory: goals.rows.filter((entry) => entry.person_id === person.id).map((entry) => ({
+      id: entry.id, effectiveFrom: entry.effective_from, revisionOrder: Number(entry.revision_order),
+      comfortableWeightKg: Number(entry.comfortable_weight_kg), interimTargetKg: entry.interim_target_kg == null ? null : Number(entry.interim_target_kg),
+    })),
     profileHistory: profiles.rows.filter((entry) => entry.person_id === person.id).map((entry) => ({
-      id: entry.id, effectiveFrom: entry.effective_from, heightCm: entry.height_cm == null ? null : Number(entry.height_cm),
+      id: entry.id, effectiveFrom: entry.effective_from, revisionOrder: Number(entry.revision_order), heightCm: entry.height_cm == null ? null : Number(entry.height_cm),
       activityLevel: entry.activity_level, dailyEnergyKcal: entry.daily_energy_kcal == null ? null : Number(entry.daily_energy_kcal),
       dailyEnergyOrigin: entry.daily_energy_origin, dailyEnergyMethod: entry.daily_energy_method,
     })),
@@ -63,7 +78,7 @@ export async function createPerson(pool, householdId, data) {
     [randomUUID(), householdId, data.displayName, data.birthDate],
   );
   const row = result.rows[0];
-  return { id: row.id, displayName: row.display_name, birthDate: row.birth_date, active: row.active, weightHistory: [], profileHistory: [] };
+  return { id: row.id, displayName: row.display_name, birthDate: row.birth_date, active: row.active, weightHistory: [], weightGoalHistory: [], profileHistory: [] };
 }
 
 export async function addWeightEntry(pool, personId, householdId, data) {
@@ -77,16 +92,26 @@ export async function addWeightEntry(pool, personId, householdId, data) {
 
 export async function addProfileHistory(pool, personId, householdId, data) {
   const result = await pool.query(
-    'INSERT INTO person_profile_history (id, person_id, effective_from, height_cm, activity_level, daily_energy_kcal, daily_energy_origin, daily_energy_method) SELECT $1, p.id, $3, $4, $5, $6, $7, $8 FROM people p WHERE p.id = $2 AND p.household_id = $9 ON CONFLICT (person_id, effective_from) DO UPDATE SET height_cm = EXCLUDED.height_cm, activity_level = EXCLUDED.activity_level, daily_energy_kcal = EXCLUDED.daily_energy_kcal, daily_energy_origin = EXCLUDED.daily_energy_origin, daily_energy_method = EXCLUDED.daily_energy_method RETURNING id, effective_from::text AS effective_from, height_cm, activity_level, daily_energy_kcal, daily_energy_origin, daily_energy_method',
+    'INSERT INTO person_profile_history (id, person_id, effective_from, height_cm, activity_level, daily_energy_kcal, daily_energy_origin, daily_energy_method) SELECT $1, p.id, $3, $4, $5, $6, $7, $8 FROM people p WHERE p.id = $2 AND p.household_id = $9 RETURNING id, effective_from::text AS effective_from, revision_order, height_cm, activity_level, daily_energy_kcal, daily_energy_origin, daily_energy_method',
     [randomUUID(), personId, data.effectiveFrom, data.heightCm, data.activityLevel, data.dailyEnergyKcal, data.dailyEnergyOrigin, data.dailyEnergyMethod, householdId],
   );
   if (!result.rowCount) return null;
   const row = result.rows[0];
   return {
-    id: row.id, effectiveFrom: row.effective_from, heightCm: row.height_cm == null ? null : Number(row.height_cm),
+    id: row.id, effectiveFrom: row.effective_from, revisionOrder: Number(row.revision_order), heightCm: row.height_cm == null ? null : Number(row.height_cm),
     activityLevel: row.activity_level, dailyEnergyKcal: row.daily_energy_kcal == null ? null : Number(row.daily_energy_kcal),
     dailyEnergyOrigin: row.daily_energy_origin, dailyEnergyMethod: row.daily_energy_method,
   };
+}
+
+export async function addWeightGoal(pool, personId, householdId, data) {
+  const result = await pool.query(
+    'INSERT INTO person_weight_goals (id, person_id, effective_from, comfortable_weight_kg, interim_target_kg) SELECT $1, p.id, $3, $4, $5 FROM people p WHERE p.id = $2 AND p.household_id = $6 RETURNING id, effective_from::text AS effective_from, revision_order, comfortable_weight_kg, interim_target_kg',
+    [randomUUID(), personId, data.effectiveFrom, data.comfortableWeightKg, data.interimTargetKg, householdId],
+  );
+  if (!result.rowCount) return null;
+  const row = result.rows[0];
+  return { id: row.id, effectiveFrom: row.effective_from, revisionOrder: Number(row.revision_order), comfortableWeightKg: Number(row.comfortable_weight_kg), interimTargetKg: row.interim_target_kg == null ? null : Number(row.interim_target_kg) };
 }
 
 function isDate(value) {

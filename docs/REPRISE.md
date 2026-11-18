@@ -1,5 +1,9 @@
 # Cahier de reprise — 18 novembre 2026
 
+## Lot 1 en développement — 0.14.0
+
+Branche `feat/dated-profile-goals` depuis la fusion documentaire #206. L’âge est calculé à la date consultée quand la naissance est connue. Poids mesuré, poids de forme choisi et objectif intermédiaire facultatif restent distincts. Les objectifs sont datés ; les corrections de profil à date identique sont conservées en révisions ordonnées. Administration et Mon compte proposent la saisie, l’historique et les dates futures. Migration additive `20261118_dated_profile_goals.sql` : la table des objectifs et un ordre de révision du profil, sans réécriture des anciens relevés, cibles kcal, menus, quantités ou stocks. Les lectures kcal du rééquilibrage et de la réserve retiennent la dernière révision applicable. Le moteur de portions n’est pas modifié. Tests ciblés et suite complète : **463 réussis** sur données fictives. La 0.13.1 reste la référence validée en production jusqu’à validation explicite de la 0.14.0.
+
 ## Référence actuelle et reprise
 
 La **0.13.1** est la version validée en production par l’utilisateur et la référence fonctionnelle actuelle. `package.json` indique `0.13.1`. PR [#205](https://github.com/throlan/Lapinou-Dish/pull/205), fusion `99eb6d290aedcf022e25dafd16eb4ef1f4dffdb6`, [contrôles et publication](https://github.com/throlan/Lapinou-Dish/actions/runs/43776135088) réussis. Les tags GHCR `0.13.1` et `v0.13.1` désignent `sha256:4273fb32f8bfdcec16b67936e59b744f31a140e1660f556c5a2c07d704b89e45`. La référence historique 0.3.32 et son digest restent conservés dans [ROLLBACK.md](ROLLBACK.md) et `docker/rollback-images.json`.

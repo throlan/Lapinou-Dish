@@ -49,7 +49,7 @@ export async function previewDailyRebalance(pool,householdId,date) {
     FROM planned_amounts a JOIN planned_meal_items i ON i.id=a.planned_item_id JOIN planned_meals m ON m.id=i.meal_id
     WHERE m.household_id=$1 AND m.meal_date=$2 ORDER BY m.id,i.id,a.person_id`,[householdId,date]);
   const peopleResult=await pool.query(`SELECT p.id,p.display_name,p.birth_date::text AS birth_date,p.active,
-    (SELECT daily_energy_kcal FROM person_profile_history ph WHERE ph.person_id=p.id AND ph.effective_from<=$2 ORDER BY effective_from DESC LIMIT 1) AS target
+    (SELECT daily_energy_kcal FROM person_profile_history ph WHERE ph.person_id=p.id AND ph.effective_from<=$2 ORDER BY effective_from DESC, revision_order DESC LIMIT 1) AS target
     FROM people p WHERE p.household_id=$1 ORDER BY p.id`,[householdId,date]);
   const savingResult=await pool.query('SELECT person_id,daily_kcal FROM energy_saving_plans WHERE household_id=$1 AND starts_on<=$2 AND ends_on>=$2',[householdId,date]);
   const extraSavings=new Map(savingResult.rows.map(row=>[row.person_id,Number(row.daily_kcal)]));
