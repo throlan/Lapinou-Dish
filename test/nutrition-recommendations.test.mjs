@@ -42,3 +42,14 @@ test('validated macros and private questionnaire remain explicit, while changed 
  assert.ok(validateNutritionTarget({...body,dailyFatG:-1}).error);
  assert.ok(validateNutritionTarget({...body,origin:'manual',dailyEnergyKcal:1700}).data);
 });
+
+test('complete defaults fill all daily macro references without changing historical questionnaires',()=>{
+ const minimal={...input,defaultsVersion:1,proteinG:'',fatPercent:''};
+ const p=proposeNutritionPlan(minimal);
+ assert.equal(p.dailyProteinG,64);assert.equal(p.dailyFibreG,25);assert.ok(p.dailyFatG>0);assert.ok(p.dailyCarbohydrateG>0);assert.deepEqual(p.conflicts,[]);
+ const bariatric=proposeNutritionPlan({...minimal,proteinG:80,context:{...input.context,surgery:'mini_bypass',surgeryDate:'2014-01-01'}});
+ assert.equal(bariatric.idealWeightMethod,"lorentz");assert.equal(bariatric.dailyProteinG,80);assert.equal(bariatric.referenceWeight,59);assert.ok(bariatric.dailyCarbohydrateG>0);
+ const legacy=proposeNutritionPlan({...minimal,defaultsVersion:undefined});assert.equal(legacy.dailyProteinG,null);assert.equal(legacy.dailyFatG,null);assert.equal(legacy.dailyFibreG,null);
+ const diabetic=proposeNutritionPlan({...minimal,context:{...input.context,diabetes:'type2'}});assert.equal(diabetic.dailyFibreG,25);
+ const renal=proposeNutritionPlan({...minimal,context:{...input.context,renal:'yes'}});assert.ok(renal.conflicts.length);
+});

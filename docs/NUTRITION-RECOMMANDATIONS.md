@@ -17,3 +17,9 @@ Les recommandations guident une proposition à confirmer ; elles ne transforment
 La première année après chirurgie, un diabète de type 1 ou inconnu, une grossesse/allaitement, une fonction rénale incertaine, des hypoglycémies ou un dumping renvoient à une personnalisation professionnelle. Ce sont des restrictions prudentes du parcours automatique ; ce ne sont pas des interdictions médicales universelles de modifier l’alimentation. Les valeurs candidates restent accompagnées des conflits et ne peuvent pas être utilisées par le bouton de report tant que ces conflits persistent.
 
 La protéine choisie sert de repère de calcul pour compléter les calories avec glucides et lipides. Elle reste un minimum indicatif dans le suivi. Les repères ne sont pas les consommations réelles ; aucune quantité de menu existant ni stock n’est modifiée à leur validation.
+
+## Réglages de départ du parcours — 0.16.1
+
+10 % d’ajustement, 30 % de lipides et référence de Lorentz sont des réglages initiaux modifiables, affichés avant le calcul et soumis à confirmation de l’objectif puis de la cible. Lorentz n’est pas présentée comme supérieure aux autres formules du tableau HAS. Le poids résultant n’est jamais appliqué comme objectif de poids personnel.
+
+Si le repère protéique manque hors chirurgie, la proposition générale adulte utilise [EFSA 2012, protéines](https://doi.org/10.2903/j.efsa.2012.2557) : 0,83 g/kg du poids mesuré. Pour les fibres, [EFSA 2010](https://doi.org/10.2903/j.efsa.2010.1462) fournit le repère général de 25 g/j ; le repère ADA 14 g/1 000 kcal est retenu s’il est supérieur dans le contexte diabétique. Ces valeurs restent à adapter à la situation et à la tolérance ; les conflits rénaux, postopératoires et autres restrictions du parcours restent actifs. Les anciens questionnaires sans defaultsVersion:1 ne sont pas recalculés avec ces nouveaux réglages.
