@@ -1,5 +1,19 @@
 # Cahier de reprise — 18 novembre 2026
 
+## Cibles datées, estimation et suivi — 0.15.0
+
+Validation locale : 18 tests ciblés réussis (droits API et SQL, migration des cibles, dates/révisions, estimation, aperçu et confirmation, affichage des minima et chargement des modules). Contrôles complets et publication à vérifier dans la PR de livraison.
+
+Version 0.15.0 : cibles kcal et minima protéiques datés, origine, méthode et confirmation explicite, révisions conservées. Administration et Mon compte partagent le formulaire avec aperçu. Les anciennes cibles et les anciens minima sont repris ; les secours par prénom sont matérialisés une seule fois par identifiant à la migration, puis retirés du calcul courant. Calories utilisées par le calendrier, les propositions, le rééquilibrage journalier et la réserve ; protéines indicatives. Aucun menu, quantité ou stock réécrit.
+
+Estimation facultative de maintien : Mifflin–St Jeor simplifiée (1990), poids mesuré et taille datés, âge à la date choisie, paramètre sexué et PAL explicitement sélectionnés (1,4 / 1,6 / 1,8 / 2). Le choix de combiner cette formule et ces repères PAL EFSA est une estimation générale, pas une prescription ni une mesure de dépense. Résultat, entrées et sources reportés dans la méthode uniquement après choix explicite, puis confirmation de la cible. Aucun déficit imposé. Estimation adulte seulement ; âge manquant, mineur ou hors plage 18–78 : saisie personnalisée. Situations médicales particulières, grossesse et allaitement : privilégier une cible professionnelle. Sources : https://pubmed.ncbi.nlm.nih.gov/2305711/ et https://www.efsa.europa.eu/sites/default/files/assets/DRV_Summary_tables_jan_17.pdf .
+
+Bilan mensuel à la date anniversaire de la première pesée, ajustée au dernier jour des mois courts sans décaler les mois suivants. Alerte supplémentaire à ±5 kg du poids mesuré de référence lors de la dernière cible validée. Affichage sur l’accueil et dans le profil ; tendance descriptive, aucun diagnostic de stagnation. Confirmation possible du maintien de la cible. Les pesées récentes insuffisantes sont signalées. Une nouvelle cible est proposée avec aperçu ; aucun changement automatique, aucune modification des repas existants.
+
+Migration additive 20261118_nutrition_goals.sql. La 0.13.1 reste la référence validée sur l’installation de l’utilisateur ; la 0.14.0 et la 0.3.32 restent conservées. Déploiement uniquement par l’utilisateur, aucun accès Unraid/Nginx/base réelle.
+
+Les sections antérieures ci-dessous conservent le contexte de leurs versions. Le prochain lot est celui des préférences, allergies et informations privées ; ne pas recommencer les cibles et l’estimation générale.
+
 ## Lot 1 livré sur GitHub — 0.14.0
 
 PR [#207](https://github.com/throlan/Lapinou-Dish/pull/207) fusionnée au commit `c4930d88fdf74243151764f34db9b0e07aa351e3`. [Contrôles et publication](https://github.com/throlan/Lapinou-Dish/actions/runs/44273020997) réussis. Tags GHCR `0.14.0` et `v0.14.0` : `sha256:a8b755127d209c792b1b08ba51a928d7faef844aa3cc9fded171818a45914d4d`. L’âge est calculé à la date consultée quand la naissance est connue. Poids mesuré, poids de forme choisi et objectif intermédiaire facultatif restent distincts. Les objectifs sont datés ; les corrections de profil à date identique sont conservées en révisions ordonnées. Administration et Mon compte proposent la saisie, l’historique et les dates futures. Migration additive `20261118_dated_profile_goals.sql` : la table des objectifs et un ordre de révision du profil, sans réécriture des anciens relevés, cibles kcal, menus, quantités ou stocks. Les lectures kcal du rééquilibrage et de la réserve retiennent la dernière révision applicable. Le moteur de portions n’est pas modifié. Tests ciblés et suite complète : **463 réussis** sur données fictives. La 0.13.1 reste la référence validée en production jusqu’à validation explicite de la 0.14.0.

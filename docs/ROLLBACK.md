@@ -1,5 +1,9 @@
 # Images versionnées et retour arrière
 
+## Cibles nutritionnelles — 0.15.0
+
+Migration additive : person_nutrition_goals et vue effective_energy_history. Les données de profil, menus et stocks historiques restent conservées. Une image antérieure ignore les nouvelles cibles et peut donc employer les anciennes valeurs kcal/protéines. Revenir à une image antérieure ne restaure pas une cible ; une restauration exacte exige une sauvegarde compatible antérieure. Ne pas supprimer manuellement les tables ou colonnes. Les digests historiques sont inchangés ; déploiement et restauration par l’utilisateur uniquement.
+
 ## Évolution des profils — 0.14.0
 
 PR [#207](https://github.com/throlan/Lapinou-Dish/pull/207), fusion `c4930d88fdf74243151764f34db9b0e07aa351e3`, [publication réussie](https://github.com/throlan/Lapinou-Dish/actions/runs/44273020997). Les tags `0.14.0` et `v0.14.0` pointent vers `sha256:a8b755127d209c792b1b08ba51a928d7faef844aa3cc9fded171818a45914d4d`. Les digests des tags `0.13.1`/`v0.13.1` et `0.3.32`/`v0.3.32` ont été revérifiés après publication et sont inchangés.

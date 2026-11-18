@@ -1,5 +1,11 @@
 # Décisions techniques initiales
 
+## Cibles nutritionnelles — 0.15.0
+
+person_nutrition_goals conserve les cibles kcal/protéines confirmées, leurs dates d’effet, origine, méthode, poids de référence et ordre de révision. Les anciennes données restent conservées ; la table initiale nutrition_targets reste historique et n’est pas le support du nouveau formulaire. La vue effective_energy_history réunit les calories historiques et les nouvelles cibles avec priorité déterministe. Les droits du profil sont appliqués dans la passerelle API et par RLS.
+
+web/nutrition-goals.js partage entre Administration et Mon compte l’estimation générale documentée, les bilans mensuels et l’aperçu de validation. Le calendrier et le serveur lisent la cible applicable à la date. Les protéines restent indicatives ; aucune réécriture de menu ni action sur stock. Le bilan suit les anniversaires mensuels de la première pesée et le seuil ±5 kg depuis le poids de référence validé. Aucun calcul ne devient une cible automatiquement.
+
 État : les ADR initiales ci-dessous sont historiques ; les décisions appliquées plus bas font autorité.
 
 Les ADR initiales ci-dessous gardent leur contexte historique. L'implémentation actuelle est décrite dans [STATUS.md](STATUS.md) et les décisions de session ci-après ; l'agent ne doit jamais accéder ni intervenir sur Unraid.

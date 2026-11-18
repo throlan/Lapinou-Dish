@@ -1,3 +1,4 @@
+import {effectiveNutritionProfile,renderNutritionGoals,monthlyReview} from './nutrition-goals.js';
 import {foodCorrectionField,foodMeasurePayload,foodMeasureComparisons,foodPurchaseMode,deriveFoodMeasures,foodMeasureVolumes,foodMeasureLabels} from './food-corrections.js';
 import {createRecipeReplacements} from './recipe-replacements.js';
 import {filterPreparationStock,preparationStockFilters} from './preparation-stock-filters.js';
@@ -260,6 +261,7 @@ async function refreshDashboard() {
       const name=document.createElement('strong');name.textContent=person.displayName;
       const goal=document.createElement('span');goal.textContent=profile?.dailyEnergyKcal?`${format(kcal)} / ${format(profile.dailyEnergyKcal)} kcal`:'Objectif kcal non renseigné';
       heading.append(name,goal);card.append(heading);
+      if(monthlyReview(person,today).due){const review=document.createElement('p');review.textContent='Bilan de la cible à examiner dans les profils';review.className='form-message';card.append(review);}
       if(profile?.dailyEnergyKcal){const progress=document.createElement('progress');progress.max=profile.dailyEnergyKcal;progress.value=Math.min(kcal,profile.dailyEnergyKcal);progress.setAttribute('aria-label',`Progression calories de ${person.displayName}`);card.append(progress);}
       const details=document.createElement('p');details.textContent=`${format(protein)} g protéines · ${profile?.activityLevel?(activityLabels[profile.activityLevel]??profile.activityLevel):'activité à renseigner'}${weight?` · ${format(weight.weightKg)} kg`:''}`;card.append(details);
       const remaining=profile?.dailyEnergyKcal?profile.dailyEnergyKcal-kcal:null;
@@ -1044,7 +1046,7 @@ function profileCard(person) {
   const card = document.createElement('details'); card.className = 'profile-card';
   const heading = document.createElement('summary'); heading.className = 'profile-card-heading';
   const title = document.createElement('h3'); title.textContent = person.displayName;
-  const current=effectiveDatedEntry(person.profileHistory,localDateValue());
+  const current=effectiveNutritionProfile(person,localDateValue());
   const currentGoal=effectiveDatedEntry(person.weightGoalHistory,localDateValue());
   const overview=document.createElement('span');overview.className='muted';
   const age=ageAtDate(person.birthDate,localDateValue());
@@ -1074,6 +1076,7 @@ function profileCard(person) {
     profileForm.elements.dailyEnergyOrigin.value = latestProfile.dailyEnergyOrigin ?? '';
     profileForm.elements.dailyEnergyMethod.value = latestProfile.dailyEnergyMethod ?? '';
   }
+  for(const name of ['dailyEnergyKcal','dailyEnergyOrigin','dailyEnergyMethod'])profileForm.elements[name]?.closest('label')?.remove();
   profileForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(profileForm));
@@ -1088,6 +1091,7 @@ function profileCard(person) {
   if(currentGoal){goalForm.elements.comfortableWeightKg.value=currentGoal.comfortableWeightKg;goalForm.elements.interimTargetKg.value=currentGoal.interimTargetKg??'';}
   goalForm.addEventListener('submit',async event=>{event.preventDefault();try{const data=Object.fromEntries(new FormData(goalForm));await api(`/api/people/${person.id}/weight-goals`,{method:'POST',body:JSON.stringify({householdId:state.household.id,...data})});showMessage($('#people-message'),'Objectif daté enregistré, versions précédentes conservées.',true);await refreshPeople();}catch(error){showMessage($('#people-message'),`Impossible d’enregistrer l’objectif : ${error.body?.error??error.message}`);}});
   forms.append(weightForm, profileForm, goalForm); card.append(forms);
+  renderNutritionGoals(card,person,{api,householdId:state.household.id,today:localDateValue(),onSaved:refreshPeople});
   const histories = document.createElement('div'); histories.className = 'profile-histories';
   const weights = document.createElement('section'); const weightTitle = document.createElement('h4'); weightTitle.textContent = 'Historique du poids'; weights.append(weightTitle);
   if (!person.weightHistory.length) { const empty = document.createElement('p'); empty.className = 'muted'; empty.textContent = 'Aucun relevé saisi.'; weights.append(empty); }
@@ -3095,7 +3099,7 @@ $('#protein-targets-form').addEventListener('submit',async event=>{
   try {
     const settings=await api('/api/protein-settings',{method:'PUT',body:JSON.stringify({householdId:state.household.id,targets})});
     state.proteinTargets=settings.targets;
-    await refreshCalendar();
+    await refreshPeople();await refreshCalendar();
     showMessage(message,'Minima quotidiens de protéines enregistrés.',true);
   }catch(error){showMessage(message,`Enregistrement impossible : ${error.body?.error??error.message}`);}
   finally{button.disabled=false;}
@@ -3271,7 +3275,7 @@ function displayDate(value, options = { weekday: 'short', day: '2-digit', month:
   return new Intl.DateTimeFormat('fr-FR', options).format(new Date(`${value}T12:00:00`));
 }
 function latestProfile(person, date) {
-  return effectiveDatedEntry(person.profileHistory,date);
+  return effectiveNutritionProfile(person,date);
 }
 
 let refreshCalendarPending=null,refreshCalendarLoaded=null,refreshCalendarSequence=0;
@@ -3382,7 +3386,7 @@ function renderDailyEnergySummary(date,meals) {
     if(savings){const budget=document.createElement('small');budget.textContent=`Budget repas ajusté : ${format(Math.max(0,Number(target)-savings.dailyKcal))} kcal (épargne ${format(savings.dailyKcal)} kcal)`;line.append(budget);}
     if(daily.incomplete){const note=document.createElement('small');note.textContent='Données incomplètes';line.append(note);}
     footer.append(line);
-    const proteins=calculateDailyProtein(meals,person.id,date),proteinTarget=dailyProteinTarget(person,state.proteinTargets);
+    const proteins=calculateDailyProtein(meals,person.id,date),proteinTarget=dailyProteinTarget(person,state.proteinTargets,date);
     const proteinLine=document.createElement('div');proteinLine.className='daily-protein-person';
     const proteinValue=document.createElement('strong');proteinValue.className='daily-protein-value';
     proteinValue.textContent=proteinTarget==null

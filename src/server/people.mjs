@@ -52,13 +52,15 @@ export async function listPeople(pool, householdId) {
   )).rows;
   if (!people.length) return [];
   const ids = people.map((person) => person.id);
-  const [weights, profiles, goals] = await Promise.all([
+  const [weights, profiles, goals, targets] = await Promise.all([
     pool.query('SELECT id, person_id, measured_on::text AS measured_on, weight_kg FROM person_weight_entries WHERE person_id = ANY($1::uuid[]) ORDER BY measured_on DESC', [ids]),
     pool.query('SELECT id, person_id, effective_from::text AS effective_from, revision_order, height_cm, activity_level, daily_energy_kcal, daily_energy_origin, daily_energy_method FROM person_profile_history WHERE person_id = ANY($1::uuid[]) ORDER BY effective_from DESC, revision_order DESC', [ids]),
     pool.query('SELECT id, person_id, effective_from::text AS effective_from, revision_order, comfortable_weight_kg, interim_target_kg FROM person_weight_goals WHERE person_id = ANY($1::uuid[]) ORDER BY effective_from DESC, revision_order DESC', [ids]),
+    pool.query('SELECT * ,effective_from::text AS date FROM person_nutrition_goals WHERE person_id=ANY($1::uuid[]) ORDER BY effective_from DESC,revision_order DESC',[ids]),
   ]);
   return people.map((person) => ({
     id: person.id, displayName: person.display_name, birthDate: person.birth_date, active: person.active,
+    nutritionTargetHistory:targets.rows.filter(row=>row.person_id===person.id).map(row=>({id:row.id,effectiveFrom:row.date,revisionOrder:Number(row.revision_order),dailyEnergyKcal:Number(row.daily_energy_kcal),dailyProteinG:row.daily_protein_g==null?null:Number(row.daily_protein_g),origin:row.origin,method:row.method,referenceWeightKg:row.reference_weight_kg==null?null:Number(row.reference_weight_kg),confirmedAt:row.confirmed_at})),
     weightHistory: weights.rows.filter((entry) => entry.person_id === person.id).map((entry) => ({ id: entry.id, measuredOn: entry.measured_on, weightKg: Number(entry.weight_kg) })),
     weightGoalHistory: goals.rows.filter((entry) => entry.person_id === person.id).map((entry) => ({
       id: entry.id, effectiveFrom: entry.effective_from, revisionOrder: Number(entry.revision_order),
