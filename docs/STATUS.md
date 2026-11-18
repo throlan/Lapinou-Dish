@@ -1,5 +1,9 @@
 # État du projet — 18 novembre 2026
 
+## Lot 1 préparé — 0.14.0
+
+Âge calculé à la date pertinente (ou inconnu), objectifs de poids de forme et intermédiaires datés, révisions de profil et d’objectif conservées. Administration et Mon compte réutilisent les droits du foyer ; la base restreint les objectifs aux gestionnaires et au profil propre du membre. Une migration additive garde toutes les données 0.13.1. Les nouvelles données de poids n’entrent pas dans les portions. **463 tests locaux réussis**, dont migration d’une base fictive 0.13.1 et vérifications des droits. **0.13.1 reste la référence validée en production** ; les contrôles de la PR de développement et la publication 0.14.0 sont à vérifier avant toute validation utilisateur.
+
 ## Référence validée en production
 
 Version **0.13.1** (`package.json`), PR [#205](https://github.com/throlan/Lapinou-Dish/pull/205), fusion `99eb6d290aedcf022e25dafd16eb4ef1f4dffdb6`. [Contrôles et publication](https://github.com/throlan/Lapinou-Dish/actions/runs/43776135088) réussis ; tags GHCR `0.13.1` et `v0.13.1` : `sha256:4273fb32f8bfdcec16b67936e59b744f31a140e1660f556c5a2c07d704b89e45`. La 0.3.32 est une référence **historique de retour arrière**, pas la version courante. Le changement 0.13.1 ajoute l’icône du conteneur, sans migration ni changement de calcul. Les 460 tests locaux de la 0.13.0 ont réussi ; l’utilisateur a validé la 0.13.1 sur son installation.

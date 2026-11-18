@@ -34,7 +34,7 @@ import { listImportDrafts, saveImportDrafts } from './recipe-imports.mjs';
 import { extractRecipeWithOpenAI } from './openai-recipe-import.mjs';
 import { generateRecipeImage, inspectRecipeImageStorage, readRecipeImage, removeRecipeImage, saveRecipeImage, validateRecipeImageUpload } from './recipe-images.mjs';
 import { retrieveInstagramCaption, instagramPostUrl } from './instagram-caption.mjs';
-import { addProfileHistory, addWeightEntry, createPerson, listPeople, validatePersonInput, validateProfileHistoryInput, validateWeightInput } from './people.mjs';
+import { addProfileHistory, addWeightEntry, addWeightGoal, createPerson, listPeople, validatePersonInput, validateProfileHistoryInput, validateWeightGoalInput, validateWeightInput } from './people.mjs';
 import { deletePlannedMeal, duplicatePlannedMeal, listPlannedMeals, listPlannedRecipeIds, savePlannedMeal, validateMealDuplication, validatePlannedMeal } from './planning.mjs';
 import { addStockLot, cancelStockLot, completeRoutine, deleteOrderLink, getRoutineSettings, listOrderLinks, listPreparationsToMake, listShoppingRequirements, listStock, saveOrderLink, saveRoutineSettings, saveShoppingLineState, validateOrderLinkInput, validateProductionInput, validateRoutineSettings, validateShoppingLineState } from './household-planning.mjs';
 import { parseRecipeArchive, parseRecipeText } from '../domain/recipe-import.mjs';
@@ -60,6 +60,7 @@ const staticFiles = new Map([
   ['/cooking-method-view.js', ['cooking-method-view.js', 'text/javascript; charset=utf-8']],
   ['/recipe-reviews.js', ['recipe-reviews.js', 'text/javascript; charset=utf-8']],
   ['/accounts-ui.js', ['accounts-ui.js', 'text/javascript; charset=utf-8']],
+  ['/profile-dates.js', ['profile-dates.js', 'text/javascript; charset=utf-8']],
   ['/api-client.js', ['api-client.js', 'text/javascript; charset=utf-8']],
   ['/preparation-stock-filters.js', ['preparation-stock-filters.js', 'text/javascript; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
@@ -245,23 +246,25 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
       try { return send(response, 201, { person: await createPerson(pool, body.value.householdId, validation.data) }); }
       catch (error) { return send(response, error.code === '23505' ? 409 : 500, { error: error.code === '23505' ? 'person-already-exists' : 'person-create-failed' }); }
     }
-    const personAction = url.pathname.match(/^\/api\/people\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(weights|profile-history)$/i);
+    const personAction = url.pathname.match(/^\/api\/people\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(weights|profile-history|weight-goals)$/i);
     if (personAction && request.method === 'POST') {
       const body = await readJson(request);
       if (body.error) return send(response, body.status ?? 400, { error: body.error });
       if (!isUuid(body.value?.householdId)) return send(response, 400, { error: 'invalid-household-id' });
       const isWeight = personAction[2] === 'weights';
-      const validation = isWeight ? validateWeightInput(body.value) : validateProfileHistoryInput(body.value);
+      const isGoal = personAction[2] === 'weight-goals';
+      const validation = isWeight ? validateWeightInput(body.value) : isGoal ? validateWeightGoalInput(body.value) : validateProfileHistoryInput(body.value);
       if (validation.error) return send(response, 400, { error: validation.error });
       try {
         const result = isWeight
           ? await addWeightEntry(pool, personAction[1], body.value.householdId, validation.data)
+          : isGoal ? await addWeightGoal(pool, personAction[1], body.value.householdId, validation.data)
           : await addProfileHistory(pool, personAction[1], body.value.householdId, validation.data);
         if (!result) return send(response, 404, { error: 'person-not-found' });
-        return send(response, 201, { [isWeight ? 'measurement' : 'profileHistoryEntry']: result });
+        return send(response, 201, { [isWeight ? 'measurement' : isGoal ? 'weightGoalEntry' : 'profileHistoryEntry']: result });
       } catch (error) {
         if (error.code === '23505') return send(response, 409, { error: isWeight ? 'weight-entry-already-exists-for-date' : 'profile-entry-already-exists-for-date' });
-        return send(response, 500, { error: isWeight ? 'weight-entry-create-failed' : 'profile-history-create-failed' });
+        return send(response, 500, { error: isWeight ? 'weight-entry-create-failed' : isGoal ? 'weight-goal-create-failed' : 'profile-history-create-failed' });
       }
     }
 

@@ -1,5 +1,9 @@
 # Images versionnées et retour arrière
 
+## Évolution des profils — 0.14.0
+
+La migration additive conserve les profils, relevés, cibles kcal/protéines, menus, quantités manuelles, stocks et historiques 0.13.1. Une image 0.13.1 ignore les objectifs de poids et les révisions supplémentaires ; ses anciennes lectures de profil à date identique ne garantissent pas la dernière révision. Pour retrouver exactement l’état 0.13.1, restaurer une sauvegarde de base antérieure à la migration. Ne supprimer aucune colonne ou table à la main. Le changement d’image seul ne restaure aucune donnée. La 0.13.1 reste la référence de production jusqu’à validation de la nouvelle livraison par l’utilisateur.
+
 ## Référence de production — 0.13.1
 
 La version validée en production est **0.13.1** : `ghcr.io/throlan/lapinou-dish:0.13.1` et `:v0.13.1`, digest commun `sha256:4273fb32f8bfdcec16b67936e59b744f31a140e1660f556c5a2c07d704b89e45`. PR #205, fusion `99eb6d290aedcf022e25dafd16eb4ef1f4dffdb6`, [publication réussie](https://github.com/throlan/Lapinou-Dish/actions/runs/43776135088). La 0.13.1 n’ajoute aucune migration à la 0.13.0. Les références des sections suivantes sont historiques ; leurs digests ne doivent jamais être réécrits.

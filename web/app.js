@@ -10,6 +10,7 @@ import {createRecipeMethodEditor} from './recipe-method-editor.js';
 import {renderCookingMethod} from './cooking-method-view.js';
 import {createRecipeReviews} from './recipe-reviews.js';
 import {createAccountUI,accountMessage} from './accounts-ui.js';
+import {ageAtDate,effectiveDatedEntry} from './profile-dates.js';
 import { breakfastServingLimit, calculateDailyEnergy, calculateDailyProtein, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, dailyProteinTarget, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';
 import {mountCookingInstagram} from './cooking-instagram.js';
 import {servingUnit,servingUnitLabel,displayServingQuantity,setServingInput,servingInputValue} from './serving-quantities.js';
@@ -1043,9 +1044,11 @@ function profileCard(person) {
   const card = document.createElement('details'); card.className = 'profile-card';
   const heading = document.createElement('summary'); heading.className = 'profile-card-heading';
   const title = document.createElement('h3'); title.textContent = person.displayName;
-  const current=person.profileHistory.find(entry=>entry.effectiveFrom<=localDateValue());
+  const current=effectiveDatedEntry(person.profileHistory,localDateValue());
+  const currentGoal=effectiveDatedEntry(person.weightGoalHistory,localDateValue());
   const overview=document.createElement('span');overview.className='muted';
-  overview.textContent=[current?.dailyEnergyKcal ? `${format(current.dailyEnergyKcal)} kcal/j` : 'Besoin à renseigner',current?.heightCm ? `${format(current.heightCm)} cm` : null,person.weightHistory[0]?.weightKg ? `${format(person.weightHistory[0].weightKg)} kg` : null].filter(Boolean).join(' · ');
+  const age=ageAtDate(person.birthDate,localDateValue());
+  overview.textContent=[age==null?'Âge inconnu':`${age} ans`,current?.dailyEnergyKcal ? `${format(current.dailyEnergyKcal)} kcal/j` : 'Besoin à renseigner',current?.heightCm ? `${format(current.heightCm)} cm` : null,person.weightHistory[0]?.weightKg ? `${format(person.weightHistory[0].weightKg)} kg mesurés` : null,currentGoal?`${format(currentGoal.comfortableWeightKg)} kg poids de forme`:null].filter(Boolean).join(' · ');
   heading.append(title,overview);card.append(heading);
   const birth = document.createElement('p'); birth.className = 'muted'; birth.textContent = person.birthDate ? `Né(e) le ${displayDate(person.birthDate.slice(0,10))}` : 'Date de naissance non renseignée';card.append(birth);
   const forms = document.createElement('div'); forms.className = 'profile-forms';
@@ -1063,7 +1066,7 @@ function profileCard(person) {
   const profileForm = document.createElement('form'); profileForm.className = 'profile-entry profile-context';
   profileForm.innerHTML = '<h4>Profil à partir d’une date</h4><label>Valable à partir du<input name="effectiveFrom" type="date" required></label><label>Taille (cm)<input name="heightCm" type="number" min="50" max="260" step="0.1" placeholder="Facultatif"></label><label>Activité<select name="activityLevel"><option value="">Non renseignée</option><option value="sedentary">Sédentaire</option><option value="light">Légère</option><option value="moderate">Modérée</option><option value="active">Importante</option><option value="very_active">Très importante</option></select></label><label>Besoin quotidien (kcal)<input name="dailyEnergyKcal" type="number" min="500" max="10000" step="1" placeholder="Facultatif"></label><label>Origine du besoin<select name="dailyEnergyOrigin"><option value="">—</option><option value="manual">Saisi par le foyer</option><option value="clinician">Validé par un professionnel</option><option value="estimate">Estimation documentée</option></select></label><label>Méthode ou note<input name="dailyEnergyMethod" maxlength="500" placeholder="Facultatif"></label><button class="secondary" type="submit">Enregistrer le profil</button>';
   profileForm.elements.effectiveFrom.value = localDateValue();
-  const latestProfile = person.profileHistory[0];
+  const latestProfile = current;
   if (latestProfile) {
     profileForm.elements.heightCm.value = latestProfile.heightCm ?? '';
     profileForm.elements.activityLevel.value = latestProfile.activityLevel ?? '';
@@ -1079,7 +1082,12 @@ function profileCard(person) {
       showMessage($('#people-message'), 'Profil enregistré pour cette date.', true); await refreshPeople();
     } catch (error) { showMessage($('#people-message'), error.body?.error === 'person-not-found' ? 'Ce profil n’existe plus.' : `Impossible d’enregistrer ce profil : ${error.body?.error ?? error.message}`); }
   });
-  forms.append(weightForm, profileForm); card.append(forms);
+  const goalForm=document.createElement('form');goalForm.className='profile-entry profile-weight-goal';
+  goalForm.innerHTML='<h4>Poids de forme choisi</h4><p class="muted">Distinct du poids mesuré et de l’objectif intermédiaire. Une correction à la même date conserve la version précédente.</p><label>Valable à partir du<input name="effectiveFrom" type="date" required></label><label>Poids de forme (kg)<input name="comfortableWeightKg" type="number" min="0.1" max="500" step="0.1" required></label><label>Objectif intermédiaire (kg, facultatif)<input name="interimTargetKg" type="number" min="0.1" max="500" step="0.1"></label><button class="secondary" type="submit">Enregistrer l’objectif</button>';
+  goalForm.elements.effectiveFrom.value=localDateValue();
+  if(currentGoal){goalForm.elements.comfortableWeightKg.value=currentGoal.comfortableWeightKg;goalForm.elements.interimTargetKg.value=currentGoal.interimTargetKg??'';}
+  goalForm.addEventListener('submit',async event=>{event.preventDefault();try{const data=Object.fromEntries(new FormData(goalForm));await api(`/api/people/${person.id}/weight-goals`,{method:'POST',body:JSON.stringify({householdId:state.household.id,...data})});showMessage($('#people-message'),'Objectif daté enregistré, versions précédentes conservées.',true);await refreshPeople();}catch(error){showMessage($('#people-message'),`Impossible d’enregistrer l’objectif : ${error.body?.error??error.message}`);}});
+  forms.append(weightForm, profileForm, goalForm); card.append(forms);
   const histories = document.createElement('div'); histories.className = 'profile-histories';
   const weights = document.createElement('section'); const weightTitle = document.createElement('h4'); weightTitle.textContent = 'Historique du poids'; weights.append(weightTitle);
   if (!person.weightHistory.length) { const empty = document.createElement('p'); empty.className = 'muted'; empty.textContent = 'Aucun relevé saisi.'; weights.append(empty); }
@@ -1094,11 +1102,14 @@ function profileCard(person) {
     const list = document.createElement('ul');
     for (const item of person.profileHistory.slice(0, 12)) {
       const details = [item.heightCm == null ? null : `${format(item.heightCm)} cm`, item.activityLevel, item.dailyEnergyKcal == null ? null : `${format(item.dailyEnergyKcal)} kcal/j (${item.dailyEnergyOrigin})`, item.dailyEnergyMethod].filter(Boolean).join(' · ');
-      const row = document.createElement('li'); row.textContent = `${item.effectiveFrom} · ${details || 'Aucune donnée saisie'}`; list.append(row);
+      const row = document.createElement('li'); const ageThen=ageAtDate(person.birthDate,item.effectiveFrom);row.textContent = `${item.effectiveFrom} · ${ageThen==null?'âge inconnu':`${ageThen} ans`} · révision ${item.revisionOrder??1} · ${details || 'Aucune donnée saisie'}`; list.append(row);
     }
     history.append(list);
   }
-  histories.append(weights, history); card.append(histories); return card;
+  const goals=document.createElement('section');goals.append(Object.assign(document.createElement('h4'),{textContent:'Historique des objectifs de poids'}));
+  if(!person.weightGoalHistory?.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='Aucun poids de forme choisi.';goals.append(empty);}
+  else{const list=document.createElement('ul');for(const item of person.weightGoalHistory){const row=document.createElement('li'),ageThen=ageAtDate(person.birthDate,item.effectiveFrom);row.textContent=`${item.effectiveFrom} · ${ageThen==null?'âge inconnu':`${ageThen} ans`} · révision ${item.revisionOrder} · poids de forme ${format(item.comfortableWeightKg)} kg${item.interimTargetKg==null?'':` · étape ${format(item.interimTargetKg)} kg`}${item.effectiveFrom>localDateValue()?' · futur':''}`;list.append(row);}goals.append(list);}
+  histories.append(weights, goals, history); card.append(histories); return card;
 }
 
 let foodsRequest=0,currentFoodPageIds=[],bulkDeleteIds=[],bulkDeleteDeletableIds=[],bulkDeleteProtectedCount=0;
@@ -3260,7 +3271,7 @@ function displayDate(value, options = { weekday: 'short', day: '2-digit', month:
   return new Intl.DateTimeFormat('fr-FR', options).format(new Date(`${value}T12:00:00`));
 }
 function latestProfile(person, date) {
-  return (person.profileHistory ?? []).find((entry) => entry.effectiveFrom <= date) ?? null;
+  return effectiveDatedEntry(person.profileHistory,date);
 }
 
 let refreshCalendarPending=null,refreshCalendarLoaded=null,refreshCalendarSequence=0;

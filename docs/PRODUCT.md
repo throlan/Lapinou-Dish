@@ -4,6 +4,10 @@
 
 Comptes, foyers privés et droits, variantes choisies, portions individuelles, rééquilibrage journalier avec aperçu, stocks et batch cooking sont livrés. Les profils conservent déjà date de naissance, poids datés, taille, activité et cible kcal avec origine et méthode. L’âge calculé, le poids de forme, l’objectif intermédiaire et les révisions à date identique restent à développer. `nutrition_targets` existe seulement en base ; les objectifs protéiques sont aujourd’hui des réglages du foyer, avec certains secours liés au prénom. Aucun estimateur Mifflin–St Jeor n’est livré. La section « Personnes et objectifs » plus bas décrit aussi la cible future ; [TODO.md](TODO.md) sépare les quatre lots à réaliser.
 
+### Lot 1 réalisé dans la 0.14.0
+
+Âge calculé à la date consultée, avec état inconnu lorsque la naissance manque. Poids de forme choisi et objectif intermédiaire facultatif sont datés et distincts des pesées. Les corrections de profil ou d’objectif au même jour restent consultables, la plus récente étant applicable. Les dates futures ne changent pas la valeur du jour. Administration et Mon compte appliquent les droits du foyer. La migration conserve les données historiques et le moteur de portions inchangé. La 0.13.1 reste la référence de production jusqu’à validation de la nouvelle version par l’utilisateur.
+
 ## Ordre de développement validé — 18 novembre 2026
 
 1. **Profils et poids** : afficher l’âge à la date pertinente si la naissance est connue ; distinguer poids mesuré, poids de forme choisi et objectif intermédiaire facultatif ; conserver dates d’effet et chaque révision, même à date identique. Administration et Mon compte réutilisent les droits existants. Aucun objectif automatique fondé sur un IMC de 24,9.

@@ -1,3 +1,5 @@
+import {ageAtDate,effectiveDatedEntry} from './profile-dates.js';
+
 const errorLabels={
  'authentication-required':'Reconnecte-toi pour continuer.',
  'invalid-credentials':'Identifiant ou mot de passe incorrect.',
@@ -123,12 +125,25 @@ export function createAccountUI({api,onSession}){
   if(account.householdId&&account.personId){
    const people=(await api('/api/people?householdId='+account.householdId)).people;
    const person=people.find(p=>p.id===account.personId);
+   const now=new Date(),today=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);
+   const age=ageAtDate(person?.birthDate,today);
+   personal.append(element('p',age==null?'Âge inconnu':`${age} ans au ${today}`));
    const profile=form(personal,'Enregistrer mon profil personnel',async data=>{
     await api('/api/accounts/profile',{method:'PUT',body:JSON.stringify(data)});
     await load();
    });
    field(profile,'Nom affiché','displayName','text',person?.displayName);
    field(profile,'Date de naissance','birthDate','date',person?.birthDate?.slice(0,10),false);
+   const currentGoal=effectiveDatedEntry(person?.weightGoalHistory,today);
+   const goal=form(personal,'Enregistrer mon objectif de poids',async data=>{
+    await api('/api/people/'+account.personId+'/weight-goals',{method:'POST',body:JSON.stringify({householdId:account.householdId,...data})});await load();
+   });
+   goal.prepend(element('p','Poids de forme choisi, distinct des pesées. Un objectif intermédiaire est facultatif ; les corrections à une même date restent dans l’historique.'));
+   field(goal,'Valable à partir du','effectiveFrom','date',today);
+   const comfortable=field(goal,'Poids de forme choisi (kg)','comfortableWeightKg','number',currentGoal?.comfortableWeightKg??'');comfortable.min='0.1';comfortable.max='500';comfortable.step='0.1';
+   const interim=field(goal,'Objectif intermédiaire (kg)','interimTargetKg','number',currentGoal?.interimTargetKg??'',false);interim.min='0.1';interim.max='500';interim.step='0.1';
+   const goalHistory=details(personal,'Historique des objectifs de poids');
+   for(const entry of person?.weightGoalHistory??[]){const ageThen=ageAtDate(person.birthDate,entry.effectiveFrom);goalHistory.append(element('p',`${entry.effectiveFrom} · ${ageThen==null?'âge inconnu':`${ageThen} ans`} · révision ${entry.revisionOrder} · poids de forme ${entry.comfortableWeightKg} kg${entry.interimTargetKg==null?'':` · objectif intermédiaire ${entry.interimTargetKg} kg`}${entry.effectiveFrom>today?' · futur':''}`));}
   }else personal.append(element('p','Le gestionnaire du foyer peut associer ton compte à un profil existant.'));
   if(account.role==='manager')await members();
   if(account.applicationAdmin)await application();

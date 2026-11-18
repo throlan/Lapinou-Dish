@@ -56,9 +56,9 @@ export async function saveSavingPlan(pool, data) {
     const person = (await client.query('SELECT birth_date::text AS birth_date, active FROM people WHERE id=$1 AND household_id=$2 FOR UPDATE', [data.personId, data.householdId])).rows[0];
     if (!person?.active) { await client.query('ROLLBACK'); return { error: 'person-not-found' }; }
     if (!isAdultOn(person.birth_date, data.startsOn) || !isAdultOn(person.birth_date, data.endsOn)) { await client.query('ROLLBACK'); return { error: 'saving-adults-only' }; }
-    const profile = (await client.query('SELECT daily_energy_kcal FROM person_profile_history WHERE person_id=$1 AND effective_from<=$2 ORDER BY effective_from DESC LIMIT 1', [data.personId, data.startsOn])).rows[0];
+    const profile = (await client.query('SELECT daily_energy_kcal FROM person_profile_history WHERE person_id=$1 AND effective_from<=$2 ORDER BY effective_from DESC, revision_order DESC LIMIT 1', [data.personId, data.startsOn])).rows[0];
     if (!Number(profile?.daily_energy_kcal) || data.dailyKcal >= Number(profile.daily_energy_kcal)) { await client.query('ROLLBACK'); return { error: 'saving-exceeds-daily-target' }; }
-    const futureTargets=await client.query('SELECT daily_energy_kcal FROM person_profile_history WHERE person_id=$1 AND effective_from>$2 AND effective_from<=$3',[data.personId,data.startsOn,data.endsOn]);
+    const futureTargets=await client.query('SELECT DISTINCT ON (effective_from) daily_energy_kcal FROM person_profile_history WHERE person_id=$1 AND effective_from>$2 AND effective_from<=$3 ORDER BY effective_from,revision_order DESC',[data.personId,data.startsOn,data.endsOn]);
     if(futureTargets.rows.some(row=>!Number(row.daily_energy_kcal)||data.dailyKcal>=Number(row.daily_energy_kcal))){await client.query('ROLLBACK');return{error:'saving-exceeds-daily-target'};}
     const overlaps = await client.query('SELECT id FROM energy_saving_plans WHERE person_id=$1 AND starts_on<=$3 AND ends_on>=$2', [data.personId, data.startsOn, data.endsOn]);
     if (overlaps.rowCount) { await client.query('ROLLBACK'); return { error: 'saving-period-overlap' }; }
@@ -81,7 +81,7 @@ export async function getEnergyReserveOverview(pool, householdId, asOf) {
   const plansThrough=addDays(asOf,ROLLING_RESERVE_DAYS);
   const [peopleResult, profileResult, mealResult, savingResult] = await Promise.all([
     pool.query('SELECT id,display_name,birth_date::text AS birth_date,active FROM people WHERE household_id=$1 AND active=true ORDER BY display_name', [householdId]),
-    pool.query('SELECT ph.person_id,ph.effective_from::text AS effective_from,ph.daily_energy_kcal FROM person_profile_history ph JOIN people p ON p.id=ph.person_id WHERE p.household_id=$1 AND ph.effective_from<=$2 ORDER BY ph.person_id,ph.effective_from', [householdId, asOf]),
+    pool.query('SELECT ph.person_id,ph.effective_from::text AS effective_from,ph.daily_energy_kcal FROM person_profile_history ph JOIN people p ON p.id=ph.person_id WHERE p.household_id=$1 AND ph.effective_from<=$2 ORDER BY ph.person_id,ph.effective_from,ph.revision_order', [householdId, asOf]),
     pool.query(`SELECT m.id,m.meal_date::text AS date,m.is_occasion,m.occasion_title,a.person_id,
       e.energy_kcal AS occasion_kcal,i.id AS item_id,i.recipe_id,i.role,pa.quantity
       FROM planned_meals m JOIN planned_meal_attendees a ON a.meal_id=m.id
