@@ -1,5 +1,9 @@
 # Images versionnées et retour arrière
 
+## Questionnaire et macronutriments — 0.16.0
+
+Migration additive : colonnes de repères lipides/glucides/fibres et questionnaire privé sur les cibles datées. Les images antérieures ignorent ces champs ; elles ne les effacent pas mais peuvent créer de nouvelles cibles sans les reprendre. Une ancienne image peut rétablir le bouton de report du maintien sans parcours guidé. Un changement d’image ne restaure pas les cibles ou données modifiées ; restauration exacte depuis sauvegarde compatible par l’utilisateur uniquement. Aucun digest historique n’est modifié.
+
 ## Cibles nutritionnelles — 0.15.0
 
 Migration additive : person_nutrition_goals et vue effective_energy_history. Les données de profil, menus et stocks historiques restent conservées. Une image antérieure ignore les nouvelles cibles et peut donc employer les anciennes valeurs kcal/protéines. Revenir à une image antérieure ne restaure pas une cible ; une restauration exacte exige une sauvegarde compatible antérieure. Ne pas supprimer manuellement les tables ou colonnes. Les digests historiques sont inchangés ; déploiement et restauration par l’utilisateur uniquement.

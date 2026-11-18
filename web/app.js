@@ -266,7 +266,7 @@ async function refreshDashboard() {
       const details=document.createElement('p');details.textContent=`${format(protein)} g protéines · ${profile?.activityLevel?(activityLabels[profile.activityLevel]??profile.activityLevel):'activité à renseigner'}${weight?` · ${format(weight.weightKg)} kg`:''}`;card.append(details);
       const remaining=profile?.dailyEnergyKcal?profile.dailyEnergyKcal-kcal:null;
       if(remaining!=null){const small=document.createElement('small');small.textContent=remaining>=0?`${format(remaining)} kcal restantes selon le menu prévu`:`${format(Math.abs(remaining))} kcal au-dessus du repère prévu`;card.append(small);}
-      profiles.append(card);
+      if(profile && [profile.dailyFatG,profile.dailyCarbohydrateG,profile.dailyFibreG].some(value=>value!=null)){const macros=document.createElement('p');macros.textContent='Repères quotidiens · lipides '+(profile.dailyFatG??'—')+' g · glucides '+(profile.dailyCarbohydrateG??'—')+' g · fibres '+(profile.dailyFibreG??'—')+' g';card.append(macros);}profiles.append(card);
     }
     profiles.append(dashboardAction('Gérer les profils','profiles'));sidebar.append(profiles);
     const reservePanel=dashboardPanel('Épargne kcal · 30 jours');
@@ -3386,6 +3386,8 @@ function renderDailyEnergySummary(date,meals) {
     if(savings){const budget=document.createElement('small');budget.textContent=`Budget repas ajusté : ${format(Math.max(0,Number(target)-savings.dailyKcal))} kcal (épargne ${format(savings.dailyKcal)} kcal)`;line.append(budget);}
     if(daily.incomplete){const note=document.createElement('small');note.textContent='Données incomplètes';line.append(note);}
     footer.append(line);
+    const macroTarget=latestProfile(person,date);
+    if(macroTarget && [macroTarget.dailyFatG,macroTarget.dailyCarbohydrateG,macroTarget.dailyFibreG].some(value=>value!=null)){const line=document.createElement('small');line.className='daily-macro-person';line.textContent='Repères journaliers · L '+(macroTarget.dailyFatG??'—')+' g · G '+(macroTarget.dailyCarbohydrateG??'—')+' g · fibres '+(macroTarget.dailyFibreG??'—')+' g';footer.append(line);}
     const proteins=calculateDailyProtein(meals,person.id,date),proteinTarget=dailyProteinTarget(person,state.proteinTargets,date);
     const proteinLine=document.createElement('div');proteinLine.className='daily-protein-person';
     const proteinValue=document.createElement('strong');proteinValue.className='daily-protein-value';

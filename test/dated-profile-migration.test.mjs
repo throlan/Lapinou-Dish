@@ -17,6 +17,7 @@ test('0.13.1 profiles survive additive migration and retain same-day corrections
   await db.query("INSERT INTO person_profile_history(id,person_id,effective_from,height_cm,activity_level,daily_energy_kcal,daily_energy_origin) VALUES($1,$2,'2026-11-01',173,'sedentary',2000,'manual')",[profile,person]);
   await db.exec(await readFile(new URL('../db/migrations/20261118_dated_profile_goals.sql',import.meta.url),'utf8'));
   await db.exec(await readFile(new URL('../db/migrations/20261118_nutrition_goals.sql',import.meta.url),'utf8'));
+ await db.exec(await readFile(new URL('../db/migrations/20261118_nutrition_macros.sql',import.meta.url),'utf8'));
   const pool={query:(sql,args)=>db.query(sql,args)};
   await addProfileHistory(pool,person,household,{effectiveFrom:'2026-11-01',heightCm:174,activityLevel:'light',dailyEnergyKcal:2100,dailyEnergyOrigin:'clinician',dailyEnergyMethod:'Correction fictive'});
   await addProfileHistory(pool,person,household,{effectiveFrom:'2027-01-01',heightCm:175,activityLevel:'moderate',dailyEnergyKcal:2200,dailyEnergyOrigin:'manual',dailyEnergyMethod:''});
