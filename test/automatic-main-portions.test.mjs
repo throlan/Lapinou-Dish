@@ -1,3 +1,4 @@
+import {servedGramsPerUnit} from '../web/main-dish-cap.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -19,7 +20,7 @@ test('automatic servings cap raw meat inside the mixed part for all four profile
   const people = [1600, 3200, 2200, 2600].map((energy, i) => ({ id: String(i), displayName: String(i), energy }));
   const items = { 0: { recipeId: main.id, role: 'main' }, 1: { recipeId: rice.id, role: 'accompaniment' } };
   const root = { replaceChildren() {} };
-  const context = { ...planner,roundServingCalories, state: { recipes: [parent], people, calendarMeals: [] },
+  const context = { ...planner,servedGramsPerUnit,roundServingCalories, state: { recipes: [parent], people, calendarMeals: [] },
     $: selector => selector === '#meal-form' ? { elements: { mealDate: { value: '2026-10-19' }, slot: { value: 'lunch' } } } : root,
     allPlanningRecipes: () => [parent, main, rice], isIndividualRole: () => false,
     latestProfile: person => ({ dailyEnergyKcal: person.energy }), plannedCaloriesForPerson: () => 0,
@@ -42,7 +43,7 @@ test('linked rice uses the configured plate proportion instead of a one-gram acc
   const people=[{id:'bibinette',displayName:'Bibinette'}];
   const items={0:{recipeId:'main',role:'main',amounts:{}},1:{recipeId:'rice',role:'accompaniment',categoryId:'accompaniment',amounts:{}}};
   const root={replaceChildren(){}};
-  const context={...planner,roundServingCalories,format:String,state:{recipes:[parent],people,calendarMeals:[],plateRatios:{whole:{main:1},separate:{main:0.66,starch:0.34},three:{main:0.25,starch:0.25,vegetables:0.5}}},
+  const context={...planner,servedGramsPerUnit,roundServingCalories,format:String,state:{recipes:[parent],people,calendarMeals:[],plateRatios:{whole:{main:1},separate:{main:0.66,starch:0.34},three:{main:0.25,starch:0.25,vegetables:0.5}}},
     $:selector=>selector==='#meal-form'?{elements:{mealDate:{value:'2026-10-31'},slot:{value:'dinner'}}}:root,
     allPlanningRecipes:()=>[parent,main,rice],latestProfile:()=>({dailyEnergyKcal:1000}),plannedCaloriesForPerson:()=>0,
     document:{createElement:()=>({append(){}})}};
@@ -67,7 +68,7 @@ test('a split dinner uses its 390 kcal target even when only 233.2 kcal remain f
   const date='2026-11-08',person={id:'bibinette',displayName:'Bibinette'};
   const items=Object.fromEntries(recipes.map((recipe,i)=>[recipe.id,{recipeId:recipe.id,role:i?'accompaniment':'main'}]));
   let notice;
-  const context={...planner,format:String,state:{recipes:[parent],people:[person],mealRatios:{dinner:.30},calendarMeals:[{id:'earlier',mealDate:date}]},
+  const context={...planner,servedGramsPerUnit,format:String,state:{recipes:[parent],people:[person],mealRatios:{dinner:.30},calendarMeals:[{id:'earlier',mealDate:date}]},
     $:selector=>selector==='#meal-form'?{elements:{mealDate:{value:date},slot:{value:'dinner'}}}:{replaceChildren(element){notice=element;}},
     allPlanningRecipes:()=>[parent,...recipes],latestProfile:()=>({dailyEnergyKcal:1300}),plannedCaloriesForPerson:()=>1066.8,
     document:{createElement:()=>({append(...children){this.children=children;}})}};
@@ -94,7 +95,7 @@ test('automatic salad servings are capped to one portion per person', () => {
   const people = [{id:'a',displayName:'A'},{id:'b',displayName:'B'}];
   const items = { 0:{recipeId:salad.id,role:'accompaniment'} };
   const root = { replaceChildren(){} };
-  const context = { ...planner,roundServingCalories,state:{recipes:[salad],people,calendarMeals:[]},
+  const context = { ...planner,servedGramsPerUnit,roundServingCalories,state:{recipes:[salad],people,calendarMeals:[]},
     $:selector=>selector==='#meal-form'?{elements:{mealDate:{value:'2026-10-19'},slot:{value:'lunch'}}}:root,
     allPlanningRecipes:()=>[salad],isIndividualRole:()=>false,isIndividualMealItem:()=>false,latestProfile:()=>({dailyEnergyKcal:3000}),
     plannedCaloriesForPerson:()=>0,document:{createElement:()=>({append(){}})} };
@@ -113,7 +114,7 @@ test('sauce calories fit within the meal budget without increasing a fixed sauce
   const people=[{id:'a',displayName:'A'},{id:'b',displayName:'B'},{id:'c',displayName:'C'}];
   const items={0:{recipeId:'salad',role:'main'},1:{recipeId:'',role:'sauce',categoryId:'sauce',assignments:{a:{recipeId:'sauce',quantity:'40'},b:{recipeId:'sauce',quantity:'0'}}}};
   const root={replaceChildren(){}};
-  const context={...planner,roundServingCalories,state:{recipes:[salad,sauce],people,calendarMeals:[]},
+  const context={...planner,servedGramsPerUnit,roundServingCalories,state:{recipes:[salad,sauce],people,calendarMeals:[]},
     $:selector=>selector==='#meal-form'?{elements:{mealDate:{value:'2026-10-19'},slot:{value:'lunch'}}}:root,
     allPlanningRecipes:()=>[salad,sauce],isIndividualRole:role=>role!=='main',latestProfile:()=>({dailyEnergyKcal:1500}),
     plannedCaloriesForPerson:()=>0,document:{createElement:()=>({append(){}})}};

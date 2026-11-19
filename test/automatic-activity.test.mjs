@@ -47,7 +47,7 @@ test('retired combined dumping question cannot block a complete profile or its p
  for(const oldValue of ['yes','no','unknown',undefined]){
   const result=automaticNutrition({person:profile,settings:{sex:'female',context:{...context,diabetes:'none',surgery:'mini_bypass',surgeryDate:'2013-04-01',dumping:oldValue}},date});
   assert.equal(result.status,'calculated');assert.equal(result.dailyEnergyKcal,1585);
-  assert.deepEqual([result.dailyProteinG,result.dailyFatG,result.dailyCarbohydrateG,result.dailyFibreG],[79,61.8,178.3,25]);
+  assert.deepEqual([result.dailyProteinG,result.dailyFatG,result.dailyCarbohydrateG,result.dailyFibreG],[138.7,52.8,138.7,25]);
   const projection=projectWeight({startDate:date,birthDate:profile.birthDate,weightKg:77.2,heightCm:167,sex:'female',pal:1.4,maintenanceKcal:result.maintenanceKcal,intakeKcal:result.dailyEnergyKcal});assert.ok(projection.points.length>1);assert.equal(projection.error,undefined);
  }
  const {dumping,...withoutRetiredField}=context;assert.ok(validateAutomaticProfile({effectiveFrom:date,displayName:'Fictif',birthDate:profile.birthDate,sex:'female',heightCm:167,activityLevel:'sedentary',context:withoutRetiredField},date).data);

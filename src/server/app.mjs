@@ -6,7 +6,7 @@ import {validatePlanningCopy,previewPlanningCopy,copyPlanningPeriod,addPlanningS
 import {recipeChoiceRoutes} from './recipe-choices.mjs';
 import {communityRoutes} from './community.mjs';
 import {accountGateway} from './accounts.mjs';
-import { readServingCaps, saveServingCaps } from './serving-cap-settings.mjs';
+import { readServingCaps, saveServingCaps, validatePersonServingCap, savePersonServingCap } from './serving-cap-settings.mjs';
 import { listCatalogueProposals } from './catalogue-review.mjs';
 import {listCatalogueEstimates} from './catalogue-estimates.mjs';
 import {readCatalogueReviewExclusions,saveCatalogueReviewExclusions} from './catalogue-review-exclusions.mjs';
@@ -64,6 +64,7 @@ const staticFiles = new Map([
   ['/accounts-ui.js', ['accounts-ui.js', 'text/javascript; charset=utf-8']],
   ['/guided-nutrition-ui.js', ['guided-nutrition-ui.js', 'text/javascript; charset=utf-8']],
   ['/nutrition-recommendations.js', ['nutrition-recommendations.js', 'text/javascript; charset=utf-8']],
+  ['/main-dish-cap.js', ['main-dish-cap.js', 'text/javascript; charset=utf-8']],
   ['/automatic-profile-ui.js', ['automatic-profile-ui.js', 'text/javascript; charset=utf-8']],
   ['/automatic-nutrition.js', ['automatic-nutrition.js', 'text/javascript; charset=utf-8']],
   ['/activity-model.js', ['activity-model.js', 'text/javascript; charset=utf-8']],
@@ -259,12 +260,17 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
       const householdId=url.searchParams.get('householdId');if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});
       try{const data=await readAutomaticActivity(pool,automaticRead[1],householdId);return send(response,data?200:404,data??{error:'person-not-found'});}catch{return send(response,500,{error:'automatic-profile-read-failed'});}
     }
-    const personAction = url.pathname.match(/^\/api\/people\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(weights|profile-history|weight-goals|nutrition-targets|automatic-profile|activity-plans|activity-sessions)$/i);
+    const personAction = url.pathname.match(/^\/api\/people\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(weights|profile-history|weight-goals|nutrition-targets|automatic-profile|activity-plans|activity-sessions|serving-cap)$/i);
     if (personAction && request.method === 'POST') {
       const body = await readJson(request);
       if (body.error) return send(response, body.status ?? 400, { error: body.error });
       if (!isUuid(body.value?.householdId)) return send(response, 400, { error: 'invalid-household-id' });
       const kind=personAction[2];
+      if(kind==='serving-cap'){
+        const checked=validatePersonServingCap(body.value);if(checked.error)return send(response,400,checked);
+        try{const result=await savePersonServingCap(pool,personAction[1],body.value.householdId,checked.data);return send(response,result?200:404,result??{error:'person-not-found'});}
+        catch{return send(response,500,{error:'person-serving-cap-save-failed'});}
+      }
       if(['automatic-profile','activity-plans','activity-sessions'].includes(kind)){
         const checked=kind==='automatic-profile'?validateAutomaticProfile(body.value):validateActivity(body.value,kind);
         if(checked.error)return send(response,400,{error:checked.error});

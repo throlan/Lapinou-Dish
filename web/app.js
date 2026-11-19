@@ -1,3 +1,4 @@
+import {servedGramsPerUnit} from './main-dish-cap.js';
 import {effectiveNutritionProfile,renderNutritionGoals,monthlyReview} from './nutrition-goals.js';
 import {foodCorrectionField,foodMeasurePayload,foodMeasureComparisons,foodPurchaseMode,deriveFoodMeasures,foodMeasureVolumes,foodMeasureLabels} from './food-corrections.js';
 import {createRecipeReplacements} from './recipe-replacements.js';
@@ -1053,7 +1054,7 @@ function profileCard(person) {
   overview.textContent=[age==null?'Âge inconnu':`${age} ans`,current?.dailyEnergyKcal ? `${format(current.dailyEnergyKcal)} kcal/j` : 'Besoin à renseigner',current?.heightCm ? `${format(current.heightCm)} cm` : null,person.weightHistory[0]?.weightKg ? `${format(person.weightHistory[0].weightKg)} kg mesurés` : null,currentGoal?`${format(currentGoal.comfortableWeightKg)} kg poids de forme`:null].filter(Boolean).join(' · ');
   heading.append(title,overview);card.append(heading);
   const birth = document.createElement('p'); birth.className = 'muted'; birth.textContent = person.birthDate ? `Né(e) le ${displayDate(person.birthDate.slice(0,10))}` : 'Date de naissance non renseignée';card.append(birth);
-  renderNutritionGoals(card,person,{api,householdId:state.household.id,today:localDateValue(),onSaved:refreshPeople});
+  renderNutritionGoals(card,person,{api,householdId:state.household.id,today:localDateValue(),onSaved:async()=>{await refreshPeople();state.servingCaps=(await api(`/api/serving-caps?householdId=${encodeURIComponent(state.household.id)}`)).caps??{};}});
   const histories = document.createElement('div'); histories.className = 'profile-histories';
   const weights = document.createElement('section'); const weightTitle = document.createElement('h4'); weightTitle.textContent = 'Historique du poids'; weights.append(weightTitle);
   if (!person.weightHistory.length) { const empty = document.createElement('p'); empty.className = 'muted'; empty.textContent = 'Aucun relevé saisi.'; weights.append(empty); }
@@ -3680,7 +3681,7 @@ function applyAutomaticPortions(items, attendeeIds) {
       const step = recipeUnit === 'piece' ? 1 : recipeUnit === 'g' ? 10 : 0.5;
       if (individual) {
         const quantity = Number(assignment?.quantity);
-        proposals.push({ item, assignment, personId, role, quantity: Number.isFinite(quantity) && quantity >= 0 ? quantity : 0, step, recipeKcal: Number(kcal), proteinG: recipe?.nutrition?.perYieldUnit?.proteinG == null ? null : Number(recipe.nutrition.perYieldUnit.proteinG), maxQuantity: Infinity,recipeUnit,countStep:recipe?.eggServingStep??recipe?.servingDisplay?.gramsPerUnit,servingLoad:recipe?.servingLoad });
+        proposals.push({ item, assignment, personId, role, quantity: Number.isFinite(quantity) && quantity >= 0 ? quantity : 0, step, recipeKcal: Number(kcal), proteinG: recipe?.nutrition?.perYieldUnit?.proteinG == null ? null : Number(recipe.nutrition.perYieldUnit.proteinG), maxQuantity: Infinity,recipeUnit,countStep:recipe?.eggServingStep??recipe?.servingDisplay?.gramsPerUnit,servedGramsPerUnit:servedGramsPerUnit(recipe),servingLoad:recipe?.servingLoad });
         if (kcal == null) messages.add(`${recipe?.name ?? (role === 'sauce' ? 'Une sauce' : 'Une boisson')} : calories inconnues, le respect du budget ne peut pas être vérifié.`);
         continue;
       }
@@ -3717,7 +3718,7 @@ function applyAutomaticPortions(items, attendeeIds) {
       const parent=state.recipes.find(parent=>parent.id===recipe?.parentRecipeId);
       proposals.push({ item, personId, role, quantity, reason: suggestion.reason, step, recipeKcal: Number(kcal), proteinG: recipe?.nutrition?.perYieldUnit?.proteinG == null ? null : Number(recipe.nutrition.perYieldUnit.proteinG), maxQuantity, slotBudgetKcal: suggestion.slotBudgetKcal, assignment,
         parentRecipeId:recipe?.parentRecipeId,servingPart:recipe?.servingPart,recipeUnit,
-        servingLoad:recipe?.servingLoad,fixedProteinEligible:!['dessert','beverage','sauce'].includes(recipe?.recipeType),countStep:recipe?.eggServingStep??recipe?.servingDisplay?.gramsPerUnit,plateParts:parent?.servingParts?.map(part=>part.servingPart),budgetFraction:1/commonCount });
+        servedGramsPerUnit:servedGramsPerUnit(recipe),servingLoad:recipe?.servingLoad,fixedProteinEligible:!['dessert','beverage','sauce'].includes(recipe?.recipeType),countStep:recipe?.eggServingStep??recipe?.servingDisplay?.gramsPerUnit,plateParts:parent?.servingParts?.map(part=>part.servingPart),budgetFraction:1/commonCount });
     }
     const budget = proposals.find((proposal) => Number.isFinite(proposal.slotBudgetKcal))?.slotBudgetKcal;
     if (proposals.length) {

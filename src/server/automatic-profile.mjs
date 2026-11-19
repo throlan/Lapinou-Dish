@@ -88,10 +88,10 @@ export async function saveActivity(pool,personId,householdId,kind,data){
 }
 
 export async function readAutomaticActivity(pool,personId,householdId,date=parisToday()){
- const person=(await pool.query('SELECT id FROM people WHERE id=$1 AND household_id=$2 FOR UPDATE',[personId,householdId])).rows[0];if(!person)return null;
+ const person=(await pool.query('SELECT id,main_dish_cap_g FROM people WHERE id=$1 AND household_id=$2 FOR UPDATE',[personId,householdId])).rows[0];if(!person)return null;
  const calculation=await recalculateAutomatic(pool,personId,householdId,date);
  const profile=(await pool.query('SELECT settings,effective_from::text AS date FROM person_automatic_profiles WHERE person_id=$1 AND effective_from<=$2 ORDER BY effective_from DESC,revision_order DESC LIMIT 1',[personId,date])).rows[0];
  const plans=(await pool.query('SELECT *,effective_from::text AS date FROM person_activity_plans WHERE person_id=$1 ORDER BY effective_from DESC,revision_order DESC',[personId])).rows.map(row=>({id:row.id,effectiveFrom:row.date,activityType:row.activity_type,minutesPerSession:row.minutes_per_session,sessionsPerWeek:row.sessions_per_week,additional:row.additional}));
  const sessions=(await pool.query('SELECT *,performed_on::text AS date FROM person_activity_sessions WHERE person_id=$1 ORDER BY performed_on DESC,created_at DESC',[personId])).rows.map(row=>({id:row.id,performedOn:row.date,activityType:row.activity_type,durationMinutes:row.duration_minutes,additional:row.additional,cancelledAt:row.cancelled_at}));
- return {settings:profile?.settings??null,calculation,plans,sessions};
+ return {settings:profile?.settings??null,calculation,plans,sessions,mainDishCapG:person.main_dish_cap_g??null};
 }

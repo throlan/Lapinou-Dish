@@ -1,3 +1,4 @@
+import {capMainDish} from './main-dish-cap.js';
 import {effectiveDatedEntry} from './profile-dates.js';
 import { DEFAULT_MEAL_RATIOS, DEFAULT_PLATE_RATIOS, validPlateRatios, effectiveServingCaps } from './meal-config.js';
 export const SLOT_RATIOS = DEFAULT_MEAL_RATIOS;
@@ -388,5 +389,8 @@ export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RA
     if(members.some(row=>!row.quantity))warnings.add('Une partie ne tient pas dans les plafonds ou le budget : vérifie les quantités proposées.');
     for(const row of members)if(!row.quantity)row.quantity=null;
   }
-  return {proposals:rows,warnings:[...warnings],proportionsApplied:plates.length>0,estimatedKcal:total(),withinBudget:!validBudget||total()<=budget+1e-6,proteinKnown:rows.every(row=>!row.quantity||row.proteinG!=null)};
+  const volume=capMainDish(rows,effectiveServingCaps(overrides).plateTotal);
+  volume.warnings.forEach(message=>warnings.add(message));
+  rows.forEach((row,index)=>{row.quantity=volume.proposals[index].quantity;});
+  return {proposals:rows,warnings:[...warnings],volume,proportionsApplied:plates.length>0,estimatedKcal:total(),withinBudget:!validBudget||total()<=budget+1e-6,proteinKnown:rows.every(row=>!row.quantity||row.proteinG!=null)};
 }
