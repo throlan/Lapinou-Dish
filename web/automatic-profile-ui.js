@@ -14,7 +14,7 @@ export function renderAutomaticProfile(parent,person,{api,householdId,today,onSa
  const root=element('section');root.className='automatic-profile';root.append(element('h4','Profil, activité et repères automatiques'));
  const content=element('div'),message=element('p');message.setAttribute('role','status');root.append(content,message);parent.append(root);
  let model=null;
- const action=async(button,operation)=>{button.disabled=true;message.textContent='';try{await operation();}catch(error){message.textContent=({'entry-already-exists-for-date':'Une pesée existe déjà pour cette date ; les valeurs précédentes ont été conservées.','invalid-medical-context':'Complète les antécédents, ou choisis « Je ne sais pas ».','invalid-automatic-profile':'Vérifie les données du profil et l’activité habituelle.','invalid-activity-session':'Vérifie la date et la durée de la séance.','invalid-person-serving-cap':'Saisis un nombre entier de 1 à 5 000 g, ou laisse vide.'})[error.body?.error]??error.body?.error??error.message;}finally{button.disabled=false;}};
+ const action=async(button,operation)=>{button.disabled=true;message.textContent='';try{await operation();}catch(error){message.textContent=({'entry-already-exists-for-date':'Une pesée existe déjà pour cette date ; les valeurs précédentes ont été conservées.','invalid-medical-context':'Complète les antécédents, ou choisis « Je ne sais pas ».','invalid-automatic-profile':'Vérifie les données du profil et l’activité habituelle.','invalid-activity-session':'Vérifie la date et la durée de la séance.','invalid-person-serving-cap':'Saisis un nombre entier de 1 à 5 000 g, ou laisse vide.','invalid-objective':'Choisis maintien, perte de poids ou prise de poids.'})[error.body?.error]??error.body?.error??error.message;}finally{button.disabled=false;}};
  const load=async()=>{model=await api('/api/people/'+person.id+'/automatic?householdId='+encodeURIComponent(householdId));render();};
  function render(){
   content.replaceChildren();const calculation=model.calculation;
@@ -29,6 +29,14 @@ export function renderAutomaticProfile(parent,person,{api,householdId,today,onSa
    const details=element('details');details.append(element('summary','Comprendre le calcul'));details.append(element('p',`Maintien estimé : ${calculation.maintenanceKcal} kcal/j ; ajustement : ${calculation.adjustmentKcal>0?'−':'+'}${Math.abs(calculation.adjustmentKcal)} kcal/j ; cible appliquée : ${calculation.dailyEnergyKcal} kcal/j. Dernier poids utilisé : ${calculation.estimate.weightKg} kg mesurés le ${calculation.estimate.measuredOn}.`));for(const note of calculation.notes)details.append(element('p',note));for(const source of calculation.sources){const link=element('a','Consulter une source du calcul');link.href=source;link.target='_blank';link.rel='noopener';details.append(link);}content.append(details);
   }else if(calculation){content.append(element('p','Calcul automatique non appliqué : '+calculation.problems.join(' ')));}
   else content.append(element('p','Renseigne les faits du profil ; le système calculera les repères sans saisie de calories ni de macronutriments.'));
+  const goals=element('form');goals.className='profile-entry';
+  goals.append(element('h4','Objectifs de poids'));
+  const currentGoal=effectiveDatedEntry(person.weightGoalHistory,today);
+  number(goals,'Poids de forme souhaité (kg)','comfortableWeightKg',currentGoal?.comfortableWeightKg??'',.1,500).required=true;
+  number(goals,'Objectif intermédiaire (kg, facultatif)','interimTargetKg',currentGoal?.interimTargetKg??'',.1,500);
+  goals.append(element('p','Ces objectifs peuvent être enregistrés séparément, y compris pour un adolescent. Ils ne déclenchent pas de calcul adulte de déficit pour un mineur.'));
+  const saveGoals=submit(goals,'Enregistrer les objectifs de poids');
+  goals.addEventListener('submit',event=>{event.preventDefault();action(saveGoals,async()=>{await api('/api/people/'+person.id+'/weight-goals',{method:'POST',body:JSON.stringify({householdId,effectiveFrom:today,...Object.fromEntries(new FormData(goals))})});await onSaved();});});content.append(goals);
   const details=element('details');details.open=!model.settings;details.append(element('summary','Modifier mon profil et mes antécédents'));
   const form=element('form');form.className='profile-entry';
   const profile=effectiveDatedEntry(person.profileHistory,today),goal=effectiveDatedEntry(person.weightGoalHistory,today),legacy=effectiveDatedEntry(person.nutritionTargetHistory,today)?.questionnaire,settings=model.settings??{sex:legacy?.estimate?.sex??legacy?.sex,context:legacy?.context??{}},context=settings.context??{};
@@ -37,10 +45,12 @@ export function renderAutomaticProfile(parent,person,{api,householdId,today,onSa
   number(form,'Taille (cm)','heightCm',profile?.heightCm??'',50,260);
   select(form,'Paramètre sexué du calcul','sex',[['','Choisir'],['female','Féminin'],['male','Masculin']],settings.sex);
   select(form,'Activité habituelle (hors nouvelle activité planifiée)','activityLevel',[['sedentary','Sédentaire / peu actif'],['light','Légèrement actif'],['moderate','Modérément actif'],['active','Actif'],['very_active','Très actif']],profile?.activityLevel??'sedentary');
-  number(form,'Poids de forme souhaité (kg)','comfortableWeightKg',goal?.comfortableWeightKg??'',.1,500);
-  number(form,'Objectif intermédiaire (kg, facultatif)','interimTargetKg',goal?.interimTargetKg??'',.1,500);
-  select(form,'Rythme souhaité','lossPace',Object.entries(WEIGHT_LOSS_PACES).map(([key,value])=>[key,value.label]),settings.lossPace??'moderate');
-  form.append(element('p','Le système calcule les apports selon ce choix, avec une réduction alimentaire limitée à 750 kcal/j. L’activité supplémentaire reste comptée séparément dans la projection. Les noms des rythmes ne garantissent pas une vitesse de perte ; à l’objectif, le calcul revient au maintien.'));
+  const inferred=settings.lossPace==='maintain'||!(person.weightHistory?.find(row=>row.measuredOn<=today)?.weightKg>(goal?.comfortableWeightKg??Infinity)+.5)?'maintain':'lose';
+  const objective=select(form,'Objectif','objective',[['maintain','Maintien'],['lose','Perte de poids'],['gain','Prise de poids']],settings.objective??inferred);
+  const pace=select(form,'Rythme de perte de poids','lossPace',Object.entries(WEIGHT_LOSS_PACES).filter(([key])=>key!=='maintain').map(([key,value])=>[key,value.label]),settings.lossPace==='maintain'?'moderate':settings.lossPace??'moderate');
+  const objectiveNote=element('p');form.append(objectiveNote);
+  const objectiveVisibility=()=>{pace.parentElement.hidden=objective.value!=='lose';objectiveNote.textContent=objective.value==='lose'?'Repère adulte en perte de poids : 35 % protéines, 35 % glucides, 30 % lipides après le déficit choisi.':objective.value==='gain'?'Le choix sera enregistré ; le surplus calorique reste à définir, sans modification automatique de la cible.':'Maintien : aucun déficit alimentaire ni repère 35/35/30 de perte de poids.';};objective.addEventListener('change',objectiveVisibility);objectiveVisibility();
+  form.append(element('p','En perte de poids, le système calcule les apports selon ce choix, avec une réduction alimentaire limitée à 750 kcal/j. L’activité supplémentaire reste comptée séparément dans la projection. Les noms des rythmes ne garantissent pas une vitesse de perte ; à l’objectif, le calcul revient au maintien.'));
   form.append(element('p','Nouvelle pesée facultative : laisse ces champs vides pour garder les relevés existants.'));
   number(form,'Nouveau poids mesuré (kg)','weightKg','',.1,500);input(form,'Date de la nouvelle pesée','measuredOn','date',today).max=today;
   select(form,'Diabète','diabetes',[['','Choisir'],['none','Aucun'],['type2','Type 2'],['type1','Type 1'],['unknown','Je ne sais pas']],context.diabetes);
@@ -80,11 +90,19 @@ export function renderAutomaticProfile(parent,person,{api,householdId,today,onSa
   renderProjection(parent,currentPlan);
  }
  function renderProjection(parent,plan){
-  const details=element('details');details.append(element('summary','Estimation d’évolution du poids'));parent.append(details);
+  const details=element('details');details.open=model.calculation?.objective==='maintain'||model.settings?.objective==='maintain';details.append(element('summary','Suivi du poids et estimation d’évolution'));parent.append(details);
+  const weights=(person.weightHistory??[]).filter(row=>row.measuredOn<=today).slice().sort((a,b)=>a.measuredOn.localeCompare(b.measuredOn));
+  if(weights.length){
+   details.append(element('h4','Pesées enregistrées'));
+   const history=element('table'),head=element('tr');for(const title of ['Date','Poids mesuré','Écart depuis la première pesée'])head.append(element('th',title));history.append(head);
+   for(const weight of weights){const row=element('tr');for(const value of [weight.measuredOn,weight.weightKg+' kg',((weight.weightKg-weights[0].weightKg)>0?'+':'')+(weight.weightKg-weights[0].weightKg).toFixed(1)+' kg'])row.append(element('td',value));history.append(row);}details.append(history);
+  }
+  if(ageAtDate(person.birthDate,today)<18){details.append(element('p','Suivi des pesées et objectifs disponibles. Le modèle adulte de projection ne prédit pas la croissance d’un adolescent ; aucune projection adulte ni déficit automatique ne lui est appliqué.'));return;}
   const calculated=model.calculation,weight=person.weightHistory?.find(row=>row.measuredOn<=today),goal=effectiveDatedEntry(person.weightGoalHistory,today);
-  if(calculated?.status!=='calculated'||!weight){details.append(element('p','Complète le profil pour disposer d’un calcul automatique applicable avant la simulation.'));return;}
+  if(calculated?.status!=='calculated'||!weight){details.append(element('p',calculated?.problems?.join(' ')||'Une cible automatique applicable et une pesée sont nécessaires avant la simulation.'));return;}
   const input={startDate:today,birthDate:person.birthDate,weightKg:weight.weightKg,heightCm:calculated.estimate.heightCm,sex:calculated.estimate.sex,pal:calculated.estimate.pal,intakeKcal:calculated.dailyEnergyKcal,maintenanceKcal:calculated.maintenanceKcal,targets:{comfortable:goal?.comfortableWeightKg,interim:goal?.interimTargetKg}};
   const baseline=projectWeight(input),planned=plan?projectWeight({...input,plan}):baseline;
+  if(calculated.objective==='maintain')details.append(element('p','Projection de maintien : sans activité supplémentaire, le scénario prévoit un poids stable. Une activité ajoutée sans compensation alimentaire peut faire évoluer le poids estimé.'));
   if(baseline.error||planned.error){details.append(element('p',baseline.error??planned.error));return;}
   details.append(element('p',`Simulation à partir du ${today} : ${weight.weightKg} kg, dernière pesée du ${weight.measuredOn}. Hypothèse : cible actuelle de ${calculated.dailyEnergyKcal} kcal/j constante. La projection est recalculée quand le suivi change ; elle n’est pas une promesse ni le calculateur complet NIDDK.`));
   if(plan)details.append(element('p',`Disponibilités : ${plan.minutesPerSession} min × ${plan.sessionsPerWeek}/semaine. Dépense supplémentaire nette initiale estimée : ${planned.additionalKcalPerDay.toFixed(0)} kcal/j en moyenne. ${plan.additional?'Seule l’activité déclarée en plus des habitudes est ajoutée.':'Cette activité est déjà incluse dans le profil : aucun ajout au maintien.'} Les séances saisies sont suivies séparément et ne sont pas ajoutées une seconde fois au programme.`));

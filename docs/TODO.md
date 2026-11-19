@@ -1,5 +1,14 @@
 # Prochaines tâches — 19 novembre 2026
 
+## Objectif explicite et suivi du maintien — 0.17.3
+
+Le profil rétablit trois choix distincts : maintien, perte de poids, prise de poids. Les rythmes rapide/modéré/lent apparaissent uniquement en perte de poids. Un maintien explicitement choisi reste sans déficit même si le poids de forme est inférieur au poids mesuré ; le préréglage 35/35/30 reste réservé à la perte. Les anciens profils sans objectif explicite gardent leur interprétation précédente jusqu’à l’enregistrement du choix. Modèle profile-auto-v5.
+
+Prise de poids : choix enregistrable, mais aucun surplus n’est inventé ni appliqué ; la cible précédente reste conservée tant que la règle n’est pas définie, selon la décision de l’utilisateur. Les objectifs de poids ont désormais leur propre formulaire et bouton, sans obligation de compléter les antécédents. Cela permet notamment de les enregistrer pour un adolescent sans lui appliquer le déficit ou la projection adultes.
+
+Le suivi affiche les pesées réelles même quand le modèle adulte n’est pas applicable. Le volet de maintien est ouvert et explique son tableau mensuel ; la simulation adulte reste dans son domaine existant. Chez les adolescents, l’historique est affiché, sans prédire la croissance par une courbe adulte. Les quantités des menus restent inchangées. Aucune migration supplémentaire.
+
+
 ## Capacités personnelles et répartition en perte de poids — 0.17.2
 
 Décision validée le 19 novembre : pour les adultes en perte de poids uniquement, appliquer le repère applicatif 35 % protéines / 35 % glucides / 30 % lipides aux calories obtenues après le rythme lent −10 %, modéré −20 % ou rapide −30 %, déficit alimentaire toujours limité à 750 kcal/j. Conversion 4/4/9, arrondie au dixième de gramme. Ce repère choisi n’est pas une recommandation thérapeutique universelle ; maintien, objectif atteint et profils mineurs ne reçoivent pas ce préréglage. Les garde-fous existants et le contrôle du minimum protéique restent actifs. Modèle profile-auto-v4 : les profils déjà en suivi automatique actualisent leurs repères à leur prochaine consultation ; les historiques et quantités des menus restent conservés.

@@ -2,7 +2,7 @@ import {validDate} from './activity-model.js';
 import {ageAtDate,effectiveDatedEntry} from './profile-dates.js';
 import {idealWeight,NUTRITION_SOURCES} from './nutrition-recommendations.js';
 
-export const AUTO_NUTRITION_VERSION='profile-auto-v4';
+export const AUTO_NUTRITION_VERSION='profile-auto-v5';
 export const WEIGHT_LOSS_PACES=Object.freeze({fast:{rate:.3,label:'Perte rapide · −30 %'},moderate:{rate:.2,label:'Perte modérée · −20 %'},slow:{rate:.1,label:'Perte lente · −10 %'},maintain:{rate:0,label:'Maintien · 0 %'}});
 export const DEFICIT_CAP_KCAL=750;
 export const AUTO_PAL={sedentary:1.4,light:1.6,moderate:1.6,active:1.8,very_active:2};
@@ -18,8 +18,12 @@ export function automaticNutrition({person,settings,date}){
  const w=weight.weightKg,h=profile.heightCm,bmi=w/(h/100)**2,pal=AUTO_PAL[profile.activityLevel];
  const maintenance=Math.round((10*w+6.25*h-5*age+(settings.sex==='male'?5:-161))*pal);
  const targetWeight=goal?.comfortableWeightKg??w;
- const requestedDeficitRate=WEIGHT_LOSS_PACES[lossPace].rate;
- const objective=requestedDeficitRate===0||w-targetWeight<=.5?'maintain':'lose';
+ if(settings.objective==='lose'&&lossPace==='maintain')return {status:'needs-review',problems:['Choisis un rythme de perte rapide, modérée ou lente.']};
+ const requestedDeficitRate=['maintain','gain'].includes(settings.objective)?0:WEIGHT_LOSS_PACES[lossPace].rate;
+ const selectedObjective=settings.objective??(requestedDeficitRate===0||w-targetWeight<=.5?'maintain':'lose');
+ if(!['maintain','lose','gain'].includes(selectedObjective))return {status:'needs-review',problems:['Choisis maintien, perte de poids ou prise de poids.']};
+ if(selectedObjective==='gain')return {status:'needs-review',objective:'gain',problems:['Objectif prise de poids enregistré. La règle de surplus reste à définir ; la cible précédente est conservée.']};
+ const objective=selectedObjective==='lose'&&(!goal?.comfortableWeightKg||w-targetWeight>.5)?'lose':'maintain';
  if(objective==='lose'&&(bmi<18.5||targetWeight/(h/100)**2<18.5))return {status:'needs-review',problems:['L’objectif sort du domaine de la perte de poids générale du modèle.']};
  const adjustment=objective==='maintain'?0:Math.min(DEFICIT_CAP_KCAL,maintenance*requestedDeficitRate);
  // Round intake upward to whole kcal so neither the chosen rate nor the cap is exceeded.
@@ -35,7 +39,7 @@ export function automaticNutrition({person,settings,date}){
  const calculatedFat=losing?fat:Math.round((energy-protein*4-carbohydrate*4)/9*10)/10;
  if(!Number.isFinite(protein)||protein>500||calculatedFat<0||carbohydrate<0)return {status:'needs-review',problems:['Répartition énergétique incompatible avec les repères calculés.']};
  const fibre=Math.max(25,context.diabetes==='type2'?Math.ceil(14*energy/1000):25);
- const notes=[`Estimation générale : Mifflin–St Jeor × activité habituelle. Rythme choisi : ${WEIGHT_LOSS_PACES[lossPace].label}. Déficit alimentaire limité à ${DEFICIT_CAP_KCAL} kcal/j ; apport arrondi à la kcal supérieure pour respecter le plafond. Ces niveaux sont des réglages de l’application, pas des vitesses garanties ni une prescription individuelle.`,losing?'Répartition adulte en perte de poids choisie : 35 % protéines, 35 % glucides, 30 % lipides, avec contrôle du minimum protéique de référence. Ce choix n’est pas un protocole universel pour le diabète ou le bypass.':'Maintien : repères précédents conservés, sans application automatique du préréglage de perte de poids.'];
+ const notes=[`Estimation générale : Mifflin–St Jeor × activité habituelle. Rythme choisi : ${objective==='maintain'?'Maintien · 0 %':WEIGHT_LOSS_PACES[lossPace].label}. Déficit alimentaire limité à ${DEFICIT_CAP_KCAL} kcal/j ; apport arrondi à la kcal supérieure pour respecter le plafond. Ces niveaux sont des réglages de l’application, pas des vitesses garanties ni une prescription individuelle.`,losing?'Répartition adulte en perte de poids choisie : 35 % protéines, 35 % glucides, 30 % lipides, avec contrôle du minimum protéique de référence. Ce choix n’est pas un protocole universel pour le diabète ou le bypass.':'Maintien : repères précédents conservés, sans application automatique du préréglage de perte de poids.'];
  notes.push(`Référence protéique minimale calculée : ${proteinMinimum} g/j. Le repère de répartition de l’application réserve environ ${losing?35:20} % des calories aux protéines s’il est supérieur ; ce choix de répartition n’est pas un besoin médical mesuré.`);
  if(medicalWeight!=null)notes.push(`Repère HAS après chirurgie : minimum 60 g/j, idéalement au moins 1,1 g/kg de référence. Lorentz : ${medicalWeight.toFixed(1)} kg ; ce nombre n’est pas ton objectif de poids.`);
  if(context.cholesterol==='yes')notes.push('Cholestérol élevé déclaré : privilégier les graisses insaturées en remplacement des graisses saturées. La qualité des graisses compte ; aucune estimation du LDL ni adaptation d’un traitement.');
