@@ -1,5 +1,14 @@
 # Cahier produit Lapinou Dish
 
+## Rythmes validés et plafond — 0.17.1
+
+Choix du 19 novembre : rapide 30 %, modérée 20 %, lente 10 %, maintien 0 %, déficit alimentaire limité à 750 kcal/j. Sélecteur dans le profil, niveau modéré conservé pour les profils sans choix. Calcul et application automatiques ; arrondi de l’apport à la kcal supérieure, pour respecter strictement taux et plafond. Au poids de forme, maintien. Les garde-fous médicaux et les apports trop bas restent prioritaires. Modèle profile-auto-v3, aucune migration supplémentaire.
+
+Ces catégories et ce plafond sont des choix validés pour l’application, pas une recommandation universelle de perte de poids. Sources, origine de l’ancienne règle, limites et exemples : [DEFICIT-CALORIQUE.md](DEFICIT-CALORIQUE.md). Le plafond concerne le déficit alimentaire calculé, pas la somme de celui-ci et d’une activité supplémentaire simulée. Les quantités des menus et les stocks restent conservés.
+
+Validation locale : 17 tests ciblés réussis couvrant les quatre niveaux, le plafond exact malgré les arrondis, le maintien et l’objectif atteint, la persistance du choix, l’interface, la suppression du champ de malaises et les droits API/SQL. Contrôles complets sur la PR de livraison.
+
+
 ## Profils automatiques, activité et projection — 0.17.0
 
 Décision du 19 novembre : le parcours normal est désormais automatique. Après enregistrement des faits du profil (naissance, taille, poids mesuré, activité habituelle, objectifs de poids et antécédents), le système calcule et applique les cinq repères datés : calories, protéines, lipides, glucides, fibres. Plus de saisie de calories, de minima protéiques, de déficit, de pourcentage de lipides ou de formule médicale dans ce parcours. Cette décision remplace les choix manuels des versions 0.15–0.16 décrits ci-dessous ; les historiques restent conservés. Aucun profil n’est converti silencieusement au déploiement : le premier enregistrement des faits active ce mode.

@@ -48,10 +48,11 @@ test('automatic profile UI submits facts and cholesterol without manual nutritio
  await new Promise(resolve=>setImmediate(resolve));
  const form=all(root).find(node=>node.tag==='form'&&node.elements.cholesterol);assert.ok(form);
  for(const name of ['dailyEnergyKcal','dailyProteinG','fatPercent','adjustmentChoice','idealWeightMethod','dumping'])assert.equal(form.elements[name],undefined);
+ assert.equal(form.elements.lossPace.value,'moderate');form.elements.lossPace.value='fast';
  for(const [name,value] of Object.entries({sex:'female',diabetes:'none',renal:'no',hypoglycemia:'no',pregnancy:'no',surgery:'none',cholesterol:'yes'}))form.elements[name].value=value;
  form.handlers.submit({preventDefault(){}});await new Promise(resolve=>setImmediate(resolve));
  assert.equal(requests.length,2);assert.match(requests[1][0],/automatic-profile$/);
- const body=JSON.parse(requests[1][1].body);assert.equal(body.context.cholesterol,'yes');assert.equal(body.heightCm,'165');assert.equal(body.dailyEnergyKcal,undefined);assert.equal(saved,1);
+ const body=JSON.parse(requests[1][1].body);assert.equal(body.context.cholesterol,'yes');assert.equal(body.heightCm,'165');assert.equal(body.dailyEnergyKcal,undefined);assert.equal(body.lossPace,'fast');assert.equal(saved,1);
  const plan=all(root).find(node=>node.tag==='form'&&node.elements.sessionsPerWeek);assert.ok(plan);assert.equal(plan.elements.durationMinutes,undefined);
  const session=all(root).find(node=>node.tag==='form'&&node.elements.durationMinutes);assert.ok(session);assert.equal(session.elements.sessionsPerWeek,undefined);
 });
