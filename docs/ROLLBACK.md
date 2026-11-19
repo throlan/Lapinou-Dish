@@ -1,5 +1,10 @@
 # Images versionnées et retour arrière
 
+## Objectif explicite — 0.17.3
+
+Aucune migration. L’objectif est stocké dans les réglages existants du profil ; une ancienne image peut l’ignorer et inférer à nouveau l’objectif depuis le poids et le rythme. Un retour d’image ne restaure pas les anciennes cibles. Historiques et menus conservés ; aucun digest historique modifié.
+
+
 ## Capacités et repères — 0.17.2
 
 Colonne facultative additive sur people ; les anciennes images l’ignorent et reprennent leurs anciens plafonds. Le changement du modèle nutritionnel peut créer de nouvelles révisions de cibles pour les profils en mode automatique ; une ancienne image ne restaure pas les anciennes cibles et peut recalculer selon son propre modèle. Les quantités des menus et stocks ne sont pas réécrites. Aucun tag ni digest historique modifié.

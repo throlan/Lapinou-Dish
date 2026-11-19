@@ -8,7 +8,9 @@ export const parisToday=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Pa
 const uuid=value=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 export function validateAutomaticProfile(input,today=parisToday()){
  if(!input||!validDate(input.effectiveFrom)||!['male','female'].includes(input.sex)||!['sedentary','light','moderate','active','very_active'].includes(input.activityLevel))return {error:'invalid-automatic-profile'};
+ if(input.objective!=null&&!['maintain','lose','gain'].includes(input.objective))return {error:'invalid-objective'};
  const lossPace=input.lossPace??'moderate';if(typeof lossPace!=='string'||!Object.hasOwn(WEIGHT_LOSS_PACES,lossPace))return {error:'invalid-loss-pace'};
+ if(input.objective==='lose'&&lossPace==='maintain')return {error:'invalid-loss-pace'};
  const displayName=String(input.displayName??'').trim();if(!displayName||displayName.length>80)return {error:'invalid-display-name'};
  const context={};
  for(const key of ['renal','hypoglycemia','pregnancy','cholesterol']){if(!['no','yes','unknown'].includes(input.context?.[key]))return {error:'invalid-medical-context'};context[key]=input.context[key];}
@@ -16,7 +18,7 @@ export function validateAutomaticProfile(input,today=parisToday()){
  context.diabetes=input.context.diabetes;context.surgery=input.context.surgery;context.surgeryDate=input.context.surgeryDate||null;
  if(context.surgeryDate&&(!validDate(context.surgeryDate)||context.surgeryDate>today))return {error:'invalid-surgery-date'};
  const birthDate=input.birthDate||null;if(birthDate&&(!validDate(birthDate)||birthDate>today))return {error:'invalid-birth-date'};
- const data={displayName,effectiveFrom:input.effectiveFrom,birthDate,activityLevel:input.activityLevel,settings:{sex:input.sex,lossPace,context}};
+ const data={displayName,effectiveFrom:input.effectiveFrom,birthDate,activityLevel:input.activityLevel,settings:{sex:input.sex,lossPace,...(input.objective==null?{}:{objective:input.objective}),context}};
  for(const [name,min,max] of [['heightCm',50,260],['weightKg',.1,500],['comfortableWeightKg',.1,500],['interimTargetKg',.1,500]]){const value=input[name]==null||input[name]===''?null:Number(input[name]);if(value!=null&&(!Number.isFinite(value)||value<min||value>max))return {error:'invalid-'+name};data[name]=value;}
  data.measuredOn=input.measuredOn||today;if(data.weightKg!=null&&(!validDate(data.measuredOn)||data.measuredOn>today))return {error:'invalid-measured-on'};
  return {data};

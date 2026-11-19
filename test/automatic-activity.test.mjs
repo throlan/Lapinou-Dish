@@ -80,7 +80,7 @@ test('automatic persistence is additive, dated, idempotent, recalculated after n
  for(const name of migrations)await db.exec(await readFile(new URL('../db/migrations/'+name,import.meta.url),'utf8'));
  const pool={async query(sql,args=[]){const result=await db.query(sql,args);return {...result,rowCount:result.rows.length||result.affectedRows||0};},async connect(){return {...this,release(){}};}};
  const h=randomUUID(),p=randomUUID(),other=randomUUID();await pool.query("INSERT INTO households(id,name) VALUES($1,'Fictif')",[h]);await pool.query("INSERT INTO people(id,household_id,display_name) VALUES($1,$2,'Profil fictif')",[p,h]);
- const checked=validateAutomaticProfile({effectiveFrom:date,displayName:'Profil fictif',birthDate:'1976-01-01',sex:'male',heightCm:173,activityLevel:'sedentary',lossPace:'slow',weightKg:115.9,measuredOn:'2026-11-18',comfortableWeightKg:90,interimTargetKg:105,context},date);assert.ok(checked.data);
+ const checked=validateAutomaticProfile({effectiveFrom:date,displayName:'Profil fictif',birthDate:'1976-01-01',sex:'male',heightCm:173,activityLevel:'sedentary',objective:'lose',lossPace:'slow',weightKg:115.9,measuredOn:'2026-11-18',comfortableWeightKg:90,interimTargetKg:105,context},date);assert.ok(checked.data);
  checked.data.settings.context.dumping='yes';
  const saved=await saveAutomaticProfile(pool,p,h,checked.data);assert.equal(saved.result.status,'calculated');
  let entries=(await listPeople(pool,h))[0].nutritionTargetHistory;assert.equal(entries.length,1);assert.equal(entries[0].questionnaire.automatic,true);
@@ -92,7 +92,7 @@ test('automatic persistence is additive, dated, idempotent, recalculated after n
  const session=validateActivity({requestId:randomUUID(),performedOn:date,activityType:'walk',durationMinutes:20,additional:true},'activity-sessions',date).data;
  await saveActivity(pool,p,h,'activity-sessions',session);await saveActivity(pool,p,h,'activity-sessions',session);
  assert.equal((await saveActivity(pool,p,h,'activity-sessions',{...session,durationMinutes:21})).error,'activity-request-conflict');
- const data=await readAutomaticActivity(pool,p,h,date);assert.equal(data.plans.length,1);assert.equal(data.sessions.length,1);assert.equal(data.settings.lossPace,'slow');assert.equal(data.calculation.requestedDeficitRate,.1);assert.equal(data.settings.context.cholesterol,'yes');assert.equal(data.settings.context.dumping,'yes');assert.equal(data.calculation.status,'calculated');assert.equal((await listPeople(pool,h))[0].nutritionTargetHistory.length,2,'activity must not add food calories');
+ const data=await readAutomaticActivity(pool,p,h,date);assert.equal(data.plans.length,1);assert.equal(data.sessions.length,1);assert.equal(data.settings.lossPace,'slow');assert.equal(data.settings.objective,'lose');assert.equal(data.calculation.requestedDeficitRate,.1);assert.equal(data.settings.context.cholesterol,'yes');assert.equal(data.settings.context.dumping,'yes');assert.equal(data.calculation.status,'calculated');assert.equal((await listPeople(pool,h))[0].nutritionTargetHistory.length,2,'activity must not add food calories');
  await saveActivity(pool,p,h,'activity-sessions',{action:'cancel',sessionId:session.id});assert.ok((await readAutomaticActivity(pool,p,h,date)).sessions[0].cancelledAt);
  assert.equal(await readAutomaticActivity(pool,p,other,date),null);
  await pool.query("SELECT set_config('app.household_id',$1,false),set_config('app.person_id',$2,false),set_config('app.is_manager','false',false)",[h,other]);await pool.query('SET ROLE lapinou_request');
