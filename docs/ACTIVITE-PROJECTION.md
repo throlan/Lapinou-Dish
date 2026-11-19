@@ -10,7 +10,7 @@ Les nouvelles données de profil/pesée/objectif déclenchent le calcul, de mêm
 
 Mifflin–St Jeor simplifiée : repos = 10 × kg + 6,25 × cm − 5 × âge + constante (+5 masculin, −161 féminin). Maintien = repos × activité habituelle (PAL 1,4 / 1,6 / 1,8 / 2). Âge, taille et poids applicables à la date consultée. Référence formule : https://pubmed.ncbi.nlm.nih.gov/2305711/ ; repères PAL : https://www.efsa.europa.eu/sites/default/files/assets/DRV_Summary_tables_jan_17.pdf .
 
-La direction est déduite du poids de forme choisi, avec une bande de maintien de ±0,5 kg ; atteindre un objectif intermédiaire ne doit pas inverser cette direction. Ajustement de 20 % du maintien plafonné à 500 kcal/j, soustrait pour perdre, ajouté pour gagner, cible arrondie à 10 kcal. **Ce réglage est une stratégie d’application**, pas un déficit prescrit spécifiquement par une recommandation de diabète ou de chirurgie. Le calcul n’est pas calibré pour retrouver artificiellement l’ancienne cible personnelle à 1 750 kcal.
+La direction est déduite du poids de forme choisi, avec une bande de maintien de ±0,5 kg ; atteindre un objectif intermédiaire ne doit pas inverser cette direction. Depuis 0.17.1 : choix validés rapide 30 %, modérée 20 %, lente 10 %, maintien 0 %. Déficit = min(taux × maintien, 750 kcal/j), apport arrondi à la kcal entière supérieure ; au poids de forme, maintien, sans prise de poids automatique. Voir DEFICIT-CALORIQUE.md. **Ce réglage est une stratégie d’application**, pas un déficit prescrit spécifiquement par une recommandation de diabète ou de chirurgie. Le calcul n’est pas calibré pour retrouver artificiellement l’ancienne cible personnelle à 1 750 kcal.
 
 Minimum de référence protéique général : plafond entier de 0,83 g/kg de poids mesuré (EFSA https://doi.org/10.2903/j.efsa.2012.2557). Après chirurgie ancienne admissible : max(60 g, 1,1 g × poids de référence Lorentz), selon HAS R98, source conservée dans NUTRITION-RECOMMANDATIONS.md. Lorentz dépend de la taille et du paramètre sexué, pas du poids souhaité. Le repère de répartition applicatif réserve 20 % des calories aux protéines si supérieur à ce minimum ; ce n’est pas un besoin médical mesuré. Les protéines restent une information du planning, pas un objectif de rééquilibrage imposé.
 
@@ -18,7 +18,7 @@ Glucides : 45 % de l’énergie (4 kcal/g) ; lipides par différence après prot
 
 Cholestérol connu : oui/non/inconnu. Si oui, repère de qualité des graisses (remplacer les graisses saturées par des insaturées), source OMS https://www.who.int/publications/i/item/9789240073630 . Pas de prédiction LDL, de traitement ni d’abaissement chiffré arbitraire des calories sur ce seul diagnostic.
 
-Hors domaine : âge inconnu, mineur ou >78 ans ; faits manquants ; objectif de perte sous IMC 18,5 ; cible ≤1 200 kcal/j ; maladie rénale, grossesse/allaitement, hypoglycémies/traitement à risque, dumping ou leurs statuts incertains ; diabète de type 1/inconnu ; chirurgie non précisée, récente (<365 jours) ou sans date. Le système explique le blocage et garde les repères antérieurs, sans fabriquer de prescription.
+Hors domaine : âge inconnu, mineur ou >78 ans ; faits manquants ; objectif de perte sous IMC 18,5 ; cible ≤1 200 kcal/j ; maladie rénale, grossesse/allaitement, hypoglycémies/traitement à risque ou leurs statuts incertains ; diabète de type 1/inconnu ; chirurgie non précisée, récente (<365 jours) ou sans date. Le système explique le blocage et garde les repères antérieurs, sans fabriquer de prescription.
 
 ## Activité prévue et réellement effectuée
 
@@ -43,3 +43,11 @@ Domaine produit : 19–59 ans pour la projection avec ces MET adultes, cible >1 
 ## Confidentialité et retour arrière
 
 Tables privées protégées par API et RLS : personne liée au compte ou gestionnaire de son foyer. Aucun transfert à l’IA ou service de santé tiers. Les sources externes sont des liens à consulter volontairement, sans données personnelles dans leurs paramètres. Migration additive ; un retour d’image ne supprime pas les nouveaux faits ni ne restaure les anciennes cibles. Voir ROLLBACK.md.
+
+## Correction du champ de malaises — 0.17.1
+
+À la demande de l’utilisateur, le champ combiné « Dumping ou malaises après les repas » est retiré du formulaire et des conditions de calcul. Il ne permettait pas de distinguer un diagnostic, un antécédent et des symptômes non spécifiques. Le champ distinct sur les hypoglycémies connues ou le traitement à risque reste présent ; les autres garde-fous ne changent pas. Le modèle devient profile-auto-v2.
+
+Les anciens questionnaires ne sont pas effacés ni réécrits : une ancienne réponse dumping=yes/unknown est simplement ignorée par le nouveau calcul. Les profils déjà activés sont recalculés à leur consultation habituelle, sans ressaisie et sans modification des quantités des menus. Les cinq repères et la projection redeviennent disponibles lorsque les autres conditions sont remplies. Aucun nouveau ratio thérapeutique ni diagnostic de dumping n’est déduit de cette suppression.
+
+Validation locale : 16 tests ciblés réussis, incluant un profil fictif avec chirurgie ancienne et ancienne réponse positive, les cinq repères, la projection, la persistance sans réécriture du questionnaire, l’absence de champ dans l’interface et la conservation des contrôles rénaux/hypoglycémies. Contrôles complets et publication à vérifier sur la PR de correction.

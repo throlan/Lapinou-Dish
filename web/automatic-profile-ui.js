@@ -1,3 +1,4 @@
+import {WEIGHT_LOSS_PACES} from './automatic-nutrition.js';
 import {ageAtDate,effectiveDatedEntry} from './profile-dates.js';
 import {ACTIVITY_TYPES,ACTIVITY_SOURCE,ACTIVITY_GUIDANCE,WEIGHT_MODEL_SOURCE,activitySummary,projectWeight} from './activity-model.js';
 const element=(tag,text)=>{const node=document.createElement(tag);if(text!=null)node.textContent=text;return node;};
@@ -33,6 +34,8 @@ export function renderAutomaticProfile(parent,person,{api,householdId,today,onSa
   select(form,'Activité habituelle (hors nouvelle activité planifiée)','activityLevel',[['sedentary','Sédentaire / peu actif'],['light','Légèrement actif'],['moderate','Modérément actif'],['active','Actif'],['very_active','Très actif']],profile?.activityLevel??'sedentary');
   number(form,'Poids de forme souhaité (kg)','comfortableWeightKg',goal?.comfortableWeightKg??'',.1,500);
   number(form,'Objectif intermédiaire (kg, facultatif)','interimTargetKg',goal?.interimTargetKg??'',.1,500);
+  select(form,'Rythme souhaité','lossPace',Object.entries(WEIGHT_LOSS_PACES).map(([key,value])=>[key,value.label]),settings.lossPace??'moderate');
+  form.append(element('p','Le système calcule les apports selon ce choix, avec une réduction alimentaire limitée à 750 kcal/j. L’activité supplémentaire reste comptée séparément dans la projection. Les noms des rythmes ne garantissent pas une vitesse de perte ; à l’objectif, le calcul revient au maintien.'));
   form.append(element('p','Nouvelle pesée facultative : laisse ces champs vides pour garder les relevés existants.'));
   number(form,'Nouveau poids mesuré (kg)','weightKg','',.1,500);input(form,'Date de la nouvelle pesée','measuredOn','date',today).max=today;
   select(form,'Diabète','diabetes',[['','Choisir'],['none','Aucun'],['type2','Type 2'],['type1','Type 1'],['unknown','Je ne sais pas']],context.diabetes);
@@ -43,10 +46,9 @@ export function renderAutomaticProfile(parent,person,{api,householdId,today,onSa
   const surgery=select(form,'Chirurgie bariatrique','surgery',[['','Choisir'],['none','Aucune'],['sleeve','Sleeve'],['bypass','Bypass en Y'],['mini_bypass','Mini-bypass / oméga'],['other','Autre'],['unknown','Je ne sais pas']],context.surgery);
   const surgeryDate=input(form,'Date d’intervention si concerné','surgeryDate','date',context.surgeryDate);surgeryDate.max=today;
   const surgeryVisibility=()=>{surgeryDate.parentElement.hidden=!surgery.value||surgery.value==='none';};surgery.addEventListener('change',surgeryVisibility);surgeryVisibility();
-  select(form,'Dumping ou malaises après les repas','dumping',choices,context.dumping);
   form.append(element('p','Ces informations restent privées au profil. Aucun envoi à une IA ou application tierce. Si une situation dépasse les règles générales disponibles, le système le signale sans inventer de cible.'));
   const save=submit(form,'Enregistrer le profil et calculer automatiquement');
-  form.addEventListener('submit',event=>{event.preventDefault();action(save,async()=>{const data=Object.fromEntries(new FormData(form)),context=Object.fromEntries(['diabetes','cholesterol','renal','hypoglycemia','pregnancy','surgery','surgeryDate','dumping'].map(key=>[key,data[key]]));await api('/api/people/'+person.id+'/automatic-profile',{method:'POST',body:JSON.stringify({householdId,effectiveFrom:today,...data,context})});await onSaved();});});details.append(form);content.append(details);
+  form.addEventListener('submit',event=>{event.preventDefault();action(save,async()=>{const data=Object.fromEntries(new FormData(form)),context=Object.fromEntries(['diabetes','cholesterol','renal','hypoglycemia','pregnancy','surgery','surgeryDate'].map(key=>[key,data[key]]));await api('/api/people/'+person.id+'/automatic-profile',{method:'POST',body:JSON.stringify({householdId,effectiveFrom:today,...data,context})});await onSaved();});});details.append(form);content.append(details);
   renderActivity(content);
  }
  function renderActivity(parent){
