@@ -1,4 +1,17 @@
-# État du projet — 18 novembre 2026
+# État du projet — 19 novembre 2026
+
+## Profils automatiques, activité et projection — 0.17.0
+
+Décision du 19 novembre : le parcours normal est désormais automatique. Après enregistrement des faits du profil (naissance, taille, poids mesuré, activité habituelle, objectifs de poids et antécédents), le système calcule et applique les cinq repères datés : calories, protéines, lipides, glucides, fibres. Plus de saisie de calories, de minima protéiques, de déficit, de pourcentage de lipides ou de formule médicale dans ce parcours. Cette décision remplace les choix manuels des versions 0.15–0.16 décrits ci-dessous ; les historiques restent conservés. Aucun profil n’est converti silencieusement au déploiement : le premier enregistrement des faits active ce mode.
+
+Maintien Mifflin–St Jeor × activité ; objectif déduit du poids de forme choisi, pas de l’objectif intermédiaire déjà atteint. Ajustement applicatif de 20 % plafonné à 500 kcal/j. Protéines calculées depuis le profil et un budget applicatif de 20 % des calories si supérieur au minimum de référence ; glucides 45 %, lipides par différence, fibres EFSA/ADA. Ces choix applicatifs ne sont pas des prescriptions spécifiques au diabète ou à une chirurgie. « Cholestérol élevé connu » (oui/non/inconnu) apporte un repère sur la qualité des graisses, sans prédiction de LDL ni modification de traitement. Les contextes hors domaine sont signalés et conservent la cible antérieure.
+
+Les pesées, objectifs et changements de profil actualisent les repères. Un bilan est également enregistré à la prochaine consultation après chaque anniversaire mensuel de la première pesée, sans tâche planifiée ni diagnostic automatique de stagnation. Les quantités des menus, les productions et les stocks ne sont pas réécrits. Les réglages administratifs de répartition des calories par repas restent disponibles.
+
+Disponibilités en minutes/séance et séances/semaine ; journal séparé des marches réellement effectuées. Les saisies sont idempotentes, annulables et privées. Projection mensuelle et mois approximatif des objectifs par modèle dynamique réduit à deux compartiments, avec dépenses adaptatives et plateau possible. Activité nette ajoutée seulement si déclarée supplémentaire ; aucune calorie alimentaire ajoutée après une séance. Watch/HealthKit reportés. Sources, équations et limites : [ACTIVITE-PROJECTION.md](ACTIVITE-PROJECTION.md).
+
+Migration additive 20261119_automatic_activity.sql, avec contrôle API et RLS propre profil/gestionnaire. Validation et publication : voir le journal du 19 novembre et la PR de livraison. Déploiement exclusivement par l’utilisateur ; aucun accès Unraid/Nginx/base réelle.
+
 
 ## Proposition complète et explications — 0.16.1
 

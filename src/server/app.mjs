@@ -1,3 +1,4 @@
+import {validateAutomaticProfile,saveAutomaticProfile,validateActivity,saveActivity,readAutomaticActivity,recalculateAutomatic,refreshAutomaticHousehold} from './automatic-profile.mjs';
 import {recipeReplacementRoutes} from './recipe-replacements.mjs';
 import {validateNutritionTarget,addNutritionTarget} from './nutrition-targets.mjs';
 import {planningCookingRoutes} from './planning-cooking.mjs';
@@ -63,6 +64,9 @@ const staticFiles = new Map([
   ['/accounts-ui.js', ['accounts-ui.js', 'text/javascript; charset=utf-8']],
   ['/guided-nutrition-ui.js', ['guided-nutrition-ui.js', 'text/javascript; charset=utf-8']],
   ['/nutrition-recommendations.js', ['nutrition-recommendations.js', 'text/javascript; charset=utf-8']],
+  ['/automatic-profile-ui.js', ['automatic-profile-ui.js', 'text/javascript; charset=utf-8']],
+  ['/automatic-nutrition.js', ['automatic-nutrition.js', 'text/javascript; charset=utf-8']],
+  ['/activity-model.js', ['activity-model.js', 'text/javascript; charset=utf-8']],
   ['/nutrition-goals.js', ['nutrition-goals.js', 'text/javascript; charset=utf-8']],
   ['/profile-dates.js', ['profile-dates.js', 'text/javascript; charset=utf-8']],
   ['/api-client.js', ['api-client.js', 'text/javascript; charset=utf-8']],
@@ -238,7 +242,7 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
     if (request.method === 'GET' && url.pathname === '/api/people') {
       const householdId = url.searchParams.get('householdId');
       if (!isUuid(householdId)) return send(response, 400, { error: 'invalid-household-id' });
-      try { return send(response, 200, { people: await listPeople(pool, householdId) }); }
+      try { await refreshAutomaticHousehold(pool,householdId);return send(response, 200, { people: await listPeople(pool, householdId) }); }
       catch { return send(response, 500, { error: 'people-list-failed' }); }
     }
     if (request.method === 'POST' && url.pathname === '/api/people') {
@@ -250,11 +254,24 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
       try { return send(response, 201, { person: await createPerson(pool, body.value.householdId, validation.data) }); }
       catch (error) { return send(response, error.code === '23505' ? 409 : 500, { error: error.code === '23505' ? 'person-already-exists' : 'person-create-failed' }); }
     }
-    const personAction = url.pathname.match(/^\/api\/people\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(weights|profile-history|weight-goals|nutrition-targets)$/i);
+    const automaticRead=url.pathname.match(/^\/api\/people\/([a-f0-9-]{36})\/automatic$/i);
+    if(automaticRead&&request.method==='GET'){
+      const householdId=url.searchParams.get('householdId');if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});
+      try{const data=await readAutomaticActivity(pool,automaticRead[1],householdId);return send(response,data?200:404,data??{error:'person-not-found'});}catch{return send(response,500,{error:'automatic-profile-read-failed'});}
+    }
+    const personAction = url.pathname.match(/^\/api\/people\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(weights|profile-history|weight-goals|nutrition-targets|automatic-profile|activity-plans|activity-sessions)$/i);
     if (personAction && request.method === 'POST') {
       const body = await readJson(request);
       if (body.error) return send(response, body.status ?? 400, { error: body.error });
       if (!isUuid(body.value?.householdId)) return send(response, 400, { error: 'invalid-household-id' });
+      const kind=personAction[2];
+      if(['automatic-profile','activity-plans','activity-sessions'].includes(kind)){
+        const checked=kind==='automatic-profile'?validateAutomaticProfile(body.value):validateActivity(body.value,kind);
+        if(checked.error)return send(response,400,{error:checked.error});
+        try{const result=kind==='automatic-profile'?await saveAutomaticProfile(pool,personAction[1],body.value.householdId,checked.data):await saveActivity(pool,personAction[1],body.value.householdId,kind,checked.data);
+          if(!result)return send(response,404,{error:'person-not-found'});if(result.error)return send(response,409,result);return send(response,201,result);
+        }catch(error){return send(response,error.code==='23505'?409:500,{error:error.code==='23505'?'entry-already-exists-for-date':'automatic-profile-save-failed'});}
+      }
       const isWeight = personAction[2] === 'weights';
       const isGoal = personAction[2] === 'weight-goals';
       const isNutrition=personAction[2]==='nutrition-targets';

@@ -261,7 +261,7 @@ async function refreshDashboard() {
       const name=document.createElement('strong');name.textContent=person.displayName;
       const goal=document.createElement('span');goal.textContent=profile?.dailyEnergyKcal?`${format(kcal)} / ${format(profile.dailyEnergyKcal)} kcal`:'Objectif kcal non renseigné';
       heading.append(name,goal);card.append(heading);
-      if(monthlyReview(person,today).due){const review=document.createElement('p');review.textContent='Bilan de la cible à examiner dans les profils';review.className='form-message';card.append(review);}
+      if(monthlyReview(person,today).due){const review=document.createElement('p');review.textContent=effectiveNutritionProfile(person,today)?.dailyEnergyMethod?.startsWith('Automatique ')?'Bilan automatique actualisé dans les profils':'Bilan de la cible à examiner dans les profils';review.className='form-message';card.append(review);}
       if(profile?.dailyEnergyKcal){const progress=document.createElement('progress');progress.max=profile.dailyEnergyKcal;progress.value=Math.min(kcal,profile.dailyEnergyKcal);progress.setAttribute('aria-label',`Progression calories de ${person.displayName}`);card.append(progress);}
       const details=document.createElement('p');details.textContent=`${format(protein)} g protéines · ${profile?.activityLevel?(activityLabels[profile.activityLevel]??profile.activityLevel):'activité à renseigner'}${weight?` · ${format(weight.weightKg)} kg`:''}`;card.append(details);
       const remaining=profile?.dailyEnergyKcal?profile.dailyEnergyKcal-kcal:null;
@@ -1053,44 +1053,6 @@ function profileCard(person) {
   overview.textContent=[age==null?'Âge inconnu':`${age} ans`,current?.dailyEnergyKcal ? `${format(current.dailyEnergyKcal)} kcal/j` : 'Besoin à renseigner',current?.heightCm ? `${format(current.heightCm)} cm` : null,person.weightHistory[0]?.weightKg ? `${format(person.weightHistory[0].weightKg)} kg mesurés` : null,currentGoal?`${format(currentGoal.comfortableWeightKg)} kg poids de forme`:null].filter(Boolean).join(' · ');
   heading.append(title,overview);card.append(heading);
   const birth = document.createElement('p'); birth.className = 'muted'; birth.textContent = person.birthDate ? `Né(e) le ${displayDate(person.birthDate.slice(0,10))}` : 'Date de naissance non renseignée';card.append(birth);
-  const forms = document.createElement('div'); forms.className = 'profile-forms';
-  const weightForm = document.createElement('form'); weightForm.className = 'profile-entry';
-  weightForm.innerHTML = '<h4>Relevé de poids</h4><label>Date<input name="measuredOn" type="date" required></label><label>Poids (kg)<input name="weightKg" type="number" min="0.1" max="500" step="0.1" required></label><button class="secondary" type="submit">Enregistrer le relevé</button>';
-  weightForm.elements.measuredOn.value = localDateValue();
-  weightForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const data = Object.fromEntries(new FormData(weightForm));
-    try {
-      await api(`/api/people/${person.id}/weights`, { method: 'POST', body: JSON.stringify({ householdId: state.household.id, ...data }) });
-      showMessage($('#people-message'), 'Relevé ajouté à l’historique.', true); await refreshPeople();
-    } catch (error) { showMessage($('#people-message'), error.body?.error === 'weight-entry-already-exists-for-date' ? 'Un relevé existe déjà pour cette date.' : 'Impossible d’enregistrer ce relevé.'); }
-  });
-  const profileForm = document.createElement('form'); profileForm.className = 'profile-entry profile-context';
-  profileForm.innerHTML = '<h4>Profil à partir d’une date</h4><label>Valable à partir du<input name="effectiveFrom" type="date" required></label><label>Taille (cm)<input name="heightCm" type="number" min="50" max="260" step="0.1" placeholder="Facultatif"></label><label>Activité<select name="activityLevel"><option value="">Non renseignée</option><option value="sedentary">Sédentaire</option><option value="light">Légère</option><option value="moderate">Modérée</option><option value="active">Importante</option><option value="very_active">Très importante</option></select></label><label>Besoin quotidien (kcal)<input name="dailyEnergyKcal" type="number" min="500" max="10000" step="1" placeholder="Facultatif"></label><label>Origine du besoin<select name="dailyEnergyOrigin"><option value="">—</option><option value="manual">Saisi par le foyer</option><option value="clinician">Validé par un professionnel</option><option value="estimate">Estimation documentée</option></select></label><label>Méthode ou note<input name="dailyEnergyMethod" maxlength="500" placeholder="Facultatif"></label><button class="secondary" type="submit">Enregistrer le profil</button>';
-  profileForm.elements.effectiveFrom.value = localDateValue();
-  const latestProfile = current;
-  if (latestProfile) {
-    profileForm.elements.heightCm.value = latestProfile.heightCm ?? '';
-    profileForm.elements.activityLevel.value = latestProfile.activityLevel ?? '';
-    profileForm.elements.dailyEnergyKcal.value = latestProfile.dailyEnergyKcal ?? '';
-    profileForm.elements.dailyEnergyOrigin.value = latestProfile.dailyEnergyOrigin ?? '';
-    profileForm.elements.dailyEnergyMethod.value = latestProfile.dailyEnergyMethod ?? '';
-  }
-  for(const name of ['dailyEnergyKcal','dailyEnergyOrigin','dailyEnergyMethod'])profileForm.elements[name]?.closest('label')?.remove();
-  profileForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const data = Object.fromEntries(new FormData(profileForm));
-    try {
-      await api(`/api/people/${person.id}/profile-history`, { method: 'POST', body: JSON.stringify({ householdId: state.household.id, ...data }) });
-      showMessage($('#people-message'), 'Profil enregistré pour cette date.', true); await refreshPeople();
-    } catch (error) { showMessage($('#people-message'), error.body?.error === 'person-not-found' ? 'Ce profil n’existe plus.' : `Impossible d’enregistrer ce profil : ${error.body?.error ?? error.message}`); }
-  });
-  const goalForm=document.createElement('form');goalForm.className='profile-entry profile-weight-goal';
-  goalForm.innerHTML='<h4>Poids de forme choisi</h4><p class="muted">Distinct du poids mesuré et de l’objectif intermédiaire. Une correction à la même date conserve la version précédente.</p><label>Valable à partir du<input name="effectiveFrom" type="date" required></label><label>Poids de forme (kg)<input name="comfortableWeightKg" type="number" min="0.1" max="500" step="0.1" required></label><label>Objectif intermédiaire (kg, facultatif)<input name="interimTargetKg" type="number" min="0.1" max="500" step="0.1"></label><button class="secondary" type="submit">Enregistrer l’objectif</button>';
-  goalForm.elements.effectiveFrom.value=localDateValue();
-  if(currentGoal){goalForm.elements.comfortableWeightKg.value=currentGoal.comfortableWeightKg;goalForm.elements.interimTargetKg.value=currentGoal.interimTargetKg??'';}
-  goalForm.addEventListener('submit',async event=>{event.preventDefault();try{const data=Object.fromEntries(new FormData(goalForm));await api(`/api/people/${person.id}/weight-goals`,{method:'POST',body:JSON.stringify({householdId:state.household.id,...data})});showMessage($('#people-message'),'Objectif daté enregistré, versions précédentes conservées.',true);await refreshPeople();}catch(error){showMessage($('#people-message'),`Impossible d’enregistrer l’objectif : ${error.body?.error??error.message}`);}});
-  forms.append(weightForm, profileForm, goalForm); card.append(forms);
   renderNutritionGoals(card,person,{api,householdId:state.household.id,today:localDateValue(),onSaved:refreshPeople});
   const histories = document.createElement('div'); histories.className = 'profile-histories';
   const weights = document.createElement('section'); const weightTitle = document.createElement('h4'); weightTitle.textContent = 'Historique du poids'; weights.append(weightTitle);
@@ -3067,43 +3029,12 @@ $('#meal-ratios-form').addEventListener('submit',async event=>{
   finally{updateMealRatiosPreview();}
 });
 
-function proteinTargetsFromForm() {
-  return Object.fromEntries($$('#protein-targets-fields input').map((input)=>[input.dataset.personId,input.value===''?null:Number(input.value)]));
-}
 async function refreshProteinSettings() {
-  const root=$('#protein-targets-fields');root.replaceChildren();
-  const button=$('#protein-targets-form button[type="submit"]');button.disabled=true;
-  if(!state.household)return;
-  try {
-    const settings=await api(`/api/protein-settings?householdId=${encodeURIComponent(state.household.id)}`);
-    state.proteinTargets=settings.targets??{};
-    if(!state.people.length){root.append(emptyMessage('Ajoute les personnes du foyer pour régler leurs minima.'));return;}
-    for(const person of state.people) {
-      const label=document.createElement('label');label.textContent=`${person.displayName} · minimum quotidien (g)`;
-      const input=document.createElement('input');input.type='number';input.min='0';input.max='500';input.step='1';input.dataset.personId=person.id;
-      const target=dailyProteinTarget(person,state.proteinTargets);input.value=target==null?'':String(target);input.placeholder='Aucun minimum défini';input.setAttribute('aria-label',`Minimum quotidien de protéines pour ${person.displayName} en grammes`);
-      label.append(input);root.append(label);
-    }
-    button.disabled=false;
-  }catch(error){root.append(emptyMessage(`Réglages des protéines indisponibles : ${error.body?.error??error.message}`));}
+ if(state.household)try{state.proteinTargets=(await api('/api/protein-settings?householdId='+encodeURIComponent(state.household.id))).targets??{};}catch{}
+ const root=$('#protein-targets-fields'),button=$('#protein-targets-form button[type="submit"]');root.replaceChildren(emptyMessage('Les repères sont désormais calculés automatiquement dans chaque profil. Renseigne les données et antécédents dans Profils ; aucun minimum à saisir ici.'));button.hidden=true;button.disabled=true;
+ for(const person of state.people){const profile=latestProfile(person,localDateValue()),line=document.createElement('p');line.textContent=person.displayName+' · protéines '+(profile?.dailyProteinG??'calcul à compléter')+' g/j';root.append(line);}
 }
-$('#protein-targets-form').addEventListener('input',()=>{
-  const inputs=$$('#protein-targets-fields input'),button=$('#protein-targets-form button[type="submit"]');
-  button.disabled=!inputs.length||inputs.some(input=>input.value!==''&&(!Number.isFinite(Number(input.value))||Number(input.value)<0||Number(input.value)>500));
-});
-$('#protein-targets-form').addEventListener('submit',async event=>{
-  event.preventDefault();const form=event.currentTarget,message=$('#protein-targets-message'),targets=proteinTargetsFromForm();
-  if(!form.reportValidity()||Object.values(targets).some(value=>value!=null&&(!Number.isFinite(value)||value<0||value>500))){showMessage(message,'Les minima doivent être compris entre 0 et 500 g par jour.');return;}
-  if(!state.household)return;
-  const button=$('button[type="submit"]',form);button.disabled=true;
-  try {
-    const settings=await api('/api/protein-settings',{method:'PUT',body:JSON.stringify({householdId:state.household.id,targets})});
-    state.proteinTargets=settings.targets;
-    await refreshPeople();await refreshCalendar();
-    showMessage(message,'Minima quotidiens de protéines enregistrés.',true);
-  }catch(error){showMessage(message,`Enregistrement impossible : ${error.body?.error??error.message}`);}
-  finally{button.disabled=false;}
-});
+$('#protein-targets-form').addEventListener('submit',event=>event.preventDefault());
 
 async function refreshServingCaps(){
   const root=$('#serving-caps-fields'),button=$('#serving-caps-form button[type="submit"]');

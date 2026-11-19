@@ -67,6 +67,20 @@ test('individual accounts enforce household isolation, roles, sessions and expli
  assert.equal(ownPeople.body.people.find(p=>p.id===profile).nutritionTargetHistory.length,0);
  assert.equal(ownPeople.body.people.find(p=>p.id===ownPerson.body.person.id).nutritionTargetHistory.length,1);
  assert.equal((await request('GET','/api/accounts/application',null,memberCookie)).status,403);
+ const automaticBody={householdId:h,effectiveFrom:'2026-11-19',displayName:'Member profile',birthDate:'1990-01-01',heightCm:175,sex:'male',activityLevel:'sedentary',comfortableWeightKg:68,context:{diabetes:'none',cholesterol:'yes',renal:'no',hypoglycemia:'no',pregnancy:'no',surgery:'none',dumping:'no'}};
+ assert.equal((await request('POST','/api/people/'+profile+'/automatic-profile',automaticBody,memberCookie)).status,403);
+ const enrolled=await request('POST','/api/people/'+ownPerson.body.person.id+'/automatic-profile',automaticBody,memberCookie);assert.equal(enrolled.status,201,JSON.stringify(enrolled.body));assert.equal(enrolled.body.result.status,'calculated');
+ const privateRead=await request('GET','/api/people/'+ownPerson.body.person.id+'/automatic?householdId='+h,null,memberCookie);assert.equal(privateRead.status,200);assert.equal(privateRead.body.settings.context.cholesterol,'yes');
+ assert.equal((await request('GET','/api/people/'+profile+'/automatic?householdId='+h,null,memberCookie)).status,403);
+ const previousEnergy=privateRead.body.calculation.dailyEnergyKcal;
+ const newWeight=await request('POST','/api/people/'+ownPerson.body.person.id+'/weights',{householdId:h,measuredOn:'2026-11-19',weightKg:69},memberCookie);assert.equal(newWeight.status,201,JSON.stringify(newWeight.body));
+ const updated=await request('GET','/api/people/'+ownPerson.body.person.id+'/automatic?householdId='+h,null,memberCookie);assert.ok(updated.body.calculation.dailyEnergyKcal<previousEnergy);
+ const sessionBody={householdId:h,requestId:randomUUID(),performedOn:'2026-11-19',activityType:'walk',durationMinutes:30,additional:true};
+ assert.equal((await request('POST','/api/people/'+profile+'/activity-sessions',sessionBody,memberCookie)).status,403);
+ assert.equal((await request('POST','/api/people/'+ownPerson.body.person.id+'/activity-sessions',sessionBody,memberCookie)).status,201);
+ assert.equal((await request('POST','/api/people/'+ownPerson.body.person.id+'/activity-sessions',sessionBody,memberCookie)).status,201);
+ assert.equal((await request('GET','/api/people/'+ownPerson.body.person.id+'/automatic?householdId='+h,null,memberCookie)).body.sessions.length,1);
+
  const food=await request('POST','/api/foods',{name:'Private flour',nutrientsPer100g:{energyKcal:300,proteinG:10,carbohydrateG:60,fatG:1,fibreG:1},gramsPerUnit:{},aliases:[]},ownerCookie);
  assert.equal(food.status,201,JSON.stringify(food.body));const foodId=food.body.food.id;
  const dish=await request('POST','/api/recipes',{householdId:h,name:'Private bread',yield:{amount:10,unitId:'slice'},lines:[{foodId,quantity:500,unitId:'g'}]},ownerCookie);
@@ -78,6 +92,7 @@ test('individual accounts enforce household isolation, roles, sessions and expli
  assert.equal((await request('GET','/api/people?householdId='+h,null,ownerCookie)).status,403);
  assert.equal((await request('POST','/api/people/'+profile+'/weight-goals',{householdId:other,effectiveFrom:'2026-11-11',comfortableWeightKg:90},ownerCookie)).status,404);
  assert.equal((await request('GET','/api/recipes/'+recipeId,null,ownerCookie)).status,404);
+ assert.equal((await request('GET','/api/people/'+ownPerson.body.person.id+'/automatic?householdId='+other,null,ownerCookie)).status,404);
  assert.equal((await request('GET','/api/foods/'+foodId,null,ownerCookie)).status,200);
  const forged=await request('POST','/api/recipes',{householdId:other,name:'Forged recipe',yield:{amount:1,unitId:'portion'},lines:[{recipeId,quantity:1,unitId:'slice'}]},ownerCookie);
  assert.ok(forged.status>=400,JSON.stringify(forged));
@@ -121,7 +136,7 @@ test('individual accounts enforce household isolation, roles, sessions and expli
  const officialId=randomUUID();
  await pool.query("INSERT INTO foods(id,canonical_name,source,official) VALUES($1,'Official food','ciqual',true)",[officialId]);
  await scopedOperation(pool,{householdId:h,applicationAdmin:false,role:'member',personId:ownPerson.body.person.id},async scoped=>{
-  assert.equal((await scoped.query('SELECT count(*) FROM person_weight_entries')).rows[0].count,1);
+  assert.equal((await scoped.query('SELECT count(*) FROM person_weight_entries')).rows[0].count,2);
   assert.equal((await scoped.query('SELECT id FROM foods WHERE id=$1',[officialId])).rows.length,1);
   assert.equal((await scoped.query("UPDATE foods SET canonical_name='Forbidden change' WHERE id=$1",[officialId])).rowCount,0);
   assert.equal((await scoped.query('SELECT count(*) FROM recipes')).rows[0].count,2);

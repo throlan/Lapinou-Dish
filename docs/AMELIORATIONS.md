@@ -1,5 +1,12 @@
 # Cahier des améliorations proposées
 
+## Livraison 0.17.0 — automatisation du suivi
+
+Implémenté : profil factuel unique, cinq repères nutritionnels calculés et appliqués, cholestérol, actualisation sur nouvelles données et bilan mensuel, disponibilités d’activité, séances réalisées séparées et projection dynamique mensuelle. Les anciennes propositions manuelles ne sont plus le parcours utilisateur. Menus, quantités et stocks conservés. Détails : [ACTIVITE-PROJECTION.md](ACTIVITE-PROJECTION.md).
+
+Restant : validation d’usage par l’utilisateur après son déploiement ; enrichissement éventuel du catalogue d’activités ; connexion aux montres différée. Les autres chantiers précédemment décidés restent à confirmer. Ne pas réintroduire la saisie nutritionnelle personnelle ni le rééquilibrage automatique de la semaine. Les situations médicales hors domaine ne reçoivent pas de cible inventée. Les ajustements des quantités des repas conservent leur aperçu à valider.
+
+
 ## Proposition complète et explications — 0.16.1
 
 Le parcours propose désormais des réglages visibles et modifiables (10 % pour l’ajustement, 30 % pour les lipides, Lorentz pour le repère protéique bariatrique) au lieu d’exiger des choix techniques vides. Ce sont des choix applicatifs présentés comme tels, pas des prescriptions. Le poids médical de référence est expliqué et calculé à l’écran ; il reste distinct du poids de forme personnel.
