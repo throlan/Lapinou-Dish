@@ -823,3 +823,17 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .nutrition-proposal-values dt { font-weight:600; }
 .nutrition-proposal-values dd { margin:0;text-align:right;font-weight:700; }
 .nutrition-proposal a { display:inline-block;margin:4px 14px 8px 0; }
+
+/* Automatic profile: compact facts, readable results and horizontal tables on phones. */
+.automatic-profile { display:grid; gap:1rem; min-width:0; }
+.automatic-profile > div { min-width:0; }
+.automatic-profile details { margin-block:.8rem; }
+.automatic-profile summary { cursor:pointer; font-weight:600; padding-block:.45rem; }
+.automatic-profile .profile-entry { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr)); gap:.8rem; align-items:end; }
+.automatic-profile .profile-entry label { display:grid; gap:.35rem; }
+.automatic-profile .profile-entry > p { grid-column:1/-1; margin:.25rem 0; }
+.automatic-profile .profile-entry input[type=checkbox] { justify-self:start; width:1.2rem; height:1.2rem; }
+.automatic-profile details > a { display:inline-block; margin:.4rem 1rem .4rem 0; }
+.activity-projection-table { max-width:100%; overflow-x:auto; }
+.activity-projection-table table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+.activity-projection-table th,.activity-projection-table td { text-align:left; padding:.6rem; white-space:nowrap; border-bottom:1px solid var(--border,#ded6e7); }

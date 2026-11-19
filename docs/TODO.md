@@ -1,4 +1,11 @@
-# Prochaines tâches — 18 novembre 2026
+# Prochaines tâches — 19 novembre 2026
+
+## Livraison 0.17.0 — automatisation du suivi
+
+Implémenté : profil factuel unique, cinq repères nutritionnels calculés et appliqués, cholestérol, actualisation sur nouvelles données et bilan mensuel, disponibilités d’activité, séances réalisées séparées et projection dynamique mensuelle. Les anciennes propositions manuelles ne sont plus le parcours utilisateur. Menus, quantités et stocks conservés. Détails : [ACTIVITE-PROJECTION.md](ACTIVITE-PROJECTION.md).
+
+Restant : validation d’usage par l’utilisateur après son déploiement ; enrichissement éventuel du catalogue d’activités ; connexion aux montres différée. Les autres chantiers précédemment décidés restent à confirmer. Ne pas réintroduire la saisie nutritionnelle personnelle ni le rééquilibrage automatique de la semaine. Les situations médicales hors domaine ne reçoivent pas de cible inventée. Les ajustements des quantités des repas conservent leur aperçu à valider.
+
 
 ## Proposition complète et explications — 0.16.1
 

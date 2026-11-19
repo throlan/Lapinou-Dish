@@ -37,34 +37,23 @@ test('documented resting estimate uses measured weight, explicit sex and PAL, an
  for(const change of [{birthDate:null},{birthDate:'2012-01-01'},{sex:''},{pal:0},{weightKg:null},{heightCm:null}])assert.ok(estimateDailyEnergy({...input,...change}).error);
 });
 
-test('target form waits for preview and explicit confirmation and clears a preview after editing',async t=>{
+test('automatic profile UI submits facts and cholesterol without manual nutrition controls',async t=>{
  const oldDocument=globalThis.document,oldFormData=globalThis.FormData;
  t.after(()=>{globalThis.document=oldDocument;globalThis.FormData=oldFormData;});
- const make=tag=>({tag,children:[],elements:{},handlers:{},append(...nodes){this.children.push(...nodes);},replaceChildren(...nodes){this.children=nodes;},setAttribute(){},addEventListener(name,handler){this.handlers[name]=handler;},set innerHTML(html){for(const name of html.matchAll(/name="([^"]+)"/g))this.elements[name[1]]=Object.assign(make('input'),{value:''});}});
- globalThis.document={createElement:make};globalThis.FormData=class {constructor(form){this.form=form;}*[Symbol.iterator](){for(const [name,input] of Object.entries(this.form.elements))yield [name,input.value];}};
- const root=make('div'),requests=[];let saved=0;
- renderNutritionGoals(root,{id:'person',birthDate:'1980-01-01',profileHistory:[{effectiveFrom:'2026-01-01',heightCm:165}],weightHistory:[{measuredOn:'2026-11-01',weightKg:76}],weightGoalHistory:[{effectiveFrom:'2026-01-01',comfortableWeightKg:69}],nutritionTargetHistory:[{effectiveFrom:'2026-01-01',dailyEnergyKcal:1300,dailyProteinG:80,origin:'manual',method:''}]},{api:async(...args)=>requests.push(args),householdId:'house',today:'2026-11-18',onSaved:async()=>saved++});
  const all=node=>[node,...node.children.flatMap(all)];
- const form=all(root).find(node=>node.tag==='form'&&node.elements.dailyEnergyKcal);
- Object.assign(form.elements.dailyEnergyKcal,{value:'2000'});form.elements.origin.value='manual';form.elements.dailyProteinG.value='90';form.elements.method.value='Choix fictif';
- await form.handlers.submit({preventDefault(){}});assert.equal(requests.length,0);
- let confirmation=all(root).find(node=>node.textContent==='Valider cette cible');assert.ok(confirmation);
- form.handlers.input({target:{name:"dailyEnergyKcal"}});assert.equal(all(root).some(node=>node.textContent==='Valider cette cible'),false);
- await form.handlers.submit({preventDefault(){}});confirmation=all(root).find(node=>node.textContent==='Valider cette cible');
- await confirmation.handlers.click();assert.equal(requests.length,1);assert.equal(JSON.parse(requests[0][1].body).confirmed,true);assert.equal(saved,1);
- const guided=all(root).find(node=>node.tag==='form'&&node.elements.objective);
- assert.equal(guided.elements.objective.value,'lose');
- assert.equal(guided.elements.adjustmentChoice.value,'10');assert.equal(guided.elements.fatPercent.value,'30');assert.equal(guided.elements.idealWeightMethod.value,'lorentz');
- form.requestSubmit=()=>form.handlers.submit({preventDefault(){}});
- guided.elements.objectiveConfirmed.checked=true;
- for(const [key,value] of Object.entries({objective:'lose',sex:'female',pal:'1.4',diabetes:'none',hypoglycemia:'no',renal:'no',pregnancy:'no',surgery:'mini_bypass',surgeryDate:'2014-01-01',dumping:'no'}))guided.elements[key].value=value;
- await guided.handlers.submit({preventDefault(){}});
- const use=all(root).find(node=>node.textContent==='Utiliser cette proposition adaptée');assert.ok(use);await use.handlers.click();
- assert.ok(Number(form.elements.dailyEnergyKcal.value)<1900);
- confirmation=all(root).find(node=>node.textContent==='Valider cette cible');assert.ok(confirmation);assert.equal(requests.length,1);await confirmation.handlers.click();
- const submitted=JSON.parse(requests[1][1].body);assert.equal(submitted.questionnaire.context.diabetes,'none');assert.equal(submitted.dailyProteinG,80);assert.equal(submitted.dailyFibreG,25);assert.ok(Number(submitted.dailyFatG)>0);assert.notEqual(Number(submitted.dailyEnergyKcal),1300);assert.ok(validateNutritionTarget(submitted).data);assert.ok(submitted.dailyCarbohydrateG>0);
- guided.elements.renal.value='yes';await guided.handlers.submit({preventDefault(){}});
- assert.equal(all(root).some(node=>node.textContent==='Utiliser cette proposition adaptée'),false);assert.equal(requests.length,2);
+ const make=tag=>({tag,children:[],handlers:{},value:'',append(...nodes){for(const node of nodes){node.parentElement=this;this.children.push(node);}},replaceChildren(...nodes){this.children=[];this.append(...nodes);},setAttribute(){},addEventListener(name,handler){this.handlers[name]=handler;},get elements(){return Object.fromEntries(all(this).filter(n=>n.name).map(n=>[n.name,n]));}});
+ globalThis.document={createElement:make};globalThis.FormData=class {constructor(form){this.form=form;}*[Symbol.iterator](){for(const [name,input] of Object.entries(this.form.elements))if(input.type!=='checkbox'||input.checked)yield [name,String(input.value)];}};
+ const root=make('div'),requests=[];let saved=0;
+ renderNutritionGoals(root,{id:'person',displayName:'Fictif',birthDate:'1980-01-01',profileHistory:[{effectiveFrom:'2026-01-01',heightCm:165,activityLevel:'sedentary'}],weightHistory:[{measuredOn:'2026-11-01',weightKg:76}],weightGoalHistory:[{effectiveFrom:'2026-01-01',comfortableWeightKg:69}],nutritionTargetHistory:[]},{api:async(path,options)=>{requests.push([path,options]);return {settings:null,calculation:null,plans:[],sessions:[]};},householdId:'house',today:'2026-11-19',onSaved:async()=>saved++});
+ await new Promise(resolve=>setImmediate(resolve));
+ const form=all(root).find(node=>node.tag==='form'&&node.elements.cholesterol);assert.ok(form);
+ for(const name of ['dailyEnergyKcal','dailyProteinG','fatPercent','adjustmentChoice','idealWeightMethod'])assert.equal(form.elements[name],undefined);
+ for(const [name,value] of Object.entries({sex:'female',diabetes:'none',renal:'no',hypoglycemia:'no',pregnancy:'no',surgery:'none',dumping:'no',cholesterol:'yes'}))form.elements[name].value=value;
+ form.handlers.submit({preventDefault(){}});await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(requests.length,2);assert.match(requests[1][0],/automatic-profile$/);
+ const body=JSON.parse(requests[1][1].body);assert.equal(body.context.cholesterol,'yes');assert.equal(body.heightCm,'165');assert.equal(body.dailyEnergyKcal,undefined);assert.equal(saved,1);
+ const plan=all(root).find(node=>node.tag==='form'&&node.elements.sessionsPerWeek);assert.ok(plan);assert.equal(plan.elements.durationMinutes,undefined);
+ const session=all(root).find(node=>node.tag==='form'&&node.elements.durationMinutes);assert.ok(session);assert.equal(session.elements.sessionsPerWeek,undefined);
 });
 
 test('migration preserves legacy targets, future targets and revisions remain distinct, protein settings append a target',async t=>{

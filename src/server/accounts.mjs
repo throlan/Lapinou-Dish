@@ -343,6 +343,8 @@ function responseBuffer(){
   flush(response){for(const [key,value] of headers)response.setHeader(key,value);response.writeHead(status);response.end(body);}};
 }
 async function assertMemberWrite(actor,request,url,pool){
+ const privateAutomatic=url.pathname.match(/^\/api\/people\/([a-f0-9-]{36})\/automatic$/i);
+ if(privateAutomatic&&actor.role!=='manager'&&privateAutomatic[1]!==actor.personId)throw accountError('household-manager-required',403);
  if(['GET','HEAD'].includes(request.method))return;
  if(actor.role==='manager')return;
  if(request.method==='POST'&&/^\/api\/recipes\/[a-f0-9-]{36}\/choices\/resolve$/i.test(url.pathname))return;
@@ -353,7 +355,7 @@ async function assertMemberWrite(actor,request,url,pool){
   const own=await pool.query('SELECT 1 FROM recipes WHERE id=$1 AND household_id=$2 AND created_by_account_id=$3 AND parent_recipe_id IS NULL',[recipe[1],actor.householdId,actor.id]);
   if(own.rows.length)return;
  }
- const person=url.pathname.match(/^\/api\/people\/([a-f0-9-]{36})\/(weights|profile-history|weight-goals|nutrition-targets)$/i);
+ const person=url.pathname.match(/^\/api\/people\/([a-f0-9-]{36})\/(weights|profile-history|weight-goals|nutrition-targets|automatic-profile|activity-plans|activity-sessions)$/i);
  if(person&&person[1]===actor.personId)return;
  throw accountError('household-manager-required',403);
 }

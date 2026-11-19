@@ -1,5 +1,10 @@
 # Images versionnées et retour arrière
 
+## Suivi automatique — 0.17.0
+
+Quatre tables additives, aucune suppression ni réécriture de menus/stocks. Une image 0.16.1 ignore ces tables mais continue de lire les dernières cibles calculées dans person_nutrition_goals ; elle ne continue pas le suivi automatique. Un retour d’image ne restaure pas les anciennes cibles : les révisions restent en base. Ne supprimer ni tables ni données pour revenir à une image antérieure. Les numéros et digests historiques de docker/rollback-images.json restent inchangés.
+
+
 ## Questionnaire et macronutriments — 0.16.0
 
 Migration additive : colonnes de repères lipides/glucides/fibres et questionnaire privé sur les cibles datées. Les images antérieures ignorent ces champs ; elles ne les effacent pas mais peuvent créer de nouvelles cibles sans les reprendre. Une ancienne image peut rétablir le bouton de report du maintien sans parcours guidé. Un changement d’image ne restaure pas les cibles ou données modifiées ; restauration exacte depuis sauvegarde compatible par l’utilisateur uniquement. Aucun digest historique n’est modifié.

@@ -1,5 +1,14 @@
 # Décisions techniques initiales
 
+## Suivi automatique — 0.17.0
+
+La migration additive 20261119_automatic_activity.sql crée person_automatic_profiles (faits médicaux privés datés), person_automatic_state (empreinte et résultat courant), person_activity_plans (disponibilités datées) et person_activity_sessions (réalisé, annulation conservée). Les cibles calculées sont ajoutées à person_nutrition_goals avec origine estimate, version de modèle et questionnaire contenant entrées/résultat/sources. Les historiques antérieurs ne sont pas modifiés.
+
+Le serveur calcule avec web/automatic-nutrition.js, partagé et déterministe. Verrou par personne dans la transaction de requête ; empreinte du résultat et période mensuelle pour éviter les répétitions. Recalcul après enregistrement des faits/pesées/objectifs/profil et à la lecture des profils pour les anniversaires et données devenues applicables. Les POST d’activité utilisent une clé de requête UUID : même contenu rejoué sans doublon, contenu différent refusé. API et RLS limitent les faits médicaux, programmes et séances à la personne concernée ou au gestionnaire de son foyer.
+
+web/automatic-profile-ui.js est commun à Mon compte et Administration, remplace les formulaires nutritionnels manuels et distingue prévu/réalisé. web/activity-model.js calcule localement la projection réduite Hall ; aucune donnée de santé envoyée à une API extérieure. Les cibles peuvent changer automatiquement ; les rééquilibrages des quantités de menus restent volontaires. Modèles et limites : [ACTIVITE-PROJECTION.md](ACTIVITE-PROJECTION.md).
+
+
 ## Cibles nutritionnelles — 0.15.0
 
 person_nutrition_goals conserve les cibles kcal/protéines confirmées, leurs dates d’effet, origine, méthode, poids de référence et ordre de révision. Les anciennes données restent conservées ; la table initiale nutrition_targets reste historique et n’est pas le support du nouveau formulaire. La vue effective_energy_history réunit les calories historiques et les nouvelles cibles avec priorité déterministe. Les droits du profil sont appliqués dans la passerelle API et par RLS.
