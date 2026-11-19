@@ -2,14 +2,14 @@ import {validDate} from './activity-model.js';
 import {ageAtDate,effectiveDatedEntry} from './profile-dates.js';
 import {idealWeight,NUTRITION_SOURCES} from './nutrition-recommendations.js';
 
-export const AUTO_NUTRITION_VERSION='profile-auto-v1';
+export const AUTO_NUTRITION_VERSION='profile-auto-v2';
 export const AUTO_PAL={sedentary:1.4,light:1.6,moderate:1.6,active:1.8,very_active:2};
 export function automaticNutrition({person,settings,date}){
  const age=ageAtDate(person.birthDate,date),profile=effectiveDatedEntry(person.profileHistory,date),weight=person.weightHistory?.find(row=>row.measuredOn<=date),goal=effectiveDatedEntry(person.weightGoalHistory,date);
  const problems=[],context=settings.context??{};
  if(age==null||age<18||age>78)problems.push('L’estimation générale adulte ne couvre pas ce profil ; aucune cible de perte de poids automatique pour un mineur ou un âge inconnu.');
  if(!weight||!profile?.heightCm||!AUTO_PAL[profile?.activityLevel]||!['male','female'].includes(settings.sex))problems.push('Complète la naissance, le poids, la taille, le paramètre sexué et l’activité habituelle.');
- if(context.renal!=='no'||context.hypoglycemia!=='no'||context.pregnancy!=='no'||context.dumping!=='no'||!['none','type2'].includes(context.diabetes)||!['none','sleeve','bypass','mini_bypass'].includes(context.surgery))problems.push('Ce contexte médical demande des repères individuels ; le système ne dispose pas d’une règle générale suffisamment adaptée.');
+ if(context.renal!=='no'||context.hypoglycemia!=='no'||context.pregnancy!=='no'||!['none','type2'].includes(context.diabetes)||!['none','sleeve','bypass','mini_bypass'].includes(context.surgery))problems.push('Ce contexte médical demande des repères individuels ; le système ne dispose pas d’une règle générale suffisamment adaptée.');
  if(context.surgery!=='none'&&(!validDate(context.surgeryDate)||Date.parse(context.surgeryDate)>Date.parse(date)||Date.parse(date)-Date.parse(context.surgeryDate)<365*86400000))problems.push('La date ou la première année après chirurgie nécessite le protocole de suivi de l’équipe bariatrique.');
  if(problems.length)return {status:'needs-review',problems};
  const w=weight.weightKg,h=profile.heightCm,bmi=w/(h/100)**2,pal=AUTO_PAL[profile.activityLevel];

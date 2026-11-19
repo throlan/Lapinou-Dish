@@ -10,7 +10,7 @@ export function validateAutomaticProfile(input,today=parisToday()){
  if(!input||!validDate(input.effectiveFrom)||!['male','female'].includes(input.sex)||!['sedentary','light','moderate','active','very_active'].includes(input.activityLevel))return {error:'invalid-automatic-profile'};
  const displayName=String(input.displayName??'').trim();if(!displayName||displayName.length>80)return {error:'invalid-display-name'};
  const context={};
- for(const key of ['renal','hypoglycemia','pregnancy','dumping','cholesterol']){if(!['no','yes','unknown'].includes(input.context?.[key]))return {error:'invalid-medical-context'};context[key]=input.context[key];}
+ for(const key of ['renal','hypoglycemia','pregnancy','cholesterol']){if(!['no','yes','unknown'].includes(input.context?.[key]))return {error:'invalid-medical-context'};context[key]=input.context[key];}
  if(!['none','type1','type2','unknown'].includes(input.context.diabetes)||!['none','sleeve','bypass','mini_bypass','other','unknown'].includes(input.context.surgery))return {error:'invalid-medical-context'};
  context.diabetes=input.context.diabetes;context.surgery=input.context.surgery;context.surgeryDate=input.context.surgeryDate||null;
  if(context.surgeryDate&&(!validDate(context.surgeryDate)||context.surgeryDate>today))return {error:'invalid-surgery-date'};

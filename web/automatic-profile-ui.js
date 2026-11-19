@@ -43,10 +43,9 @@ export function renderAutomaticProfile(parent,person,{api,householdId,today,onSa
   const surgery=select(form,'Chirurgie bariatrique','surgery',[['','Choisir'],['none','Aucune'],['sleeve','Sleeve'],['bypass','Bypass en Y'],['mini_bypass','Mini-bypass / oméga'],['other','Autre'],['unknown','Je ne sais pas']],context.surgery);
   const surgeryDate=input(form,'Date d’intervention si concerné','surgeryDate','date',context.surgeryDate);surgeryDate.max=today;
   const surgeryVisibility=()=>{surgeryDate.parentElement.hidden=!surgery.value||surgery.value==='none';};surgery.addEventListener('change',surgeryVisibility);surgeryVisibility();
-  select(form,'Dumping ou malaises après les repas','dumping',choices,context.dumping);
   form.append(element('p','Ces informations restent privées au profil. Aucun envoi à une IA ou application tierce. Si une situation dépasse les règles générales disponibles, le système le signale sans inventer de cible.'));
   const save=submit(form,'Enregistrer le profil et calculer automatiquement');
-  form.addEventListener('submit',event=>{event.preventDefault();action(save,async()=>{const data=Object.fromEntries(new FormData(form)),context=Object.fromEntries(['diabetes','cholesterol','renal','hypoglycemia','pregnancy','surgery','surgeryDate','dumping'].map(key=>[key,data[key]]));await api('/api/people/'+person.id+'/automatic-profile',{method:'POST',body:JSON.stringify({householdId,effectiveFrom:today,...data,context})});await onSaved();});});details.append(form);content.append(details);
+  form.addEventListener('submit',event=>{event.preventDefault();action(save,async()=>{const data=Object.fromEntries(new FormData(form)),context=Object.fromEntries(['diabetes','cholesterol','renal','hypoglycemia','pregnancy','surgery','surgeryDate'].map(key=>[key,data[key]]));await api('/api/people/'+person.id+'/automatic-profile',{method:'POST',body:JSON.stringify({householdId,effectiveFrom:today,...data,context})});await onSaved();});});details.append(form);content.append(details);
   renderActivity(content);
  }
  function renderActivity(parent){

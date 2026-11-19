@@ -1,5 +1,14 @@
 # Prochaines tâches — 19 novembre 2026
 
+## Correction du champ de malaises — 0.17.1
+
+À la demande de l’utilisateur, le champ combiné « Dumping ou malaises après les repas » est retiré du formulaire et des conditions de calcul. Il ne permettait pas de distinguer un diagnostic, un antécédent et des symptômes non spécifiques. Le champ distinct sur les hypoglycémies connues ou le traitement à risque reste présent ; les autres garde-fous ne changent pas. Le modèle devient profile-auto-v2.
+
+Les anciens questionnaires ne sont pas effacés ni réécrits : une ancienne réponse dumping=yes/unknown est simplement ignorée par le nouveau calcul. Les profils déjà activés sont recalculés à leur consultation habituelle, sans ressaisie et sans modification des quantités des menus. Les cinq repères et la projection redeviennent disponibles lorsque les autres conditions sont remplies. Aucun nouveau ratio thérapeutique ni diagnostic de dumping n’est déduit de cette suppression.
+
+Validation locale : 16 tests ciblés réussis, incluant un profil fictif avec chirurgie ancienne et ancienne réponse positive, les cinq repères, la projection, la persistance sans réécriture du questionnaire, l’absence de champ dans l’interface et la conservation des contrôles rénaux/hypoglycémies. Contrôles complets et publication à vérifier sur la PR de correction.
+
+
 ## Livraison 0.17.0 — automatisation du suivi
 
 Implémenté : profil factuel unique, cinq repères nutritionnels calculés et appliqués, cholestérol, actualisation sur nouvelles données et bilan mensuel, disponibilités d’activité, séances réalisées séparées et projection dynamique mensuelle. Les anciennes propositions manuelles ne sont plus le parcours utilisateur. Menus, quantités et stocks conservés. Détails : [ACTIVITE-PROJECTION.md](ACTIVITE-PROJECTION.md).

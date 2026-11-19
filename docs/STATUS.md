@@ -1,5 +1,14 @@
 # État du projet — 19 novembre 2026
 
+## Correction du champ de malaises — 0.17.1
+
+À la demande de l’utilisateur, le champ combiné « Dumping ou malaises après les repas » est retiré du formulaire et des conditions de calcul. Il ne permettait pas de distinguer un diagnostic, un antécédent et des symptômes non spécifiques. Le champ distinct sur les hypoglycémies connues ou le traitement à risque reste présent ; les autres garde-fous ne changent pas. Le modèle devient profile-auto-v2.
+
+Les anciens questionnaires ne sont pas effacés ni réécrits : une ancienne réponse dumping=yes/unknown est simplement ignorée par le nouveau calcul. Les profils déjà activés sont recalculés à leur consultation habituelle, sans ressaisie et sans modification des quantités des menus. Les cinq repères et la projection redeviennent disponibles lorsque les autres conditions sont remplies. Aucun nouveau ratio thérapeutique ni diagnostic de dumping n’est déduit de cette suppression.
+
+Validation locale : 16 tests ciblés réussis, incluant un profil fictif avec chirurgie ancienne et ancienne réponse positive, les cinq repères, la projection, la persistance sans réécriture du questionnaire, l’absence de champ dans l’interface et la conservation des contrôles rénaux/hypoglycémies. Contrôles complets et publication à vérifier sur la PR de correction.
+
+
 ## Profils automatiques, activité et projection — 0.17.0
 
 Décision du 19 novembre : le parcours normal est désormais automatique. Après enregistrement des faits du profil (naissance, taille, poids mesuré, activité habituelle, objectifs de poids et antécédents), le système calcule et applique les cinq repères datés : calories, protéines, lipides, glucides, fibres. Plus de saisie de calories, de minima protéiques, de déficit, de pourcentage de lipides ou de formule médicale dans ce parcours. Cette décision remplace les choix manuels des versions 0.15–0.16 décrits ci-dessous ; les historiques restent conservés. Aucun profil n’est converti silencieusement au déploiement : le premier enregistrement des faits active ce mode.
