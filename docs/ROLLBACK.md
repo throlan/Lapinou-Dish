@@ -1,5 +1,10 @@
 # Images versionnées et retour arrière
 
+## Capacités et repères — 0.17.2
+
+Colonne facultative additive sur people ; les anciennes images l’ignorent et reprennent leurs anciens plafonds. Le changement du modèle nutritionnel peut créer de nouvelles révisions de cibles pour les profils en mode automatique ; une ancienne image ne restaure pas les anciennes cibles et peut recalculer selon son propre modèle. Les quantités des menus et stocks ne sont pas réécrites. Aucun tag ni digest historique modifié.
+
+
 ## Suivi automatique — 0.17.0
 
 Quatre tables additives, aucune suppression ni réécriture de menus/stocks. Une image 0.16.1 ignore ces tables mais continue de lire les dernières cibles calculées dans person_nutrition_goals ; elle ne continue pas le suivi automatique. Un retour d’image ne restaure pas les anciennes cibles : les révisions restent en base. Ne supprimer ni tables ni données pour revenir à une image antérieure. Les numéros et digests historiques de docker/rollback-images.json restent inchangés.

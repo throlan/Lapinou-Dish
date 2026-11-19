@@ -1,5 +1,16 @@
 # État du projet — 19 novembre 2026
 
+## Capacités personnelles et répartition en perte de poids — 0.17.2
+
+Décision validée le 19 novembre : pour les adultes en perte de poids uniquement, appliquer le repère applicatif 35 % protéines / 35 % glucides / 30 % lipides aux calories obtenues après le rythme lent −10 %, modéré −20 % ou rapide −30 %, déficit alimentaire toujours limité à 750 kcal/j. Conversion 4/4/9, arrondie au dixième de gramme. Ce repère choisi n’est pas une recommandation thérapeutique universelle ; maintien, objectif atteint et profils mineurs ne reçoivent pas ce préréglage. Les garde-fous existants et le contrôle du minimum protéique restent actifs. Modèle profile-auto-v4 : les profils déjà en suivi automatique actualisent leurs repères à leur prochaine consultation ; les historiques et quantités des menus restent conservés.
+
+Chaque profil dispose d’un champ facultatif « Capacité du plat principal », en grammes cuits, avec un enregistrement indépendant du questionnaire nutritionnel. Aucun plafond imposé par prénom. Le total couvre toutes les parties du plat principal, même séparées ; les ajouts individuels restent distincts. Une valeur personnelle remplace le plafond historique du plat mélangé ; les autres limites d’ingrédients restent conservées. Champ vide : retour aux réglages antérieurs. Plage technique de saisie 1–5 000 g, sans valeur présélectionnée ni prétention médicale.
+
+La limite intervient dans les prochaines propositions ou après « Recalculer les portions », sans modifier automatiquement un menu existant. Les parties viande/poisson séparées sont conservées si possible ; les accompagnements diminuent. Si la viande seule ou une pièce indivisible ne tient pas, les quantités sont conservées et un conflit est signalé. Un plat mélangé peut être réduit globalement, avec avertissement sur ses ingrédients intégrés. Une masse cuite inconnue reste inconnue et déclenche un avertissement. Aucun dessert ou collation ajouté automatiquement ; l’aperçu de compléments validables reste à développer séparément.
+
+Migration additive 20261119_person_meal_capacity.sql : people.main_dish_cap_g, facultatif. Accès propre profil ou gestionnaire, foyer contrôlé. Aucun accès Unraid/Nginx ni données réelles. Les travaux interrompus restent dans leur worktree ; aucun ajout de complément non validé n’est publié avec cette version.
+
+
 ## Rythmes validés et plafond — 0.17.1
 
 Choix du 19 novembre : rapide 30 %, modérée 20 %, lente 10 %, maintien 0 %, déficit alimentaire limité à 750 kcal/j. Sélecteur dans le profil, niveau modéré conservé pour les profils sans choix. Calcul et application automatiques ; arrondi de l’apport à la kcal supérieure, pour respecter strictement taux et plafond. Au poids de forme, maintien. Les garde-fous médicaux et les apports trop bas restent prioritaires. Modèle profile-auto-v3, aucune migration supplémentaire.

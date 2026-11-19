@@ -38,8 +38,11 @@ export const SERVING_CAP_FIELDS = Object.freeze({
 });
 
 export function effectiveServingCaps(overrides={}){
-  return Object.fromEntries(Object.entries(SERVING_CAP_FIELDS).map(([key,field])=>{
+  const caps=Object.fromEntries(Object.entries(SERVING_CAP_FIELDS).map(([key,field])=>{
     const value=overrides?.[key];
     return [key,Number.isInteger(value)&&value>=1&&value<=field.max?value:field.defaultValue];
   }));
+  caps.plateTotal=Number.isInteger(overrides?.plateTotal)&&overrides.plateTotal>=1&&overrides.plateTotal<=5000?overrides.plateTotal:Infinity;
+  if(Number.isFinite(caps.plateTotal))caps.mixed=Infinity;
+  return caps;
 }

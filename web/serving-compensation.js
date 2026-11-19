@@ -58,6 +58,7 @@ export function compensateManualServing(items, recipes, recipeId, personId, prev
   const result=compensateServingCalories(entries,before,after);
   if(!result.ok)return result;
   const adjusted=entries[result.adjustedIndex],caps=effectiveServingCaps(overrides);
+  if(result.quantities.reduce((sum,value)=>sum+value,0)>caps.plateTotal+1e-5)return {ok:false,reason:'La compensation dépasserait la capacité du plat principal : ajuste les quantités ou prévois un complément.'};
   for(const [key,load] of Object.entries(adjusted.servingLoad??{})){
     if(!Number.isFinite(caps[key]))continue;
     if(load===null)return {ok:false,reason:'Équivalence manquante : la compensation automatique n’a pas été appliquée.'};

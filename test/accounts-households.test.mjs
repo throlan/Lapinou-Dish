@@ -67,6 +67,11 @@ test('individual accounts enforce household isolation, roles, sessions and expli
  assert.equal(ownPeople.body.people.find(p=>p.id===profile).nutritionTargetHistory.length,0);
  assert.equal(ownPeople.body.people.find(p=>p.id===ownPerson.body.person.id).nutritionTargetHistory.length,1);
  assert.equal((await request('GET','/api/accounts/application',null,memberCookie)).status,403);
+ const capBody={householdId:h,mainDishCapG:450};
+ assert.equal((await request('POST','/api/people/'+profile+'/serving-cap',capBody,memberCookie)).status,403);
+ assert.equal((await request('POST','/api/people/'+ownPerson.body.person.id+'/serving-cap',capBody,memberCookie)).status,200);
+ assert.equal((await request('GET','/api/people/'+ownPerson.body.person.id+'/automatic?householdId='+h,null,memberCookie)).body.mainDishCapG,450);
+ assert.equal((await request('POST','/api/people/'+profile+'/serving-cap',{...capBody,mainDishCapG:600},ownerCookie)).status,200);
  const automaticBody={householdId:h,effectiveFrom:'2026-11-19',displayName:'Member profile',birthDate:'1990-01-01',heightCm:175,sex:'male',activityLevel:'sedentary',comfortableWeightKg:68,context:{diabetes:'none',cholesterol:'yes',renal:'no',hypoglycemia:'no',pregnancy:'no',surgery:'none',dumping:'no'}};
  assert.equal((await request('POST','/api/people/'+profile+'/automatic-profile',automaticBody,memberCookie)).status,403);
  const enrolled=await request('POST','/api/people/'+ownPerson.body.person.id+'/automatic-profile',automaticBody,memberCookie);assert.equal(enrolled.status,201,JSON.stringify(enrolled.body));assert.equal(enrolled.body.result.status,'calculated');
