@@ -24,3 +24,8 @@ export function plannedMacro(meals, personId, date, key) {
   }
   return {grams: known ? grams : null, incomplete};
 }
+
+export function fitsDayExtra(target, used, incomplete, extra) {
+  return target != null && !incomplete && Number.isFinite(used) &&
+    Number.isFinite(extra) && extra >= 0 && used + extra <= target + 1e-6;
+}

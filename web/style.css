@@ -864,3 +864,12 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 #daily-consumed-meals input[type="checkbox"] {
   width: auto;
 }
+
+.day-meal-totals {
+  flex: 1 0 100%;
+  border-top: 1px solid var(--line, #e4d6e1);
+  padding-top: 0.6rem;
+}
+.day-meal-totals p {
+  margin-block: 0.25rem;
+}

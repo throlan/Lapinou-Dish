@@ -11,7 +11,7 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.18.1">
+    <link rel="stylesheet" href="/style.css?v=0.18.3">
     <link rel="stylesheet" href="/editorial.css?v=0.12.1"><link rel="stylesheet" href="/recipe-directory-refresh.css?v=0.7.0">
       <link rel="stylesheet" href="/recipe-editor-dialog.css?v=0.12.1">
       <link rel="stylesheet" href="/recipe-choices.css?v=0.12.1">
@@ -314,10 +314,10 @@
     <dialog id="daily-macros-dialog" aria-labelledby="daily-macros-title">
       <form method="dialog"><button class="secondary" aria-label="Fermer">Fermer</button></form>
       <h2 id="daily-macros-title">Glucides et lipides consommés</h2>
-      <p>Coche les repas consommés à la maison. Les apports sont estimés à partir des portions du calendrier.</p>
+      <p>Coche les parties consommées à la maison. Les apports sont estimés à partir des portions de cette personne.</p>
       <form id="daily-macros-form">
         <div id="daily-consumed-meals"></div>
-        <button class="primary">Valider les repas cochés</button>
+        <button class="primary">Enregistrer les parties cochées</button>
       </form>
       <div id="daily-macros-comparison" aria-live="polite"></div>
       <p id="daily-macros-message" role="status"></p>
@@ -550,6 +550,6 @@
       </form>
     </dialog>
     <script type="module" src="/install-app.js?v=0.3.17"></script>
-    <script type="module" src="/app.js?v=0.18.1"></script>
+    <script type="module" src="/app.js?v=0.18.3"></script>
   </body>
 </html>

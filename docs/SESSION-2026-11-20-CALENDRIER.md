@@ -6,8 +6,6 @@ Le calendrier retire du budget à la maison la part du déjeuner ou du dîner d�
 
 Migration additive pour les apports saisis. Lecture et écriture réservées à la personne concernée et aux gestionnaires de son foyer. Une ancienne image ignore les données de cette table.
 
-## Confirmation des repas à la maison — 0.18.1
+## Sélection dynamique des quatre créneaux — 0.18.2
 
-Dans le calendrier, « Valider les repas consommés » permet de cocher, par personne et par date, les repas du planning effectivement pris à la maison. Les absents et les repas extérieurs ne sont pas comptés. Les glucides et lipides des portions planifiées sont enregistrés au moment de la confirmation, avec un indicateur lorsqu’une valeur manque. Ils sont comparés au repère à la maison après retrait de la part des créneaux extérieurs. Décocher un repas corrige le relevé.
-
-La migration ajoute une table privée pour les confirmations et leurs valeurs. Les anciennes saisies manuelles restent archivées séparément, car elles peuvent inclure des repas extérieurs. Le relevé n’enregistre aucun mouvement de stock.
+« Choisir les repas » affiche quatre sélecteurs avec des participants indépendants. Les calories prévues et le solde par personne sont recalculés dans la fenêtre à chaque modification. Les sauces pour les salades et les desserts sont proposés après comptage de tous les repas, avec un choix commun qui doit tenir dans le solde de chaque participant. Le choix d’un complément réduit les options disponibles pour les suivants.
