@@ -7,7 +7,7 @@ import {createRecipe,readRecipe,listRecipes,validateRecipeInput} from '../src/se
 import {savePlannedMeal} from '../src/server/planning.mjs';
 import {addStockLot} from '../src/server/household-planning.mjs';
 import {planningPeriod} from '../web/planning-periods.js';
-import {validatePlanningCopy,previewPlanningCopy,copyPlanningPeriod,addPlanningSelection} from '../src/server/planning-copy.mjs';
+import {validatePlanningCopy,previewPlanningCopy,copyPlanningPeriod,addPlanningSelection,addPlanningDay} from '../src/server/planning-copy.mjs';
 import {createApiClient} from '../web/api-client.js';
 import {Readable} from 'node:stream';
 import {accountGateway} from '../src/server/accounts.mjs';
@@ -96,4 +96,40 @@ test('new planning operations require a manager and keep household boundaries th
  assert.equal((await request('POST','/api/planning/copy-preview',{...input,householdId:randomUUID()},owner.cookie)).status,403);
  const preview=await request('POST','/api/planning/copy-preview',input,owner.cookie);assert.equal(preview.status,200);assert.equal(preview.body.meals.length,1);
  const payload={...input,fingerprint:preview.body.fingerprint,requestId:randomUUID()};const copied=await request('POST','/api/planning/copy',payload,owner.cookie);assert.equal(copied.status,201);assert.equal(copied.body.mealIds.length,1);assert.equal((await request('POST','/api/planning/copy',payload,owner.cookie)).body.replayed,true);
+});
+
+test('a daily selection saves distinct participants and portions once and rejects any occupied slot atomically',async t=>{
+ const f=await fixture(t), other=randomUUID();
+ await f.pool.query("INSERT INTO people(id,household_id,display_name) VALUES($1,$2,'Autre personne')",[other,f.h]);
+ const item=(personId,quantity)=>({recipeId:f.recipe.id,role:'main',amounts:[{personId,quantity}]});
+ const day={householdId:f.h,date:'2026-11-25',requestId:randomUUID(),meals:[
+  {slot:'lunch',attendeeIds:[f.person],items:[item(f.person,1)]},
+  {slot:'dinner',attendeeIds:[other],items:[item(other,2)]}
+ ]};
+ const saved=await addPlanningDay(f.pool,day);assert.equal(saved.mealIds.length,2);
+ assert.equal((await addPlanningDay(f.pool,day)).replayed,true);
+ const rows=(await f.pool.query('SELECT m.slot,a.person_id,a.quantity FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id JOIN planned_amounts a ON a.planned_item_id=i.id ORDER BY m.slot')).rows;
+ assert.deepEqual(rows.map(r=>[r.slot,r.person_id,Number(r.quantity)]),[['dinner',other,2],['lunch',f.person,1]]);
+ const conflict=await addPlanningDay(f.pool,{...day,requestId:randomUUID(),meals:[{...day.meals[0],slot:'breakfast'},day.meals[1]]});
+ assert.equal(conflict.error,'planning-slot-unavailable');
+ assert.equal((await f.pool.query("SELECT id FROM planned_meals WHERE slot='breakfast'")).rows.length,0);
+});
+
+test('real daily macros persist across requests, preserve unknown values and reject writes to another household',async t=>{
+ const f=await fixture(t);
+ const endpoint='/api/people/'+f.person+'/daily-macros', date='2026-11-19';
+ async function request(method,url,body){
+  const req=Readable.from(body?[JSON.stringify(body)]:[]);
+  Object.assign(req,{method,url,headers:{}});
+  const res={setHeader(){},writeHead(status){this.status=status;},end(value){this.body=JSON.parse(String(value));}};
+  await handleRequest(req,res,f.pool);
+  return res;
+ }
+ const saved=await request('POST',endpoint,{householdId:f.h,date,carbohydrateG:92.5,fatG:null});
+ assert.equal(saved.status,200);
+ const url=endpoint+'?'+new URLSearchParams({householdId:f.h,date});
+ assert.deepEqual((await request('GET',url)).body,{intake:{carbohydrateG:92.5,fatG:null}});
+ assert.equal((await request('POST',endpoint,{householdId:randomUUID(),date,carbohydrateG:1,fatG:1})).status,404);
+ assert.equal((await request('POST',endpoint,{householdId:f.h,date,carbohydrateG:-1,fatG:1})).status,400);
+ assert.deepEqual((await request('POST',endpoint,{householdId:f.h,date,carbohydrateG:null,fatG:null})).body,{intake:null});
 });

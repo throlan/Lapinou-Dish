@@ -69,3 +69,14 @@ export function addPlanningSelection(pool,input){
  if(new Set(targets.map(t=>t.date+':'+t.slot)).size!==targets.length)return Promise.resolve({error:'invalid-planning-selection'});
  return operation(pool,input.householdId,input.requestId,{meal:input.meal,targets},client=>writeMeals(client,input.householdId,normalized));
 }
+
+export function addPlanningDay(pool, input) {
+ const {householdId, date, meals, requestId} = input ?? {};
+ if (!uuid(householdId) || !validPlanningDate(date) || !Array.isArray(meals) ||
+     !meals.length || meals.length > 4 || new Set(meals.map(meal => meal?.slot)).size !== meals.length ||
+     meals.some(meal => !['breakfast', 'lunch', 'snack', 'dinner'].includes(meal?.slot))) {
+  return Promise.resolve({error:'invalid-planning-day'});
+ }
+ const entries = meals.map(meal => ({data:{...meal, householdId, mealDate:date, isOccasion:false}}));
+ return operation(pool, householdId, requestId, {date, meals}, client => writeMeals(client, householdId, entries));
+}
