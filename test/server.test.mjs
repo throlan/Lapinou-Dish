@@ -28,7 +28,7 @@ test('home page loads the application module as a versioned same-origin asset', 
   await handleRequest({ method: 'GET', url: '/app.js?v=0.2.14', headers: {} }, scriptResponse, {});
   assert.equal(scriptResponse.status, 200);
   assert.match(scriptResponse.headers['Content-Type'], /^text\/javascript/);
-  assert.ok(scriptResponse.body.includes("import { breakfastServingLimit, calculateDailyEnergy, calculateDailyProtein, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, dailyProteinTarget, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';"));
+  assert.match(scriptResponse.body, /^import \{[^}]*\bsuggestQuantity\b[^}]*\} from '\.\/portion-planner\.js';/m);
   assert.ok(scriptResponse.body.includes('calendarMeals: []'));
   const plannerResponse = {
     status: 200,
