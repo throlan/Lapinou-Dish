@@ -22,14 +22,16 @@ test('per-profile caps persist, validate household ownership and can be reset to
     await db.query("INSERT INTO households(id,name) VALUES($1,'Test'),($2,'Other')",[h,other]);
     await db.query("INSERT INTO people(id,household_id,display_name) VALUES($1,$4,'A'),($2,$4,'B'),($3,$5,'Other')",[a,b,foreign,h,other]);
     const endpoint='/api/serving-caps',url=endpoint+'?householdId='+h;
-    assert.deepEqual((await request(db,'GET',url)).body,{caps:{}});
+    assert.deepEqual((await request(db,'GET',url)).body,{caps:{},commonProteinG:200});
     const caps={[a]:{starch:150,vegetables:280,mixed:650},[b]:{starch:250,eggs:4}};
-    assert.deepEqual((await request(db,'PUT',endpoint,{householdId:h,caps})).body,{caps});
+    assert.deepEqual((await request(db,'PUT',endpoint,{householdId:h,caps,commonProteinG:180})).body,{caps,commonProteinG:180});
     for(const invalid of [{[foreign]:{starch:250}},{[a]:{eggs:2.5}},{[a]:{starch:-1}},{[a]:{other:10}}]){
       assert.equal((await request(db,'PUT',endpoint,{householdId:h,caps:invalid})).status,400);
     }
-    assert.deepEqual((await request(db,'GET',url)).body,{caps});
-    assert.deepEqual((await request(db,'PUT',endpoint,{householdId:h,caps:{[b]:{}}})).body,{caps:{}});
+    assert.equal((await request(db,'PUT',endpoint,{householdId:h,caps,commonProteinG:-10})).status,400);
+    assert.deepEqual((await request(db,'GET',url)).body,{caps,commonProteinG:180});
+    assert.deepEqual((await request(db,'GET',endpoint+'?householdId='+other)).body,{caps:{},commonProteinG:200});
+    assert.deepEqual((await request(db,'PUT',endpoint,{householdId:h,caps:{[b]:{}}})).body,{caps:{},commonProteinG:180});
   }finally{await db.close();}
 });
 
@@ -65,4 +67,21 @@ test('calorie budgets change the sides, not the shared main protein amount',()=>
     assert.equal(low[0].quantity,want);assert.equal(high[0].quantity,want);
     assert.ok(low[1].quantity<high[1].quantity);
   }
+});
+
+test('the common raw weight is shared across meat, fish and tofu in a split meal',()=>{
+ const tofu=servingIngredientLoad({quantity:60,unitId:'g',cookingState:'legacy'},
+   {name:'Tofu fumé',category:'Légumineuses',gramsPerUnit:{}},{},'main');
+ assert.deepEqual(tofu,{tofu:60});
+ const parts=['main','starch','vegetables'];
+ const plate=parts.map((servingPart,i)=>({parentRecipeId:'plate',plateParts:parts,servingPart,recipeUnit:'g',
+   role:i?'accompaniment':'main',recipeKcal:i?1:2,budgetFraction:1/3,
+   servingLoad:[{meat:.4,fish:.25,tofu:.60},{starch:1},{vegetables:1}][i]}));
+ const low=cappedMealPortions(plate,400,undefined,{commonProteinG:200,meat:110,starch:100}).proposals;
+ const high=cappedMealPortions(plate,1200,undefined,{commonProteinG:200,fish:150,starch:250}).proposals;
+ assert.equal(low[0].quantity,160);
+ assert.equal(high[0].quantity,160);
+ assert.ok(low[1].quantity<high[1].quantity);
+ const twoPart=plate.slice(0,2).map(row=>({...row,plateParts:parts.slice(0,2)}));
+ assert.equal(cappedMealPortions(twoPart,500,undefined,{commonProteinG:180}).proposals[0].quantity,144);
 });

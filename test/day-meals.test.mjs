@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {homeBudgetShare,plannedMacro} from '../web/day-meals.js';
+import {homeBudgetShare,plannedMacro,expandDayMealPortions} from '../web/day-meals.js';
 import {DEFAULT_MEAL_RATIOS as ratios} from '../web/meal-config.js';
 
 test('a child away for lunch keeps 60 percent of home targets, while an empty slot signals no absence',()=>{
@@ -18,4 +18,25 @@ test('calendar macros multiply planned amounts and distinguish missing values fr
  assert.deepEqual(plannedMacro(meals,'adult',date,'carbohydrateG'),{grams:16,incomplete:true});
  assert.deepEqual(plannedMacro(meals,'adult',date,'fatG'),{grams:8,incomplete:false});
  assert.deepEqual(plannedMacro(meals,'child',date,'fatG'),{grams:null,incomplete:false});
+});
+
+test('an incomplete ingredient component does not make the calories uncertain when its energy is known',()=>{
+ const date='2026-11-25', item={amounts:[{personId:'a',quantity:2}],recipe:{energyKnown:true,
+   nutrition:{perYieldUnit:{energyKcal:100},lineIssues:[{reason:'component-data-missing'}]}}};
+ assert.deepEqual(plannedMacro([{mealDate:date,items:[item]}],'a',date,'energyKcal'),{grams:200,incomplete:false});
+ item.recipe.energyKnown=false;
+ assert.deepEqual(plannedMacro([{mealDate:date,items:[item]}],'a',date,'energyKcal'),{grams:200,incomplete:true});
+});
+
+test('a daily balance can grow whole servings within the remaining budget, keeping incomplete days out',()=>{
+ const ids=['a','b','c','d'];
+ const meal={attendeeIds:ids,items:[{kcal:250,amounts:ids.map(personId=>({personId,quantity:1}))}]};
+ const targets=new Map([['a',900],['b',1200],['c',1200],['d',1200]]);
+ const used=new Map([['a',750],['b',650],['c',650],['d',650]]);
+ const calls=[];
+ expandDayMealPortions([meal],{targets,used,incomplete:new Set(['c']),energy:item=>item.kcal,
+   propose:(_,person,budget)=>{calls.push(person);return [person==='d'?5:Math.floor(budget/250)];}});
+ assert.deepEqual(meal.items[0].amounts.map(amount=>amount.quantity),[1,3,1,1]);
+ assert.deepEqual([...used.values()],[750,1150,650,650]);
+ assert.ok(!calls.includes('c'));
 });

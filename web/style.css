@@ -838,23 +838,86 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .activity-projection-table table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
 .activity-projection-table th,.activity-projection-table td { text-align:left; padding:.6rem; white-space:nowrap; border-bottom:1px solid var(--border,#ded6e7); }
 
-#day-meals-choices, #day-meals-choices form, #daily-macros-form {
+#daily-macros-form {
   display: grid;
   gap: 0.8rem;
 }
-#day-meals-choices fieldset, #day-meals-choices > div {
+#day-meals-dialog {
+  width: min(980px, calc(100vw - 24px));
+  box-sizing: border-box;
+  max-width: calc(100% - 24px);
+}
+#day-meals-choices {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(15rem, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+#day-meals-choices .day-meal-slots,
+#day-meals-choices .day-meal-review,
+.day-meal-complements {
+  display: grid;
+  gap: 0.6rem;
+}
+#day-meals-choices .day-meal-slots {
+  overflow: visible;
+  max-height: none;
+  padding: 0;
+}
+#day-meals-choices fieldset {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.65rem;
+  gap: 0.45rem;
   align-items: center;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  padding: 0.55rem 0.7rem 0.7rem;
 }
-#day-meals-choices fieldset select, #day-meals-choices > div > p,
-#day-meals-choices > div > label, #day-meals-choices > div > details {
-  flex: 1 0 100%;
+#day-meals-choices legend {
+  font-weight: 650;
+  padding-inline: 0.3rem;
 }
-#day-meals-choices input[type="checkbox"] {
-  width: auto;
-  margin-inline-end: 0.4rem;
+#day-meals-choices fieldset > select,
+.day-meal-complements:not(:empty) {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+#day-meals-choices fieldset > button {
+  text-align: left;
+  white-space: normal;
+}
+.day-meal-complements:empty { display: none; }
+#day-meals-choices .attendee-option, #day-meals-choices .day-meal-balance {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  gap: 0.4rem;
+}
+.day-meal-review {
+  position: sticky;
+  top: 0;
+}
+.day-meal-review p { margin: 0; }
+.day-meal-totals {
+  display: grid;
+  gap: 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  padding: 0.75rem;
+}
+.day-meal-totals div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.15rem 0.35rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.45rem;
+}
+.day-meal-totals small { grid-column: 1 / -1; }
+.day-meal-over { color: var(--warning-text, #a34b10); }
+@media (max-width: 720px) {
+  #day-meals-choices { grid-template-columns: minmax(0, 1fr); }
+  .day-meal-review { position: static; }
 }
 
 #daily-consumed-meals {
@@ -870,15 +933,6 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
   align-items: baseline;
   gap: 0.4rem;
 }
-#daily-consumed-meals input[type="checkbox"] {
+#daily-consumed-meals input[type="checkbox"], #day-meals-choices input[type="checkbox"] {
   width: auto;
-}
-
-.day-meal-totals {
-  flex: 1 0 100%;
-  border-top: 1px solid var(--line, #e4d6e1);
-  padding-top: 0.6rem;
-}
-.day-meal-totals p {
-  margin-block: 0.25rem;
 }

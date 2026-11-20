@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {runInNewContext} from 'node:vm';
-import {homeBudgetShare,plannedMacro,fitsDayExtra} from '../web/day-meals.js';
+import {homeBudgetShare,plannedMacro,itemMacro,fitsDayExtra,expandDayMealPortions} from '../web/day-meals.js';
 import {MEAL_ORDER,MEAL_LABELS,DEFAULT_MEAL_RATIOS} from '../web/meal-config.js';
 
-test('the four day selectors recalculate totals and offer shared extras using every participant’s remaining budget',async()=>{
+test('the four day selectors recalculate totals and serve dessert to the people with room in their own budgets',async()=>{
   const source=await readFile(new URL('../web/app.js',import.meta.url),'utf8');
   const start=source.indexOf('function openDayMeals('),end=source.indexOf('let macroView',start);
   const node=tag=>({tag,value:'',children:[],handlers:{},append(...children){for(const child of children)child.parentElement=this;this.children.push(...children);},
@@ -20,7 +20,7 @@ test('the four day selectors recalculate totals and offer shared extras using ev
     recipe('Sauce','sauce','lunch',25),recipe('Crème','dessert','dinner',50),recipe('Yaourt','dessert','dinner',100),recipe('Gâteau','dessert','dinner',350)];
   let payload, paintedStock;
   const context={loadPlanningStock:async()=>new Map([['Pancakes',{quantity:3,unitId:'piece'}]]),
-    annotatePlanningStock:(root,stock)=>{paintedStock={root,stock};},MEAL_ORDER,homeBudgetShare,plannedMacro,fitsDayExtra,$:selector=>nodes[selector],document:{createElement:node,createTextNode:text=>({text})},
+    annotatePlanningStock:(root,stock)=>{paintedStock={root,stock};},MEAL_ORDER,homeBudgetShare,plannedMacro,itemMacro,fitsDayExtra,expandDayMealPortions,$:selector=>nodes[selector],document:{createElement:node,createTextNode:text=>({text})},
     Option:function(label,value){Object.assign(this,{label,value});},
     state:{household:{id:'h'},people:[{id:'a',displayName:'Adulte'},{id:'b',displayName:'Enfant'}],recipes,mealAdditions:[],mealRatios:DEFAULT_MEAL_RATIOS},
     slotLabels:MEAL_LABELS,displayDate:x=>x,latestProfile:()=>({dailyEnergyKcal:1000}),format:String,formatQty:String,
@@ -38,19 +38,20 @@ test('the four day selectors recalculate totals and offer shared extras using ev
   breakfast.children[1].value='Pancakes';lunch.children[1].value='Salade';dinner.children[1].value='Dîner';
   lunch.children[3].children[0].checked=false;
   form.handlers.change();
-  const totals=()=>review.children.find(child=>child.className==='day-meal-totals').children.map(child=>child.textContent);
-  assert.match(totals()[2],/Enfant · 500 \/ 600 kcal/);
-  const dessert=()=>review.children.find(child=>child.children[0]?.text==='Dîner · Dessert').children[1];
+  const totals=()=>review.children.find(child=>child.className==='day-meal-totals').children.slice(1)
+    .map(row=>row.children.map(child=>child.textContent).join(' · '));
+  assert.match(totals()[1],/Enfant · 500 \/ 600 kcal/);
+  const dessert=()=>dinner.children.at(-1).children[0].children[1];
   assert.deepEqual(dessert().children.map(option=>option.value),['','Crème','Yaourt']);
-  dessert().value='Yaourt';dessert().handlers.change();
-  assert.match(totals()[2],/Enfant · 600 \/ 600 kcal/);
+  dessert().value='Yaourt';dessert().handlers.change({stopPropagation(){}});
+  assert.match(totals()[1],/Enfant · 600 \/ 600 kcal/);
   snack.children[1].value='Fruit';snack.children[3].children[0].checked=false;
   form.handlers.change();
-  assert.match(totals()[1],/Adulte · 950 \/ 1000 kcal/);
-  assert.deepEqual(dessert().children.map(option=>option.value),['','Crème']);
-  dessert().value='Crème';dessert().handlers.change();
+  assert.match(totals()[0],/Adulte · 950 \/ 1000 kcal/);
+  assert.deepEqual(dessert().children.map(option=>option.value),['','Crème','Yaourt']);
+  assert.equal(dinner.children.at(-1).children[1].textContent,'Pour Enfant');
   await review.children.at(-1).handlers.click();
   assert.deepEqual(payload.meals.find(meal=>meal.slot==='breakfast').attendeeIds,['a','b']);
   assert.deepEqual(payload.meals.find(meal=>meal.slot==='lunch').attendeeIds,['a']);
-  assert.deepEqual(payload.meals.find(meal=>meal.slot==='dinner').items[1].amounts,[{personId:'a',quantity:1},{personId:'b',quantity:1}]);
+  assert.deepEqual(payload.meals.find(meal=>meal.slot==='dinner').items[1].amounts,[{personId:'b',quantity:1}]);
 });

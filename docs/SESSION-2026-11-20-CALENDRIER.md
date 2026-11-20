@@ -26,3 +26,9 @@ Migration additive 20261120_home_consumption.sql, avec accès aux confirmations 
 ## Portions à zéro dans le calendrier — 0.18.4
 
 Chaque convive peut prendre 0 d’un plat et recevoir une autre recette au même repas. La saisie accepte aussi 0 pour les parties exprimées en grammes ou converties en pièces ou tranches. Les présences sont conservées et une portion absente est affichée à 0 lorsque le plat est servi à un autre convive. Le recalcul respecte ce choix. Une recette servie à personne est ignorée et un repas ordinaire demande au moins une portion servie.
+
+## Suggestions et portions de la journée — 0.18.5
+
+Les quatre créneaux gardent chacun leurs participants. Les compléments apparaissent dans leur créneau et le récapitulatif indique le total, l’objectif à la maison et le solde par convive. Les détails de découpage sont dans la fiche du repas. Un dessert peut être attribué à une partie des convives selon leur solde propre. Les sauces restent communes. Des calories manquantes sont signalées par recette et les valeurs présentes s’affichent comme un minimum.
+
+« Ajuster les portions avec le solde » ajoute des quantités aux repas en cours de sélection après comptage des compléments, avec les mêmes règles d’unités, de ratios et de plafonds. L’option est activée par défaut si les quatre créneaux sont renseignés. Les repas existants, les budgets incomplets et les portions indivisibles peuvent laisser un écart. La migration additive 20261120_common_protein_portion.sql règle à 200 g avant cuisson la portion commune par convive pour les repas en deux ou trois parties. La viande, le poisson et le tofu se partagent cette quantité. Le réglage est modifiable par foyer et s’applique aux prochaines propositions. Les œufs conservent leur plafond en pièces. La 0.18.4 ignore le nouveau champ en cas de retour arrière.

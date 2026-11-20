@@ -10,6 +10,7 @@ const normalize=value=>String(value??'').normalize('NFD').replace(/\p{M}/gu,'').
 function ingredientKind(food,part){
   const name=normalize(food.name).replace(/^(?:filet|blanc|escalope|steak|pave) (?:de |d['’])?/, '');
   if(/^(?:blanc|jaune) d['’](?:oeuf|œuf)|(?:oeuf|œuf), (?:blanc|jaune)/.test(name))return null;
+  if (/^tofu\b/.test(name) || normalize(food.category)==='tofu') return 'tofu';
   return types.get(normalize(food.category))??
     (/^(?:oeuf|œuf)s?\b/.test(name)?'eggs':
     /^(?:poulet|dinde|veau|boeuf|bœuf|porc|agneau|canard|lapin|mouton|viande)\b/.test(name)?'meat':
@@ -28,7 +29,7 @@ export function servingIngredientLoad(line,food,factors,part){
     const piece=food.gramsPerUnit.piece;
     return {eggs:grams!=null&&piece>0?grams/piece:null};
   }
-  const alreadyCooked=line.cookingState==='already_cooked'||line.cookingState==='legacy'&&/\b(cuit|cuite|bouilli|roti|grille|appertise|fume)s?\b/.test(normalize(food.name));
+  const alreadyCooked=line.cookingState==='already_cooked'||kind!=='tofu'&&line.cookingState==='legacy'&&/\b(cuit|cuite|bouilli|roti|grille|appertise|fume)s?\b/.test(normalize(food.name));
   if(kind==='starch'||kind==='vegetables')return {[kind]:grams==null?null:grams*(line.cookingState==='served_raw'||alreadyCooked?1:factor)};
   return {[kind]:grams==null?null:alreadyCooked?line.foodCookingFactor>0?grams/line.foodCookingFactor:null:grams};
 }

@@ -1,6 +1,6 @@
 import {capMainDish} from './main-dish-cap.js';
 import {effectiveDatedEntry} from './profile-dates.js';
-import { DEFAULT_MEAL_RATIOS, DEFAULT_PLATE_RATIOS, validPlateRatios, effectiveServingCaps } from './meal-config.js';
+import { DEFAULT_MEAL_RATIOS, DEFAULT_PLATE_RATIOS, validPlateRatios, effectiveServingCaps, servingCapLoads } from './meal-config.js';
 export const SLOT_RATIOS = DEFAULT_MEAL_RATIOS;
 
 export function breakfastServingLimit(recipe,parent) {
@@ -269,24 +269,25 @@ export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RA
   const rows=proposals.map(row=>({...row}));
   const remaining=effectiveServingCaps(overrides),groups=new Map(),warnings=new Set();
   const validBudget=Number.isFinite(budget)&&budget>=0;
-  const loads=row=>row.servingLoad??(row.servingPart==='starch'?{starch:1}:{});
-  const limit=row=>{
+  const loads=row=>servingCapLoads(row.servingLoad??(row.servingPart==='starch'?{starch:1}:{}),remaining);
+  const limit=(row, fixed=false)=>{
     let max=row.maxQuantity??Infinity;
     if(row.recipeUnit==='g'&&row.role==='main'&&(!row.parentRecipeId||row.plateParts?.length===1))max=Math.min(max,remaining.mixed);
     for(const [key,value] of Object.entries(loads(row))){
       if(!Number.isFinite(remaining[key]))continue;
       if(value==null){warnings.add('Un poids cru ou une équivalence d’ingrédient manque : vérifie la portion signalée.');return 0;}
-      if(value>0&&key in remaining)max=Math.min(max,remaining[key]/value);
+      const available=fixed?Math.min(remaining[key],overrides?.fixedProteinCaps?.[key]??Infinity):remaining[key];
+      if(value>0&&key in remaining)max=Math.min(max,available/value);
     }
     return Math.max(0,max);
   };
-  const proteinKeys=['meat','fish','eggs'];
+  const proteinKeys=['meat','fish','eggs','proteinMass'];
   const sharedProteinLimit=row=>{
     const load=loads(row);
     const proteins=proteinKeys.filter(key=>load[key]>0);
     if(proteins.length<2)return Infinity;
     // Each ingredient uses a fraction of its own maximum. The fractions share one serving.
-    const fractionPerUnit=proteins.reduce((sum,key)=>sum+load[key]/remaining[key],0);
+    const fractionPerUnit=proteins.reduce((sum,key)=>sum+load[key]/Math.min(remaining[key],overrides?.fixedProteinCaps?.[key]??Infinity),0);
     return 1/fractionPerUnit;
   };
   const hasFixedProtein=row=>row.role==='main'&&row.fixedProteinEligible!==false&&row.reason!=='no-slot-budget'&&proteinKeys.some(key=>loads(row)[key]>0);
@@ -351,10 +352,10 @@ export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RA
     const main=members.find(row=>row.servingPart==='main')??members[0];
     const starch=members.find(row=>row.servingPart==='starch');
     const veg=members.find(row=>row.servingPart==='vegetables');
-    const fixed=mode==='three'&&hasFixedProtein(main);
+    const fixed=hasFixedProtein(main)&&(mode==='three'||(mode==='separate'&&loads(main).proteinMass>0));
     if(fixed){
-      const maximum=sharedProteinLimit(main);
-      put(main,fit(main,Math.min(limit(main),maximum),maximum));
+      const maximum=Math.min(limit(main,true),sharedProteinLimit(main));
+      put(main,fit(main,maximum,maximum));
     }
     if(mode==='whole'){
       const desired=kcal/main.recipeKcal;
