@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';
 import * as planner from '../web/portion-planner.js';
+import {homeBudgetShare,plannedMacro} from '../web/day-meals.js';
 
 test('energy total includes all dishes, drinks and desserts and flags missing nutrition',()=>{
   const meal={items:[{recipe:{nutrition:{perYieldUnit:{energyKcal:1.5}}},amounts:[{personId:'p',quantity:200}]},{recipe:{nutrition:{perYieldUnit:{energyKcal:120}}},amounts:[{personId:'p',quantity:1}]}]};
@@ -76,7 +77,7 @@ test('calendar daily summary colors protein values against each person minimum',
   const start=source.indexOf('function renderDailyEnergySummary('),end=source.indexOf('let dailyRebalancePreview=',start);
   const element=()=>({children:[],classList:{values:[],add(value){this.values.push(value);}},append(...children){this.children.push(...children);},addEventListener(){}});
   const people=[{id:'b',displayName:'Bibinette'},{id:'l',displayName:'Lapinou'},{id:'bb',displayName:'Bibou'},{id:'t',displayName:'Titus'}];
-  const context={...planner,document:{createElement:element},state:{people,proteinTargets:{b:90,l:125,bb:85,t:50},calendarReserveOverview:null,recipes:[]},
+  const context={...planner,homeBudgetShare,plannedMacro,localDateValue:()=> '2026-10-19',document:{createElement:element},state:{people,proteinTargets:{b:90,l:125,bb:85,t:50},calendarReserveOverview:null,recipes:[]},
     latestProfile:()=>null,format:value=>String(value)};
   runInNewContext(source.slice(start,end)+'\nglobalThis.render=renderDailyEnergySummary;',context);
   const amounts=people.map((person,index)=>({personId:person.id,quantity:[4,1,4,1][index]}));
