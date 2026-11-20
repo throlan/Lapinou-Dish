@@ -5,7 +5,7 @@ import {readFile,readdir} from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
 import {runInNewContext} from 'node:vm';
 import {createRecipe,readRecipe,validateRecipeInput} from '../src/server/recipes.mjs';
-import {savePlannedMeal,listPlannedMeals} from '../src/server/planning.mjs';
+import {savePlannedMeal,listPlannedMeals,validatePlannedMeal} from '../src/server/planning.mjs';
 import {rawShoppingRequirements} from '../src/server/shopping-requirements.mjs';
 import {listPreparationsToMake} from '../src/server/household-planning.mjs';
 import {recipePlanningLabel} from '../web/recipe-directory.js';
@@ -56,6 +56,29 @@ test('split eggs, soup and homemade bread expose pieces/grams/slices while menus
   const shopping=await rawShoppingRequirements(pool,householdId,'2026-10-19','2026-10-25');
   assert.equal(shopping.find(r=>r.foodId===eggs).quantity,2);assert.equal(shopping.find(r=>r.foodId===flour).quantity,70);assert.equal(shopping.find(r=>r.foodId===veg).quantity,350);
   assert.equal((await listPreparationsToMake(pool,householdId,'2026-10-19','2026-10-25')).find(r=>r.recipeId===bread.id).toMakeQuantity,2);
+
+  const otherPeople = [randomUUID(), randomUUID(), randomUUID()];
+  for (const [i,id] of otherPeople.entries()) {
+    await pool.query('INSERT INTO people(id,household_id,display_name) VALUES($1,$2,$3)',[id,householdId,`Test ${i+2}`]);
+  }
+  const attendeeIds = [personId, ...otherPeople];
+  const first = await create({name:'Synthetic flatbreads',yield:{amount:12,unitId:'piece'},lines:[{foodId:flour,quantity:120,unitId:'g'}]});
+  const second = await create({name:'Synthetic rolls',yield:{amount:10,unitId:'piece'},lines:[{foodId:flour,quantity:100,unitId:'g'}]});
+  const amounts = quantities => quantities.map((quantity,i) => ({ personId:attendeeIds[i], quantity }));
+  const selection = validatePlannedMeal({householdId,mealDate:'2026-10-27',slot:'dinner',attendeeIds,items:[
+    {recipeId:first.id,amounts:amounts([1,0,2,0])},
+    {recipeId:second.id,amounts:amounts([0,1,0,1])},
+  ]});
+  assert.equal(selection.error, undefined);
+  await savePlannedMeal(pool,null,selection.data);
+  const [shared] = await listPlannedMeals(pool,householdId,'2026-10-26');
+  assert.deepEqual(new Set(shared.attendees.map(person=>person.id)),new Set(attendeeIds));
+  const quantitiesByRecipe = Object.fromEntries(shared.items.map(item=>[item.recipeId,item.amounts]));
+  assert.deepEqual(quantitiesByRecipe[first.id].map(({personId,quantity})=>[personId,quantity]).sort(),[[attendeeIds[0],1],[attendeeIds[2],2]].sort());
+  assert.deepEqual(quantitiesByRecipe[second.id].map(({personId,quantity})=>[personId,quantity]).sort(),[[attendeeIds[1],1],[attendeeIds[3],1]].sort());
+  const sharedShopping = await rawShoppingRequirements(pool,householdId,'2026-10-26','2026-11-01');
+  assert.equal(sharedShopping.find(item=>item.foodId===flour).quantity,50);
+
   const mixed=await create({...input,lines:[...input.lines,{foodId:veg,quantity:50,unitId:'g',servingPart:'main'}]});
   assert.equal(mixed.servingParts.find(r=>r.servingPart==='main').servingDisplay,null,'a mixed preparation is not guessed to be an egg');
   const cake=await create({separateStarch:true,servingMode:'whole',lines:[{foodId:eggs,quantity:8,unitId:'piece'}]});
@@ -67,6 +90,7 @@ test('editing a displayed count preserves an untouched fractional menu exactly a
   const input={dataset:{},value:''};units.setServingInput(input,recipe,'82.62713');
   assert.equal(input.value,'1.652543');assert.equal(units.servingInputValue(input),'82.62713');assert.equal(input.step,'any');
   input.value='2';assert.equal(units.servingInputValue(input),'100');
+  input.value='0';assert.equal(input.min,'0');assert.equal(units.servingInputValue(input),'0');
   input.value='';assert.equal(units.servingInputValue(input),'');
   const plain={dataset:{},value:'462.85712'};units.setServingInput(plain,{yield:{unitId:'g'}},plain.value);assert.equal(units.servingInputValue(plain),'462.85712');
   assert.equal(units.servingUnit({yield:{unitId:'g'},servingDisplay:{unitId:'slice',gramsPerUnit:1}}),'slice');

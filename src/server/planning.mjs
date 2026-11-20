@@ -35,23 +35,21 @@ export function validatePlannedMeal(input) {
     const role = item.role ?? 'main';
     if (!['main', 'accompaniment', 'beverage', 'dessert', 'sauce'].includes(role)) return { error: 'invalid-planned-item-role' };
     const categoryId = item.categoryId ?? role;
-    const storedRole=role;
-    const optional = storedRole !== 'main';
     if (typeof categoryId !== 'string' || !/^[a-z][a-z0-9_-]{0,39}$/.test(categoryId)) return { error:'invalid-planned-item-category' };
-    if (!optional && item.amounts.length !== attendeeIds.length) return { error: 'amounts-must-match-attendees' };
-    if (optional && (item.amounts.length < 1 || item.amounts.length > attendeeIds.length)) return { error: `invalid-${role}-amounts` };
+    if (item.amounts.length < 1 || item.amounts.length > attendeeIds.length) return { error: `invalid-${role}-amounts` };
     const seen = new Set();
     const amounts = [];
     for (const amount of item.amounts) {
       if (!amount || !isUuid(amount.personId) || !attendeeIds.includes(amount.personId) || seen.has(amount.personId)) return { error: 'invalid-planned-amount-person' };
-      const quantity = Number(amount.quantity);
-      if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 100000) return { error: 'invalid-planned-quantity' };
+      const value = amount.quantity;
+      const quantity = typeof value === 'number' || (typeof value === 'string' && value.trim() !== '') ? Number(value) : NaN;
+      if (!Number.isFinite(quantity) || quantity < 0 || quantity > 100000) return { error: 'invalid-planned-quantity' };
       seen.add(amount.personId);
-      amounts.push({ personId: amount.personId, quantity });
+      if (quantity > 0) amounts.push({ personId: amount.personId, quantity });
     }
-    if (!optional && seen.size !== attendeeIds.length) return { error: 'amounts-must-match-attendees' };
-    items.push({ recipeId: item.recipeId, role:storedRole, categoryId, amounts });
+    if (amounts.length) items.push({ recipeId: item.recipeId, role, categoryId, amounts });
   }
+  if (!isOccasion && !items.length) return { error: 'planned-items-required' };
   return { data: { householdId: input.householdId, mealDate: input.mealDate, slot: input.slot, notes, attendeeIds, items, isOccasion, occasionTitle, occasionEnergy,...(input.requireEmptySlot===true?{requireEmptySlot:true}:{}) } };
 }
 

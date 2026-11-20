@@ -22,3 +22,7 @@ Migration additive 20261120_home_consumption.sql, avec accès aux confirmations 
 
 - [HAS, parcours de soins du diabète de type 2](https://www.has-sante.fr/jcms/p_3634754/fr/parcours-de-soins-du-patient-adulte-vivant-avec-un-diabete-de-type-2)
 - [OMS, recommandations sur les graisses saturées et trans](https://www.who.int/publications/i/item/9789240073630)
+
+## Portions à zéro dans le calendrier — 0.18.4
+
+Chaque convive peut prendre 0 d’un plat et recevoir une autre recette au même repas. La saisie accepte aussi 0 pour les parties exprimées en grammes ou converties en pièces ou tranches. Les présences sont conservées et une portion absente est affichée à 0 lorsque le plat est servi à un autre convive. Le recalcul respecte ce choix. Une recette servie à personne est ignorée et un repas ordinaire demande au moins une portion servie.

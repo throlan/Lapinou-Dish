@@ -82,6 +82,9 @@ test('the actual recalculation calls the original planner then calorie compensat
   context.apply(items,['a','b']);
   for(const person of people){assert.equal(Number(items[0].amounts[person.id])%50,0);assert.equal(Number(items[1].amounts[person.id])%35,0);assert.ok(Number(items[2].amounts[person.id])>0);}
   assert.notEqual(items[2].amounts.a,items[2].amounts.b,'the initial profile-specific proposal is not replaced by a common counted-weight plate');
+  items[0].amounts.a = '0';
+  context.apply(items,['a','b']);
+  assert.equal(items[0].amounts.a,'0');
 });
 
 test('the actual input handler compensates soup live on successive edits, and collection saves the adjusted canonical grams once',async()=>{
@@ -101,6 +104,9 @@ test('the actual input handler compensates soup live on successive edits, and co
   const previousSoup=soup.value;input.value='30';input.listeners.input();assert.equal(soup.value,previousSoup);assert.match(message.textContent,/ne laissent plus/);
   input.value='1';input.listeners.input();near(Number(soup.value),480+34*1.4/0.285);
   assert.equal(otherPerson.value,'200');assert.equal(updates,3);assert.match(message.textContent,/conserver les calories/);
+  const soupBeforeZero=soup.value;
+  input.value='0';input.listeners.input();
+  assert.equal(collect()[0].amounts.a,'0');assert.equal(soup.value,soupBeforeZero);
 });
 
 test('the calorie compensation module is available over HTTP as JavaScript',async()=>{
@@ -127,7 +133,7 @@ test('the save path keeps linked starch as a gram component of the same meal',as
   const source=await readFile(new URL('../web/app.js',import.meta.url),'utf8');
   const start=source.indexOf('  const items = isOccasion ? [] : rows.flatMap((row) => {');
   const end=source.indexOf('  if (!attendeeIds.length)',start);
-  const inputs=[{value:'160',dataset:{personId:'a'}},{value:'180',dataset:{personId:'b'}}];
+  const inputs=[{value:'160',dataset:{personId:'a'}},{value:'0',dataset:{personId:'b'}}];
   const row={dataset:{linkedRecipeId:'rice',role:'accompaniment'}};
   const context={...units,isOccasion:false,rows:[row],mealAdditionById:()=>null,
     $(selector){return {value:selector==='select[name="role"]'?'accompaniment':'rice'};},
@@ -136,5 +142,5 @@ test('the save path keeps linked starch as a gram component of the same meal',as
   assert.equal(context.saved[0].recipeId,'rice');
   assert.equal(context.saved[0].role,'accompaniment');
   assert.equal(context.saved[0].categoryId,'accompaniment');
-  assert.deepEqual(Array.from(context.saved[0].amounts,amount=>amount.quantity),[160,180]);
+  assert.deepEqual(Array.from(context.saved[0].amounts,amount=>amount.quantity),[160,0]);
 });

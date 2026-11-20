@@ -4025,7 +4025,14 @@ function applyAutomaticPortions(items, attendeeIds, {date: selectedDate, slot: s
   const selectedItems = Object.values(items).filter((item) => item.recipeId || (isIndividualMealItem(item) && Object.keys(item.assignments ?? {}).length));
   const messages = new Set();
   for (const personId of attendeeIds) {
-    const selectedForPerson = selectedItems.filter((item) => !isIndividualMealItem(item) || item.assignments?.[personId]?.recipeId);
+    const selectedForPerson = selectedItems.filter((item) => {
+      if (isIndividualMealItem(item)) {
+        const assignment = item.assignments?.[personId];
+        return assignment?.recipeId && Number(assignment.quantity) !== 0;
+      }
+      const quantity = item.amounts?.[personId];
+      return quantity == null || quantity === '' || Number(quantity) !== 0;
+    });
     const commonCount=selectedForPerson.filter(item=>!isIndividualMealItem(item)).length||1;
     const person = state.people.find((entry) => entry.id === personId);
     const profile = person && latestProfile(person, date);
@@ -4034,7 +4041,6 @@ function applyAutomaticPortions(items, attendeeIds, {date: selectedDate, slot: s
       const role = item.role ?? 'main';
       const individual=isIndividualMealItem(item);
       const assignment = individual ? item.assignments?.[personId] : null;
-      if(individual&&assignment&&Number(assignment.quantity)===0)continue;
       const recipeId = individual ? assignment?.recipeId : item.recipeId;
       if (!recipeId) continue;
       const recipe = allPlanningRecipes().find((entry) => entry.id === recipeId);
@@ -4277,14 +4283,14 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
         const recipe = allPlanningRecipes().find((entry) => entry.id === item.recipeId);
         const unit = recipe?.yield.unitId ?? 'portion';
         const step = unit === 'piece' ? '1' : unit === 'g' ? '10' : '0.5';
-        const input = document.createElement('input'); input.type = 'number'; input.min = unit === 'g' ? '0.01' : step; input.step = ['g','ml'].includes(unit) ? 'any' : step; input.required = true; input.dataset.personId = personId;
-        input.value = item.amounts?.[personId] ?? ''; input.placeholder = 'Ex. 1'; input.setAttribute('aria-label', `Quantité pour ${person?.displayName ?? 'personne'}`);
+        const input = document.createElement('input'); input.type = 'number'; input.min = '0'; input.step = ['g','ml'].includes(unit) ? 'any' : step; input.required = true; input.dataset.personId = personId;
+        input.value = item.amounts?.[personId] ?? ''; input.placeholder = '0 = aucun'; input.setAttribute('aria-label', `Quantité pour ${person?.displayName ?? 'personne'}`);
         setServingInput(input,recipe,item.amounts?.[personId]??'');
         let previousQuantity=servingInputValue(input);
         input.addEventListener('input',()=>{
           const next=servingInputValue(input);
-          let accepted=!recipe?.servingDisplay;
-          if(recipe?.servingDisplay && next!=='' && previousQuantity!=='' && Number.isFinite(Number(next)) && Number(next)>=0){
+          let accepted=!recipe?.servingDisplay || next==='0' || previousQuantity==='0';
+          if(!accepted && next!=='' && previousQuantity!=='' && Number.isFinite(Number(next)) && Number(next)>0){
             const data=currentFormAmounts();
             const result=compensateManualServing(data,allPlanningRecipes(),recipe.id,personId,Number(previousQuantity),state.servingCaps?.[personId]);
             if(result.ok){
@@ -4383,7 +4389,7 @@ async function openMealEditor(date, slot, meal = null) {
       items[nextItemIndex++] = {
         recipeId: item.recipeId, role: item.role ?? 'main', categoryId:item.categoryId??item.role??'main',
         amounts: Object.fromEntries([
-          ...(item.role === 'sauce' ? (meal.attendees ?? []).map(person=>[person.id,'0']) : []),
+          ...(meal.attendees ?? []).map(person=>[person.id,'0']),
           ...item.amounts.map(amount=>[amount.personId,String(amount.quantity)]),
         ]),
       };
@@ -4512,9 +4518,12 @@ async function saveMeal(event) {
   if (!attendeeIds.length) { showMessage($('#meal-message'), 'Sélectionne les personnes présentes pour ce repas.'); return; }
   if(!isOccasion && (!items.length || items.some((item) => !item.recipeId))) { showMessage($('#meal-message'), 'Choisis au moins une recette pour ce repas.'); return; }
   if(isOccasion && (!form.elements.occasionTitle.value.trim() || occasionEnergy.length!==attendeeIds.length || occasionEnergy.some(entry=>!Number.isFinite(entry.kcal)||entry.kcal<0))){showMessage($('#meal-message'),'Indique le nom de l’occasion et une estimation kcal pour chaque personne présente.');return;}
-  if (items.some((item) => item.role==='main' && item.amounts.length !== attendeeIds.length)
-    || items.some((item) => item.amounts.length < 1 || item.amounts.some((amount) => !Number.isFinite(amount.quantity) || amount.quantity <= 0))) {
-    showMessage($('#meal-message'), 'Indique une quantité positive pour chaque personne concernée par les recettes choisies.');
+  if (items.some(item => item.amounts.some(amount => !Number.isFinite(amount.quantity) || amount.quantity < 0))) {
+    showMessage($('#meal-message'), 'Indique une quantité positive ou 0 si la personne ne prend pas de cette recette.');
+    return;
+  }
+  if (!isOccasion && !items.some(item => item.amounts.some(amount => amount.quantity > 0))) {
+    showMessage($('#meal-message'), 'Indique au moins une portion servie pour enregistrer ce repas.');
     return;
   }
   const submitButton = $('#save-meal');
