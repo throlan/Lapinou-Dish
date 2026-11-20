@@ -313,7 +313,7 @@
 
     <dialog id="rebalance-dialog">
       <div class="dialog-heading"><h2>Rééquilibrer la journée</h2><button type="button" class="icon-button" id="close-rebalance" aria-label="Fermer">×</button></div>
-      <p>Pour les adultes, l’aperçu retire d’abord un dessert entier, puis réduit les féculents séparés par pas de 10 g. Le plat principal, les préparations déjà utilisées et les repas des mineurs restent inchangés. Un dépassement résiduel est affiché ; les protéines sont indiquées sans seuil imposé.</p>
+      <p>Pour les adultes, l’aperçu évalue les desserts entiers, puis les féculents séparés par pas de 10 g. Le total est recalculé après chaque réduction, conservée uniquement si elle rapproche de la cible. Une réduction qui éloignerait davantage de la cible est évitée. Le plat principal, les préparations déjà utilisées et les repas des mineurs restent inchangés. Un dépassement résiduel est affiché ; les protéines sont indiquées sans seuil imposé.</p>
       <div id="rebalance-preview"></div>
       <p id="rebalance-message" class="form-message" role="status"></p>
       <button type="button" class="primary" id="apply-rebalance">Appliquer ces quantités</button>
@@ -533,6 +533,6 @@
       </form>
     </dialog>
     <script type="module" src="/install-app.js?v=0.3.17"></script>
-    <script type="module" src="/app.js?v=0.17.3"></script>
+    <script type="module" src="/app.js?v=0.17.4"></script>
   </body>
 </html>

@@ -1,5 +1,12 @@
 # Cahier des améliorations proposées
 
+## Rééquilibrage journalier par étapes — 0.17.4
+
+Correction du 20 novembre : chaque retrait de dessert entier est évalué séparément, puis le total est recalculé avant de considérer le suivant. Le retrait n’est proposé que s’il réduit strictement l’écart absolu à la cible journalière. Le même contrôle s’applique à chaque pas de 10 g de féculents séparés. À distance égale, les quantités sont conservées ; entre deux retraits aussi proches, le plus petit est privilégié. Un petit dépassement résiduel reste visible au lieu d’une réduction qui éloignerait davantage de la cible. Aucune tolérance calorique arbitraire ni seuil protéique ajouté.
+
+Cas de régression sur données fictives : total 1 485,1 kcal, cible 1 363 ; un dessert à 100 kcal est retiré, l’autre préparation à 195,4 kcal est conservée, résultat 1 385,1 kcal plutôt que 1 189,7. Ces énergies ne prétendent pas représenter l’étiquette du skyr réel. Le plat principal, les mineurs, les préparations déjà utilisées et les données nutritionnelles incomplètes restent protégés. Aperçu et validation explicite conservés, jeton de fraîcheur et transaction inchangés. Aucun menu recalculé au déploiement, aucune migration.
+
+
 ## Objectif explicite et suivi du maintien — 0.17.3
 
 Le profil rétablit trois choix distincts : maintien, perte de poids, prise de poids. Les rythmes rapide/modéré/lent apparaissent uniquement en perte de poids. Un maintien explicitement choisi reste sans déficit même si le poids de forme est inférieur au poids mesuré ; le préréglage 35/35/30 reste réservé à la perte. Les anciens profils sans objectif explicite gardent leur interprétation précédente jusqu’à l’enregistrement du choix. Modèle profile-auto-v5.
