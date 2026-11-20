@@ -79,10 +79,14 @@ test('calendar daily summary colors protein values against each person minimum',
   const people=[{id:'b',displayName:'Bibinette'},{id:'l',displayName:'Lapinou'},{id:'bb',displayName:'Bibou'},{id:'t',displayName:'Titus'}];
   const context={...planner,homeBudgetShare,plannedMacro,localDateValue:()=> '2026-10-19',document:{createElement:element},state:{people,proteinTargets:{b:90,l:125,bb:85,t:50},calendarReserveOverview:null,recipes:[]},
     latestProfile:()=>null,format:value=>String(value)};
-  runInNewContext(source.slice(start,end)+'\nglobalThis.render=renderDailyEnergySummary;',context);
+  const formatStart=source.indexOf('function macroAmount('),formatEnd=source.indexOf('async function openDailyMacros(',formatStart);
+  runInNewContext(source.slice(formatStart,formatEnd)+source.slice(start,end)+'\nglobalThis.render=renderDailyEnergySummary;',context);
   const amounts=people.map((person,index)=>({personId:person.id,quantity:[4,1,4,1][index]}));
   const meals=[{mealDate:'2026-10-19',slot:'snack',attendees:people,items:[{amounts,recipe:{yield:{unitId:'piece',amount:1},nutrition:{complete:true,perYieldUnit:{energyKcal:10,proteinG:25}}}},{amounts:[{personId:'t',quantity:1}],recipe:{nutrition:{perYieldUnit:{proteinG:null}}}}]}];
+  context.state.calendarConsumption=new Map([['2026-10-19:b',{carbohydrate:{grams:null,incomplete:true},fat:{grams:6,incomplete:false}}]]);
   const footer=context.render('2026-10-19',meals);
+  assert.ok(footer.children.some(node=>node.textContent?.includes('Glucides · prévus donnée manquante · confirmés donnée manquante')));
+  assert.ok(footer.children.some(node=>node.textContent?.includes('Lipides · prévus donnée manquante · confirmés 6 g')));
   const proteinLines=footer.children.filter(child=>child.className==='daily-protein-person');
   assert.equal(proteinLines[0].children[0].classList.values.includes('protein-sufficient'),true);
   assert.equal(proteinLines[1].children[0].classList.values.includes('protein-low'),true);

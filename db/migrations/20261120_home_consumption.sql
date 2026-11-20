@@ -1,7 +1,7 @@
 CREATE TABLE person_daily_home_consumption (
   person_id uuid NOT NULL REFERENCES people(id) ON DELETE CASCADE,
   consumption_date date NOT NULL,
-  meals jsonb NOT NULL CHECK (jsonb_typeof(meals) = 'array'),
+  parts jsonb NOT NULL CHECK (jsonb_typeof(parts) = 'array'),
   revision uuid NOT NULL,
   PRIMARY KEY (person_id, consumption_date)
 );

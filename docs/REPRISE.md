@@ -1,6 +1,6 @@
-# Cahier de reprise — 19 novembre 2026
+# Cahier de reprise — 20 novembre 2026
 
-Choix des repas du jour, budget des repas à la maison et suivi glucides/lipides en 0.18.0. Voir [le journal de session](SESSION-2026-11-20-CALENDRIER.md).
+La 0.18.3 ajoute la confirmation par partie consommée, les comparaisons avec les repères personnalisés et le stock libre dans les sélecteurs. Le calendrier 0.18.2 a été validé sur les mardis et samedis. Conserver les quatre sélecteurs, les participants indépendants, le total dynamique et les suggestions communes selon le solde de chacun. Voir [le journal de session](SESSION-2026-11-20-CALENDRIER.md).
 
 ## Rééquilibrage journalier par étapes — 0.17.4
 

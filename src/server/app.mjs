@@ -1,4 +1,5 @@
-import {readHomeConsumption,saveHomeConsumption} from './home-consumption.mjs';
+import {recipeRequirements} from './recipe-ingredients.mjs';
+import {listHomeConsumption,readHomeConsumption,saveHomeConsumption} from './home-consumption.mjs';
 import {validateAutomaticProfile,saveAutomaticProfile,validateActivity,saveActivity,readAutomaticActivity,recalculateAutomatic,refreshAutomaticHousehold,parisToday} from './automatic-profile.mjs';
 import {recipeReplacementRoutes} from './recipe-replacements.mjs';
 import {validateNutritionTarget,addNutritionTarget} from './nutrition-targets.mjs';
@@ -267,14 +268,15 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
       const write=request.method==='POST';
       const body=write?await readJson(request):{value:Object.fromEntries(url.searchParams)};
       if(body.error)return send(response,body.status??400,{error:body.error});
-      const {householdId,date,mealIds,revision}=body.value??{};
+      const {householdId,date,selections,revision}=body.value??{};
       const dateValid=typeof date==='string' && /^\d{4}-\d{2}-\d{2}$/.test(date) &&
         !Number.isNaN(Date.parse(date)) && new Date(date).toISOString().slice(0,10)===date && date<=parisToday();
-      if(!isUuid(householdId)||!dateValid||write&&(!Array.isArray(mealIds)||mealIds.length>100||
-        !mealIds.every(isUuid)||new Set(mealIds.map(id=>id.toLowerCase())).size!==mealIds.length||(revision!==null&&!isUuid(revision))))
+      if(!isUuid(householdId)||!dateValid||write&&(!Array.isArray(selections)||selections.length>300||
+        !selections.every(part=>isUuid(part?.mealId)&&isUuid(part?.itemId))||
+        new Set(selections.map(part=>part.itemId.toLowerCase())).size!==selections.length||(revision!==null&&!isUuid(revision))))
         return send(response,400,{error:'invalid-home-consumption'});
       try{
-        const result=write?await saveHomeConsumption(pool,householdId,homeConsumption[1],date,mealIds.map(id=>id.toLowerCase()),revision):
+        const result=write?await saveHomeConsumption(pool,householdId,homeConsumption[1],date,selections.map(({mealId,itemId})=>({mealId:mealId.toLowerCase(),itemId:itemId.toLowerCase()})),revision):
           await readHomeConsumption(pool,householdId,homeConsumption[1],date);
         return send(response,result.error==='person-not-found'?404:result.error?409:200,result);
       }catch{return send(response,500,{error:'home-consumption-unavailable'});}
@@ -563,6 +565,20 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
       } catch { return send(response, 500, { error: 'shopping-list-state-save-failed' }); }
     }
 
+    if (request.method === 'GET' && url.pathname === '/api/planning/recipe-stock') {
+      const householdId = url.searchParams.get('householdId'), date = url.searchParams.get('date');
+      const mealId = url.searchParams.get('mealId');
+      if (!isUuid(householdId) || !isValidDate(date) || (mealId != null && !isUuid(mealId))) {
+        return send(response, 400, {error:'invalid-stock-selection'});
+      }
+      try {
+        const {availableStock} = await recipeRequirements(pool, householdId, '0001-01-01', '9999-12-31',
+          {stockOn:date, excludeMealId:mealId});
+        return send(response, 200, {stock:availableStock});
+      } catch {
+        return send(response, 500, {error:'planning-stock-unavailable'});
+      }
+    }
     if (request.method === 'GET' && url.pathname === '/api/planning/recipe-ids') {
       const householdId = url.searchParams.get('householdId');
       const fromDate = url.searchParams.get('fromDate');
@@ -576,7 +592,8 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
       const weekStart = url.searchParams.get('weekStart');
       if (!isUuid(householdId)) return send(response, 400, { error: 'invalid-household-id' });
       if (!isValidDate(weekStart) || new Date(`${weekStart}T00:00:00Z`).getUTCDay() !== 1) return send(response, 400, { error: 'invalid-week-start' });
-      try { return send(response, 200, { meals: await listPlannedMeals(pool, householdId, weekStart) }); }
+      try { return send(response, 200, { meals: await listPlannedMeals(pool, householdId, weekStart),
+        homeConsumption: await listHomeConsumption(pool, householdId, weekStart) }); }
       catch { return send(response, 500, { error: 'planning-list-failed' }); }
     }
     if (url.pathname === '/api/planning/meals' && request.method === 'POST') {

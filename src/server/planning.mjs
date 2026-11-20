@@ -233,7 +233,7 @@ export async function readPlannedMeal(client, meal, householdId) {
       client.query('SELECT person_id, quantity FROM planned_amounts WHERE planned_item_id = $1', [item.id]),
     ]);
     items.push({
-      recipeId: item.recipe_id, role: item.role ?? 'main', categoryId:item.category_id||item.role||'main', recipe,
+      id: item.id, recipeId: item.recipe_id, role: item.role ?? 'main', categoryId:item.category_id||item.role||'main', recipe,
       amounts: amounts.rows.map((amount) => ({ personId: amount.person_id, quantity: Number(amount.quantity) })),
     });
   }

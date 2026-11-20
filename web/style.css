@@ -861,6 +861,15 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
   display: grid;
   gap: 0.4rem;
 }
+#daily-consumed-meals fieldset {
+  display: grid;
+  gap: 0.35rem;
+}
+#daily-consumed-meals .attendee-option {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
 #daily-consumed-meals input[type="checkbox"] {
   width: auto;
 }

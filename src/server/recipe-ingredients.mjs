@@ -103,7 +103,7 @@ export async function availableRecipeStock(client,householdId) {
 
 // Expand missing quantities only, sharing the same finished-stock pool for direct
 // menus and nested uses. Earlier menus reserve first, exactly as before.
-export async function recipeRequirements(client,householdId,startDate,endDate,{mealId=null,includeUntracked=false,includeMealIds=false}={}) {
+export async function recipeRequirements(client,householdId,startDate,endDate,{mealId=null,includeUntracked=false,includeMealIds=false,stockOn=null,excludeMealId=null}={}) {
   const [graph,stock]=await Promise.all([loadRecipeGraph(client,householdId),availableRecipeStock(client,householdId)]);
   for(const recipe of graph.values()){
     recipe.minimumProductionQuantity=recipeMinimumInYield(recipe);
@@ -161,8 +161,14 @@ export async function recipeRequirements(client,householdId,startDate,endDate,{m
   const ordered=[...events.rows.map((event,index)=>({...event,order:index,extra:false})),
     ...extra.rows.map((event,index)=>({...event,order:index,extra:true}))]
     .sort((a,b)=>a.date.localeCompare(b.date)||Number(b.extra)-Number(a.extra)||a.order-b.order);
-  for(const event of ordered)demand(event.recipe_id,Number(event.quantity),event);
-  return {graph,initialStock,reservations,
+  for(const event of ordered)if(event.extra||event.id!==excludeMealId)demand(event.recipe_id,Number(event.quantity),event);
+  const availableStock = stockOn == null ? null : [...buckets].flatMap(([recipeId, entries]) => {
+    const quantity = clean(entries.filter(entry => !entry.virtual && (!entry.start || entry.start <= stockOn) &&
+      (!entry.mealId || entry.mealId === excludeMealId || entry.end < stockOn))
+      .reduce((sum, entry) => sum + Math.max(0, entry.quantity), 0));
+    return quantity > 0 ? [{recipeId, quantity, unitId:graph.get(recipeId).yield.unitId}] : [];
+  });
+  return {graph,initialStock,reservations,availableStock,
     preparations:[...preparations.values()].map(({meals,...p})=>({...p,plannedQuantity:clean(p.plannedQuantity),coveredQuantity:clean(p.coveredQuantity),toMakeQuantity:clean(p.toMakeQuantity),mealCount:meals.size,...(includeMealIds?{mealIds:[...meals]}:{})})).sort((a,b)=>a.firstDate.localeCompare(b.firstDate)||a.name.localeCompare(b.name,'fr')),
     foods:[...foods.values()].map(({sources,...f})=>({...f,quantity:clean(f.quantity),recipes:[...sources.values()].map(r=>({...r,quantity:clean(r.quantity)})).sort((a,b)=>a.name.localeCompare(b.name,'fr'))})).sort((a,b)=>a.name.localeCompare(b.name,'fr')||a.unitId.localeCompare(b.unitId))};
 }
