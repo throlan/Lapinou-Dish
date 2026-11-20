@@ -271,10 +271,10 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
       const dateValid=typeof date==='string' && /^\d{4}-\d{2}-\d{2}$/.test(date) &&
         !Number.isNaN(Date.parse(date)) && new Date(date).toISOString().slice(0,10)===date && date<=parisToday();
       if(!isUuid(householdId)||!dateValid||write&&(!Array.isArray(mealIds)||mealIds.length>100||
-        new Set(mealIds).size!==mealIds.length||!mealIds.every(isUuid)||(revision!==null&&!isUuid(revision))))
+        !mealIds.every(isUuid)||new Set(mealIds.map(id=>id.toLowerCase())).size!==mealIds.length||(revision!==null&&!isUuid(revision))))
         return send(response,400,{error:'invalid-home-consumption'});
       try{
-        const result=write?await saveHomeConsumption(pool,householdId,homeConsumption[1],date,mealIds,revision):
+        const result=write?await saveHomeConsumption(pool,householdId,homeConsumption[1],date,mealIds.map(id=>id.toLowerCase()),revision):
           await readHomeConsumption(pool,householdId,homeConsumption[1],date);
         return send(response,result.error==='person-not-found'?404:result.error?409:200,result);
       }catch{return send(response,500,{error:'home-consumption-unavailable'});}
