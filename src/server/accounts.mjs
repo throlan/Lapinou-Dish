@@ -347,6 +347,7 @@ async function assertMemberWrite(actor,request,url,pool){
  if(privateAutomatic&&actor.role!=='manager'&&privateAutomatic[1]!==actor.personId)throw accountError('household-manager-required',403);
  if(['GET','HEAD'].includes(request.method))return;
  if(actor.role==='manager')return;
+ if(request.method==='POST'&&url.pathname==='/api/planning/home-consumption'&&actor.personId)return;
  if(request.method==='POST'&&/^\/api\/recipes\/[a-f0-9-]{36}\/choices\/resolve$/i.test(url.pathname))return;
  if(actor.applicationAdmin&&url.pathname.startsWith('/api/recipe-choice-lists'))return;
  if(actor.applicationAdmin&&/^\/api\/(recipes|recipe-imports)(?:\/|$)/.test(url.pathname))return;

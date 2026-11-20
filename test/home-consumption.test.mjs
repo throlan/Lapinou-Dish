@@ -5,10 +5,11 @@ import {readFile,readdir} from 'node:fs/promises';
 import {runInNewContext} from 'node:vm';
 import {PGlite} from '@electric-sql/pglite';
 import {scopedOperation} from '../src/server/accounts.mjs';
-import {saveHomeConsumption,readHomeConsumption,listHomeConsumption} from '../src/server/home-consumption.mjs';
+import {saveHomeConsumption,readHomeConsumption,listHomeConsumption,saveHomeConsumptionDay,readHomeConsumptionDay} from '../src/server/home-consumption.mjs';
+import {handleRequest} from '../src/server/app.mjs';
 import {createRecipe,validateRecipeInput} from '../src/server/recipes.mjs';
 import {savePlannedMeal} from '../src/server/planning.mjs';
-import {homeBudgetShare,plannedMacro,consumptionParts,confirmedMacro} from '../web/day-meals.js';
+import {homeBudgetShare,consumptionParts,consumptionSelections,homeConsumptionTotals} from '../web/day-meals.js';
 import {DEFAULT_MEAL_RATIOS,MEAL_LABELS} from '../web/meal-config.js';
 
 test('home consumption confirms only the participant’s meals, snapshots macros and rejects stale or private changes',async t=>{
@@ -24,7 +25,7 @@ test('home consumption confirms only the participant’s meals, snapshots macros
   await pool.query("INSERT INTO households(id,name) VALUES($1,'Test')",[h]);
   await pool.query("INSERT INTO people(id,household_id,display_name) VALUES($1,$3,'A'),($2,$3,'B')",[person,other,h]);
   await pool.query("INSERT INTO foods(id,canonical_name,source) VALUES($1,'Test','manual')",[food]);
-  await pool.query("INSERT INTO food_nutrients(food_id,nutrient_id,value_per_100g) VALUES($1,'carbohydrate_g',14),($1,'fat_g',6)",[food]);
+  await pool.query("INSERT INTO food_nutrients(food_id,nutrient_id,value_per_100g) VALUES($1,'carbohydrate_g',14),($1,'fat_g',6),($1,'energy_kcal',100),($1,'protein_g',10),($1,'fibre_g',2)",[food]);
   const recipe=await createRecipe(pool,validateRecipeInput({householdId:h,name:'Plat fictif',yield:{amount:1,unitId:'portion'},lines:[{foodId:food,quantity:100,unitId:'g'}]}).data);
   const dessertFood=randomUUID();
   await pool.query("INSERT INTO foods(id,canonical_name,source) VALUES($1,'Dessert fictif','manual')",[dessertFood]);
@@ -38,6 +39,15 @@ test('home consumption confirms only the participant’s meals, snapshots macros
   const selection=(meal,index=0)=>({mealId:meal.id,itemId:meal.items[index].id});
   const actor={householdId:h,personId:person,role:'member'};
   const save=(parts,revision)=>scopedOperation(pool,actor,scoped=>saveHomeConsumption(scoped,h,person,date,parts,revision));
+  const bulk=(entries)=>scopedOperation(pool,{...actor,role:'manager'},scoped=>saveHomeConsumptionDay(scoped,h,date,entries));
+  const entry=(personId,part)=>({personId,revision:null,selections:[part]});
+  const invalid=await bulk([entry(person,selection(breakfast)),entry(other,selection(dinner))]);
+  assert.equal(invalid.error,'part-not-confirmable');
+  assert.deepEqual(await readHomeConsumptionDay(pool,h,date),{entries:[]});
+  const response={setHeader(){},writeHead(status){this.status=status;},end(body){this.body=JSON.parse(body);}};
+  await scopedOperation(pool,actor,scoped=>handleRequest({url:'/api/planning/home-consumption',method:'POST',headers:{},account:actor,
+    async *[Symbol.asyncIterator](){yield Buffer.from(JSON.stringify({householdId:h,date,entries:[entry(other,selection(lunch))]}));}},response,scoped));
+  assert.equal(response.status,403);
   assert.equal((await save([selection(lunch)],null)).error,'part-not-confirmable');
   assert.equal((await save([{mealId:dinner.id,itemId:breakfast.items[0].id}],null)).error,'part-not-confirmable');
   const confirmed=await save([selection(breakfast),selection(dinner)],null);
@@ -50,52 +60,59 @@ test('home consumption confirms only the participant’s meals, snapshots macros
   assert.deepEqual(revised.parts[0],confirmed.parts[1]);
   assert.deepEqual(revised.parts[1].fat,{grams:null,incomplete:true});
   const weekly=await scopedOperation(pool,actor,scoped=>listHomeConsumption(scoped,h,'2026-11-16'));
-  assert.deepEqual(weekly,[{personId:person,date,carbohydrate:{grams:36,incomplete:false},fat:{grams:12,incomplete:true}}]);
+  assert.deepEqual(weekly,[{personId:person,date,energy:{grams:200,incomplete:true},protein:{grams:20,incomplete:true},
+    carbohydrate:{grams:36,incomplete:false},fat:{grams:12,incomplete:true},fibre:{grams:4,incomplete:true}}]);
   const hidden=await scopedOperation(pool,{...actor,personId:other},scoped=>readHomeConsumption(scoped,h,person,date));
   assert.deepEqual(hidden,{parts:[],revision:null});
   assert.deepEqual(await scopedOperation(pool,{...actor,personId:other},scoped=>listHomeConsumption(scoped,h,'2026-11-16')),[]);
   const cleared=await save([],revised.revision);
   assert.deepEqual(cleared.parts,[]);
+  assert.deepEqual((await scopedOperation(pool,actor,scoped=>listHomeConsumption(scoped,h,'2026-11-16')))[0].energy,
+    {grams:0,incomplete:false});
+  const confirmedOther=await bulk([entry(other,selection(lunch))]);
+  assert.equal(confirmedOther.entries[0].parts.length,1);
+  assert.equal((await scopedOperation(pool,actor,scoped=>readHomeConsumptionDay(scoped,h,date))).entries.length,1);
 });
 
-test('the calendar confirmation sends only checked parts and shows the personal home budget',async()=>{
+test('one button confirms pending people and the editor saves only unchecked changes',async()=>{
   const source=await readFile(new URL('../web/app.js',import.meta.url),'utf8');
-  const start=source.indexOf('let macroView ='),end=source.indexOf('function renderDailyEnergySummary',start);
-  const node=tag=>({tag,children:[],append(...children){this.children.push(...children);},
-    replaceChildren(){this.children=[];},showModal(){this.open=true;}});
-  const button=node('button'),form=node('form');
-  form.querySelector=()=>button;
+  const start=source.indexOf('const dailyConsumptionEndpoint'), end=source.indexOf('const dailySummaryFields',start);
+  const node=tag=>({tag,children:[],handlers:{},append(...children){this.children.push(...children);},
+    replaceChildren(){this.children=[];},setAttribute(){},addEventListener(name,fn){this.handlers[name]=fn;},
+    showModal(){this.open=true;},close(){this.open=false;}});
+  const button=node('button'),form=node('form');form.querySelector=()=>button;
   const nodes={'#daily-macros-dialog':node('dialog'),'#daily-macros-form':form,'#daily-macros-message':node('p'),
-    '#daily-consumed-meals':node('div'),'#daily-macros-comparison':node('div'),'#daily-macros-title':node('h2')};
-  const date='2026-11-19',person={id:'a',displayName:'Profil fictif'};
-  const item=(id,name,carbohydrateG,fatG)=>({id,amounts:[{personId:'a',quantity:1}],
-    recipe:{name,yield:{unitId:'portion'},nutrition:{perYieldUnit:{carbohydrateG,fatG}}}});
-  const main=item('main','Plat',18,7),dessert=item('dessert','Dessert',12,null);
-  const meals=[{id:'breakfast',mealDate:date,slot:'breakfast',attendees:[person],items:[item('toast','Tartine',10,2)]},
-    {id:'lunch',mealDate:date,slot:'lunch',attendees:[{id:'b'}],items:[]},
-    {id:'dinner',mealDate:date,slot:'dinner',attendees:[person],items:[main,dessert]}];
-  let sent;
-  const context={homeBudgetShare,plannedMacro,consumptionParts,confirmedMacro,slotLabels:MEAL_LABELS,
+    '#daily-consumed-meals':node('div'),'#daily-macros-title':node('h2'),'#calendar-grid':{querySelector:()=>null}};
+  const date='2026-11-19',a={id:'a',displayName:'Profil A'},b={id:'b',displayName:'Profil B'};
+  const item=(person,id)=>({id,amounts:[{personId:person.id,quantity:1}],recipe:{name:id,yield:{unitId:'portion'}}});
+  const meals=[{id:'breakfast',mealDate:date,slot:'breakfast',attendees:[a],items:[item(a,'Tartine'),item(a,'Boisson')]},
+    {id:'lunch',mealDate:date,slot:'lunch',attendees:[b],items:[item(b,'Plat')]}];
+  const parts=consumptionParts(meals,a.id,date).map(({item,...part})=>part);
+  const entries=[{personId:a.id,parts,revision:'rev-a'}];
+  const sent=[];
+  const context={consumptionParts,consumptionSelections,homeConsumptionTotals,slotLabels:MEAL_LABELS,
     $:selector=>nodes[selector],document:{createElement:node,createTextNode:text=>({text})},URLSearchParams,
-    state:{household:{id:'h'},mealRatios:DEFAULT_MEAL_RATIOS},latestProfile:()=>({dailyCarbohydrateG:100,dailyFatG:50}),
-    displayDate:String,formatQty:String,format:String,servingUnitLabel:String,refreshCalendar:async()=>{},
+    state:{account:{role:'manager'},household:{id:'h'},people:[a,b],calendarConsumption:new Map([[date+':a',{}]])},
+    displayDate:String,formatQty:String,servingUnitLabel:String,
     api:async(_,options)=>{
-      if(!options)return {parts:[],revision:null};
-      sent=JSON.parse(options.body);
-      const {item,...part}=consumptionParts(meals,person.id,date).find(part=>part.itemId==='main');
-      return {parts:[{...part,carbohydrate:{grams:18,incomplete:false},fat:{grams:7,incomplete:false}}],revision:'saved'};
+      if(!options)return {entries};
+      const payload=JSON.parse(options.body);sent.push(payload);
+      return {entries:payload.entries.map(entry=>({...entry,parts:[]}))};
     }};
-  runInNewContext(source.slice(start,end)+'\nglobalThis.open=openDailyMacros;',context);
-  await context.open(person,date,meals);
-  const groups=nodes['#daily-consumed-meals'].children;
-  assert.equal(groups.length,2);
-  assert.equal(groups[0].children[0].textContent,'Petit-déjeuner');
-  assert.equal(groups[1].children.length,3);
-  groups[1].children[1].children[0].checked=true;
+  runInNewContext(source.slice(start,end)+'\nglobalThis.open=openDailyConsumption;globalThis.actions=renderDailyConsumptionActions;',context);
+  const actions=context.actions(date,meals);
+  await actions.children[0].handlers.click();
+  assert.deepEqual(sent[0],{householdId:'h',date,entries:[{personId:'b',revision:null,selections:[{mealId:'lunch',itemId:'Plat'}]}]});
+  assert.equal(context.actions(date,meals).children[0].disabled,true);
+  entries.push({personId:'b',parts:consumptionParts(meals,b.id,date),revision:'rev-b'});
+  await context.open(date,meals);
+  const profiles=nodes['#daily-consumed-meals'].children;
+  assert.equal(profiles.length,2);
+  const group=profiles[0].children[1];assert.equal(group.children[0].textContent,'Petit-déjeuner');
+  group.children[2].children[0].checked=false;
   await form.onsubmit({preventDefault(){}});
-  assert.deepEqual(sent,{householdId:'h',date,selections:[{mealId:'dinner',itemId:'main'}],revision:null});
-  const comparison=nodes['#daily-macros-comparison'].children.map(entry=>entry.textContent);
-  assert.match(comparison[0],/prévus 40 g · confirmés 18 g · repère personnalisé à la maison 60 g/);
-  assert.match(comparison[1],/prévus au moins 9 g \(incomplet\) · confirmés 7 g/);
-  assert.match(comparison[2],/Graisses saturées · donnée non disponible/);
+  assert.deepEqual(sent[1],{householdId:'h',date,entries:[{personId:'a',revision:'rev-a',selections:[{mealId:'breakfast',itemId:'Tartine'}]}]});
+  const legacy=homeConsumptionTotals([{carbohydrate:{grams:20,incomplete:false}}]);
+  assert.deepEqual(legacy.energy,{grams:null,incomplete:true});
+  assert.deepEqual(legacy.carbohydrate,{grams:20,incomplete:false});
 });

@@ -1,5 +1,5 @@
 import {recipeRequirements} from './recipe-ingredients.mjs';
-import {listHomeConsumption,readHomeConsumption,saveHomeConsumption} from './home-consumption.mjs';
+import {listHomeConsumption,readHomeConsumption,readHomeConsumptionDay,saveHomeConsumption,saveHomeConsumptionDay} from './home-consumption.mjs';
 import {validateAutomaticProfile,saveAutomaticProfile,validateActivity,saveActivity,readAutomaticActivity,recalculateAutomatic,refreshAutomaticHousehold,parisToday} from './automatic-profile.mjs';
 import {recipeReplacementRoutes} from './recipe-replacements.mjs';
 import {validateNutritionTarget,addNutritionTarget} from './nutrition-targets.mjs';
@@ -266,20 +266,30 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
       try{const data=await readAutomaticActivity(pool,automaticRead[1],householdId);return send(response,data?200:404,data??{error:'person-not-found'});}catch{return send(response,500,{error:'automatic-profile-read-failed'});}
     }
     const homeConsumption=url.pathname.match(/^\/api\/people\/([a-f0-9-]{36})\/home-consumption$/i);
-    if(homeConsumption && isUuid(homeConsumption[1]) && ['GET','POST'].includes(request.method)){
+    const wholeDayConsumption=url.pathname==='/api/planning/home-consumption';
+    if((wholeDayConsumption||isUuid(homeConsumption?.[1])) && ['GET','POST'].includes(request.method)){
       const write=request.method==='POST';
       const body=write?await readJson(request):{value:Object.fromEntries(url.searchParams)};
       if(body.error)return send(response,body.status??400,{error:body.error});
-      const {householdId,date,selections,revision}=body.value??{};
-      const dateValid=typeof date==='string' && /^\d{4}-\d{2}-\d{2}$/.test(date) &&
-        !Number.isNaN(Date.parse(date)) && new Date(date).toISOString().slice(0,10)===date && date<=parisToday();
-      if(!isUuid(householdId)||!dateValid||write&&(!Array.isArray(selections)||selections.length>300||
-        !selections.every(part=>isUuid(part?.mealId)&&isUuid(part?.itemId))||
-        new Set(selections.map(part=>part.itemId.toLowerCase())).size!==selections.length||(revision!==null&&!isUuid(revision))))
-        return send(response,400,{error:'invalid-home-consumption'});
+      const {householdId,date,entries,selections,revision}=body.value??{};
+      if(!isUuid(householdId)||!isValidDate(date)||date>parisToday())return send(response,400,{error:'invalid-home-consumption'});
+      const personId=homeConsumption?.[1].toLowerCase();
+      let updates;
+      if(write){
+        const proposed=wholeDayConsumption?entries:[{personId,selections,revision}];
+        if(!Array.isArray(proposed)||!proposed.length||proposed.length>150||!proposed.every(validHomeConsumptionEntry))
+          return send(response,400,{error:'invalid-home-consumption'});
+        updates=proposed.map(entry=>({personId:entry.personId.toLowerCase(),revision:entry.revision?.toLowerCase()??null,
+          selections:entry.selections.map(({mealId,itemId})=>({mealId:mealId.toLowerCase(),itemId:itemId.toLowerCase()}))}));
+        if(new Set(updates.map(entry=>entry.personId)).size!==updates.length)return send(response,400,{error:'invalid-home-consumption'});
+        if(request.account&&request.account.role!=='manager'&&updates.some(entry=>entry.personId!==request.account.personId))
+          return send(response,403,{error:'household-manager-required'});
+      }
       try{
-        const result=write?await saveHomeConsumption(pool,householdId,homeConsumption[1],date,selections.map(({mealId,itemId})=>({mealId:mealId.toLowerCase(),itemId:itemId.toLowerCase()})),revision):
-          await readHomeConsumption(pool,householdId,homeConsumption[1],date);
+        const result=wholeDayConsumption
+          ? (write?await saveHomeConsumptionDay(pool,householdId,date,updates):await readHomeConsumptionDay(pool,householdId,date))
+          : (write?await saveHomeConsumption(pool,householdId,personId,date,updates[0].selections,updates[0].revision)
+            :await readHomeConsumption(pool,householdId,personId,date));
         return send(response,result.error==='person-not-found'?404:result.error?409:200,result);
       }catch{return send(response,500,{error:'home-consumption-unavailable'});}
     }
@@ -1197,6 +1207,13 @@ function isValidDate(value) {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 function isUuid(value) { return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value); }
+
+function validHomeConsumptionEntry(entry) {
+  return isUuid(entry?.personId)&&(entry.revision===null||isUuid(entry.revision))&&
+    Array.isArray(entry.selections)&&entry.selections.length<=300&&
+    entry.selections.every(part=>isUuid(part?.mealId)&&isUuid(part?.itemId))&&
+    new Set(entry.selections.map(part=>part.itemId.toLowerCase())).size===entry.selections.length;
+}
 function isSupportedRecipeUrl(value) {
   try { const url = new URL(value); return url.protocol === 'https:' && ['instagram.com', 'www.instagram.com', 'youtube.com', 'www.youtube.com', 'youtu.be', 'm.youtube.com'].includes(url.hostname.toLowerCase()); }
   catch { return false; }

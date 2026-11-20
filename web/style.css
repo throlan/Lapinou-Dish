@@ -418,15 +418,16 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
 
 .daily-energy-summary { display:grid; gap:9px; margin-top:auto; padding-top:12px; border-top:1px solid #354865; font-size:12px; }
 .daily-energy-summary>strong { color:#a1b2cc; font-size:11px; }
-.daily-energy-person { display:grid; gap:2px; }
-.daily-energy-value { font-size:12px; font-weight:600; }
-.daily-energy-value.over-target,.daily-energy-value.incomplete { color:#ffd071; }
+.daily-energy-person { display:grid; gap:4px; padding:7px; border:1px solid var(--line); border-radius:8px; }
+.daily-energy-heading { display:flex; flex-wrap:wrap; justify-content:space-between; gap:2px 6px; }
+.daily-energy-person dl { margin:0; display:grid; grid-template-columns:auto 1fr; gap:1px 6px; font-variant-numeric:tabular-nums; }
+.daily-energy-person dd { margin:0; text-align:right; }
+.daily-energy-person .over-target,.daily-energy-person .incomplete { color:var(--warning-text,#99561c); }
 .daily-energy-person small { color:#a1b2cc; font-size:10px; }
-.daily-protein-person { display:grid; gap:2px; margin-top:-5px; }
-.daily-protein-value { font-size:11px; font-weight:700; }
-.daily-protein-value.protein-sufficient { color:#c6ed75; }
-.daily-protein-value.protein-low { color:#ffd071; }
-.daily-protein-value.protein-unknown,.daily-protein-person small { color:#a1b2cc; font-size:10px; }
+.daily-consumption-actions { display:flex; flex-wrap:wrap; gap:5px; }
+.daily-consumption-actions button { padding:6px 8px; font-size:12px; white-space:normal; flex:1 1 auto; }
+.daily-consumption-actions small { flex-basis:100%; }
+.daily-consumption-actions small:empty { display:none; }
 
 .print-meal-items { display:none; }
 @page { size: A4 landscape; margin: 7mm; }
@@ -436,7 +437,7 @@ label:not(.search):not(.incomplete-filter) { color: #dce7f7; }
   .topbar, main > .intro, main > .view:not(#calendar-view), #calendar-view > .section-heading p,
   #calendar-view > .section-heading button, .calendar-print-button, .calendar-week-nav button,
   .calendar-toolbar > .muted, #calendar-summary, .calendar-add, .planned-meal-card > button,
-  .planned-meal-card > small, .daily-energy-summary { display:none !important; }
+  .planned-meal-card > small, .daily-energy-summary, .daily-consumption-actions { display:none !important; }
   main { width:100%; max-width:none; margin:0; padding:0; }
   #calendar-view, #calendar-view:not(.hidden) { display:block !important; width:100%; margin:0; padding:0; border:0; box-shadow:none; background:#fff; }
   #calendar-view > .section-heading { margin:0 0 4mm; padding:0; border:0; }
@@ -922,14 +923,29 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 
 #daily-consumed-meals {
   display: grid;
-  gap: 0.4rem;
+  gap: 0.6rem;
+}
+#daily-consumed-meals details {
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:.75rem;
+}
+#daily-consumed-meals summary {
+  cursor:pointer;
+  font-weight:650;
 }
 #daily-consumed-meals fieldset {
   display: grid;
   gap: 0.35rem;
+  min-width:0;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:.5rem;
+  margin-top:.5rem;
 }
-#daily-consumed-meals .attendee-option {
-  display: flex;
+#daily-consumed-meals label {
+  display: grid;
+  grid-template-columns: auto 1fr;
   align-items: baseline;
   gap: 0.4rem;
 }

@@ -1,4 +1,4 @@
-import {homeBudgetShare,plannedMacro,itemMacro,fitsDayExtra,expandDayMealPortions,consumptionParts,confirmedMacro,preparationStockLabel} from './day-meals.js';
+import {homeBudgetShare,plannedMacro,itemMacro,fitsDayExtra,expandDayMealPortions,consumptionParts,consumptionSelections,homeConsumptionTotals,CONSUMPTION_NUTRIENTS,preparationStockLabel} from './day-meals.js';
 import {servedGramsPerUnit} from './main-dish-cap.js';
 import {effectiveNutritionProfile,renderNutritionGoals,monthlyReview} from './nutrition-goals.js';
 import {foodCorrectionField,foodMeasurePayload,foodMeasureComparisons,foodPurchaseMode,deriveFoodMeasures,foodMeasureVolumes,foodMeasureLabels} from './food-corrections.js';
@@ -14,7 +14,7 @@ import {renderCookingMethod} from './cooking-method-view.js';
 import {createRecipeReviews} from './recipe-reviews.js';
 import {createAccountUI,accountMessage} from './accounts-ui.js';
 import {ageAtDate,effectiveDatedEntry} from './profile-dates.js';
-import { breakfastServingLimit, calculateDailyEnergy, calculateDailyProtein, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, dailyProteinTarget, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';
+import { breakfastServingLimit, calculateDailyEnergy, calculatePersonEnergy, calculatePersonProtein, calculateWeeklyEnergyTarget, dailyProteinTarget, saladServingLimit, SLOT_RATIOS, suggestQuantity } from './portion-planner.js';
 import {mountCookingInstagram} from './cooking-instagram.js';
 import {servingUnit,servingUnitLabel,displayServingQuantity,setServingInput,servingInputValue} from './serving-quantities.js';
 import {compensateManualServing} from './serving-compensation.js';
@@ -3289,6 +3289,7 @@ async function dorefreshCalendar(sequence) {
 function renderCalendarDay(date, meals, today) {
   const day = document.createElement('article');
   day.className = `calendar-day${date === today ? ' today' : ''}`;
+  day.dataset.date = date;
   if(date===calendarSelectedDate)day.classList.add('is-active');
   const heading = document.createElement('div'); heading.className = 'calendar-day-heading';
   heading.innerHTML = `<span>${displayDate(date, { weekday: 'short' })}</span><strong>${displayDate(date, { day: '2-digit', month: 'short' })}</strong>`;
@@ -3298,6 +3299,10 @@ function renderCalendarDay(date, meals, today) {
   if(state.account?.role==='manager'){
     const choose=document.createElement('button');choose.type='button';choose.className='secondary';
     choose.textContent='Choisir les repas';choose.addEventListener('click',()=>openDayMeals(date,meals));day.append(choose);
+  }
+  if (date <= today) {
+    const actions = renderDailyConsumptionActions(date,meals);
+    if (actions) day.append(actions);
   }
   for (const slot of MEAL_ORDER.filter(slot=>slot!=='evening_snack'||meals.some(meal=>meal.mealDate===date&&meal.slot===slot))) {
     const section = document.createElement('section'); section.className = 'calendar-slot';
@@ -3434,7 +3439,7 @@ function openDayMeals(date, calendarMeals) {
     };
     const meals = draft.map(meal => ({...meal, items:mainItems(meal)}));
     if (meals.some(meal => meal.items.some(item => item.amounts.some(amount => !(amount.quantity > 0))))) {
-      message.textContent = 'Certaines portions de plat n’ont pas pu être proposées. Ouvre le créneau dans le calendrier pour les saisir.';
+      message.textContent = 'Certaines portions n’ont pas pu être proposées avec les plafonds et données disponibles. Ouvre le créneau pour les vérifier.';
       return;
     }
     const participation = [...existing, ...meals.map(meal => ({mealDate:date, slot:meal.slot, attendees:meal.attendeeIds.map(id => ({id}))}))];
@@ -3467,6 +3472,11 @@ function openDayMeals(date, calendarMeals) {
       const share=homeBudgetShare(participation,person.id,date,ratios);
       return [person.id,daily==null?null:daily*share];
     }));
+    const adjustPortions = useBalance ?? fields.every(field=>field.select.value);
+    if (adjustPortions) expandDayMealPortions(meals,{
+      targets,used,incomplete:unknownEnergy,energy,
+      propose:(meal,personId,budget)=>mainItems(meal,[personId],budget).map(item=>item.amounts[0].quantity),
+    });
     const extras=[], groups=[];
     const eligible = (item,previous=null) => {
       const amounts = item.amounts.filter(({personId,quantity}) => {
@@ -3477,8 +3487,10 @@ function openDayMeals(date, calendarMeals) {
       });
       return item.role === 'sauce' && amounts.length !== item.amounts.length ? [] : amounts;
     };
-    for(const meal of meals.filter(entry=>['lunch','dinner'].includes(entry.slot))){
-      for(const role of meal.recipe.recipeType==='salad'?['sauce','dessert']:['dessert']){
+    for(const meal of meals){
+      const roles=meal.slot==='breakfast'?['beverage']:['lunch','dinner'].includes(meal.slot)
+        ? (meal.recipe.recipeType==='salad'?['sauce','dessert']:['dessert']) : [];
+      for(const role of roles){
         const category=state.mealAdditions.find(entry=>entry.role===role && entry.slots.includes(meal.slot) && !entry.sharedSlots?.includes(meal.slot));
         const candidates=recipesForPlanning(meal.slot,role,[],category?.recipeType).filter(recipe=>!recipe.servingParts?.length);
         const items=candidates.flatMap(recipe=>{
@@ -3507,7 +3519,7 @@ function openDayMeals(date, calendarMeals) {
         .filter(item=>item.amounts.length || item.recipeId===selected?.recipeId)
         .map(item=>item.recipeId===selected?.recipeId?selected:item);
       const label=document.createElement('label'), select=document.createElement('select');
-      const title=role==='sauce'?'Sauce':'Dessert';
+      const title={sauce:'Sauce',dessert:'Dessert',beverage:'Boisson'}[role];
       select.setAttribute('aria-label',slotLabels[meal.slot]+' · '+title);
       label.append(document.createTextNode(title),select);
       select.add(new Option(options.length?'Aucun complément':'Aucune proposition dans le solde',''));
@@ -3520,18 +3532,13 @@ function openDayMeals(date, calendarMeals) {
       select.addEventListener('change',event=>{event.stopPropagation();selectedExtras.set(key,select.value);render(key);});
       const complements = fields.find(field=>field.slot===meal.slot).complements;
       complements.append(label);
-      if(role==='dessert' && selected && selected.amounts.length < meal.attendeeIds.length) {
+      if(selected && selected.amounts.length < meal.attendeeIds.length) {
         const recipients=document.createElement('small');
         recipients.textContent='Pour '+selected.amounts.map(amount=>people.find(person=>person.id===amount.personId).displayName).join(', ');
         complements.append(recipients);
       }
       if(key===focusKey&&!select.disabled)select.focus({preventScroll:true});
     }
-    const adjustPortions = useBalance ?? fields.every(field=>field.select.value);
-    if (adjustPortions) expandDayMealPortions(meals,{
-      targets,used,incomplete:unknownEnergy,energy,
-      propose:(meal,personId,budget)=>mainItems(meal,[personId],budget).map(item=>item.amounts[0].quantity),
-    });
     const totals=document.createElement('section'), heading=document.createElement('strong');
     totals.className='day-meal-totals';heading.textContent='Calories prévues / budget à la maison';totals.append(heading);
     for(const person of people){
@@ -3605,165 +3612,198 @@ function openDayMeals(date, calendarMeals) {
   }
 }
 
-let macroView = 0;
-function macroAmount(amount) {
-  if (amount.grams == null) return amount.incomplete ? 'donnée manquante' : '—';
-  return (amount.incomplete ? 'au moins ' : '') + format(amount.grams) + ' g' +
-    (amount.incomplete ? ' (incomplet)' : '');
+const dailyConsumptionEndpoint = '/api/planning/home-consumption';
+let dailyConsumptionView = 0;
+
+function editableDailyConsumption(date,meals) {
+  return state.people.filter(person=>state.account?.role==='manager'||state.account?.personId===person.id)
+    .map(person=>({person,parts:consumptionParts(meals,person.id,date),
+      recorded:state.calendarConsumption?.has(date+':'+person.id)}));
 }
 
-async function openDailyMacros(person,date,meals){
-  const dialog = $('#daily-macros-dialog'), form = $('#daily-macros-form'), message = $('#daily-macros-message');
-  const list = $('#daily-consumed-meals'), comparison = $('#daily-macros-comparison'), button = form.querySelector('button');
-  const endpoint = '/api/people/'+person.id+'/home-consumption';
-  const householdId = state.household.id, view = ++macroView, profile = latestProfile(person,date);
-  const share = homeBudgetShare(meals,person.id,date,state.mealRatios??SLOT_RATIOS);
-  const fields = [['carbohydrate','Glucides','carbohydrateG',profile?.dailyCarbohydrateG],
-    ['fat','Lipides','fatG',profile?.dailyFatG]];
-  const eligible = consumptionParts(meals,person.id,date);
-  const activeView = () => view === macroView && dialog.open && state.household?.id === householdId;
-  $('#daily-macros-title').textContent = person.displayName+' · '+displayDate(date);
-  form.onsubmit = event => event.preventDefault();
+async function saveDailyConsumption(date,entries,householdId) {
+  const data = await api(dailyConsumptionEndpoint,{method:'POST',body:JSON.stringify({householdId,date,entries})});
+  if(state.household?.id!==householdId)return;
+  const calendar = state.calendarConsumption ??= new Map();
+  for(const {personId,parts} of data.entries) calendar.set(date+':'+personId,homeConsumptionTotals(parts));
+  const column = $('#calendar-grid').querySelector('[data-date="'+date+'"]');
+  if(column){
+    const updated = renderCalendarDay(date,state.calendarMeals,localDateValue());
+    column.replaceWith(updated);
+    updated.querySelector('.edit-day-consumption')?.focus({preventScroll:true});
+  }
+}
+
+function dailyConsumptionError(error) {
+  return error.body?.error==='consumption-changed'||error.body?.error==='part-not-confirmable'
+    ? 'Le relevé ou le planning a changé. Rouvre « Modifier » pour vérifier la journée.'
+    : 'Impossible d’enregistrer les repas consommés. Réessaie.';
+}
+
+function renderDailyConsumptionActions(date,meals) {
+  const profiles=editableDailyConsumption(date,meals).filter(entry=>entry.parts.length||entry.recorded);
+  if(!profiles.length)return null;
+  const householdId=state.household.id;
+  const pending=profiles.filter(entry=>!entry.recorded);
+  const actions=document.createElement('div'),confirm=document.createElement('button'),edit=document.createElement('button');
+  actions.className='daily-consumption-actions';
+  confirm.type=edit.type='button';
+  confirm.className='primary';
+  edit.className='secondary edit-day-consumption';
+  confirm.textContent=pending.length?'Confirmer la journée':'Journée confirmée';
+  confirm.disabled=!pending.length;
+  edit.textContent='Modifier';
+  edit.setAttribute('aria-label','Modifier les repas consommés du '+displayDate(date));
+  const message=document.createElement('small');message.setAttribute('role','status');
+  confirm.addEventListener('click',async()=>{
+    confirm.disabled=edit.disabled=true;
+    message.textContent='';
+    const entries=pending.map(({person,parts})=>({personId:person.id,revision:null,selections:consumptionSelections(parts)}));
+    try { await saveDailyConsumption(date,entries,householdId); }
+    catch(error) { message.textContent=dailyConsumptionError(error);confirm.disabled=edit.disabled=false; }
+  });
+  edit.addEventListener('click',()=>openDailyConsumption(date,meals));
+  actions.append(confirm,edit,message);
+  return actions;
+}
+
+async function openDailyConsumption(date,meals) {
+  const dialog=$('#daily-macros-dialog'), form=$('#daily-macros-form'), message=$('#daily-macros-message');
+  const list=$('#daily-consumed-meals'), button=form.querySelector('button');
+  const householdId=state.household.id, view=++dailyConsumptionView;
+  const activeView=()=>view===dailyConsumptionView&&dialog.open&&state.household?.id===householdId;
+  $('#daily-macros-title').textContent='Modifier les repas consommés · '+displayDate(date);
+  form.onsubmit=event=>event.preventDefault();
   list.replaceChildren();
-  comparison.replaceChildren();
-  message.textContent = 'Chargement…';
-  button.disabled = true;
+  message.textContent='Chargement…';
+  button.disabled=true;
   dialog.showModal();
 
-  let current, choices;
-  const render = data => {
-    current = data;
-    const recorded = new Map(data.parts.map(part => [part.itemId,part]));
-    const eligibleIds = new Set(eligible.map(part => part.itemId));
-    const groups = new Map();
-    list.replaceChildren();
-    choices = [...eligible,...data.parts.filter(part => !eligibleIds.has(part.itemId))].map(part => {
-      if (!groups.has(part.mealId)) {
-        const group = document.createElement('fieldset'), heading = document.createElement('legend');
-        heading.textContent = slotLabels[part.slot] ?? 'Repas';
-        group.append(heading);
-        groups.set(part.mealId,group);
-        list.append(group);
+  let data;
+  try { data=await api(dailyConsumptionEndpoint+'?'+new URLSearchParams({householdId,date})); }
+  catch { if(activeView())message.textContent='Chargement impossible.';return; }
+  if(!activeView())return;
+  const recorded=new Map(data.entries.map(entry=>[entry.personId,entry]));
+  const choices=[];
+  for(const {person,parts} of editableDailyConsumption(date,meals)){
+    const saved=recorded.get(person.id);
+    if(!parts.length&&!saved)continue;
+    const existing=new Map((saved?.parts??[]).map(part=>[part.itemId,part]));
+    const planned=new Set(parts.map(part=>part.itemId));
+    const details=document.createElement('details'), summary=document.createElement('summary');
+    details.open=!choices.length;
+    details.append(summary);
+    const groups=new Map(), inputs=[];
+    const available=[...parts,...(saved?.parts??[]).filter(part=>!planned.has(part.itemId))];
+    const updateSummary=()=>{
+      summary.textContent=person.displayName+' · '+inputs.filter(({input})=>input.checked).length+'/'+available.length+' cochées';
+    };
+    for(const part of available){
+      if(!groups.has(part.mealId)){
+        const group=document.createElement('fieldset'), heading=document.createElement('legend');
+        heading.textContent=slotLabels[part.slot]??'Repas';
+        group.append(heading);details.append(group);groups.set(part.mealId,group);
       }
-      const saved = recorded.get(part.itemId), shown = saved ?? part;
-      const label = document.createElement('label'), input = document.createElement('input');
-      input.type = 'checkbox';
-      input.checked = Boolean(saved);
-      const quantity = shown.unitId ? ' · '+formatQty(shown.quantity)+' '+servingUnitLabel(shown.unitId) : '';
-      const detached = eligibleIds.has(part.itemId) ? '' : ' · ancienne partie du planning';
-      label.className = 'attendee-option';
-      label.append(input, document.createTextNode(shown.name+quantity+detached));
+      const entry=existing.get(part.itemId)??part;
+      const label=document.createElement('label'), input=document.createElement('input');
+      input.type='checkbox';
+      input.checked=!saved||existing.has(part.itemId);
+      input.addEventListener('change',updateSummary);
+      const quantity=entry.unitId?' · '+formatQty(entry.quantity)+' '+servingUnitLabel(entry.unitId):'';
+      const detached=planned.has(part.itemId)?'':' · ancienne partie du planning';
+      label.append(input,document.createTextNode(entry.name+quantity+detached));
       groups.get(part.mealId).append(label);
-      return {input, mealId:part.mealId, itemId:part.itemId};
-    });
-    if (!choices.length) list.textContent = 'Aucune partie de repas à la maison à confirmer.';
-
-    comparison.replaceChildren();
-    for (const [key,label,nutrient,target] of fields) {
-      const report = document.createElement('p');
-      const predicted = plannedMacro(meals.filter(meal=>!meal.isOccasion),person.id,date,nutrient);
-      const consumed = confirmedMacro(data.parts,key);
-      const reference = target == null ? 'non renseigné' : format(target*share)+' g';
-      report.textContent = label+' · prévus '+macroAmount(predicted)+' · confirmés '+
-        (data.parts.length ? macroAmount(consumed) : 'aucune partie')+' · repère personnalisé à la maison '+reference;
-      comparison.append(report);
+      inputs.push({input,mealId:part.mealId,itemId:part.itemId});
     }
-    const saturated = document.createElement('small');
-    saturated.textContent = 'Graisses saturées · donnée non disponible dans le calcul du catalogue.';
-    comparison.append(saturated);
-    button.disabled = !choices.length;
-  };
-
-  try {
-    const data = await api(endpoint+'?'+new URLSearchParams({householdId,date}));
-    if (!activeView()) return;
-    render(data);
-    message.textContent = '';
-  } catch {
-    if (activeView()) message.textContent = 'Chargement impossible.';
-    return;
+    if(!available.length)details.append(document.createTextNode('Aucune partie planifiée.'));
+    updateSummary();
+    list.append(details);
+    choices.push({personId:person.id,revision:saved?.revision??null,existing,inputs});
   }
-  form.onsubmit = async event => {
+  message.textContent=choices.length?'':'Aucune partie de repas à confirmer.';
+  button.disabled=!choices.length;
+  form.onsubmit=async event=>{
     event.preventDefault();
-    if (button.disabled) return;
-    button.disabled = true;
-    for (const {input} of choices) input.disabled = true;
-    const selections = choices.filter(({input})=>input.checked).map(({mealId,itemId})=>({mealId,itemId}));
+    if(button.disabled)return;
+    const entries=choices.flatMap(({personId,revision,existing,inputs})=>{
+      const selected=inputs.filter(({input})=>input.checked);
+      if(revision&&selected.length===existing.size&&selected.every(({itemId})=>existing.has(itemId)))return [];
+      return [{personId,revision,selections:consumptionSelections(selected)}];
+    });
+    if(!entries.length){dialog.close();return;}
+    button.disabled=true;
+    for(const {inputs} of choices)for(const {input} of inputs)input.disabled=true;
     try {
-      const data = await api(endpoint,{method:'POST',body:JSON.stringify({householdId,date,selections,revision:current.revision})});
-      if (activeView()) {
-        render(data);
-        message.textContent = 'Parties consommées enregistrées.';
-      }
-      if (state.household?.id === householdId) void refreshCalendar();
-    } catch (error) {
-      if (activeView()) message.textContent = error.body?.error === 'consumption-changed'
-        ? 'Ce relevé a changé. Rouvre la fenêtre pour le mettre à jour.'
-        : 'Impossible de confirmer ces parties. Actualise le calendrier et réessaie.';
-    } finally {
-      if (activeView()) {
-        button.disabled = !choices.length;
-        for (const {input} of choices) input.disabled = false;
+      await saveDailyConsumption(date,entries,householdId);
+      if(activeView())dialog.close();
+    } catch(error) {
+      if(activeView()){
+        message.textContent=dailyConsumptionError(error);button.disabled=false;
+        for(const {inputs} of choices)for(const {input} of inputs)input.disabled=false;
       }
     }
   };
 }
+
+const dailySummaryFields = [
+  ['Kcal','Énergie','energy','dailyEnergyKcal'],
+  ['P','Protéines','protein','dailyProteinG'],
+  ['G','Glucides','carbohydrate','dailyCarbohydrateG'],
+  ['L','Lipides','fat','dailyFatG'],
+  ['F','Fibres','fibre','dailyFibreG'],
+];
 
 function renderDailyEnergySummary(date,meals) {
   const footer=document.createElement('footer');footer.className='daily-energy-summary';
-  const heading=document.createElement('strong');heading.textContent='Kcal prévues / objectif · protéines / minimum';footer.append(heading);
-  for(const person of state.people) {
-    const profile=latestProfile(person,date);
-    const share=homeBudgetShare(meals,person.id,date,state.mealRatios??SLOT_RATIOS);
-    const daily=calculateDailyEnergy(meals,person.id,date),target=profile?.dailyEnergyKcal>0?profile.dailyEnergyKcal*share:null;
-    const savings=state.calendarReserveOverview?.accounts?.find(account=>account.personId===person.id)?.savingsPlans?.find(plan=>plan.startsOn<=date&&plan.endsOn>=date);
-    const line=document.createElement('div');line.className='daily-energy-person';
-    const name=document.createElement('span');name.textContent=person.displayName;
-    const value=document.createElement('strong');value.className='daily-energy-value';
-    value.textContent=`${daily.kcal==null?'—':format(daily.kcal)} / ${target>0?format(target):'—'} kcal`;
-    if(daily.incomplete){value.classList.add('incomplete');value.title='Sous-total partiel : certaines valeurs nutritionnelles sont inconnues.';}
-    if(target>0&&daily.kcal>target+1e-6){
-      value.classList.add('over-target');
-      value.textContent+=` · +${format(daily.kcal-target)} kcal${daily.incomplete?' au minimum':''}`;
+  const heading=document.createElement('strong');heading.textContent='Apports / objectifs à la maison';footer.append(heading);
+  const planned=meals.filter(meal=>meal.mealDate===date), ordinary=planned.filter(meal=>!meal.isOccasion);
+  const ratios=state.mealRatios??SLOT_RATIOS;
+  let needsRebalance=false;
+  for(const person of state.people){
+    const profile=latestProfile(person,date), share=homeBudgetShare(planned,person.id,date,ratios);
+    const confirmed=state.calendarConsumption?.get(date+':'+person.id);
+    const savings=state.calendarReserveOverview?.accounts?.find(account=>account.personId===person.id)?.savingsPlans
+      ?.find(plan=>plan.startsOn<=date&&plan.endsOn>=date);
+    const group=document.createElement('section');group.className='daily-energy-person';
+    const title=document.createElement('div'), name=document.createElement('strong'), status=document.createElement('small');
+    title.className='daily-energy-heading';
+    name.textContent=person.displayName;
+    status.textContent=confirmed?'Confirmé':'Prévu';
+    if(share<1)status.title=format(share*100)+' % des objectifs pour les repas à la maison';
+    title.append(name,status);
+    const metrics=document.createElement('dl');
+    group.append(title,metrics);
+    for(const [short,label,key,targetKey] of dailySummaryFields){
+      const target=key==='protein'?dailyProteinTarget(person,state.proteinTargets,date):profile?.[targetKey];
+      const reference=target!=null?target*share:null;
+      let amount=confirmed?.[key]??plannedMacro(key==='energy'?ordinary:planned,person.id,date,CONSUMPTION_NUTRIENTS[key]);
+      if(key==='energy'){
+        const exception=calculateDailyEnergy(planned.filter(meal=>meal.isOccasion&&meal.attendees?.some(entry=>entry.id===person.id)),person.id,date);
+        if(!confirmed&&exception.hasPlan){
+          const known=amount.grams!=null||exception.kcal!=null;
+          amount={grams:known?(amount.grams??0)+(exception.kcal??0):null,incomplete:amount.incomplete||exception.incomplete};
+        }
+        const saving=savings?.dailyKcal??0;
+        const scheduled=confirmed?calculateDailyEnergy(planned,person.id,date).kcal:amount.grams;
+        needsRebalance ||= reference>saving&&scheduled>reference-saving;
+      }
+      const term=document.createElement('dt'), value=document.createElement('dd');
+      term.textContent=short;term.title=label;
+      const total=amount.grams==null?'—':(amount.incomplete?'≥ ':'')+format(amount.grams);
+      const unit=key==='energy'?'':' g';
+      value.textContent=total+' / '+(reference==null?'—':format(reference))+unit;
+      if(amount.incomplete){value.classList.add('incomplete');value.title='Données incomplètes';}
+      if(key==='energy'&&reference!=null&&amount.grams>reference+1e-6)value.classList.add('over-target');
+      if(key==='protein'&&reference!=null&&amount.grams!=null&&!amount.incomplete)
+        value.classList.add(amount.grams>=reference?'protein-sufficient':'protein-low');
+      if(key==='energy'&&savings&&reference!=null)value.title='Budget avec épargne : '+format(Math.max(0,reference-savings.dailyKcal))+' kcal';
+      metrics.append(term,value);
     }
-    line.append(name,value);
-    if(savings){const budget=document.createElement('small');budget.textContent=`Budget repas ajusté : ${format(Math.max(0,Number(target)-savings.dailyKcal))} kcal (épargne ${format(savings.dailyKcal)} kcal)`;line.append(budget);}
-    if(daily.incomplete){const note=document.createElement('small');note.textContent='Données incomplètes';line.append(note);}
-    footer.append(line);
-    if(share<1){const note=document.createElement('small');note.textContent='Budget à la maison · '+format(share*100)+' % du repère journalier';line.append(note);}
-    const confirmed = state.calendarConsumption?.get(date+':'+person.id);
-    for(const [label,key,targetKey,confirmedKey] of [['Glucides','carbohydrateG','dailyCarbohydrateG','carbohydrate'],
-      ['Lipides','fatG','dailyFatG','fat'],['Fibres','fibreG','dailyFibreG',null]]){
-      const planned=plannedMacro(meals.filter(meal=>!meal.isOccasion),person.id,date,key),reference=profile?.[targetKey];
-      const actual = confirmedKey ? confirmed?.[confirmedKey] : null;
-      if(planned.grams==null && !planned.incomplete && reference==null && !actual)continue;
-      const macro=document.createElement('small');macro.className='daily-macro-person';
-      macro.textContent = label+' · prévus '+macroAmount(planned)+(actual?' · confirmés '+macroAmount(actual):'')+
-        (reference==null?'':' · repère personnalisé '+format(reference*share)+' g');
-      footer.append(macro);
-    }
-    if(date<=localDateValue() && (state.account?.role==='manager'||state.account?.personId===person.id)){
-      const intake=document.createElement('button');intake.type='button';intake.className='text-button';intake.textContent=confirmed?'Corriger les parties consommées':'Confirmer les parties consommées';
-      intake.addEventListener('click',()=>openDailyMacros(person,date,meals));footer.append(intake);
-    }
-    const proteins=calculateDailyProtein(meals,person.id,date),fullProteinTarget=dailyProteinTarget(person,state.proteinTargets,date);
-    const proteinTarget=fullProteinTarget==null?null:format(fullProteinTarget*share);
-    const proteinLine=document.createElement('div');proteinLine.className='daily-protein-person';
-    const proteinValue=document.createElement('strong');proteinValue.className='daily-protein-value';
-    proteinValue.textContent=proteinTarget==null
-      ? `${proteins.incomplete?'≥ ':''}${format(proteins.grams)} g · minimum non défini`
-      : `${proteins.incomplete?'≥ ':''}${format(proteins.grams)} / ${proteinTarget} g protéines`;
-    if(proteinTarget==null)proteinValue.classList.add('protein-unknown');
-    else if(proteins.incomplete)proteinValue.classList.add('protein-unknown');
-    else proteinValue.classList.add(proteins.grams>=fullProteinTarget*share?'protein-sufficient':'protein-low');
-    proteinLine.append(proteinValue);
-    if(proteins.incomplete){const note=document.createElement('small');note.textContent='Protéines partielles : certaines données sont inconnues.';proteinLine.append(note);}
-    footer.append(proteinLine);
+    footer.append(group);
   }
-  if(meals.some(meal=>meal.mealDate===date&&meal.isOccasion)){const note=document.createElement('small');note.className='muted';note.textContent='Les repas exceptionnels sont inclus dans les kcal prévues, sans limite de créneau, et débités de l’épargne.';footer.append(note);}
-  const needsRebalance=state.people.some(person=>{const target=latestProfile(person,date)?.dailyEnergyKcal*homeBudgetShare(meals,person.id,date,state.mealRatios??SLOT_RATIOS);const saving=state.calendarReserveOverview?.accounts?.find(account=>account.personId===person.id)?.savingsPlans?.find(plan=>plan.startsOn<=date&&plan.endsOn>=date)?.dailyKcal??0;const daily=calculateDailyEnergy(meals,person.id,date).kcal;return target>saving&&daily>target-saving;});
   if(needsRebalance){
-    const button=document.createElement('button');button.type='button';button.className='secondary daily-rebalance-button';button.textContent='Rééquilibrer la journée';button.addEventListener('click',()=>openDailyRebalance(date));footer.append(button);
+    const button=document.createElement('button');button.type='button';button.className='secondary daily-rebalance-button';
+    button.textContent='Rééquilibrer la journée';button.addEventListener('click',()=>openDailyRebalance(date));footer.append(button);
   }
   return footer;
 }

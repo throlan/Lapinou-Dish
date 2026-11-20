@@ -13,19 +13,26 @@ export function capMainDish(input,maximum){
  if(!Number.isFinite(maximum)||maximum<=0||!own.length)return {proposals:rows,warnings,conflicts,changed:false};
  if(own.some(row=>row.quantity>0&&!(mass(row)>0))){warnings.push('Poids cuit inconnu : le plafond total du plat principal ne peut pas être vérifié.');return {proposals:rows,warnings,conflicts:['unknown-served-weight'],changed:false};}
  const beforeGrams=total();if(beforeGrams<=maximum+1e-5)return {proposals:rows,warnings,conflicts,changed:false,beforeGrams,afterGrams:beforeGrams};
- const fixed=own.filter(row=>row.parentRecipeId&&row.role==='main'&&row.fixedProteinEligible!==false&&['meat','fish','tofu','eggs'].some(key=>row.servingLoad?.[key]>0));
+ const splitParents=new Set(own.filter(row=>row.role==='accompaniment').map(row=>row.parentRecipeId));
+ const fixed=own.filter(row=>row.parentRecipeId&&splitParents.has(row.parentRecipeId)&&row.role==='main'&&row.fixedProteinEligible!==false&&['meat','fish','tofu','eggs'].some(key=>row.servingLoad?.[key]>0));
  const fixedMass=fixed.reduce((sum,row)=>sum+(Number(row.quantity)||0)*mass(row),0);
- if(fixedMass>maximum+1e-5){warnings.push('La partie viande/poisson seule dépasse le plafond total : arbitrage nécessaire, quantités conservées.');return {proposals:rows,warnings,conflicts:['protein-part-exceeds-volume'],changed:false,beforeGrams,afterGrams:beforeGrams};}
- const adjustable=own.filter(row=>!fixed.includes(row)),adjustableMass=beforeGrams-fixedMass,scale=adjustableMass>0?Math.max(0,maximum-fixedMass)/adjustableMass:0;
+ const proteinFillsPlate=fixedMass>=maximum;
+ if(proteinFillsPlate){
+  conflicts.push('protein-part-exceeds-volume');
+  warnings.push('La portion principale a été réduite pour tenir dans le plafond du plat.');
+ }
+ const protectedMass=proteinFillsPlate?0:fixedMass;
+ const adjustable=proteinFillsPlate?own:own.filter(row=>!fixed.includes(row));
+ const scale=(maximum-protectedMass)/(beforeGrams-protectedMass);
  for(const row of adjustable){
   const old=Number(row.quantity)||0;if(!old)continue;
   const step=row.countStep>0?row.countStep:['piece','slice'].includes(row.recipeUnit)?1:row.recipeUnit==='portion'?1:.00001;
   const quantity=Math.floor((old*scale+1e-9)/step)*step;
-  if(quantity<=0){conflicts.push('indivisible-serving-exceeds-volume');continue;}
+  if(quantity<=0){conflicts.push('indivisible-serving-exceeds-volume');row.quantity=null;continue;}
   row.quantity=Number(quantity.toFixed(5));
  }
- if(total()>maximum+1e-5){for(let i=0;i<rows.length;i++)rows[i].quantity=input[i].quantity;warnings.push('Une portion entière empêche de respecter le plafond total : quantités conservées, à arbitrer.');return {proposals:rows,warnings,conflicts,changed:false,beforeGrams,afterGrams:beforeGrams};}
- if(own.some(row=>row.role==='main'&&!row.parentRecipeId&&['meat','fish','tofu','eggs'].some(key=>row.servingLoad?.[key]>0)))warnings.push('Plat mélangé : réduire la portion réduit aussi les ingrédients protéiques intégrés ; vérifie la composition.');
+ if(conflicts.includes('indivisible-serving-exceeds-volume'))warnings.push('Une portion entière dépasse la place disponible dans le plat : choisis une autre portion ou une autre recette.');
+ if(own.some(row=>row.role==='main'&&!splitParents.has(row.parentRecipeId)&&['meat','fish','tofu','eggs'].some(key=>row.servingLoad?.[key]>0)))warnings.push('Plat mélangé : la quantité de viande, poisson, tofu ou œufs suit le poids servi.');
  warnings.push('Plat principal limité au poids cuit total ; des calories peuvent rester disponibles pour un dessert ou une collation.');
  return {proposals:rows,warnings,conflicts,changed:true,beforeGrams,afterGrams:total()};
 }
