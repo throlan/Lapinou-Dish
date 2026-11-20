@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';
 import * as planner from '../web/portion-planner.js';
-import {homeBudgetShare,plannedMacro} from '../web/day-meals.js';
+import {homeBudgetShare,plannedMacro,CONSUMPTION_NUTRIENTS,homeConsumptionTotals} from '../web/day-meals.js';
 
 test('energy total includes all dishes, drinks and desserts and flags missing nutrition',()=>{
   const meal={items:[{recipe:{nutrition:{perYieldUnit:{energyKcal:1.5}}},amounts:[{personId:'p',quantity:200}]},{recipe:{nutrition:{perYieldUnit:{energyKcal:120}}},amounts:[{personId:'p',quantity:1}]}]};
@@ -72,27 +72,26 @@ test('daily protein totals require complete protein data and use the household m
   assert.equal(planner.dailyProteinTarget({displayName:'Camille'}),null);
 });
 
-test('calendar daily summary colors protein values against each person minimum',async()=>{
+test('calendar daily summary shows five compact planned or confirmed values against the home goals',async()=>{
   const source=await readFile(new URL('../web/app.js',import.meta.url),'utf8');
-  const start=source.indexOf('function renderDailyEnergySummary('),end=source.indexOf('let dailyRebalancePreview=',start);
+  const start=source.indexOf('const dailySummaryFields'),end=source.indexOf('let dailyRebalancePreview=',start);
   const element=()=>({children:[],classList:{values:[],add(value){this.values.push(value);}},append(...children){this.children.push(...children);},addEventListener(){}});
-  const people=[{id:'b',displayName:'Bibinette'},{id:'l',displayName:'Lapinou'},{id:'bb',displayName:'Bibou'},{id:'t',displayName:'Titus'}];
-  const context={...planner,homeBudgetShare,plannedMacro,localDateValue:()=> '2026-10-19',document:{createElement:element},state:{people,proteinTargets:{b:90,l:125,bb:85,t:50},calendarReserveOverview:null,recipes:[]},
-    latestProfile:()=>null,format:value=>String(value)};
-  const formatStart=source.indexOf('function macroAmount('),formatEnd=source.indexOf('async function openDailyMacros(',formatStart);
-  runInNewContext(source.slice(formatStart,formatEnd)+source.slice(start,end)+'\nglobalThis.render=renderDailyEnergySummary;',context);
-  const amounts=people.map((person,index)=>({personId:person.id,quantity:[4,1,4,1][index]}));
-  const meals=[{mealDate:'2026-10-19',slot:'snack',attendees:people,items:[{amounts,recipe:{yield:{unitId:'piece',amount:1},nutrition:{complete:true,perYieldUnit:{energyKcal:10,proteinG:25}}}},{amounts:[{personId:'t',quantity:1}],recipe:{nutrition:{perYieldUnit:{proteinG:null}}}}]}];
-  context.state.calendarConsumption=new Map([['2026-10-19:b',{carbohydrate:{grams:null,incomplete:true},fat:{grams:6,incomplete:false}}]]);
-  const footer=context.render('2026-10-19',meals);
-  assert.ok(footer.children.some(node=>node.textContent?.includes('Glucides · prévus donnée manquante · confirmés donnée manquante')));
-  assert.ok(footer.children.some(node=>node.textContent?.includes('Lipides · prévus donnée manquante · confirmés 6 g')));
-  const proteinLines=footer.children.filter(child=>child.className==='daily-protein-person');
-  assert.equal(proteinLines[0].children[0].classList.values.includes('protein-sufficient'),true);
-  assert.equal(proteinLines[1].children[0].classList.values.includes('protein-low'),true);
-  assert.equal(proteinLines[2].children[0].classList.values.includes('protein-sufficient'),true);
-  assert.equal(proteinLines[3].children[0].classList.values.includes('protein-unknown'),true);
-  assert.equal(proteinLines[3].children[0].textContent,'≥ 25 / 50 g protéines');
+  const people=[{id:'b',displayName:'Profil A'},{id:'l',displayName:'Profil B'}],date='2026-10-19';
+  const context={...planner,homeBudgetShare,plannedMacro,CONSUMPTION_NUTRIENTS,document:{createElement:element},
+    state:{people,proteinTargets:{b:100,l:125},calendarConsumption:new Map([[date+':b',homeConsumptionTotals([
+      {energy:{grams:110,incomplete:false},protein:{grams:20,incomplete:false},carbohydrate:{grams:null,incomplete:true},fat:{grams:6,incomplete:false}}
+    ])]])},
+    latestProfile:()=>({dailyEnergyKcal:1000,dailyCarbohydrateG:100,dailyFatG:50,dailyFibreG:25}),format:String};
+  runInNewContext(source.slice(start,end)+'\nglobalThis.render=renderDailyEnergySummary;',context);
+  const meals=[{mealDate:date,slot:'lunch',attendees:[people[1]],items:[{amounts:[{personId:'l',quantity:2}],
+    recipe:{nutrition:{perYieldUnit:{energyKcal:120,proteinG:25,carbohydrateG:30,fatG:5,fibreG:4}}}}]}];
+  const cards=context.render(date,meals).children.slice(1);
+  assert.equal(cards[0].children[0].children[1].textContent,'Confirmé');
+  assert.equal(cards[1].children[0].children[1].textContent,'Prévu');
+  assert.deepEqual(Array.from(cards[0].children[1].children,entry=>entry.textContent),
+    ['Kcal','110 / 600','P','20 / 60 g','G','— / 60 g','L','6 / 30 g','F','— / 15 g']);
+  assert.deepEqual(Array.from(cards[1].children[1].children,entry=>entry.textContent),
+    ['Kcal','240 / 1000','P','50 / 125 g','G','60 / 100 g','L','10 / 50 g','F','8 / 25 g']);
 });
 
 test('calendar forecast compares the week total with the sum of dated weekly targets',async()=>{
@@ -141,12 +140,12 @@ test('calendar alerts distinguish daily and weekly overages, and keep partial to
 test('calendar days tag each slot for its category color',async()=>{
   const source=await readFile(new URL('../web/app.js',import.meta.url),'utf8');
   const styles=await readFile(new URL('../web/style.css',import.meta.url),'utf8');
-  const start=source.indexOf('function renderCalendarDay('),end=source.indexOf('function renderDailyEnergySummary(',start);
+  const start=source.indexOf('function renderCalendarDay('),end=source.indexOf('async function loadPlanningStock(',start);
   const element=()=>({children:[],dataset:{},classList:{add(){}},append(...children){this.children.push(...children);},addEventListener(){}});
   const context={document:{createElement:element},MEAL_ORDER:['breakfast','lunch','snack','dinner','evening_snack'],
     slotLabels:{breakfast:'Petit-déjeuner',lunch:'Déjeuner',snack:'Collation',dinner:'Dîner',evening_snack:'Collation du soir'},
     displayDate:value=>value,renderMealCard:()=>element(),renderDailyEnergySummary:()=>element(),
-    openMealEditor(){},calendarSelectedDate:null,state:{}};
+    openMealEditor(){},renderDailyConsumptionActions:()=>null,calendarSelectedDate:null,state:{}};
   runInNewContext(source.slice(start,end)+'\nglobalThis.render=renderCalendarDay;',context);
   const day=context.render('2026-10-19',[],'2026-10-19');
   const slotSections=day.children.filter(child=>child.className==='calendar-slot');

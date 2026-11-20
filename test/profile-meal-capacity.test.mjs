@@ -20,15 +20,25 @@ test('personal capacity covers all cooked main parts, preserves separate protein
  assert.equal(capMainDish(input,100).conflicts[0],'protein-part-exceeds-volume');
  assert.deepEqual(capMainDish(input,undefined).proposals,input);
 });
-test('whole mixed dishes use total cooked mass, unknown weights and indivisible portions keep quantities with a conflict',()=>{
+test('whole mixed dishes use total cooked mass and an oversized piece is omitted with a conflict',()=>{
  assert.equal(servedGramsPerUnit({yield:{amount:24,unitId:'piece'},servingWeightG:2400}),100);
  assert.equal(servedGramsPerUnit({yield:{amount:10,unitId:'g'}}),1);
  const mixed=[{role:'main',recipeUnit:'g',quantity:750,servingLoad:{meat:.1}}];
  assert.equal(capMainDish(mixed,600).afterGrams,600);
  const whole=[{role:'main',recipeUnit:'piece',quantity:1,servedGramsPerUnit:650}];
- const conflict=capMainDish(whole,600);assert.equal(conflict.changed,false);assert.equal(conflict.proposals[0].quantity,1);assert.ok(conflict.conflicts.length);
+ const conflict=capMainDish(whole,600);assert.equal(conflict.changed,true);assert.equal(conflict.proposals[0].quantity,null);assert.ok(conflict.conflicts.length);
  assert.equal(capMainDish([{role:'main',recipeUnit:'portion',quantity:1}],600).conflicts[0],'unknown-served-weight');
  const withAbsent=[{role:'main',recipeUnit:'g',quantity:750},{role:'main',recipeUnit:'portion',quantity:0}];assert.equal(capMainDish(withAbsent,450).afterGrams,450);
+});
+test('a generated whole bowl at 740 g respects a personal limit of 500 g, even with a larger energy budget',()=>{
+ const bowl={role:'main',parentRecipeId:'bowl',plateParts:['main'],servingPart:'main',recipeUnit:'g',
+  recipeKcal:1,budgetFraction:1,servingLoad:{meat:.12}};
+ for(const budget of [740,1360]){
+  const result=cappedMealPortions([bowl],budget,undefined,{plateTotal:500,commonProteinG:200});
+  assert.equal(result.proposals[0].quantity,500);
+  assert.equal(result.volume.afterGrams,500);
+ }
+ assert.equal(cappedMealPortions([bowl],1360,undefined,{commonProteinG:200}).proposals[0].quantity,750);
 });
 test('planner applies personal total after legacy portion calculations and replaces only the old mixed cap',()=>{
  assert.equal(effectiveServingCaps({plateTotal:900,mixed:550}).mixed,Infinity);

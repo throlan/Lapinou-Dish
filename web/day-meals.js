@@ -52,7 +52,20 @@ export function consumptionParts(meals, personId, date) {
 }
 
 export function confirmedMacro(parts, key) {
-  return sumMacros(parts.map(part => part[key]));
+  if (!parts.length) return {grams:0, incomplete:false};
+  return sumMacros(parts.map(part => part[key] ?? {grams:null, incomplete:true}));
+}
+
+export const CONSUMPTION_NUTRIENTS = Object.freeze({
+  energy:'energyKcal', protein:'proteinG', carbohydrate:'carbohydrateG', fat:'fatG', fibre:'fibreG',
+});
+
+export function homeConsumptionTotals(parts) {
+  return Object.fromEntries(Object.keys(CONSUMPTION_NUTRIENTS).map(key => [key,confirmedMacro(parts,key)]));
+}
+
+export function consumptionSelections(parts) {
+  return parts.map(({mealId,itemId}) => ({mealId,itemId}));
 }
 
 export function preparationStockLabel(recipe, stock, quantityLabel) {

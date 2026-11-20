@@ -183,10 +183,8 @@
   .meal-details-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
   .calendar-add { font-size:12px; color:var(--accent); border-color:#d2b5c5; min-height:38px; }
   .calendar-add:hover { color:#7d1d4e; border-color:var(--accent); }
-  .daily-energy-summary,.daily-protein-summary { color:var(--text); border-color:var(--line); }
-  .daily-energy-summary>strong,.daily-energy-person small,.daily-protein-person small,.daily-protein-value.protein-unknown { color:var(--muted); }
-  .daily-energy-value.over-target,.daily-energy-value.incomplete,.daily-protein-value.protein-low { color:#87520c; }
-  .daily-protein-value.protein-sufficient { color:var(--positive); }
+  .daily-energy-summary { color:var(--text); border-color:var(--line); }
+  .daily-energy-summary>strong,.daily-energy-person small { color:var(--muted); }
   /* Purchasing and production. Disclosures/checkboxes keep their exact behavior. */
   .shopping-overview { grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:24px; }
   .shopping-store-card,.preparation-group,.preparation-week,.preparation-row { background:var(--panel); border-color:var(--line); box-shadow:none; }

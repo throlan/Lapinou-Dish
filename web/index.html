@@ -11,8 +11,8 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.18.5">
-    <link rel="stylesheet" href="/editorial.css?v=0.12.1"><link rel="stylesheet" href="/recipe-directory-refresh.css?v=0.7.0">
+    <link rel="stylesheet" href="/style.css?v=0.18.6">
+    <link rel="stylesheet" href="/editorial.css?v=0.18.6"><link rel="stylesheet" href="/recipe-directory-refresh.css?v=0.7.0">
       <link rel="stylesheet" href="/recipe-editor-dialog.css?v=0.12.1">
       <link rel="stylesheet" href="/recipe-choices.css?v=0.12.1">
       <link rel="stylesheet" href="/recipe-planning.css?v=0.12.1">
@@ -315,15 +315,16 @@
     </dialog>
 
     <dialog id="daily-macros-dialog" aria-labelledby="daily-macros-title">
-      <form method="dialog"><button class="secondary" aria-label="Fermer">Fermer</button></form>
-      <h2 id="daily-macros-title">Glucides et lipides consommés</h2>
-      <p>Coche les parties consommées à la maison. Les apports sont estimés à partir des portions de cette personne.</p>
+      <div class="dialog-heading">
+        <h2 id="daily-macros-title">Modifier les repas consommés</h2>
+        <form method="dialog"><button class="icon-button" aria-label="Fermer">×</button></form>
+      </div>
+      <p>Pour chaque personne, garde cochées les parties consommées à la maison.</p>
       <form id="daily-macros-form">
         <div id="daily-consumed-meals"></div>
-        <button class="primary">Enregistrer les parties cochées</button>
+        <p id="daily-macros-message" role="status"></p>
+        <button type="submit" class="primary">Enregistrer</button>
       </form>
-      <div id="daily-macros-comparison" aria-live="polite"></div>
-      <p id="daily-macros-message" role="status"></p>
     </dialog>
     <dialog id="day-meals-dialog" aria-labelledby="day-meals-title">
       <div class="dialog-heading">
@@ -555,6 +556,6 @@
       </form>
     </dialog>
     <script type="module" src="/install-app.js?v=0.3.17"></script>
-    <script type="module" src="/app.js?v=0.18.5"></script>
+    <script type="module" src="/app.js?v=0.18.6"></script>
   </body>
 </html>

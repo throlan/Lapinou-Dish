@@ -269,10 +269,11 @@ export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RA
   const rows=proposals.map(row=>({...row}));
   const remaining=effectiveServingCaps(overrides),groups=new Map(),warnings=new Set();
   const validBudget=Number.isFinite(budget)&&budget>=0;
+  const splitParents=new Set(rows.filter(row=>row.parentRecipeId&&row.role==='accompaniment').map(row=>row.parentRecipeId));
   const loads=row=>servingCapLoads(row.servingLoad??(row.servingPart==='starch'?{starch:1}:{}),remaining);
   const limit=(row, fixed=false)=>{
     let max=row.maxQuantity??Infinity;
-    if(row.recipeUnit==='g'&&row.role==='main'&&(!row.parentRecipeId||row.plateParts?.length===1))max=Math.min(max,remaining.mixed);
+    if(row.recipeUnit==='g'&&row.role==='main'&&!splitParents.has(row.parentRecipeId))max=Math.min(max,remaining.mixed);
     for(const [key,value] of Object.entries(loads(row))){
       if(!Number.isFinite(remaining[key]))continue;
       if(value==null){warnings.add('Un poids cru ou une équivalence d’ingrédient manque : vérifie la portion signalée.');return 0;}
