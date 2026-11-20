@@ -8,9 +8,9 @@ import {MEAL_ORDER,MEAL_LABELS,DEFAULT_MEAL_RATIOS} from '../web/meal-config.js'
 test('the four day selectors recalculate totals and offer shared extras using every participant’s remaining budget',async()=>{
   const source=await readFile(new URL('../web/app.js',import.meta.url),'utf8');
   const start=source.indexOf('function openDayMeals('),end=source.indexOf('let macroView',start);
-  const node=tag=>({tag,value:'',children:[],handlers:{},append(...children){this.children.push(...children);},
+  const node=tag=>({tag,value:'',children:[],handlers:{},append(...children){for(const child of children)child.parentElement=this;this.children.push(...children);},
     replaceChildren(){this.children=[];},setAttribute(){},add(option){this.append(option);},
-    addEventListener(type,handler){this.handlers[type]=handler;},showModal(){},close(){},focus(){},
+    addEventListener(type,handler){this.handlers[type]=handler;},showModal(){this.open=true;},close(){this.open=false;},focus(){},
     get elements(){return this.children.flatMap(group=>group.children.flatMap(item=>item.tag==='select'?[item]:item.children.filter(c=>c.tag==='input')));},
     querySelectorAll(tag){return this.children.flatMap(item=>item.children.filter(c=>c.tag===tag));}
   });
@@ -18,8 +18,9 @@ test('the four day selectors recalculate totals and offer shared extras using ev
   const recipe=(id,recipeType,slot,kcal)=>({id,name:id,recipeType,slot,yield:{unitId:'piece'},nutrition:{perYieldUnit:{energyKcal:kcal}}});
   const recipes=[recipe('Pancakes','dish','breakfast',200),recipe('Fruit','dessert','snack',150),recipe('Salade','salad','lunch',300),recipe('Dîner','dish','dinner',300),
     recipe('Sauce','sauce','lunch',25),recipe('Crème','dessert','dinner',50),recipe('Yaourt','dessert','dinner',100),recipe('Gâteau','dessert','dinner',350)];
-  let payload;
-  const context={MEAL_ORDER,homeBudgetShare,plannedMacro,fitsDayExtra,$:selector=>nodes[selector],document:{createElement:node,createTextNode:text=>({text})},
+  let payload, paintedStock;
+  const context={loadPlanningStock:async()=>new Map([['Pancakes',{quantity:3,unitId:'piece'}]]),
+    annotatePlanningStock:(root,stock)=>{paintedStock={root,stock};},MEAL_ORDER,homeBudgetShare,plannedMacro,fitsDayExtra,$:selector=>nodes[selector],document:{createElement:node,createTextNode:text=>({text})},
     Option:function(label,value){Object.assign(this,{label,value});},
     state:{household:{id:'h'},people:[{id:'a',displayName:'Adulte'},{id:'b',displayName:'Enfant'}],recipes,mealAdditions:[],mealRatios:DEFAULT_MEAL_RATIOS},
     slotLabels:MEAL_LABELS,displayDate:x=>x,latestProfile:()=>({dailyEnergyKcal:1000}),format:String,formatQty:String,
@@ -29,6 +30,8 @@ test('the four day selectors recalculate totals and offer shared extras using ev
     individualDefaultQuantity:()=>1,calculateDailyEnergy:()=>({kcal:0}),newProductionRequestId:()=> 'request',
     api:async(_,options)=>{payload=JSON.parse(options.body);},refreshCalendar:async()=>{},refreshDashboard:async()=>{}};
   runInNewContext(source.slice(start,end)+'\nopenDayMeals("2026-11-25",[]);',context);
+  await Promise.resolve();
+  assert.deepEqual(paintedStock.stock.get('Pancakes'),{quantity:3,unitId:'piece'});
   const [form,review]=nodes['#day-meals-choices'].children;
   assert.equal(form.children.length,4);
   const [breakfast,lunch,snack,dinner]=form.children;

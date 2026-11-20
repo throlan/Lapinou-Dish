@@ -212,7 +212,7 @@ export async function duplicatePlannedMeal(pool, sourceId, input) {
   }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 }
 
-async function readPlannedMeal(client, meal, householdId) {
+export async function readPlannedMeal(client, meal, householdId) {
   let row = meal;
   if (meal.meal_date == null) {
     const result = await client.query('SELECT id, meal_date::text AS meal_date, slot, notes, is_occasion, occasion_title, prepared_at FROM planned_meals WHERE id = $1 AND household_id = $2', [meal.id, householdId]);
@@ -233,7 +233,7 @@ async function readPlannedMeal(client, meal, householdId) {
       client.query('SELECT person_id, quantity FROM planned_amounts WHERE planned_item_id = $1', [item.id]),
     ]);
     items.push({
-      recipeId: item.recipe_id, role: item.role ?? 'main', categoryId:item.category_id||item.role||'main', recipe,
+      id: item.id, recipeId: item.recipe_id, role: item.role ?? 'main', categoryId:item.category_id||item.role||'main', recipe,
       amounts: amounts.rows.map((amount) => ({ personId: amount.person_id, quantity: Number(amount.quantity) })),
     });
   }

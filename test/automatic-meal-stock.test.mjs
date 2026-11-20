@@ -4,7 +4,8 @@ import {randomUUID} from 'node:crypto';
 import {readFile,readdir} from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
 import {mealStockReadiness,settleHouseholdMealStock,stockLocalDate,startMealStockClock} from '../src/server/meal-stock-readiness.mjs';
-import {availableRecipeStock} from '../src/server/recipe-ingredients.mjs';
+import {availableRecipeStock,recipeRequirements} from '../src/server/recipe-ingredients.mjs';
+import {preparationStockLabel} from '../web/day-meals.js';
 import {addStockLot,cancelStockLot,listPreparationsToMake,listStock,validateProductionInput} from '../src/server/household-planning.mjs';
 import {savePlannedMeal,listPlannedMeals,deletePlannedMeal,duplicatePlannedMeal} from '../src/server/planning.mjs';
 import {setMealPrepared} from '../src/server/meal-preparation.mjs';
@@ -30,6 +31,26 @@ async function fixture(t){
  return {pool,h,other,person,food,recipe,meal,lot,physical};
 }
 const now=date=>new Date(date);
+
+test('calendar choices show only free physical portions and release the edited meal’s own reservation',async t=>{
+ const f=await fixture(t),r=await f.recipe(),virtual=await f.recipe();
+ const editing=await f.meal('2026-11-21',[[r,2]],'breakfast');
+ const other=await f.meal('2026-11-22',[[r,3]]);
+ await f.lot(r,8);
+ await f.lot(r,3,{plannedMealId:other.id,plannedStart:'2026-11-22',plannedEnd:'2026-11-22'});
+ const extra=await f.pool.query(`INSERT INTO planned_extra_productions(id,household_id,recipe_id,planned_on,quantity,storage)
+   VALUES(gen_random_uuid(),$1,$2,'2026-11-20',7,'freezer') RETURNING id`,[f.h,virtual]);
+ assert.ok(extra.rows[0]);
+ const read=async excludeMealId=>new Map((await recipeRequirements(f.pool,f.h,'0001-01-01','9999-12-31',{
+   stockOn:'2026-11-21',excludeMealId})).availableStock.map(entry=>[entry.recipeId,entry]));
+ const free=await read(null);
+ assert.equal(free.get(r).quantity,6);
+ assert.equal(free.get(r).unitId,'portion');
+ assert.equal((await read(editing.id)).get(r).quantity,8);
+ assert.equal(free.has(virtual),false);
+ assert.equal(preparationStockLabel({id:r,productionType:'batch_cooking'},free,(qty,unit)=>qty+' '+unit),'stock libre 6 portion');
+ assert.equal(preparationStockLabel({id:virtual,productionType:'batch_cooking'},free,()=>''),'à préparer');
+});
 
 test('Paris day boundary uses winter and summer offsets',()=>{
  assert.equal(stockLocalDate(now('2026-11-02T22:59:59Z')),'2026-11-02');

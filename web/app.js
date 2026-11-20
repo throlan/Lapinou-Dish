@@ -1,4 +1,4 @@
-import {homeBudgetShare,plannedMacro,fitsDayExtra} from './day-meals.js';
+import {homeBudgetShare,plannedMacro,fitsDayExtra,consumptionParts,confirmedMacro,preparationStockLabel} from './day-meals.js';
 import {servedGramsPerUnit} from './main-dish-cap.js';
 import {effectiveNutritionProfile,renderNutritionGoals,monthlyReview} from './nutrition-goals.js';
 import {foodCorrectionField,foodMeasurePayload,foodMeasureComparisons,foodPurchaseMode,deriveFoodMeasures,foodMeasureVolumes,foodMeasureLabels} from './food-corrections.js';
@@ -3252,6 +3252,7 @@ async function dorefreshCalendar(sequence) {
     state.recipes = recipesResult.recipes;
     state.calendarReserveOverview=reserve;
     state.calendarMeals = plan.meals ?? [];
+    state.calendarConsumption = new Map((plan.homeConsumption ?? []).map(entry => [entry.date+':'+entry.personId,entry]));
     $('#calendar-week-title').textContent = `${displayDate(state.calendarWeekStart, { day: '2-digit', month: 'long' })} – ${displayDate(end, { day: '2-digit', month: 'long', year: 'numeric' })}`;
     if(!calendarSelectedDate||calendarSelectedDate<state.calendarWeekStart||calendarSelectedDate>end)calendarSelectedDate=today>=state.calendarWeekStart&&today<=end?today:state.calendarWeekStart;
     const picker=$('#calendar-day-picker');picker.replaceChildren();
@@ -3304,6 +3305,44 @@ function renderCalendarDay(date, meals, today) {
   return day;
 }
 
+async function loadPlanningStock(date, mealId = null) {
+  if (!date || !state.household) return null;
+  const params = new URLSearchParams({householdId:state.household.id,date});
+  if (mealId) params.set('mealId',mealId);
+  try {
+    const {stock} = await api('/api/planning/recipe-stock?'+params);
+    return new Map(stock.map(entry => [entry.recipeId,entry]));
+  } catch {
+    return null;
+  }
+}
+
+function annotatePlanningStock(root, stock) {
+  const recipes = new Map(allPlanningRecipes().map(recipe => [recipe.id,recipe]));
+  for (const option of root.querySelectorAll('select option')) {
+    const recipe = recipes.get(option.value);
+    if (!recipe) continue;
+    option.dataset.baseLabel ??= option.textContent;
+    const detail = stock && preparationStockLabel(recipe,stock,
+      (quantity,unit) => formatQty(quantity)+' '+servingUnitLabel(unit));
+    option.textContent = option.dataset.baseLabel + (detail ? ' · '+detail : '');
+  }
+}
+
+let mealEditorStock = null;
+let mealEditorStockRequest = 0;
+async function refreshMealEditorStock() {
+  const view = ++mealEditorStockRequest;
+  const dialog = $('#meal-dialog'), date = $('#meal-form').elements.mealDate.value;
+  const householdId = state.household?.id;
+  mealEditorStock = null;
+  annotatePlanningStock($('#planned-items'),null);
+  const stock = await loadPlanningStock(date,state.calendarMealId);
+  if (view !== mealEditorStockRequest || !dialog.open || state.household?.id !== householdId) return;
+  mealEditorStock = stock;
+  if (stock) annotatePlanningStock($('#planned-items'),stock);
+}
+
 function openDayMeals(date, calendarMeals) {
   const dialog = $('#day-meals-dialog'), root = $('#day-meals-choices'), message = $('#day-meals-message');
   const existing = calendarMeals.filter(meal => meal.mealDate === date);
@@ -3350,6 +3389,7 @@ function openDayMeals(date, calendarMeals) {
   const review = document.createElement('div');
   root.append(review);
   const selectedExtras = new Map();
+  let stock = null;
   let request, saving=false;
   const render = (focusKey=null) => {
     review.replaceChildren();
@@ -3465,6 +3505,7 @@ function openDayMeals(date, calendarMeals) {
       totals.append(row);
     }
     review.append(totals);
+    if(stock) annotatePlanningStock(review,stock);
     const save=document.createElement('button');save.type='button';save.className='primary';save.textContent='Enregistrer ces repas';review.append(save);
     save.disabled=!meals.length || saving;
     save.addEventListener('click',async()=>{
@@ -3489,39 +3530,117 @@ function openDayMeals(date, calendarMeals) {
   choices.addEventListener('submit',event=>event.preventDefault());
   render();
   dialog.showModal();
+  if (fields.length) {
+    const householdId = state.household.id;
+    void loadPlanningStock(date).then(available => {
+      if (!dialog.open || choices.parentElement !== root || state.household?.id !== householdId || !available) return;
+      stock = available;
+      annotatePlanningStock(root, stock);
+    });
+  }
 }
 
 let macroView = 0;
-async function openDailyMacros(person,date){
-  const dialog=$('#daily-macros-dialog'), form=$('#daily-macros-form'), message=$('#daily-macros-message');
-  const endpoint='/api/people/'+person.id+'/daily-macros';
-  const householdId=state.household.id, view=++macroView, profile=latestProfile(person,date);
-  const fields=[['carbohydrateG','Glucides',profile?.dailyCarbohydrateG],['fatG','Lipides',profile?.dailyFatG]];
-  const button=form.querySelector('button');
-  $('#daily-macros-title').textContent=person.displayName+' · '+displayDate(date);
-  form.reset();form.onsubmit=event=>event.preventDefault();message.textContent='Chargement…';button.disabled=true;
+function macroAmount(amount) {
+  if (amount.grams == null) return amount.incomplete ? 'donnée manquante' : '—';
+  return (amount.incomplete ? 'au moins ' : '') + format(amount.grams) + ' g' +
+    (amount.incomplete ? ' (incomplet)' : '');
+}
+
+async function openDailyMacros(person,date,meals){
+  const dialog = $('#daily-macros-dialog'), form = $('#daily-macros-form'), message = $('#daily-macros-message');
+  const list = $('#daily-consumed-meals'), comparison = $('#daily-macros-comparison'), button = form.querySelector('button');
+  const endpoint = '/api/people/'+person.id+'/home-consumption';
+  const householdId = state.household.id, view = ++macroView, profile = latestProfile(person,date);
+  const share = homeBudgetShare(meals,person.id,date,state.mealRatios??SLOT_RATIOS);
+  const fields = [['carbohydrate','Glucides','carbohydrateG',profile?.dailyCarbohydrateG],
+    ['fat','Lipides','fatG',profile?.dailyFatG]];
+  const eligible = consumptionParts(meals,person.id,date);
+  const activeView = () => view === macroView && dialog.open && state.household?.id === householdId;
+  $('#daily-macros-title').textContent = person.displayName+' · '+displayDate(date);
+  form.onsubmit = event => event.preventDefault();
+  list.replaceChildren();
+  comparison.replaceChildren();
+  message.textContent = 'Chargement…';
+  button.disabled = true;
   dialog.showModal();
-  const render=intake=>{
-    for(const [name] of fields)form.elements[name].value=intake?.[name]??'';
-    message.textContent=fields.map(([name,label,target])=>{
-      const actual=intake?.[name], difference=actual==null||target==null?null:actual-target;
-      return label+' · '+(actual==null?'non renseignés':format(actual)+' g consommés')+' / '+(target==null?'repère non défini':format(target)+' g de repère journalier')+
-        (difference==null?'':' ('+(difference>0?'+':'')+format(difference)+' g)');
-    }).join(' · ');
+
+  let current, choices;
+  const render = data => {
+    current = data;
+    const recorded = new Map(data.parts.map(part => [part.itemId,part]));
+    const eligibleIds = new Set(eligible.map(part => part.itemId));
+    const groups = new Map();
+    list.replaceChildren();
+    choices = [...eligible,...data.parts.filter(part => !eligibleIds.has(part.itemId))].map(part => {
+      if (!groups.has(part.mealId)) {
+        const group = document.createElement('fieldset'), heading = document.createElement('legend');
+        heading.textContent = slotLabels[part.slot] ?? 'Repas';
+        group.append(heading);
+        groups.set(part.mealId,group);
+        list.append(group);
+      }
+      const saved = recorded.get(part.itemId), shown = saved ?? part;
+      const label = document.createElement('label'), input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = Boolean(saved);
+      const quantity = shown.unitId ? ' · '+formatQty(shown.quantity)+' '+servingUnitLabel(shown.unitId) : '';
+      const detached = eligibleIds.has(part.itemId) ? '' : ' · ancienne partie du planning';
+      label.className = 'attendee-option';
+      label.append(input, document.createTextNode(shown.name+quantity+detached));
+      groups.get(part.mealId).append(label);
+      return {input, mealId:part.mealId, itemId:part.itemId};
+    });
+    if (!choices.length) list.textContent = 'Aucune partie de repas à la maison à confirmer.';
+
+    comparison.replaceChildren();
+    for (const [key,label,nutrient,target] of fields) {
+      const report = document.createElement('p');
+      const predicted = plannedMacro(meals.filter(meal=>!meal.isOccasion),person.id,date,nutrient);
+      const consumed = confirmedMacro(data.parts,key);
+      const reference = target == null ? 'non renseigné' : format(target*share)+' g';
+      report.textContent = label+' · prévus '+macroAmount(predicted)+' · confirmés '+
+        (data.parts.length ? macroAmount(consumed) : 'aucune partie')+' · repère personnalisé à la maison '+reference;
+      comparison.append(report);
+    }
+    const saturated = document.createElement('small');
+    saturated.textContent = 'Graisses saturées · donnée non disponible dans le calcul du catalogue.';
+    comparison.append(saturated);
+    button.disabled = !choices.length;
   };
-  try{
-    const data=await api(endpoint+'?'+new URLSearchParams({householdId,date}));
-    if(view!==macroView||!dialog.open)return;
-    render(data.intake);button.disabled=false;
-  }catch{if(view===macroView)message.textContent='Chargement impossible.';return;}
-  form.onsubmit=async event=>{
-    event.preventDefault();button.disabled=true;
-    const amounts=Object.fromEntries(fields.map(([name])=>[name,form.elements[name].value===''?null:form.elements[name].valueAsNumber]));
-    try{
-      const data=await api(endpoint,{method:'POST',body:JSON.stringify({householdId,date,...amounts})});
-      if(view===macroView&&dialog.open)render(data.intake);
-    }catch{if(view===macroView)message.textContent='Enregistrement impossible.';}
-    finally{if(view===macroView)button.disabled=false;}
+
+  try {
+    const data = await api(endpoint+'?'+new URLSearchParams({householdId,date}));
+    if (!activeView()) return;
+    render(data);
+    message.textContent = '';
+  } catch {
+    if (activeView()) message.textContent = 'Chargement impossible.';
+    return;
+  }
+  form.onsubmit = async event => {
+    event.preventDefault();
+    if (button.disabled) return;
+    button.disabled = true;
+    for (const {input} of choices) input.disabled = true;
+    const selections = choices.filter(({input})=>input.checked).map(({mealId,itemId})=>({mealId,itemId}));
+    try {
+      const data = await api(endpoint,{method:'POST',body:JSON.stringify({householdId,date,selections,revision:current.revision})});
+      if (activeView()) {
+        render(data);
+        message.textContent = 'Parties consommées enregistrées.';
+      }
+      if (state.household?.id === householdId) void refreshCalendar();
+    } catch (error) {
+      if (activeView()) message.textContent = error.body?.error === 'consumption-changed'
+        ? 'Ce relevé a changé. Rouvre la fenêtre pour le mettre à jour.'
+        : 'Impossible de confirmer ces parties. Actualise le calendrier et réessaie.';
+    } finally {
+      if (activeView()) {
+        button.disabled = !choices.length;
+        for (const {input} of choices) input.disabled = false;
+      }
+    }
   };
 }
 
@@ -3547,16 +3666,20 @@ function renderDailyEnergySummary(date,meals) {
     if(daily.incomplete){const note=document.createElement('small');note.textContent='Données incomplètes';line.append(note);}
     footer.append(line);
     if(share<1){const note=document.createElement('small');note.textContent='Budget à la maison · '+format(share*100)+' % du repère journalier';line.append(note);}
-    for(const [label,key,targetKey] of [['Glucides','carbohydrateG','dailyCarbohydrateG'],['Lipides','fatG','dailyFatG'],['Fibres','fibreG','dailyFibreG']]){
-      const planned=plannedMacro(meals,person.id,date,key),reference=profile?.[targetKey];
-      if(planned.grams==null && reference==null)continue;
+    const confirmed = state.calendarConsumption?.get(date+':'+person.id);
+    for(const [label,key,targetKey,confirmedKey] of [['Glucides','carbohydrateG','dailyCarbohydrateG','carbohydrate'],
+      ['Lipides','fatG','dailyFatG','fat'],['Fibres','fibreG','dailyFibreG',null]]){
+      const planned=plannedMacro(meals.filter(meal=>!meal.isOccasion),person.id,date,key),reference=profile?.[targetKey];
+      const actual = confirmedKey ? confirmed?.[confirmedKey] : null;
+      if(planned.grams==null && !planned.incomplete && reference==null && !actual)continue;
       const macro=document.createElement('small');macro.className='daily-macro-person';
-      macro.textContent=label+' prévus · '+(planned.grams==null?'—':(planned.incomplete?'≥ ':'')+format(planned.grams))+' / '+(reference==null?'—':format(reference*share))+' g';
+      macro.textContent = label+' · prévus '+macroAmount(planned)+(actual?' · confirmés '+macroAmount(actual):'')+
+        (reference==null?'':' · repère personnalisé '+format(reference*share)+' g');
       footer.append(macro);
     }
     if(date<=localDateValue() && (state.account?.role==='manager'||state.account?.personId===person.id)){
-      const intake=document.createElement('button');intake.type='button';intake.className='text-button';intake.textContent='Glucides et lipides réels';
-      intake.addEventListener('click',()=>openDailyMacros(person,date));footer.append(intake);
+      const intake=document.createElement('button');intake.type='button';intake.className='text-button';intake.textContent=confirmed?'Corriger les parties consommées':'Confirmer les parties consommées';
+      intake.addEventListener('click',()=>openDailyMacros(person,date,meals));footer.append(intake);
     }
     const proteins=calculateDailyProtein(meals,person.id,date),fullProteinTarget=dailyProteinTarget(person,state.proteinTargets,date);
     const proteinTarget=fullProteinTarget==null?null:format(fullProteinTarget*share);
@@ -4215,12 +4338,14 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
   const summary=mealProteinSummary(source,attendees);
   if (suggestionNotice) root.replaceChildren(summary, suggestionNotice, ...editorRows);
   else root.replaceChildren(summary,...editorRows);
+  if(mealEditorStock) annotatePlanningStock(root,mealEditorStock);
 }
 
 async function openMealEditor(date, slot, meal = null) {
   state.planningFromCatalogue=false;state.planningTargets=null;state.planningRequest=null;$('#planning-target-summary')?.remove();$('#meal-form').elements.mealDate.disabled=$('#meal-form').elements.slot.disabled=false;
   if(meal?.preparedAt||meal?.stockUsedAt)return;
   if (!state.people.length || !state.recipes.length) await refreshCalendar();
+  mealEditorStock = null;
   state.calendarMealId = meal?.id ?? null;
   state.duplicationMeal = meal;
   const form = $('#meal-form'); form.reset();
@@ -4269,6 +4394,7 @@ async function openMealEditor(date, slot, meal = null) {
   renderPlannedItems(items, { autoSuggest: !meal });
   updateMealType();
   $('#meal-dialog').showModal();
+  void refreshMealEditorStock();
 }
 
 let duplicationSource=null, pendingDuplication=null;
@@ -4331,7 +4457,7 @@ $('#delete-meal').addEventListener('click', async () => {
   } catch (error) { showMessage($('#meal-message'), `Suppression impossible : ${error.body?.error ?? error.message}`); }
 });
 for (const field of ['mealDate', 'slot']) {
-  $('#meal-form').elements[field].addEventListener('change', () => {renderPlannedItems(currentFormAmounts(), { autoSuggest: true });updateMealType();});
+  $('#meal-form').elements[field].addEventListener('change', () => {renderPlannedItems(currentFormAmounts(), { autoSuggest: true });updateMealType();if(field==='mealDate')void refreshMealEditorStock();});
 }
 
 $('#meal-form').addEventListener('invalid', (event) => {
