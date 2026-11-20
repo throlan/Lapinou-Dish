@@ -59,11 +59,10 @@ test('salads and optional sauces persist, duplicate, feed shopping and productio
   const payload={householdId:h,mealDate:'2026-10-19',slot:'lunch',notes:'',attendeeIds:[a,b],items:[
     {recipeId:salad.id,role:'main',amounts:[{personId:a,quantity:1},{personId:b,quantity:1}]},
     {recipeId:greens.id,role:'accompaniment',amounts:[{personId:a,quantity:40},{personId:b,quantity:40}]},
-    {recipeId:sauce.id,role:'sauce',amounts:[{personId:a,quantity:30}]},
+    {recipeId:sauce.id,role:'sauce',amounts:[{personId:a,quantity:30},{personId:b,quantity:0}]},
   ]};
   const valid=validatePlannedMeal(payload);assert.equal(valid.error,undefined);
   assert.equal(validatePlannedMeal({...payload,items:[{...payload.items[2],amounts:[]}]}).error,'invalid-sauce-amounts');
-  assert.equal(validatePlannedMeal({...payload,items:[{...payload.items[2],amounts:[{personId:a,quantity:0}]}]}).error,'invalid-planned-quantity');
   const meal=await savePlannedMeal(pool,null,valid.data);
   assert.equal(meal.items.length,5);
   assert.deepEqual(meal.items.find(i=>i.role==='sauce').amounts,[{personId:a,quantity:30}]);
