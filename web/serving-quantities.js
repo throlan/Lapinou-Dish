@@ -16,7 +16,7 @@ export function setServingInput(input,recipe,quantity) {
   input.value=quantity==null||quantity===''?'':String(Number(displayServingQuantity(recipe,quantity).toFixed(6)));
   input.dataset.displayQuantity=input.value;
   input.step=Number.isInteger(Number(input.value))?'1':'any'; // Preserve old fractional menus until an explicit edit/recalculation.
-  input.min=Number.isInteger(Number(input.value))?'1':'0.000001';
+  input.min='0';
 }
 export function servingInputValue(input) {
   const scale=Number(input.dataset?.quantityScale);

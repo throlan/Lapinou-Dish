@@ -2,6 +2,8 @@
 
 La 0.18.3 ajoute la confirmation par partie consommée, les comparaisons avec les repères personnalisés et le stock libre dans les sélecteurs. Le calendrier 0.18.2 a été validé sur les mardis et samedis. Conserver les quatre sélecteurs, les participants indépendants, le total dynamique et les suggestions communes selon le solde de chacun. Voir [le journal de session](SESSION-2026-11-20-CALENDRIER.md).
 
+La 0.18.4 permet une quantité de 0 par recette et par convive, y compris pour un plat principal partagé. Le 0 est retrouvé à la réouverture et conservé au recalcul. Seules les portions servies sont enregistrées pour les courses, le stock et les confirmations. Aucune migration.
+
 ## Rééquilibrage journalier par étapes — 0.17.4
 
 Correction du 20 novembre : chaque retrait de dessert entier est évalué séparément, puis le total est recalculé avant de considérer le suivant. Le retrait n’est proposé que s’il réduit strictement l’écart absolu à la cible journalière. Le même contrôle s’applique à chaque pas de 10 g de féculents séparés. À distance égale, les quantités sont conservées ; entre deux retraits aussi proches, le plus petit est privilégié. Un petit dépassement résiduel reste visible au lieu d’une réduction qui éloignerait davantage de la cible. Aucune tolérance calorique arbitraire ni seuil protéique ajouté.

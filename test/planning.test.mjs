@@ -27,13 +27,14 @@ test('requires a person to be explicitly selected', () => {
   assert.equal(validatePlannedMeal(valid({ attendeeIds: [] })).error, 'attendees-required');
 });
 
-test('the main recipe requires everyone while every optional addition may be person-specific', () => {
-  assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, amounts: [{ personId: personA, quantity: 1 }] }] })).error, 'amounts-must-match-attendees');
+test('every recipe can be served to only some of the attendees', () => {
+  const main = validatePlannedMeal(valid({ items: [{ recipeId, amounts: [{ personId: personA, quantity: 1 }] }] }));
+  assert.deepEqual(main.data.items[0].amounts, [{ personId: personA, quantity: 1 }]);
+  assert.deepEqual(main.data.attendeeIds, [personA, personB]);
   const individualDrink = validatePlannedMeal(valid({ items: [{ recipeId, role: 'beverage', amounts: [{ personId: personA, quantity: 1 }] }] }));
   assert.equal(individualDrink.error, undefined);
   assert.equal(individualDrink.data.items[0].amounts.length, 1);
   assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, role: 'beverage', amounts: [] }] })).error, 'invalid-beverage-amounts');
-  assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, amounts: [{ personId: personA, quantity: 0 }, { personId: personB, quantity: 1 }] }] })).error, 'invalid-planned-quantity');
   const individualSide=validatePlannedMeal(valid({items:[{recipeId,role:'accompaniment',categoryId:'patisserie',amounts:[{personId:personB,quantity:1}]}]}));
   assert.equal(individualSide.error,undefined);
   assert.equal(individualSide.data.items[0].categoryId,'patisserie');
@@ -70,13 +71,19 @@ test('accepts meal item categories and rejects unsupported categories', () => {
   assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, role: 'unknown', amounts: [{ personId: personA, quantity: 1 }, { personId: personB, quantity: 1 }] }] })).error, 'invalid-planned-item-role');
   assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, role: 'beverage', amounts: [{ personId: personA, quantity: 1 }, { personId: personB, quantity: 1 }] }] })).data.items[0].role, 'beverage');
   assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, role: 'dessert', amounts: [{ personId: personA, quantity: 1 }, { personId: personB, quantity: 1 }] }] })).data.items[0].role, 'dessert');
-});test('shared recipes require everyone while beverage amounts may be person-specific', () => {
-  assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, amounts: [{ personId: personA, quantity: 1 }] }] })).error, 'amounts-must-match-attendees');
-  const individualDrink = validatePlannedMeal(valid({ items: [{ recipeId, role: 'beverage', amounts: [{ personId: personA, quantity: 1 }] }] }));
-  assert.equal(individualDrink.error, undefined);
-  assert.equal(individualDrink.data.items[0].amounts.length, 1);
-  assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, role: 'beverage', amounts: [] }] })).error, 'invalid-beverage-amounts');
-  assert.equal(validatePlannedMeal(valid({ items: [{ recipeId, amounts: [{ personId: personA, quantity: 0 }, { personId: personB, quantity: 1 }] }] })).error, 'invalid-planned-quantity');
+});
+
+test('zero quantities omit the portion and skip any recipe served to nobody', () => {
+  const main = { recipeId, amounts: [{ personId: personA, quantity: 0 }, { personId: personB, quantity: 1 }] };
+  const none = { recipeId, role: 'dessert', amounts: [{ personId: personA, quantity: '0' }] };
+  const result = validatePlannedMeal(valid({ items: [main, none] }));
+  assert.deepEqual(result.data.items.map(item => item.amounts), [[{ personId: personB, quantity: 1 }]]);
+  assert.equal(validatePlannedMeal(valid({ items: [none] })).error, 'planned-items-required');
+  for (const quantity of [-1, '', null, false]) {
+    assert.equal(validatePlannedMeal(valid({ items: [main, { ...none, amounts: [{ personId: personA, quantity }] }] })).error, 'invalid-planned-quantity');
+  }
+  const duplicate = { ...main, amounts: [main.amounts[0], main.amounts[0]] };
+  assert.equal(validatePlannedMeal(valid({ items: [duplicate] })).error, 'invalid-planned-amount-person');
 });
 
 test('accepts a quota-exempt occasion with a kcal estimate per attendee and no recipes',()=>{
