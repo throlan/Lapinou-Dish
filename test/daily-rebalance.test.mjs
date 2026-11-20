@@ -62,3 +62,33 @@ test('preview/apply is atomic, detects stale plans and preserves minors and raw 
     assert.equal((await pool.query('SELECT count(*) FROM ingredient_stock_movements')).rows[0].count,0);
   }finally{await db.close();}
 });
+
+test('staged daily balance keeps a small excess after one dessert instead of also removing the snack',()=>{
+  // Fictional energies reproduce the reported totals, without assuming the real skyr label.
+  const rows=[row({quantity:1,energyKcal:1189.7}),row({itemId:'skyr',role:'dessert',quantity:1,unitId:'piece',energyKcal:100}),row({itemId:'snack',mealId:'snack',slot:'afternoon_snack',role:'dessert',quantity:1,unitId:'piece',energyKcal:195.4})];
+  const result=rebalanceDailyEnergy(rows,[{id:'adult',targetKcal:1363}]);
+  assert.ok(Math.abs(result.results[0].beforeKcal-1485.1)<1e-6);
+  assert.equal(result.results[0].afterKcal,1385.1);assert.equal(result.results[0].reason,'cannot-fully-rebalance');
+  assert.deepEqual(result.changes.map(change=>[change.itemId,change.after]),[['skyr',0]]);
+  assert.deepEqual(rows.map(row=>row.quantity),[1,1,1]);
+});
+test('one sufficient dessert removal stops the calculation; subsequent starch reductions must each improve the new balance',()=>{
+  const dessert=row({itemId:'skyr',role:'dessert',quantity:1,unitId:'piece',energyKcal:100});
+  const rice=row({itemId:'rice',role:'accompaniment',parentRecipeId:'dish',servingPart:'starch',quantity:100,energyKcal:2});
+  const people=[{id:'adult',targetKcal:1363}];
+  const enough=rebalanceDailyEnergy([row({quantity:1,energyKcal:1250}),dessert],people);
+  assert.equal(enough.changes.length,0,'already below target must stay unchanged');
+  const single=rebalanceDailyEnergy([row({quantity:1,energyKcal:1350}),dessert],people);
+  assert.deepEqual(single.changes.map(change=>change.itemId),['skyr']);assert.equal(single.results[0].afterKcal,1350);
+  const stages=rebalanceDailyEnergy([row({quantity:1,energyKcal:1185.1}),dessert,rice],people);
+  assert.deepEqual(stages.changes.map(change=>[change.itemId,change.after]),[['skyr',0],['rice',90]]);
+  assert.equal(stages.results[0].afterKcal,1365.1,'another 10 g would overshoot farther than the remaining 2.1 kcal');
+});
+test('oversized and equally distant dessert removals are skipped so finer starch adjustments can be considered',()=>{
+  const rice=row({itemId:'rice',role:'accompaniment',parentRecipeId:'dish',servingPart:'starch',quantity:100,energyKcal:2});
+  const large=row({itemId:'dessert',role:'dessert',quantity:1,unitId:'piece',energyKcal:300});
+  const adjusted=rebalanceDailyEnergy([row({quantity:1,energyKcal:1000}),large,rice],[{id:'adult',targetKcal:1460}]);
+  assert.deepEqual(adjusted.changes.map(change=>[change.itemId,change.after]),[['rice',80]]);assert.equal(adjusted.results[0].afterKcal,1460);
+  const tie=rebalanceDailyEnergy([row({quantity:1,energyKcal:1300}),row({itemId:'dessert',role:'dessert',quantity:1,energyKcal:100})],[{id:'adult',targetKcal:1350}]);
+  assert.equal(tie.changes.length,0,'equal distance does not justify deleting food');
+});

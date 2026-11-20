@@ -1,5 +1,10 @@
 # Cahier produit Lapinou Dish
 
+## Rééquilibrage quotidien — 0.17.4
+
+Chaque réduction proposée doit rapprocher de la cible journalière : dessert entier, nouveau total, puis féculents séparés par pas de 10 g si utile. Les retraits qui éloignent davantage sont évités ; l’écart résiduel reste affiché. Aperçu et confirmation restent obligatoires, sans modification au déploiement.
+
+
 ## Objectif explicite et suivi du maintien — 0.17.3
 
 Le profil rétablit trois choix distincts : maintien, perte de poids, prise de poids. Les rythmes rapide/modéré/lent apparaissent uniquement en perte de poids. Un maintien explicitement choisi reste sans déficit même si le poids de forme est inférieur au poids mesuré ; le préréglage 35/35/30 reste réservé à la perte. Les anciens profils sans objectif explicite gardent leur interprétation précédente jusqu’à l’enregistrement du choix. Modèle profile-auto-v5.

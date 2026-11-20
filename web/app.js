@@ -3349,7 +3349,7 @@ const rebalanceReasons={
   'target-missing':'Objectif quotidien manquant.',
   'inactive-profile':'Profil inactif.',
   'incomplete-nutrition':'Données nutritionnelles incomplètes : quantités conservées.',
-  'cannot-fully-rebalance':'Le dépassement reste possible : dessert retiré et féculents ajustés si possible, sans réduire le plat principal. Le compte épargne affiche son effet.',
+  'cannot-fully-rebalance':'Un dépassement reste affiché : les réductions supplémentaires éloigneraient davantage de la cible, ou les éléments restants sont protégés. Le plat principal est conservé ; le compte épargne affiche l’écart.',
 };
 async function openDailyRebalance(date) {
   const request=++dailyRebalanceRequest;

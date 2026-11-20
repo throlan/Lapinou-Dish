@@ -21,8 +21,11 @@ export function rebalanceDailyEnergy(input,people) {
     const desserts=own.filter(row=>row.adjustable!==false && row.role==='dessert' && !row.parentRecipeId && row.energyKcal>0);
     while(current>person.targetKcal+1e-6 && desserts.length){
       const excess=current-person.targetKcal;
-      desserts.sort((a,b)=>Math.abs(a.quantity*a.energyKcal-excess)-Math.abs(b.quantity*b.energyKcal-excess)||a.itemId.localeCompare(b.itemId));
-      const next=desserts.shift();current-=next.quantity*next.energyKcal;next.quantity=0;
+      desserts.sort((a,b)=>Math.abs(a.quantity*a.energyKcal-excess)-Math.abs(b.quantity*b.energyKcal-excess)||a.quantity*a.energyKcal-b.quantity*b.energyKcal||a.itemId.localeCompare(b.itemId));
+      const next=desserts.shift(),reduction=next.quantity*next.energyKcal;
+      // A remaining excess is preferable to a removal that moves farther from the target.
+      if(Math.abs(current-reduction-person.targetKcal)>=excess-1e-6)break;
+      current-=reduction;next.quantity=0;
     }
     let iterations=0;
     while(current>person.targetKcal+1e-6 && iterations++<10000){
@@ -30,8 +33,10 @@ export function rebalanceDailyEnergy(input,people) {
         && row.energyKcal>0 && row.quantity>=20);
       if(!starches.length)break;
       const excess=current-person.targetKcal;
-      starches.sort((a,b)=>Math.abs(10*a.energyKcal-excess)-Math.abs(10*b.energyKcal-excess)||a.itemId.localeCompare(b.itemId));
-      const next=starches[0];next.quantity=Number((next.quantity-10).toFixed(6));current-=10*next.energyKcal;
+      starches.sort((a,b)=>Math.abs(10*a.energyKcal-excess)-Math.abs(10*b.energyKcal-excess)||a.energyKcal-b.energyKcal||a.itemId.localeCompare(b.itemId));
+      const next=starches[0],reduction=10*next.energyKcal;
+      if(Math.abs(current-reduction-person.targetKcal)>=excess-1e-6)break;
+      next.quantity=Number((next.quantity-10).toFixed(6));current-=reduction;
     }
     result.afterKcal=Number(current.toFixed(6));
     if(current>person.targetKcal+1e-6)result.reason='cannot-fully-rebalance';
