@@ -837,3 +837,22 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 .activity-projection-table { max-width:100%; overflow-x:auto; }
 .activity-projection-table table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
 .activity-projection-table th,.activity-projection-table td { text-align:left; padding:.6rem; white-space:nowrap; border-bottom:1px solid var(--border,#ded6e7); }
+
+#day-meals-choices, #day-meals-choices form, #daily-macros-form {
+  display: grid;
+  gap: 0.8rem;
+}
+#day-meals-choices fieldset, #day-meals-choices > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+}
+#day-meals-choices fieldset select, #day-meals-choices > div > p,
+#day-meals-choices > div > label, #day-meals-choices > div > details {
+  flex: 1 0 100%;
+}
+#day-meals-choices input[type="checkbox"] {
+  width: auto;
+  margin-inline-end: 0.4rem;
+}

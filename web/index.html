@@ -11,7 +11,7 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.17.1">
+    <link rel="stylesheet" href="/style.css?v=0.18.0">
     <link rel="stylesheet" href="/editorial.css?v=0.12.1"><link rel="stylesheet" href="/recipe-directory-refresh.css?v=0.7.0">
       <link rel="stylesheet" href="/recipe-editor-dialog.css?v=0.12.1">
       <link rel="stylesheet" href="/recipe-choices.css?v=0.12.1">
@@ -311,6 +311,23 @@
       </form>
     </dialog>
 
+    <dialog id="daily-macros-dialog" aria-labelledby="daily-macros-title">
+      <form method="dialog"><button class="secondary" aria-label="Fermer">Fermer</button></form>
+      <h2 id="daily-macros-title">Glucides et lipides consommés</h2>
+      <p>Indique les quantités réellement consommées sur la journée, repas extérieurs compris. Champ vide signifie que la donnée est inconnue.</p>
+      <form id="daily-macros-form">
+        <label>Glucides consommés (g)<input name="carbohydrateG" type="number" min="0" max="10000" step="0.01"></label>
+        <label>Lipides consommés (g)<input name="fatG" type="number" min="0" max="10000" step="0.01"></label>
+        <button class="primary">Enregistrer</button>
+      </form>
+      <p id="daily-macros-message" role="status"></p>
+    </dialog>
+    <dialog id="day-meals-dialog" aria-labelledby="day-meals-title">
+      <form method="dialog"><button class="secondary" aria-label="Fermer">Fermer</button></form>
+      <h2 id="day-meals-title">Choisir les repas</h2>
+      <div id="day-meals-choices"></div>
+      <p id="day-meals-message" role="status"></p>
+    </dialog>
     <dialog id="rebalance-dialog">
       <div class="dialog-heading"><h2>Rééquilibrer la journée</h2><button type="button" class="icon-button" id="close-rebalance" aria-label="Fermer">×</button></div>
       <p>Pour les adultes, l’aperçu évalue les desserts entiers, puis les féculents séparés par pas de 10 g. Le total est recalculé après chaque réduction, conservée uniquement si elle rapproche de la cible. Une réduction qui éloignerait davantage de la cible est évitée. Le plat principal, les préparations déjà utilisées et les repas des mineurs restent inchangés. Un dépassement résiduel est affiché ; les protéines sont indiquées sans seuil imposé.</p>
@@ -533,6 +550,6 @@
       </form>
     </dialog>
     <script type="module" src="/install-app.js?v=0.3.17"></script>
-    <script type="module" src="/app.js?v=0.17.4"></script>
+    <script type="module" src="/app.js?v=0.18.0"></script>
   </body>
 </html>

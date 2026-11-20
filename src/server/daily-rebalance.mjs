@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
 import { readRecipe } from './recipes.mjs';
 import { lockHouseholdInventory } from './ingredient-stock.mjs';
-import { breakfastServingLimit } from '../../web/portion-planner.js';
+import { breakfastServingLimit, SLOT_RATIOS } from '../../web/portion-planner.js';
+import { homeBudgetShare } from '../../web/day-meals.js';
+import { readMealSettings } from './meal-settings.mjs';
 
 const steps={g:10,ml:10,piece:1,portion:0.5};
 export function isAdultOn(birthDate,date) {
@@ -72,7 +74,13 @@ export async function previewDailyRebalance(pool,householdId,date) {
   const occasions=await pool.query(`SELECT m.id,m.slot,e.person_id,e.energy_kcal FROM planned_meals m
     JOIN planned_occasion_energy e ON e.meal_id=m.id WHERE m.household_id=$1 AND m.meal_date=$2`,[householdId,date]);
   for(const occasion of occasions.rows)rows.push({itemId:`occasion-${occasion.id}`,mealId:occasion.id,personId:occasion.person_id,slot:occasion.slot,role:'occasion',quantity:1,adjustable:false,recipeName:'Repas exceptionnel',unitId:'portion',energyKcal:Number(occasion.energy_kcal),proteinG:null,complete:true});
-  const people=peopleResult.rows.filter(person=>rows.some(row=>row.personId===person.id)).map(person=>({id:person.id,name:person.display_name,targetKcal:person.target==null?null:Number(person.target)-Number(extraSavings.get(person.id)??0),reason:!person.active?'inactive-profile':!person.birth_date?'age-missing':!isAdultOn(person.birth_date,date)?'minor-profile':!(Number(person.target)>Number(extraSavings.get(person.id)??0))?'target-missing':null}));
+  const {ratios}=await readMealSettings(pool,householdId)??{};
+  const attendance=await pool.query(`SELECT m.id,m.slot,COALESCE(array_agg(a.person_id) FILTER (WHERE a.person_id IS NOT NULL),'{}') AS ids
+     FROM planned_meals m LEFT JOIN planned_meal_attendees a ON a.meal_id=m.id
+     WHERE m.household_id=$1 AND m.meal_date=$2 AND m.slot IN ('lunch','dinner') GROUP BY m.id,m.slot`,[householdId,date]);
+  const meals=attendance.rows.map(row=>({mealDate:date,slot:row.slot,attendees:row.ids.map(id=>({id}))}));
+  const target=person=>person.target==null?null:Math.max(0,Number(person.target)*homeBudgetShare(meals,person.id,date,ratios??SLOT_RATIOS)-Number(extraSavings.get(person.id)??0));
+  const people=peopleResult.rows.filter(person=>rows.some(row=>row.personId===person.id)).map(person=>({id:person.id,name:person.display_name,targetKcal:target(person),reason:!person.active?'inactive-profile':!person.birth_date?'age-missing':!isAdultOn(person.birth_date,date)?'minor-profile':!(target(person)>0)?'target-missing':null}));
   const preview=rebalanceDailyEnergy(rows,people);
   const token=createHash('sha256').update(JSON.stringify({householdId,date,rows,people,preview})).digest('hex');
   return {date,...preview,token};

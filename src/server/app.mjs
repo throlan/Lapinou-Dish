@@ -1,8 +1,8 @@
-import {validateAutomaticProfile,saveAutomaticProfile,validateActivity,saveActivity,readAutomaticActivity,recalculateAutomatic,refreshAutomaticHousehold} from './automatic-profile.mjs';
+import {validateAutomaticProfile,saveAutomaticProfile,validateActivity,saveActivity,readAutomaticActivity,recalculateAutomatic,refreshAutomaticHousehold,parisToday} from './automatic-profile.mjs';
 import {recipeReplacementRoutes} from './recipe-replacements.mjs';
 import {validateNutritionTarget,addNutritionTarget} from './nutrition-targets.mjs';
 import {planningCookingRoutes} from './planning-cooking.mjs';
-import {validatePlanningCopy,previewPlanningCopy,copyPlanningPeriod,addPlanningSelection} from './planning-copy.mjs';
+import {validatePlanningCopy,previewPlanningCopy,copyPlanningPeriod,addPlanningSelection,addPlanningDay} from './planning-copy.mjs';
 import {recipeChoiceRoutes} from './recipe-choices.mjs';
 import {communityRoutes} from './community.mjs';
 import {accountGateway} from './accounts.mjs';
@@ -64,6 +64,7 @@ const staticFiles = new Map([
   ['/accounts-ui.js', ['accounts-ui.js', 'text/javascript; charset=utf-8']],
   ['/guided-nutrition-ui.js', ['guided-nutrition-ui.js', 'text/javascript; charset=utf-8']],
   ['/nutrition-recommendations.js', ['nutrition-recommendations.js', 'text/javascript; charset=utf-8']],
+  ['/day-meals.js', ['day-meals.js', 'text/javascript; charset=utf-8']],
   ['/main-dish-cap.js', ['main-dish-cap.js', 'text/javascript; charset=utf-8']],
   ['/automatic-profile-ui.js', ['automatic-profile-ui.js', 'text/javascript; charset=utf-8']],
   ['/automatic-nutrition.js', ['automatic-nutrition.js', 'text/javascript; charset=utf-8']],
@@ -259,6 +260,34 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
     if(automaticRead&&request.method==='GET'){
       const householdId=url.searchParams.get('householdId');if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});
       try{const data=await readAutomaticActivity(pool,automaticRead[1],householdId);return send(response,data?200:404,data??{error:'person-not-found'});}catch{return send(response,500,{error:'automatic-profile-read-failed'});}
+    }
+    const dailyMacros=url.pathname.match(/^\/api\/people\/([a-f0-9-]{36})\/daily-macros$/i);
+    if(dailyMacros && isUuid(dailyMacros[1]) && ['GET','POST'].includes(request.method)){
+      const body=request.method==='POST'?await readJson(request):{value:Object.fromEntries(url.searchParams)};
+      if(body.error)return send(response,body.status??400,{error:body.error});
+      const {householdId,date,carbohydrateG,fatG}=body.value??{};
+      const validDate=typeof date==='string' && /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(Date.parse(date)) && new Date(date).toISOString().slice(0,10)===date;
+      if(!isUuid(householdId)||!validDate)return send(response,400,{error:'invalid-macro-date'});
+      const values=[carbohydrateG,fatG];
+      if(request.method==='POST'&&(date>parisToday()||values.some(value=>value!==null&&(typeof value!=='number'||!Number.isFinite(value)||value<0||value>10000))))
+        return send(response,400,{error:'invalid-macro-values'});
+      const personId=dailyMacros[1], params=[personId,date,householdId];
+      try{
+        if(request.method==='POST'){
+          const found=await pool.query('SELECT 1 FROM people WHERE id=$1 AND household_id=$2',[personId,householdId]);
+          if(!found.rows.length)return send(response,404,{error:'person-not-found'});
+          if(values.every(value=>value===null)){
+            await pool.query('DELETE FROM person_daily_macro_intake i USING people p WHERE p.id=i.person_id AND i.person_id=$1 AND i.intake_date=$2 AND p.household_id=$3',params);
+          }else{
+            await pool.query(`INSERT INTO person_daily_macro_intake(person_id,intake_date,carbohydrate_g,fat_g)
+              SELECT id,$2::date,$4,$5 FROM people WHERE id=$1 AND household_id=$3
+              ON CONFLICT(person_id,intake_date) DO UPDATE SET carbohydrate_g=excluded.carbohydrate_g,fat_g=excluded.fat_g`,[...params,...values]);
+          }
+        }
+        const row=(await pool.query(`SELECT i.carbohydrate_g::float8 AS "carbohydrateG", i.fat_g::float8 AS "fatG"
+          FROM person_daily_macro_intake i JOIN people p ON p.id=i.person_id WHERE i.person_id=$1 AND i.intake_date=$2 AND p.household_id=$3`,params)).rows[0];
+        return send(response,200,{intake:row??null});
+      }catch{return send(response,500,{error:'daily-macros-unavailable'});}
     }
     const personAction = url.pathname.match(/^\/api\/people\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(weights|profile-history|weight-goals|nutrition-targets|automatic-profile|activity-plans|activity-sessions|serving-cap)$/i);
     if (personAction && request.method === 'POST') {
@@ -582,11 +611,12 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
       catch { return send(response, 500, { error: 'planning-delete-failed' }); }
     }
 
-    if(request.method==='POST'&&['/api/planning/copy-preview','/api/planning/copy','/api/planning/selection'].includes(url.pathname)){
+    if(request.method==='POST'&&['/api/planning/copy-preview','/api/planning/copy','/api/planning/selection','/api/planning/day'].includes(url.pathname)){
       const body=await readJson(request);if(body.error)return send(response,body.status??400,{error:body.error});
       try{
         let result;
-        if(url.pathname==='/api/planning/selection')result=await addPlanningSelection(pool,body.value);
+        if(url.pathname==='/api/planning/day')result=await addPlanningDay(pool,body.value);
+        else if(url.pathname==='/api/planning/selection')result=await addPlanningSelection(pool,body.value);
         else {const valid=validatePlanningCopy(body.value);if(valid.error)return send(response,400,valid);result=url.pathname.endsWith('copy-preview')?await previewPlanningCopy(pool,valid.data):await copyPlanningPeriod(pool,{...valid.data,requestId:body.value.requestId,fingerprint:body.value.fingerprint});}
         return send(response,result.error?409:url.pathname.endsWith('copy-preview')?200:201,result);
       }catch{return send(response,500,{error:'planning-copy-failed'});}

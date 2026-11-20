@@ -1,5 +1,7 @@
 # Cahier de reprise — 19 novembre 2026
 
+Choix des repas du jour, budget des repas à la maison et suivi glucides/lipides en 0.18.0. Voir [le journal de session](SESSION-2026-11-20-CALENDRIER.md).
+
 ## Rééquilibrage journalier par étapes — 0.17.4
 
 Correction du 20 novembre : chaque retrait de dessert entier est évalué séparément, puis le total est recalculé avant de considérer le suivant. Le retrait n’est proposé que s’il réduit strictement l’écart absolu à la cible journalière. Le même contrôle s’applique à chaque pas de 10 g de féculents séparés. À distance égale, les quantités sont conservées ; entre deux retraits aussi proches, le plus petit est privilégié. Un petit dépassement résiduel reste visible au lieu d’une réduction qui éloignerait davantage de la cible. Aucune tolérance calorique arbitraire ni seuil protéique ajouté.
