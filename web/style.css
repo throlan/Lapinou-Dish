@@ -856,3 +856,11 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
   width: auto;
   margin-inline-end: 0.4rem;
 }
+
+#daily-consumed-meals {
+  display: grid;
+  gap: 0.4rem;
+}
+#daily-consumed-meals input[type="checkbox"] {
+  width: auto;
+}

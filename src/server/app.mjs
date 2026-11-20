@@ -1,3 +1,4 @@
+import {readHomeConsumption,saveHomeConsumption} from './home-consumption.mjs';
 import {validateAutomaticProfile,saveAutomaticProfile,validateActivity,saveActivity,readAutomaticActivity,recalculateAutomatic,refreshAutomaticHousehold,parisToday} from './automatic-profile.mjs';
 import {recipeReplacementRoutes} from './recipe-replacements.mjs';
 import {validateNutritionTarget,addNutritionTarget} from './nutrition-targets.mjs';
@@ -260,6 +261,23 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
     if(automaticRead&&request.method==='GET'){
       const householdId=url.searchParams.get('householdId');if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});
       try{const data=await readAutomaticActivity(pool,automaticRead[1],householdId);return send(response,data?200:404,data??{error:'person-not-found'});}catch{return send(response,500,{error:'automatic-profile-read-failed'});}
+    }
+    const homeConsumption=url.pathname.match(/^\/api\/people\/([a-f0-9-]{36})\/home-consumption$/i);
+    if(homeConsumption && isUuid(homeConsumption[1]) && ['GET','POST'].includes(request.method)){
+      const write=request.method==='POST';
+      const body=write?await readJson(request):{value:Object.fromEntries(url.searchParams)};
+      if(body.error)return send(response,body.status??400,{error:body.error});
+      const {householdId,date,mealIds,revision}=body.value??{};
+      const dateValid=typeof date==='string' && /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+        !Number.isNaN(Date.parse(date)) && new Date(date).toISOString().slice(0,10)===date && date<=parisToday();
+      if(!isUuid(householdId)||!dateValid||write&&(!Array.isArray(mealIds)||mealIds.length>100||
+        new Set(mealIds).size!==mealIds.length||!mealIds.every(isUuid)||(revision!==null&&!isUuid(revision))))
+        return send(response,400,{error:'invalid-home-consumption'});
+      try{
+        const result=write?await saveHomeConsumption(pool,householdId,homeConsumption[1],date,mealIds,revision):
+          await readHomeConsumption(pool,householdId,homeConsumption[1],date);
+        return send(response,result.error==='person-not-found'?404:result.error?409:200,result);
+      }catch{return send(response,500,{error:'home-consumption-unavailable'});}
     }
     const dailyMacros=url.pathname.match(/^\/api\/people\/([a-f0-9-]{36})\/daily-macros$/i);
     if(dailyMacros && isUuid(dailyMacros[1]) && ['GET','POST'].includes(request.method)){

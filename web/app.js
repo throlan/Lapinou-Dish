@@ -3489,36 +3489,68 @@ function openDayMeals(date, calendarMeals) {
 }
 
 let macroView = 0;
-async function openDailyMacros(person,date){
+async function openDailyMacros(person,date,meals){
   const dialog=$('#daily-macros-dialog'), form=$('#daily-macros-form'), message=$('#daily-macros-message');
-  const endpoint='/api/people/'+person.id+'/daily-macros';
+  const list=$('#daily-consumed-meals'), comparison=$('#daily-macros-comparison'), button=form.querySelector('button');
+  const endpoint='/api/people/'+person.id+'/home-consumption';
   const householdId=state.household.id, view=++macroView, profile=latestProfile(person,date);
-  const fields=[['carbohydrateG','Glucides',profile?.dailyCarbohydrateG],['fatG','Lipides',profile?.dailyFatG]];
-  const button=form.querySelector('button');
+  const share=homeBudgetShare(meals,person.id,date,state.mealRatios??SLOT_RATIOS);
+  const fields=[['carbohydrate','Glucides',profile?.dailyCarbohydrateG],['fat','Lipides',profile?.dailyFatG]];
+  const eligible=meals.filter(meal=>meal.mealDate===date&&!meal.isOccasion&&meal.attendees?.some(entry=>entry.id===person.id)&&
+    meal.items?.some(item=>item.amounts?.some(amount=>amount.personId===person.id&&amount.quantity>0)));
   $('#daily-macros-title').textContent=person.displayName+' · '+displayDate(date);
-  form.reset();form.onsubmit=event=>event.preventDefault();message.textContent='Chargement…';button.disabled=true;
+  form.onsubmit=event=>event.preventDefault();
+  list.replaceChildren();comparison.replaceChildren();message.textContent='Chargement…';button.disabled=true;
   dialog.showModal();
-  const render=intake=>{
-    for(const [name] of fields)form.elements[name].value=intake?.[name]??'';
-    message.textContent=fields.map(([name,label,target])=>{
-      const actual=intake?.[name], difference=actual==null||target==null?null:actual-target;
-      return label+' · '+(actual==null?'non renseignés':format(actual)+' g consommés')+' / '+(target==null?'repère non défini':format(target)+' g de repère journalier')+
-        (difference==null?'':' ('+(difference>0?'+':'')+format(difference)+' g)');
-    }).join(' · ');
+  let current, choices;
+  const render=data=>{
+    current=data;
+    const recorded=new Map(data.meals.map(meal=>[meal.id,meal]));
+    const records=eligible.map(meal=>({id:meal.id,slot:meal.slot,name:meal.items
+      .filter(item=>item.amounts.some(amount=>amount.personId===person.id&&amount.quantity>0))
+      .map(item=>item.recipe?.name??'Recette supprimée').join(' · ')}));
+    const eligibleIds=new Set(records.map(meal=>meal.id));
+    records.push(...data.meals.filter(meal=>!eligibleIds.has(meal.id)));
+    list.replaceChildren();
+    choices=records.map(meal=>{
+      const label=document.createElement('label'), input=document.createElement('input');
+      input.type='checkbox';input.value=meal.id;input.checked=recorded.has(meal.id);
+      label.className='attendee-option';
+      label.append(input,document.createTextNode(slotLabels[meal.slot]+' · '+(recorded.get(meal.id)?.name??meal.name)));
+      list.append(label);return input;
+    });
+    if(!choices.length)list.textContent='Aucun repas à la maison à confirmer.';
+    comparison.replaceChildren();
+    for(const [key,label,target] of fields){
+      const report=document.createElement('p');
+      const amounts=data.meals.map(meal=>meal[key]);
+      const known=amounts.filter(amount=>amount.grams!=null);
+      const total=known.reduce((sum,amount)=>sum+amount.grams,0);
+      const partial=amounts.some(amount=>amount.incomplete||amount.grams==null);
+      const used=known.length?(partial?'≥ ':'')+format(total)+' g consommés':data.meals.length?'apport inconnu':'aucun repas confirmé';
+      report.textContent=label+' · '+used+' / '+(target==null?'repère non défini':format(target*share)+' g de repère à la maison');
+      comparison.append(report);
+    }
+    button.disabled=!choices.length;
   };
   try{
     const data=await api(endpoint+'?'+new URLSearchParams({householdId,date}));
     if(view!==macroView||!dialog.open)return;
-    render(data.intake);button.disabled=false;
+    render(data);message.textContent='';
   }catch{if(view===macroView)message.textContent='Chargement impossible.';return;}
   form.onsubmit=async event=>{
-    event.preventDefault();button.disabled=true;
-    const amounts=Object.fromEntries(fields.map(([name])=>[name,form.elements[name].value===''?null:form.elements[name].valueAsNumber]));
+    event.preventDefault();
+    if(button.disabled)return;
+    button.disabled=true;
+    const mealIds=choices.filter(input=>input.checked).map(input=>input.value);
     try{
-      const data=await api(endpoint,{method:'POST',body:JSON.stringify({householdId,date,...amounts})});
-      if(view===macroView&&dialog.open)render(data.intake);
-    }catch{if(view===macroView)message.textContent='Enregistrement impossible.';}
-    finally{if(view===macroView)button.disabled=false;}
+      const data=await api(endpoint,{method:'POST',body:JSON.stringify({householdId,date,mealIds,revision:current.revision})});
+      if(view===macroView&&dialog.open){render(data);message.textContent='Repas consommés enregistrés.';}
+    }catch(error){
+      if(view===macroView)message.textContent=error.body?.error==='consumption-changed'
+        ? 'Ce relevé a changé. Rouvre la fenêtre pour le mettre à jour.'
+        : 'Impossible de confirmer ces repas. Actualise le calendrier et réessaie.';
+    }finally{if(view===macroView)button.disabled=!choices.length;}
   };
 }
 
@@ -3552,8 +3584,8 @@ function renderDailyEnergySummary(date,meals) {
       footer.append(macro);
     }
     if(date<=localDateValue() && (state.account?.role==='manager'||state.account?.personId===person.id)){
-      const intake=document.createElement('button');intake.type='button';intake.className='text-button';intake.textContent='Glucides et lipides réels';
-      intake.addEventListener('click',()=>openDailyMacros(person,date));footer.append(intake);
+      const intake=document.createElement('button');intake.type='button';intake.className='text-button';intake.textContent='Valider les repas consommés';
+      intake.addEventListener('click',()=>openDailyMacros(person,date,meals));footer.append(intake);
     }
     const proteins=calculateDailyProtein(meals,person.id,date),fullProteinTarget=dailyProteinTarget(person,state.proteinTargets,date);
     const proteinTarget=fullProteinTarget==null?null:format(fullProteinTarget*share);

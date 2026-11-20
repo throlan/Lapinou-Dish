@@ -212,7 +212,7 @@ export async function duplicatePlannedMeal(pool, sourceId, input) {
   }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 }
 
-async function readPlannedMeal(client, meal, householdId) {
+export async function readPlannedMeal(client, meal, householdId) {
   let row = meal;
   if (meal.meal_date == null) {
     const result = await client.query('SELECT id, meal_date::text AS meal_date, slot, notes, is_occasion, occasion_title, prepared_at FROM planned_meals WHERE id = $1 AND household_id = $2', [meal.id, householdId]);
