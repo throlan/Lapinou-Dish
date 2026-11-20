@@ -3525,7 +3525,7 @@ function openDayMeals(date, calendarMeals) {
         recipients.textContent='Pour '+selected.amounts.map(amount=>people.find(person=>person.id===amount.personId).displayName).join(', ');
         complements.append(recipients);
       }
-      if(key===focusKey&&!select.disabled)select.focus();
+      if(key===focusKey&&!select.disabled)select.focus({preventScroll:true});
     }
     const adjustPortions = useBalance ?? fields.every(field=>field.select.value);
     if (adjustPortions) expandDayMealPortions(meals,{
@@ -3561,7 +3561,7 @@ function openDayMeals(date, calendarMeals) {
       toggle.append(checkbox,document.createTextNode('Ajuster les portions avec le solde'));
       checkbox.addEventListener('change',()=>{useBalance=checkbox.checked;render('balance');});
       review.append(toggle);
-      if(focusKey==='balance')checkbox.focus();
+      if(focusKey==='balance')checkbox.focus({preventScroll:true});
     }
     if(warnings.size){
       const details=document.createElement('details'), title=document.createElement('summary');

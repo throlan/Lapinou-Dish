@@ -844,6 +844,8 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 }
 #day-meals-dialog {
   width: min(980px, calc(100vw - 24px));
+  box-sizing: border-box;
+  max-width: calc(100% - 24px);
 }
 #day-meals-choices {
   display: grid;
@@ -886,7 +888,7 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
   white-space: normal;
 }
 .day-meal-complements:empty { display: none; }
-#day-meals-choices .attendee-option, .day-meal-balance {
+#day-meals-choices .attendee-option, #day-meals-choices .day-meal-balance {
   display: flex;
   align-items: center;
   margin: 0;
