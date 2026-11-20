@@ -1,4 +1,4 @@
-import {homeBudgetShare,plannedMacro} from './day-meals.js';
+import {homeBudgetShare,plannedMacro,fitsDayExtra} from './day-meals.js';
 import {servedGramsPerUnit} from './main-dish-cap.js';
 import {effectiveNutritionProfile,renderNutritionGoals,monthlyReview} from './nutrition-goals.js';
 import {foodCorrectionField,foodMeasurePayload,foodMeasureComparisons,foodPurchaseMode,deriveFoodMeasures,foodMeasureVolumes,foodMeasureLabels} from './food-corrections.js';
@@ -3315,7 +3315,7 @@ function openDayMeals(date, calendarMeals) {
   $('#day-meals-title').textContent = 'Choisir les repas · ' + displayDate(date);
   const choices = document.createElement('form');
   root.append(choices);
-  for (const slot of ['lunch', 'dinner']) {
+  for (const slot of MEAL_ORDER.filter(slot=>slot!=='evening_snack')) {
     const group = document.createElement('fieldset'), legend = document.createElement('legend');
     legend.textContent = slotLabels[slot]; group.append(legend); choices.append(group);
     const occupied = existing.filter(meal => meal.slot === slot);
@@ -3334,7 +3334,7 @@ function openDayMeals(date, calendarMeals) {
     const select = document.createElement('select');
     select.setAttribute('aria-label', 'Plat principal · ' + slotLabels[slot]);
     select.add(new Option('Choisir un plat principal', ''));
-    for (const recipe of recipesForPlanning(slot, 'main').filter(recipe => !recipe.recipeType || ['dish','salad'].includes(recipe.recipeType))) {
+    for (const recipe of recipesForPlanning(slot, 'main').filter(recipe => !['lunch','dinner'].includes(slot) || !recipe.recipeType || ['dish','salad'].includes(recipe.recipeType))) {
       select.add(new Option(recipe.name, recipe.id));
     }
     group.append(select);
@@ -3347,31 +3347,30 @@ function openDayMeals(date, calendarMeals) {
     });
     fields.push({slot, select, attendees});
   }
-  const preview = document.createElement('button'), review = document.createElement('div');
-  preview.type = 'submit'; preview.className = 'primary'; preview.textContent = 'Voir les suggestions';
-  choices.append(preview); root.append(review);
-  choices.addEventListener('change', () => { review.replaceChildren(); message.textContent = ''; });
-  choices.addEventListener('submit', event => {
-    event.preventDefault();
+  const review = document.createElement('div');
+  root.append(review);
+  const selectedExtras = new Map();
+  let request, saving=false;
+  const render = (focusKey=null) => {
     review.replaceChildren();
     message.textContent = '';
     const draft = fields.filter(field => field.select.value).map(field => ({
       slot: field.slot, recipe: state.recipes.find(recipe => recipe.id === field.select.value),
       attendeeIds: field.attendees.filter(input => input.checked).map(input => input.value)
     }));
-    if ((!draft.length && fields.length === 2) || draft.some(meal => !meal.attendeeIds.length || !meal.recipe)) {
-      message.textContent = 'Choisis au moins un plat et coche les participants de chaque repas choisi.';
+    if (draft.some(meal => !meal.attendeeIds.length || !meal.recipe)) {
+      message.textContent = 'Coche au moins un participant pour chaque repas choisi.';
       return;
     }
     const warnings = new Set();
     const byId = new Map(allPlanningRecipes().map(recipe => [recipe.id, recipe]));
-    const mainItems = (meal, collectWarnings = true) => {
+    const mainItems = meal => {
       const parts = meal.recipe.servingParts?.length ? meal.recipe.servingParts : [meal.recipe];
       const items = parts.map(part => ({
         recipeId: part.id, role: part.servingPart && part.servingPart !== 'main' ? 'accompaniment' : 'main'
       }));
       const notices = applyAutomaticPortions(items, meal.attendeeIds, {date, slot: meal.slot, quiet:true});
-      if (collectWarnings) for (const warning of notices) warnings.add(warning);
+      for (const warning of notices) warnings.add(warning);
       return items.map(item => ({recipeId:item.recipeId, role:item.role,
         amounts:meal.attendeeIds.map(personId => ({personId, quantity:Number(item.amounts?.[personId])}))}));
     };
@@ -3396,71 +3395,60 @@ function openDayMeals(date, calendarMeals) {
       }
     };
     for (const meal of meals) for (const item of meal.items) account(item);
-    const fits = (recipe, quantity, personId, slot) => {
-      const kcal = recipe.nutrition?.perYieldUnit?.energyKcal;
-      const target = latestProfile(people.find(person=>person.id===personId), date)?.dailyEnergyKcal;
-      if (unknownEnergy.has(personId) || !(kcal>0 && quantity>0 && target>0)) return null;
-      const remaining = target * homeBudgetShare(participation,personId,date,ratios) - used.get(personId);
-      return kcal*quantity<=remaining+1e-6 ? Math.abs(kcal*quantity-target*(ratios[slot]??0)) : null;
-    };
-    const suggestions = [];
-    const budgets = document.createElement('p');
-    budgets.textContent = people.flatMap(person => {
-      const target=latestProfile(person,date)?.dailyEnergyKcal;
-      if(target==null)return [];
-      return [person.displayName+' · '+format(target*homeBudgetShare(participation,person.id,date,ratios))+' kcal à la maison'];
-    }).join(' · ');
-    if(budgets.textContent)review.append(budgets);
-    for (const slot of ['breakfast','snack']) {
-      if (existing.some(meal => meal.slot === slot)) continue;
-      const attendeeIds = people.map(person => person.id);
-      let best;
-      for (const recipe of recipesForPlanning(slot, 'main').filter(recipe=>recipe.mealMoments?.includes(slot) && !recipe.servingParts?.length)) {
-        const item = mainItems({slot, recipe, attendeeIds}, false)[0];
-        const scores = item.amounts.map(amount=>fits(recipe,amount.quantity,amount.personId,slot));
-        if (!scores.length || scores.some(score=>score==null)) continue;
-        const score = scores.reduce((sum,value)=>sum+value,0);
-        if (!best || score<best.score) best={score,item,recipe};
-      }
-      if (best) {
-        const meal = {slot, attendeeIds, items:[]};
-        meals.push(meal); account(best.item); suggestions.push({meal,item:best.item,recipe:best.recipe});
-      }
-    }
-    for (const meal of meals.filter(entry => ['lunch','dinner'].includes(entry.slot))) {
-      for (const role of meal.recipe.recipeType==='salad'?['sauce','dessert']:['dessert']) {
-        const category = state.mealAdditions.find(entry => entry.role===role && entry.slots.includes(meal.slot) && !entry.sharedSlots?.includes(meal.slot));
-        const candidates = recipesForPlanning(meal.slot, role, [], category?.recipeType).filter(recipe=>!recipe.servingParts?.length);
-        const groups = new Map();
-        for (const personId of meal.attendeeIds) {
-          const eligible = candidates.flatMap(recipe => {
-            const quantity = individualDefaultQuantity(recipe,role), score=fits(recipe,quantity,personId,meal.slot);
-            return score==null?[]:[{recipe,quantity,score}];
-          }).sort((a,b)=>a.score-b.score || a.recipe.name.localeCompare(b.recipe.name,'fr'));
-          const best = eligible[0];
-          if (!best) continue;
-          const group = groups.get(best.recipe.id) ?? {meal, recipe:best.recipe, item:{recipeId:best.recipe.id,role,categoryId:category?.id??role,amounts:[]}};
-          group.item.amounts.push({personId,quantity:best.quantity}); groups.set(best.recipe.id,group);
-        }
-        for (const group of groups.values()) { account(group.item); suggestions.push(group); }
-      }
-    }
-    const describe = (meal, item) => {
-      const recipe = byId.get(item.recipeId);
+    const targets = new Map(people.map(person => {
+      const daily=latestProfile(person,date)?.dailyEnergyKcal;
+      const share=homeBudgetShare(participation,person.id,date,ratios);
+      return [person.id,daily==null?null:daily*share];
+    }));
+    const describe = (meal,item) => {
+      const recipe=byId.get(item.recipeId);
       return slotLabels[meal.slot]+' · '+recipe.name+' · '+item.amounts.map(amount =>
         people.find(person=>person.id===amount.personId).displayName+' '+formatQty(displayServingQuantity(recipe,amount.quantity))+' '+servingUnitLabel(servingUnit(recipe))
       ).join(', ');
     };
-    for (const meal of meals) for (const item of meal.items) {
-      const line = document.createElement('p'); line.textContent = describe(meal,item); review.append(line);
+    for(const meal of meals)for(const item of meal.items){
+      const line=document.createElement('p');line.textContent=describe(meal,item);review.append(line);
     }
-    for (const suggestion of suggestions) {
-      const label = document.createElement('label'), checkbox = document.createElement('input');
-      checkbox.type='checkbox'; checkbox.checked=true; suggestion.checkbox=checkbox;
-      label.append(checkbox,document.createTextNode(describe(suggestion.meal,suggestion.item))); review.append(label);
+    const extras=[], groups=[];
+    const fits = (meal,item,previous=null) => {
+      const kcal=energy(item), previousEnergy=previous?energy(previous)*previous.amounts[0].quantity:0;
+      return meal.attendeeIds.every(id=>fitsDayExtra(targets.get(id),used.get(id)-previousEnergy,
+        unknownEnergy.has(id),kcal*item.amounts[0].quantity));
+    };
+    for(const meal of meals.filter(entry=>['lunch','dinner'].includes(entry.slot))){
+      for(const role of meal.recipe.recipeType==='salad'?['sauce','dessert']:['dessert']){
+        const category=state.mealAdditions.find(entry=>entry.role===role && entry.slots.includes(meal.slot) && !entry.sharedSlots?.includes(meal.slot));
+        const candidates=recipesForPlanning(meal.slot,role,[],category?.recipeType).filter(recipe=>!recipe.servingParts?.length);
+        const items=candidates.flatMap(recipe=>{
+          const quantity=individualDefaultQuantity(recipe,role), kcal=recipe.nutrition?.perYieldUnit?.energyKcal;
+          if(!(quantity>0) || !Number.isFinite(kcal))return [];
+          return [{recipeId:recipe.id,role,categoryId:category?.id??role,
+            amounts:meal.attendeeIds.map(personId=>({personId,quantity}))}];
+        });
+        const key=meal.slot+':'+role;
+        const selected=items.find(item=>item.recipeId===selectedExtras.get(key)&&fits(meal,item));
+        if(selected){extras.push({meal,item:selected});account(selected);}
+        else {
+          if(selectedExtras.get(key))warnings.add('Un complément a été retiré car il ne rentre plus dans le solde de tous les participants.');
+          selectedExtras.delete(key);
+        }
+        groups.push({meal,role,key,items,selected});
+      }
     }
-    if (!suggestions.length) {
-      const note=document.createElement('p');note.textContent='Aucune suggestion supplémentaire ne rentre dans le budget ou les créneaux libres.';review.append(note);
+    const groupKeys=new Set(groups.map(group=>group.key));
+    for(const key of selectedExtras.keys())if(!groupKeys.has(key))selectedExtras.delete(key);
+    for(const {meal,role,key,items,selected} of groups){
+      const options=items.filter(item=>fits(meal,item,selected));
+      const label=document.createElement('label'), select=document.createElement('select');
+      const title=slotLabels[meal.slot]+' · '+(role==='sauce'?'Sauce':'Dessert');
+      label.append(document.createTextNode(title),select);
+      select.add(new Option(options.length?'Aucun complément':'Aucune proposition dans le solde',''));
+      for(const item of options)select.add(new Option(byId.get(item.recipeId).name+' · '+format(item.amounts[0].quantity*energy(item))+' kcal/personne',item.recipeId));
+      if(selected)select.value=selected.recipeId;
+      select.disabled=!options.length;
+      select.addEventListener('change',()=>{selectedExtras.set(key,select.value);render(key);});
+      review.append(label);
+      if(key===focusKey&&!select.disabled)select.focus();
     }
     if(warnings.size){
       const details=document.createElement('details'), title=document.createElement('summary');
@@ -3468,23 +3456,38 @@ function openDayMeals(date, calendarMeals) {
       for(const warning of warnings){const note=document.createElement('p');note.textContent=warning;details.append(note);}
       review.append(details);
     }
+    const totals=document.createElement('section'), heading=document.createElement('strong');
+    totals.className='day-meal-totals';heading.textContent='Calories prévues / budget à la maison';totals.append(heading);
+    for(const person of people){
+      const row=document.createElement('p'), target=targets.get(person.id), total=used.get(person.id);
+      row.textContent=person.displayName+' · '+(unknownEnergy.has(person.id)?'≥ ':'')+format(total)+' / '+(target==null?'—':format(target))+' kcal'+
+        (target==null||unknownEnergy.has(person.id)?'':total>target?' · dépassement '+format(total-target)+' kcal':' · reste '+format(target-total)+' kcal');
+      totals.append(row);
+    }
+    review.append(totals);
     const save=document.createElement('button');save.type='button';save.className='primary';save.textContent='Enregistrer ces repas';review.append(save);
-    let request;
+    save.disabled=!meals.length || saving;
     save.addEventListener('click',async()=>{
+      if(saving)return;
       const payload=meals.map(meal=>({slot:meal.slot,attendeeIds:meal.attendeeIds,
-        items:[...meal.items,...suggestions.filter(entry=>entry.meal===meal && entry.checkbox.checked).map(entry=>entry.item)]})).filter(meal=>meal.items.length);
+        items:[...meal.items,...extras.filter(entry=>entry.meal===meal).map(entry=>entry.item)]})).filter(meal=>meal.items.length);
       if(!payload.length){message.textContent='Sélectionne au moins un repas à enregistrer.';return;}
       const fingerprint=JSON.stringify(payload);
       if(request?.fingerprint!==fingerprint)request={fingerprint,id:newProductionRequestId()};
-      save.disabled=true;
+      saving=true;save.disabled=true;
+      const controls=[...choices.elements,...review.querySelectorAll('select')].filter(control=>!control.disabled);
+      for(const control of controls)control.disabled=true;
       try{
         await api('/api/planning/day',{method:'POST',body:JSON.stringify({householdId:state.household.id,date,meals:payload,requestId:request.id})});
         dialog.close();await Promise.all([refreshCalendar(),refreshDashboard()]);
       }catch(error){
         message.textContent=error.body?.error==='planning-slot-unavailable'?'Un créneau est déjà occupé. Rouvre cette journée pour actualiser la sélection.':'Enregistrement impossible. Vérifie les recettes et quantités sélectionnées.';
-      }finally{save.disabled=false;}
+      }finally{saving=false;save.disabled=false;for(const control of controls)control.disabled=false;}
     });
-  });
+  };
+  choices.addEventListener('change',()=>render());
+  choices.addEventListener('submit',event=>event.preventDefault());
+  render();
   dialog.showModal();
 }
 
