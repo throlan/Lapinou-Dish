@@ -1,4 +1,4 @@
-import {effectiveServingCaps} from './meal-config.js';
+import {effectiveServingCaps,servingCapLoads} from './meal-config.js';
 // Post-processing only: the original gram planner remains unchanged.
 // All quantities and energy densities below are canonical grams and kcal/g.
 export function compensateServingCalories(rows, before, after) {
@@ -59,10 +59,10 @@ export function compensateManualServing(items, recipes, recipeId, personId, prev
   if(!result.ok)return result;
   const adjusted=entries[result.adjustedIndex],caps=effectiveServingCaps(overrides);
   if(result.quantities.reduce((sum,value)=>sum+value,0)>caps.plateTotal+1e-5)return {ok:false,reason:'La compensation dépasserait la capacité du plat principal : ajuste les quantités ou prévois un complément.'};
-  for(const [key,load] of Object.entries(adjusted.servingLoad??{})){
+  for(const [key,load] of Object.entries(servingCapLoads(adjusted.servingLoad??{},caps))){
     if(!Number.isFinite(caps[key]))continue;
     if(load===null)return {ok:false,reason:'Équivalence manquante : la compensation automatique n’a pas été appliquée.'};
-    const total=entries.reduce((sum,row,i)=>sum+(row.servingLoad?.[key]??0)*result.quantities[i],0);
+    const total=entries.reduce((sum,row,i)=>sum+(servingCapLoads(row.servingLoad??{},caps)[key]??0)*result.quantities[i],0);
     if(load>0&&total>caps[key]+1e-5)return {ok:false,reason:'La compensation dépasserait un plafond : ajuste la partie restante si besoin.'};
   }
   return {...result,itemKey:adjusted.key,quantity:result.quantities[result.adjustedIndex]};

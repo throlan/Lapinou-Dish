@@ -1,4 +1,4 @@
-import { SERVING_CAP_FIELDS } from '../../web/meal-config.js';
+import { SERVING_CAP_FIELDS, validCommonProteinPortion } from '../../web/meal-config.js';
 
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const record=value=>value!=null&&typeof value==='object'&&!Array.isArray(value);
@@ -19,21 +19,22 @@ export function validateServingCaps(caps){
 }
 
 export async function readServingCaps(pool,householdId){
-  const result=await pool.query('SELECT serving_caps FROM households WHERE id=$1',[householdId]);
+  const result=await pool.query('SELECT serving_caps, common_protein_portion_g FROM households WHERE id=$1',[householdId]);
   if(!result.rows.length)return null;
   const caps=structuredClone(result.rows[0].serving_caps);
   const people=await pool.query('SELECT id,main_dish_cap_g FROM people WHERE household_id=$1 AND main_dish_cap_g IS NOT NULL',[householdId]);
   for(const person of people.rows)(caps[person.id]??={}).plateTotal=person.main_dish_cap_g;
-  return {caps};
+  return {caps,commonProteinG:result.rows[0].common_protein_portion_g};
 }
 
-export async function saveServingCaps(pool,householdId,caps){
+export async function saveServingCaps(pool,householdId,caps,commonProteinG){
   const validated=validateServingCaps(caps);
   if(validated.error)return validated;
+  if(commonProteinG!==undefined&&!validCommonProteinPortion(commonProteinG))return {error:'invalid-serving-caps'};
   const ids=Object.keys(validated.data);
-  const result=await pool.query(`UPDATE households SET serving_caps=$2::jsonb
+  const result=await pool.query(`UPDATE households SET serving_caps=$2::jsonb, common_protein_portion_g=COALESCE($4,common_protein_portion_g)
     WHERE id=$1 AND (SELECT count(*) FROM people WHERE household_id=$1 AND id=ANY($3::uuid[]))=cardinality($3::uuid[])
-    RETURNING serving_caps`,[householdId,JSON.stringify(validated.data),ids]);
+    RETURNING serving_caps`,[householdId,JSON.stringify(validated.data),ids,commonProteinG??null]);
   if(result.rows.length)return readServingCaps(pool,householdId);
   return {error:await readServingCaps(pool,householdId)?'invalid-serving-caps':'household-not-found'};
 }

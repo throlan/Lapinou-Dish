@@ -16,7 +16,9 @@ export function itemMacro(item, personId, key) {
   const nutrition = item.recipe?.nutrition;
   const value = nutrition?.perYieldUnit?.[key];
   if (value == null || !Number.isFinite(Number(value))) return {grams:null, incomplete:true};
-  const incomplete = nutrition.lineIssues?.some(issue => issue.reason !== 'nutrient-data-missing') ?? false;
+  const incomplete = key === 'energyKcal' && typeof item.recipe.energyKnown === 'boolean'
+    ? !item.recipe.energyKnown
+    : nutrition.lineIssues?.some(issue => issue.reason !== 'nutrient-data-missing' || issue.missingNutrients?.includes(key)) ?? false;
   return {grams:Number(value) * Number(amount.quantity), incomplete};
 }
 
@@ -69,4 +71,32 @@ export function preparationStockLabel(recipe, stock, quantityLabel) {
 export function fitsDayExtra(target, used, incomplete, extra) {
   return target != null && !incomplete && Number.isFinite(used) &&
     Number.isFinite(extra) && extra >= 0 && used + extra <= target + 1e-6;
+}
+
+export function expandDayMealPortions(meals, { targets, used, incomplete, energy, propose }) {
+  for (const meal of meals) {
+    for (const personId of meal.attendeeIds) {
+      const balance = targets.get(personId) - used.get(personId);
+      if (incomplete.has(personId) || !(balance > 1e-6)) continue;
+      const current = meal.items.map(item => item.amounts.find(amount => amount.personId === personId));
+      const kcal = meal.items.map(energy);
+      if (current.some(amount => !(amount?.quantity > 0)) || kcal.some(value => !Number.isFinite(value))) continue;
+      const before = current.reduce((sum, amount, i) => sum + amount.quantity * kcal[i], 0);
+      let budget = before + balance;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const quantities = propose(meal, personId, budget);
+        if (quantities.length !== current.length ||
+            quantities.some((quantity, i) => !Number.isFinite(quantity) || quantity < current[i].quantity)) break;
+        const added = quantities.reduce((sum, quantity, i) => sum + (quantity - current[i].quantity) * kcal[i], 0);
+        if (added <= 1e-6) break;
+        if (added > balance + 1e-6) {
+          budget -= added - balance + 1e-6;
+          continue;
+        }
+        current.forEach((amount, i) => { amount.quantity = quantities[i]; });
+        used.set(personId, used.get(personId) + added);
+        break;
+      }
+    }
+  }
 }

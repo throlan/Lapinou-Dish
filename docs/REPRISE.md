@@ -4,6 +4,8 @@ La 0.18.3 ajoute la confirmation par partie consommée, les comparaisons avec le
 
 La 0.18.4 permet une quantité de 0 par recette et par convive, y compris pour un plat principal partagé. Le 0 est retrouvé à la réouverture et conservé au recalcul. Seules les portions servies sont enregistrées pour les courses, le stock et les confirmations. Aucune migration.
 
+La 0.18.5 simplifie « Choisir les repas », propose le dessert aux convives dont le solde le permet et peut employer le solde du jour pour ajuster les portions proposées. La portion commune de viande, poisson et tofu est réglable dans Administration → Portions et plafonds (200 g avant cuisson par défaut). Voir [le journal de session](SESSION-2026-11-20-CALENDRIER.md).
+
 ## Rééquilibrage journalier par étapes — 0.17.4
 
 Correction du 20 novembre : chaque retrait de dessert entier est évalué séparément, puis le total est recalculé avant de considérer le suivant. Le retrait n’est proposé que s’il réduit strictement l’écart absolu à la cible journalière. Le même contrôle s’applique à chaque pas de 10 g de féculents séparés. À distance égale, les quantités sont conservées ; entre deux retraits aussi proches, le plus petit est privilégié. Un petit dépassement résiduel reste visible au lieu d’une réduction qui éloignerait davantage de la cible. Aucune tolérance calorique arbitraire ni seuil protéique ajouté.

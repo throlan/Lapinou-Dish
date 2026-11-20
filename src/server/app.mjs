@@ -160,7 +160,9 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
       try {
         const readSettings=url.pathname==='/api/serving-caps'?readServingCaps:url.pathname==='/api/protein-settings'?readProteinSettings:url.pathname==='/api/plate-settings'?readPlateSettings:readMealSettings;
         const saveSettings=url.pathname==='/api/serving-caps'?saveServingCaps:url.pathname==='/api/protein-settings'?saveProteinSettings:url.pathname==='/api/plate-settings'?savePlateSettings:saveMealSettings;
-        const result=request.method === 'GET' ? await readSettings(pool,householdId) : await saveSettings(pool,householdId,url.pathname==='/api/protein-settings'?body.value?.targets:url.pathname==='/api/serving-caps'?body.value?.caps:body.value?.ratios);
+        const result=request.method === 'GET' ? await readSettings(pool,householdId)
+          : url.pathname==='/api/serving-caps' ? await saveServingCaps(pool,householdId,body.value?.caps,body.value?.commonProteinG)
+          : await saveSettings(pool,householdId,url.pathname==='/api/protein-settings'?body.value?.targets:body.value?.ratios);
         if(!result || result.error === 'household-not-found') return send(response,404,{error:'household-not-found'});
         return send(response,result.error ? 400 : 200,result);
       } catch { return send(response,500,{error:'meal-settings-failed'}); }
