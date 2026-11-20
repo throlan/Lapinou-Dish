@@ -5,7 +5,7 @@ import {readFile,readdir} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import {automaticNutrition} from '../web/automatic-nutrition.js';
 import {projectWeight,addedActivityKcal,activitySummary,datePlusDays} from '../web/activity-model.js';
-import {validateAutomaticProfile,saveAutomaticProfile,recalculateAutomatic,readAutomaticActivity,validateActivity,saveActivity} from '../src/server/automatic-profile.mjs';
+import {validateAutomaticProfile,saveAutomaticProfile,recalculateAutomatic,readAutomaticActivity,validateActivity,saveActivity,parisToday} from '../src/server/automatic-profile.mjs';
 import {listPeople,addWeightEntry} from '../src/server/people.mjs';
 
 const date='2026-11-19',context={diabetes:'type2',surgery:'none',surgeryDate:null,renal:'no',hypoglycemia:'no',pregnancy:'no',dumping:'no',cholesterol:'yes'};
@@ -76,6 +76,8 @@ test('manual sessions are distinct from plans and only recorded non-cancelled se
  assert.ok(validateActivity({requestId:randomUUID(),activityType:'walk',effectiveFrom:date,minutesPerSession:30,sessionsPerWeek:8,additional:true},'activity-plans',date).error);
 });
 test('automatic persistence is additive, dated, idempotent, recalculated after new data, and protected by RLS',async t=>{
+ // The save path stamps Paris today: keep this persistence scenario on the same day.
+ const date=parisToday();
  const db=new PGlite();t.after(()=>db.close());const migrations=(await readdir(new URL('../db/migrations/',import.meta.url))).filter(x=>x.endsWith('.sql')).sort();
  for(const name of migrations)await db.exec(await readFile(new URL('../db/migrations/'+name,import.meta.url),'utf8'));
  const pool={async query(sql,args=[]){const result=await db.query(sql,args);return {...result,rowCount:result.rows.length||result.affectedRows||0};},async connect(){return {...this,release(){}};}};
