@@ -109,9 +109,9 @@ function setupShoppingTabs(){
   tabBar.before(range);
   const panels=document.createElement('div');panels.className='shopping-panels';
   const content={
-    list:[$('.shopping-list-card',view)],
+    list:[$('.shopping-product-tools',view),$('.shopping-list-card',view)],
     preparations:[$('.preparations-card',view)],
-    stock:[$('.production-card',view),$('.ingredient-section',view)],
+    stock:[$('.production-card',view)],
     stores:[$('.order-links-card',view)],
     routines:[overview.firstElementChild],
   };
@@ -407,21 +407,27 @@ function renderPreparationStock(){
 $('#preparation-stock-filter').addEventListener('change',()=>{try{localStorage.setItem('lapinou-preparation-stock-filter:'+state.household.id,$('#preparation-stock-filter').value);}catch{}renderPreparationStock();});
 async function refreshShopping() {
   if (!state.household) return;
+  const householdId = state.household.id;
   const routineMessage = $('#routines-message'); if (routineMessage) routineMessage.textContent = '';
   try {
     const [planning, recipesResult] = await Promise.all([
-      api('/api/household-planning?householdId='+encodeURIComponent(state.household.id)),
-      api('/api/recipes?householdId='+encodeURIComponent(state.household.id)),
+      api('/api/household-planning?householdId='+encodeURIComponent(householdId)),
+      api('/api/recipes?householdId='+encodeURIComponent(householdId)),
     ]);
+    if (state.household?.id !== householdId) return;
     state.recipes = recipesResult.recipes;
     renderRoutines(planning.routines);
     state.ingredients = planning.ingredients ?? [];
     renderIngredientStock(state.ingredients);
+    renderSelectedIngredient();
     renderProductionOptions();
     preparationStock=planning.stock;renderPreparationStock();
   } catch(error) {
+    if (state.household?.id !== householdId) return;
     $('#routine-list').replaceChildren(emptyMessage('Planning indisponible : '+(error.body?.error ?? error.message)));
     $('#stock-list').replaceChildren(emptyMessage('Stock indisponible.'));
+    $('#ingredient-stock-list').replaceChildren(emptyMessage('Stock des produits indisponible.'));
+    $('#ingredient-stock-summary').textContent = '';
   }
   await refreshOrderLinks();
   await refreshFoodStores();
@@ -955,75 +961,210 @@ function newProductionRequestId() {
   const hex=Array.from(bytes,byte=>byte.toString(16).padStart(2,'0')).join('');
   return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
 }
+const ingredientSearch = $('#ingredient-search');
+const ingredientFood = $('#ingredient-food');
+const ingredientReceipt = $('#ingredient-receipt-form');
+const ingredientCount = $('#ingredient-stock-form');
+const ingredientEdit = $('#ingredient-edit-details');
+let selectedIngredient = null;
+let ingredientSearchSequence = 0, ingredientSelectionSequence = 0, ingredientSearchTimer;
+let pendingIngredientReceipt = null;
+
+function renderSelectedIngredient() {
+  const item = selectedIngredient;
+  const selection = $('#ingredient-selection');
+  selection.hidden = !item || item.householdId !== state.household?.id;
+  if (selection.hidden) return;
+  const stock = state.ingredients.find(row => row.foodId === item.foodId);
+  $('#ingredient-selected-name').textContent = stock?.name ?? item.name;
+  $('#ingredient-selected-stock').textContent =
+    (item.sourceName ? 'Achats pour « '+item.sourceName+' » regroupés ici. ' : '') +
+    (stock ? 'Stock actuel : ' + formatQty(stock.quantityG) + ' g.' : 'Stock non suivi. Le premier achat crée le suivi.');
+}
+
+function fillIngredientCount() {
+  const item = state.ingredients.find(row => row.foodId === selectedIngredient?.foodId);
+  ingredientCount.dataset.version = String(item?.version ?? 0);
+  const fields = ingredientCount.elements;
+  fields.quantityG.value = item && item.quantityG >= 0 ? item.quantityG : '';
+  for (const field of ['minimumG','targetG','leadDays']) fields[field].value = item?.[field] ?? 0;
+  showMessage($('#ingredient-message'),'');
+}
+
+async function selectIngredient(foodId,name,{focus=null}={}) {
+  const sequence = ++ingredientSelectionSequence;
+  const householdId = state.household?.id;
+  selectedIngredient = null;
+  ingredientEdit.open = false;
+  renderSelectedIngredient();
+  const message = $('#ingredient-search-message');
+  showMessage(message,'');
+  if (!foodId || !householdId) return;
+  showMessage(message,'Chargement du produit…');
+  const preferences = await api('/api/shopping-preferences?householdId='+encodeURIComponent(householdId)).catch(()=>null);
+  if (sequence !== ingredientSelectionSequence || householdId !== state.household?.id) return;
+  const mapping = preferences?.mappings.find(row => row.foodId === foodId);
+  selectedIngredient = {
+    householdId, foodId:mapping?.purchaseFoodId ?? foodId,
+    name:mapping?.purchaseName ?? name, sourceName:mapping ? name : null,
+  };
+  ingredientReceipt.reset();
+  ingredientReceipt.elements.unitId.value = mapping?.targetUnitId ?? 'g';
+  showMessage($('#ingredient-receipt-message'),'');
+  fillIngredientCount();
+  renderSelectedIngredient();
+  showMessage(message,preferences ? '' : 'Regroupements d’achat temporairement indisponibles.');
+  if (focus === 'count') {
+    ingredientEdit.open = true;
+    ingredientCount.elements.quantityG.focus();
+  } else if (focus === 'receipt') ingredientReceipt.elements.quantity.focus();
+}
+
+ingredientSearch.addEventListener('input', () => {
+  const query = ingredientSearch.value.trim(), sequence = ++ingredientSearchSequence;
+  const householdId = state.household?.id;
+  clearTimeout(ingredientSearchTimer);
+  void selectIngredient(null);
+  ingredientFood.disabled = true;
+  ingredientFood.replaceChildren(new Option(query.length < 2 ? 'Saisis au moins deux caractères' : 'Recherche…',''));
+  if (query.length < 2 || !householdId) return;
+  ingredientSearchTimer = setTimeout(async () => {
+    try {
+      const {foods} = await api('/api/foods?q='+encodeURIComponent(query)+'&limit=30');
+      if (sequence !== ingredientSearchSequence || householdId !== state.household?.id) return;
+      ingredientFood.replaceChildren(new Option(foods.length ? 'Choisir un aliment…' : 'Aucun aliment trouvé',''),
+        ...foods.map(food => new Option(food.brand ? food.name+' · '+food.brand : food.name,food.id)));
+      ingredientFood.disabled = !foods.length;
+    } catch {
+      if (sequence === ingredientSearchSequence && householdId === state.household?.id) {
+        ingredientFood.replaceChildren(new Option('Recherche indisponible',''));
+        showMessage($('#ingredient-search-message'),'La recherche n’a pas abouti. Réessaie.');
+      }
+    }
+  },180);
+});
+
+ingredientFood.addEventListener('change', () => void selectIngredient(ingredientFood.value,ingredientFood.selectedOptions[0]?.textContent));
+ingredientEdit.addEventListener('toggle', () => { if (ingredientEdit.open) fillIngredientCount(); });
+$('#ingredient-open-food').addEventListener('click', () => {
+  if (selectedIngredient && selectedIngredient.householdId === state.household?.id)
+    void openFoodEditor(selectedIngredient.foodId,{fromShopping:true});
+});
+
+function filterIngredientStock(items,mode,query) {
+  const normalize = value => value.normalize('NFD').replace(/\p{M}/gu,'').toLocaleLowerCase('fr');
+  const words = normalize(query).trim().split(/\s+/);
+  const statuses = {
+    negative:item=>item.quantityG<0, empty:item=>item.quantityG===0, positive:item=>item.quantityG>0,
+    order:item=>item.alert, shortage:item=>item.quantityG>=0 && item.projectedG<0, incomplete:item=>item.complete===false,
+  };
+  return items.filter(item => {
+    const name = normalize(item.name);
+    return words.every(word => name.includes(word)) && (statuses[mode]?.(item) ?? true);
+  });
+}
+
 function renderIngredientStock(items) {
-  const root=$('#ingredient-stock-list');
-  root.replaceChildren(...(items.length?items.map(item=>{
+  const root = $('#ingredient-stock-list');
+  const visible = filterIngredientStock(items,$('#ingredient-stock-filter').value,$('#ingredient-stock-query').value);
+  $('#ingredient-stock-summary').textContent = visible.length+' sur '+items.length+' produits suivis';
+  if (!visible.length) {
+    root.replaceChildren(emptyMessage(items.length ? 'Aucun produit ne correspond à ces filtres.' : 'Aucun produit suivi. Recherche un aliment pour saisir son stock ou un achat.'));
+    return;
+  }
+  root.replaceChildren(...visible.map(item=>{
     const card=document.createElement('article');card.className='stock-row';
     const name=document.createElement('strong');name.textContent=item.name;
-    const tag=document.createElement('span');tag.className=item.alert?'warning-tag':'stock-status';
-    tag.textContent=item.quantityG<0?'Stock à régulariser':item.alert?'À commander':'Stock suivi';
-    const detail=document.createElement('p');detail.textContent=`Stock : ${formatQty(item.quantityG)} g · minimum : ${formatQty(item.minimumG)} g · cible : ${formatQty(item.targetG)} g`;
-    const forecast=document.createElement('p');forecast.textContent=`Besoins prévus sous ${item.leadDays} jours : ${formatQty(item.neededG)} g · restant estimé : ${formatQty(item.projectedG)} g`;
-    if(!item.complete)forecast.textContent+=' · conversion manquante, estimation incomplète';
-    if(item.orderG>0){const order=document.createElement('b');order.className='warning-tag';order.textContent=`Commande suggérée : ${formatQty(item.orderG)} g`;forecast.append(' · ',order);}
-    const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='Corriger l’inventaire / les seuils';
-    edit.addEventListener('click',()=>{
-      const form=$('#ingredient-stock-form');form.elements.foodId.replaceChildren(new Option(item.name,item.foodId,true,true));
-      $('#ingredient-search').value=item.name;
-      for(const field of ['quantityG','minimumG','targetG','leadDays'])form.elements[field].value=item[field];
-      form.dataset.version=String(item.version);showMessage($('#ingredient-message'),'');form.scrollIntoView({behavior:'smooth',block:'center'});
-    });
-    card.append(name,' · ',tag,detail,forecast,edit);
-    if(item.movements?.length){const history=document.createElement('details');history.className='stock-movement-history';
+    const tag=document.createElement('span');tag.className=item.quantityG<0||item.alert?'warning-tag':'stock-status';
+    tag.textContent=item.quantityG<0?'Stock négatif':item.alert?'À commander':item.quantityG===0?'Épuisé':'En stock';
+    const detail=document.createElement('p');
+    detail.textContent='Stock : '+formatQty(item.quantityG)+' g · minimum : '+formatQty(item.minimumG)+' g · cible : '+formatQty(item.targetG)+' g';
+    const forecast=document.createElement('p');
+    forecast.textContent='Besoins sous '+item.leadDays+' j : '+formatQty(item.neededG)+' g · restant estimé : '+formatQty(item.projectedG)+' g';
+    if(!item.complete)forecast.textContent+=' · estimation incomplète';
+    if(item.orderG>0){
+      const order=document.createElement('b');order.className='warning-tag';order.textContent='Commande suggérée : '+formatQty(item.orderG)+' g';
+      forecast.append(' · ',order);
+    }
+    const actions=document.createElement('div');actions.className='ingredient-row-actions';
+    for (const [label,focus] of [['Saisir un achat','receipt'],['Corriger l’inventaire','count']]) {
+      const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=label;
+      button.addEventListener('click',()=>{
+        clearTimeout(ingredientSearchTimer);ingredientSearchSequence++;
+        ingredientSearch.value=item.name;
+        ingredientFood.disabled=false;ingredientFood.replaceChildren(new Option(item.name,item.foodId,true,true));
+        void selectIngredient(item.foodId,item.name,{focus});
+      });
+      actions.append(button);
+    }
+    card.append(name,' · ',tag,detail,forecast,actions);
+    if(item.movements?.length){
+      const history=document.createElement('details');history.className='stock-movement-history';
       const summary=document.createElement('summary');summary.textContent='Derniers mouvements';history.append(summary);
       const reasons={inventory:'Inventaire corrigé',purchase:'Achat validé',production:'Production enregistrée',
         'production-cancelled':'Production annulée','meal-preparation':'Repas préparé','meal-preparation-cancelled':'Préparation annulée'};
-      for(const movement of item.movements){const line=document.createElement('p');
-        const source=movement.sourceQuantity!=null?` · ${formatQty(movement.sourceQuantity)} ${movement.sourceUnitId}`:'';
-        line.textContent=`${reasons[movement.reason]??movement.reason} : ${movement.deltaG>=0?'+':''}${formatQty(movement.deltaG)} g${source}`;
+      for(const movement of item.movements){
+        const line=document.createElement('p');
+        const source=movement.sourceQuantity!=null?' · '+formatQty(movement.sourceQuantity)+' '+movement.sourceUnitId:'';
+        line.textContent=(reasons[movement.reason]??movement.reason)+' : '+(movement.deltaG>=0?'+':'')+formatQty(movement.deltaG)+' g'+source;
         history.append(line);
-      }card.append(history);
-    }return card;
-  }):[emptyMessage('Ajoute les produits déjà présents, ou valide un achat depuis la liste de courses.')]));
+      }
+      card.append(history);
+    }
+    return card;
+  }));
 }
-let ingredientSearchSequence=0;
-$('#ingredient-search').addEventListener('input',async event=>{
-  const query=event.currentTarget.value.trim(),sequence=++ingredientSearchSequence;
-  const select=$('#ingredient-stock-form').elements.foodId;
-  select.replaceChildren(new Option('Rechercher puis choisir un aliment…',''));
-  $('#ingredient-stock-form').dataset.version='0';
-  if(query.length<2)return;
-  try{
-    const {foods}=await api('/api/foods?q='+encodeURIComponent(query)+'&limit=30');
-    if(sequence!==ingredientSearchSequence)return;
-    select.replaceChildren(new Option(foods.length?'Choisir un aliment…':'Aucun aliment trouvé',''),...foods.map(food=>new Option(food.name,food.id)));
-  }catch{if(sequence===ingredientSearchSequence)showMessage($('#ingredient-message'),'Recherche indisponible.');}
+
+$('#ingredient-stock-query').addEventListener('input',()=>renderIngredientStock(state.ingredients));
+$('#ingredient-stock-filter').addEventListener('change',()=>renderIngredientStock(state.ingredients));
+
+ingredientReceipt.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const selected = selectedIngredient, form = event.currentTarget, button = $('button[type="submit"]',form);
+  if (!selected || selected.householdId !== state.household?.id || button.disabled || !form.reportValidity()) return;
+  const payload = {householdId:selected.householdId,foodId:selected.foodId,
+    quantity:Number(form.elements.quantity.value),unitId:form.elements.unitId.value};
+  const fingerprint = JSON.stringify(payload);
+  if (pendingIngredientReceipt?.fingerprint !== fingerprint)
+    pendingIngredientReceipt = {fingerprint,requestId:newProductionRequestId()};
+  button.disabled = form.elements.quantity.disabled = form.elements.unitId.disabled = true;
+  try {
+    const result = await api('/api/household-planning/purchases',{method:'POST',
+      body:JSON.stringify({...payload,requestId:pendingIngredientReceipt.requestId})});
+    pendingIngredientReceipt = null;
+    if (selectedIngredient === selected) {
+      form.elements.quantity.value = '';
+      showMessage($('#ingredient-receipt-message'),selected.name+' : +'+formatQty(result.quantityG)+' g ajoutés au stock.',true);
+    }
+    if (state.household?.id === selected.householdId) await Promise.allSettled([refreshShopping(),refreshDashboard()]);
+  } catch(error) {
+    if (selectedIngredient === selected) showMessage($('#ingredient-receipt-message'),error.body?.error==='ingredient-conversion-missing'
+      ? 'Équivalence en grammes manquante. Choisis des grammes ou complète la fiche aliment.'
+      : shoppingPreferenceError(error));
+  } finally { button.disabled = form.elements.quantity.disabled = form.elements.unitId.disabled = false; }
 });
-$('#ingredient-stock-form').elements.foodId.addEventListener('change',event=>{
-  const form=$('#ingredient-stock-form'),item=state.ingredients.find(row=>row.foodId===event.currentTarget.value);
-  form.dataset.version=String(item?.version??0);
-  for(const field of ['quantityG','minimumG','targetG','leadDays'])form.elements[field].value=item?.[field]??(field==='quantityG'?'':0);
-});
-$('#cancel-ingredient-edit').addEventListener('click',()=>{
-  const form=$('#ingredient-stock-form');form.reset();form.dataset.version='0';ingredientSearchSequence++;
-  form.elements.foodId.replaceChildren(new Option('Rechercher puis choisir un aliment…',''));showMessage($('#ingredient-message'),'');
-});
-$('#ingredient-stock-form').addEventListener('submit',async event=>{
-  event.preventDefault();const form=event.currentTarget;
-  if(!state.household)return;
-  const button=$('button[type="submit"]',form);if(button.disabled)return;
-  const payload={householdId:state.household.id,foodId:form.elements.foodId.value,version:Number(form.dataset.version??0)};
+
+ingredientCount.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const selected = selectedIngredient, form = event.currentTarget, button = $('button[type="submit"]',form);
+  if (!selected || selected.householdId !== state.household?.id || button.disabled || !form.reportValidity()) return;
+  const payload={householdId:selected.householdId,foodId:selected.foodId,version:Number(form.dataset.version)};
   for(const field of ['quantityG','minimumG','targetG','leadDays'])payload[field]=Number(form.elements[field].value);
-  if(payload.targetG<payload.minimumG){showMessage($('#ingredient-message'),'Le stock cible doit être au moins égal au minimum.');return;}
+  const message=$('#ingredient-message');
+  if(payload.targetG<payload.minimumG){showMessage(message,'Le stock cible doit être au moins égal au minimum.');return;}
   button.disabled=true;
   try{
     await api('/api/household-planning/ingredients',{method:'PUT',body:JSON.stringify(payload)});
-    await refreshShopping();
-    const updated=state.ingredients.find(item=>item.foodId===payload.foodId);
-    form.dataset.version=String(updated?.version??payload.version+1);
-    showMessage($('#ingredient-message'),'Stock enregistré. La liste de courses a été recalculée.',true);await refreshDashboard();
-  }catch(error){showMessage($('#ingredient-message'),error.body?.error==='ingredient-stock-changed'?'Le stock a changé depuis son ouverture. Réouvre son inventaire pour conserver les déductions récentes.':shoppingPreferenceError(error));}
-  finally{button.disabled=false;}
+    if(state.household?.id===selected.householdId)await Promise.allSettled([refreshShopping(),refreshDashboard()]);
+    if(selectedIngredient===selected){
+      fillIngredientCount();
+      showMessage(message,'Stock compté enregistré.',true);
+    }
+  }catch(error){
+    if (selectedIngredient===selected) showMessage(message,error.body?.error==='ingredient-stock-changed'
+      ? 'Le stock a changé. Actualise les courses, puis referme et rouvre l’inventaire.'
+      : shoppingPreferenceError(error));
+  }finally{button.disabled=false;}
 });
 
 function localDateValue() {
@@ -1783,7 +1924,16 @@ async function loadHouseholds(){
   const root=$('#household-box');
   try{
     const {households}=await api('/api/households');
+    const previousId=state.household?.id;
     state.household=households.find(h=>h.id===state.account?.householdId)??null;
+    if(previousId!==state.household?.id){
+      state.ingredients=[];
+      ingredientSearch.value='';
+      ingredientSearch.dispatchEvent(new Event('input'));
+      $('#ingredient-stock-query').value='';
+      $('#ingredient-stock-filter').value='all';
+      renderIngredientStock(state.ingredients);
+    }
     root.replaceChildren();
     if(!state.household){root.textContent='Aucun foyer associé · Administration → Comptes et foyers';return;}
     const label=document.createElement('label');label.textContent='Foyer';
