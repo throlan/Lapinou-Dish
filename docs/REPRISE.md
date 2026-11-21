@@ -1,5 +1,7 @@
 # Cahier de reprise — 21 novembre 2026
 
+La 0.18.8 permet de retirer du catalogue une recette utilisée uniquement dans des repas ou productions historiques. « Supprimer » archive la fiche et ses parties en conservant les photos, portions, repas, lots et mouvements. Une recette sans référence est supprimée. Les menus d’aujourd’hui ou à venir, les préparations prévues à traiter et les recettes actives qui utilisent la fiche comme ingrédient empêchent le retrait. Aucune migration.
+
 La 0.18.7 place « Achats et stock des produits » dans Courses & stocks → Liste de courses. La recherche catalogue ouvre le stock, la fiche et la saisie d’un achat même hors liste. Les produits regroupés utilisent le stock commun défini par « Acheter sous… ». Le stock détaillé est filtrable par nom, quantité négative, stock épuisé ou positif, commande suggérée, manque prévu et estimation incomplète. L’onglet Stocks garde les préparations produites. Aucune migration.
 
 La 0.18.3 ajoute la confirmation par partie consommée, les comparaisons avec les repères personnalisés et le stock libre dans les sélecteurs. Le calendrier 0.18.2 a été validé sur les mardis et samedis. Conserver les quatre sélecteurs, les participants indépendants, le total dynamique et les suggestions communes selon le solde de chacun. Voir [le journal de session](SESSION-2026-11-20-CALENDRIER.md).

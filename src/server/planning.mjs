@@ -2,6 +2,7 @@ import {mealStockReadiness} from './meal-stock-readiness.mjs';
 import { randomUUID } from 'node:crypto';
 import { readRecipe } from './recipes.mjs';
 import { lockHouseholdInventory } from './ingredient-stock.mjs';
+import { parisToday } from './automatic-profile.mjs';
 
 const slots = new Set(['breakfast', 'lunch', 'dinner', 'snack', 'evening_snack']);
 
@@ -105,13 +106,14 @@ export async function savePlannedMealInTransaction(client,id,data,idOnly=false) 
       return { error: 'attendee-not-in-household' };
     }
     const recipes = await client.query(
-      'SELECT id,COALESCE(choice_origin,(SELECT parent.choice_origin FROM recipes parent WHERE parent.id=recipes.parent_recipe_id)) AS choice_origin FROM recipes WHERE household_id = $1 AND id = ANY($2::uuid[])',
+      'SELECT id,recipe_archived AND replaced_by_recipe_id IS NULL AS retired,COALESCE(choice_origin,(SELECT parent.choice_origin FROM recipes parent WHERE parent.id=recipes.parent_recipe_id)) AS choice_origin FROM recipes WHERE household_id = $1 AND id = ANY($2::uuid[])',
       [data.householdId, [...new Set(data.items.map((item) => item.recipeId))]],
     );
     if (recipes.rowCount !== new Set(data.items.map((item) => item.recipeId)).size) {
 
       return { error: 'recipe-not-in-household' };
     }
+    if(data.mealDate>=parisToday()&&recipes.rows.some(recipe=>recipe.retired))return {error:'recipe-archived'};
     const combinations=new Map();
     for(const row of recipes.rows){const origin=row.choice_origin;if(!origin?.templateId)continue;if(combinations.has(origin.templateId)&&combinations.get(origin.templateId)!==origin.key){return {error:'one-recipe-combination-per-meal'};}combinations.set(origin.templateId,origin.key);}
     const normalizedItems = [];
@@ -192,7 +194,13 @@ export async function duplicatePlannedMeal(pool, sourceId, input) {
     if(input.slot===source.rows[0].slot && input.dates.includes(source.rows[0].date)){
       await client.query('ROLLBACK');return {error:'source-date-selected'};
     }
-    const items=await client.query('SELECT id,recipe_id,sort_order,role,category_id FROM planned_meal_items WHERE meal_id=$1 ORDER BY sort_order',[sourceId]);
+    const items=await client.query(`SELECT i.id,i.recipe_id,i.sort_order,i.role,i.category_id,
+      r.recipe_archived AND r.replaced_by_recipe_id IS NULL AS retired
+      FROM planned_meal_items i JOIN recipes r ON r.id=i.recipe_id WHERE i.meal_id=$1 ORDER BY i.sort_order`,[sourceId]);
+    const today=parisToday();
+    if(input.dates.some(date=>date>=today)&&items.rows.some(item=>item.retired)){
+      await client.query('ROLLBACK');return {error:'recipe-archived'};
+    }
     const mealIds=[];
     for(const date of input.dates){
       const id=randomUUID();mealIds.push(id);

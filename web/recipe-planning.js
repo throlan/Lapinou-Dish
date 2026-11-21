@@ -55,7 +55,9 @@ export function createRecipePlanning({api,getHousehold,getAdditions,onPlan,onCoo
   }
   source.addEventListener('change',load);target.addEventListener('change',load);ui.form.addEventListener('submit',async event=>{event.preventDefault();if(!loaded||ui.submit.disabled)return;ui.busy(true);
    try{const result=await api('/api/planning/copy',{method:'POST',body:JSON.stringify({householdId:getHousehold().id,sourceStart:loaded.sourceStart,targetStart:loaded.targetStart,days,fingerprint:loaded.fingerprint,requestId})});ui.d.close();await onCopied?.(loaded.targetStart,result.mealIds.length);}
-   catch(error){ui.busy(false);if(['copy-source-changed','planning-slot-unavailable'].includes(error.body?.error)){await load();ui.message.textContent='Le planning a changé. Vérifie le nouvel aperçu avant de confirmer.';}else ui.message.textContent='Copies non confirmées. Réessaie sans changer les dates : aucun doublon ne sera créé.';}
+   catch(error){ui.busy(false);if(['copy-source-changed','planning-slot-unavailable'].includes(error.body?.error)){await load();ui.message.textContent='Le planning a changé. Vérifie le nouvel aperçu avant de confirmer.';}
+    else if(error.body?.error==='recipe-archived')ui.message.textContent='La période contient une recette archivée. Choisis une recette active pour les nouveaux repas.';
+    else ui.message.textContent='Copies non confirmées. Réessaie sans changer les dates : aucun doublon ne sera créé.';}
   });ui.d.showModal();void load();
  }
 
