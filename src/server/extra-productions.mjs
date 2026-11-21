@@ -1,5 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {recipeMinimumInYield} from './recipe-ingredients.mjs';
+import {lockHouseholdInventory} from './ingredient-stock.mjs';
 
 const uuid=value=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 const date=value=>{
@@ -31,19 +32,23 @@ export async function listExtraProductions(pool,householdId,startDate,endDate){
 }
 
 export async function saveExtraProduction(pool,input){
-  const recipe=await pool.query(`SELECT yield_amount,yield_unit_id,output_units,minimum_production_amount,minimum_production_unit_id
-    FROM recipes WHERE id=$1 AND household_id=$2 AND production_type<>'none' AND parent_recipe_id IS NULL`,[input.recipeId,input.householdId]);
-  if(!recipe.rowCount)return null;
-  const row=recipe.rows[0];
-  const minimum=recipeMinimumInYield({yield:{amount:Number(row.yield_amount),unitId:row.yield_unit_id},
-    outputUnits:row.output_units??{},minimumProductionAmount:Number(row.minimum_production_amount??0),minimumProductionUnitId:row.minimum_production_unit_id});
-  const quantity=Math.max(input.quantity,minimum);
-  const result=await pool.query(`INSERT INTO planned_extra_productions
-    (id,household_id,recipe_id,planned_on,quantity,storage,note)
-    SELECT $1,$2,r.id,$4,$5,$6,$7 FROM recipes r
-    WHERE r.id=$3 AND r.household_id=$2 AND r.production_type<>'none' AND r.parent_recipe_id IS NULL
-    RETURNING id`,[input.id,input.householdId,input.recipeId,input.plannedOn,quantity,input.storage,input.note]);
-  return result.rowCount?{id:input.id,quantity}:null;
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    await lockHouseholdInventory(client,input.householdId);
+    const recipe=await client.query(`SELECT yield_amount,yield_unit_id,output_units,minimum_production_amount,minimum_production_unit_id
+      FROM recipes WHERE id=$1 AND household_id=$2 AND production_type<>'none' AND parent_recipe_id IS NULL AND NOT recipe_archived`,[input.recipeId,input.householdId]);
+    if(!recipe.rowCount){await client.query('ROLLBACK');return null;}
+    const row=recipe.rows[0];
+    const minimum=recipeMinimumInYield({yield:{amount:Number(row.yield_amount),unitId:row.yield_unit_id},
+      outputUnits:row.output_units??{},minimumProductionAmount:Number(row.minimum_production_amount??0),minimumProductionUnitId:row.minimum_production_unit_id});
+    const quantity=Math.max(input.quantity,minimum);
+    await client.query(`INSERT INTO planned_extra_productions
+      (id,household_id,recipe_id,planned_on,quantity,storage,note) VALUES($1,$2,$3,$4,$5,$6,$7)`,
+    [input.id,input.householdId,input.recipeId,input.plannedOn,quantity,input.storage,input.note]);
+    await client.query('COMMIT');
+    return {id:input.id,quantity};
+  }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 }
 
 export async function deleteExtraProduction(pool,householdId,id){

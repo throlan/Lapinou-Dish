@@ -2774,19 +2774,21 @@ $('#recipe-archive-file').addEventListener('change', async (event) => {
 
 async function requestRecipeDeletion(recipe,button,message){
   if(button.disabled||!state.household)return;
-  if(!confirm(`Supprimer définitivement « ${recipe.name} » et ses éventuelles parties de service ? Une recette utilisée dans un menu ou un historique de production sera conservée.`))return;
+  if(!confirm(`Retirer « ${recipe.name} » du catalogue ? Si elle figure dans l’historique, elle sera archivée pour y rester consultable. Sans historique, la suppression est définitive.`))return;
   button.disabled=true;showMessage(message,'Suppression…');
   try{
     const result=await api(`/api/recipes/${recipe.id}`,{method:'DELETE',body:JSON.stringify({householdId:state.household.id,version:recipe.version})});
-    state.recipes=state.recipes.filter(item=>item.id!==recipe.id);
+    if(result.archived)state.recipes=state.recipes.map(item=>item.id===recipe.id?{...item,recipeArchived:true}:item);
+    else state.recipes=state.recipes.filter(item=>item.id!==recipe.id);
     if(state.editingRecipeId===recipe.id){state.editingRecipeId=null;state.editingRecipeForDeletion=null;recipeEditorDialog.close({discard:true});$('#recipe-form').classList.add('hidden');$('#recipe-result').classList.add('hidden');}
     renderFilteredRecipes();
-    showMessage($('#recipe-list-message'),`« ${recipe.name} » a été supprimée.${result.imageCleanupPending?' Un fichier photo n’a pas pu être nettoyé.':''}`,!result.imageCleanupPending);
+    const outcome=result.archived?'a été archivée. Les anciens repas et productions restent consultables.':'a été supprimée.';
+    showMessage($('#recipe-list-message'),`« ${recipe.name} » ${outcome}${result.imageCleanupPending?' Un fichier photo n’a pas pu être nettoyé.':''}`,!result.imageCleanupPending);
     await refreshRecipes();
   }catch(error){
     const body=error.body??{};
     const reason=body.error==='recipe-in-use'
-      ?`Cette recette est encore utilisée.${body.meals?' Retire-la ou remplace-la dans les menus concernés.':''}${body.productions?' Son historique de production est conservé.':''}${body.recipes?.length?' Elle est un ingrédient de : '+body.recipes.map(r=>r.name).join(', ')+'.':''}`
+      ?`Cette recette est encore utilisée.${body.meals?' Retire-la ou remplace-la dans les menus d’aujourd’hui ou à venir.':''}${body.pendingProductions?' Elle a des préparations prévues à traiter.':''}${body.recipes?.length?' Elle est un ingrédient de : '+body.recipes.map(r=>r.name).join(', ')+'.':''}`
       :body.error==='recipe-version-conflict'?'Cette recette a changé depuis son affichage. Actualise la liste avant de la supprimer.'
       :body.error==='recipe-not-found'?'Cette recette n’est plus disponible. Actualise la liste.'
       :'La suppression n’a pas abouti. Réessaie après avoir vérifié la connexion.';
@@ -3744,7 +3746,9 @@ function openDayMeals(date, calendarMeals) {
         await api('/api/planning/day',{method:'POST',body:JSON.stringify({householdId:state.household.id,date,meals:payload,requestId:request.id})});
         dialog.close();await Promise.all([refreshCalendar(),refreshDashboard()]);
       }catch(error){
-        message.textContent=error.body?.error==='planning-slot-unavailable'?'Un créneau est déjà occupé. Rouvre cette journée pour actualiser la sélection.':'Enregistrement impossible. Vérifie les recettes et quantités sélectionnées.';
+        message.textContent=error.body?.error==='planning-slot-unavailable'?'Un créneau est déjà occupé. Rouvre cette journée pour actualiser la sélection.'
+          :error.body?.error==='recipe-archived'?'Une recette a été archivée. Choisis une autre recette.'
+          :'Enregistrement impossible. Vérifie les recettes et quantités sélectionnées.';
       }finally{saving=false;save.disabled=false;for(const control of controls)control.disabled=false;}
     });
   };
@@ -4702,7 +4706,9 @@ $('#duplicate-meal-form').addEventListener('submit',async event=>{
   try{
     await api(`/api/planning/meals/${duplicationSource.id}/duplicate`,{method:'POST',body:JSON.stringify({...payload,requestId:pendingDuplication.requestId})});
     $('#duplicate-meal-dialog').close();state.calendarWeekStart=mondayOf(dates[0]);setView('calendar');await refreshCalendar();await refreshDashboard();
-  }catch(error){showMessage($('#duplicate-message'),error.body?.error==='source-meal-not-found'?'Le repas source n’existe plus. Actualise le calendrier.':'Copies non créées : '+(error.body?.error??error.message));}
+  }catch(error){showMessage($('#duplicate-message'),error.body?.error==='source-meal-not-found'?'Le repas source n’existe plus. Actualise le calendrier.'
+    :error.body?.error==='recipe-archived'?'Le repas contient une recette archivée. Choisis une recette active pour le nouveau repas.'
+    :'Copies non créées : '+(error.body?.error??error.message));}
   finally{button.disabled=false;}
 });
 
@@ -4802,7 +4808,9 @@ async function saveMeal(event) {
     }else await api(state.calendarMealId ? `/api/planning/meals/${state.calendarMealId}` : '/api/planning/meals', { method: state.calendarMealId ? 'PUT' : 'POST', body: JSON.stringify(payload) });
     state.planningFromCatalogue=false;$('#meal-dialog').close(); await Promise.all([refreshCalendar(),refreshDashboard()]);
   } catch (error) {
-    showMessage(message,error.body?.error==='planning-slot-unavailable'?'Un créneau sélectionné vient d’être occupé. Ferme ce formulaire et choisis des créneaux libres avec Planifier. Aucun repas de cette sélection n’a été ajouté ni écrasé.':`Enregistrement impossible : ${error.body?.error ?? error.message}`);
+    showMessage(message,error.body?.error==='planning-slot-unavailable'?'Un créneau sélectionné vient d’être occupé. Ferme ce formulaire et choisis des créneaux libres avec Planifier. Aucun repas de cette sélection n’a été ajouté ni écrasé.'
+      :error.body?.error==='recipe-archived'?'Une recette a été archivée. Choisis une autre recette.'
+      :`Enregistrement impossible : ${error.body?.error ?? error.message}`);
     message.scrollIntoView({ behavior: 'smooth', block: 'center' });
   } finally {
     submitButton.disabled = false;

@@ -7,6 +7,7 @@ import { calculateRecipeNutrition } from '../domain/foods.ts';
 import { restoreOriginalServingMode, syncServingParts, validateServingParts } from './serving-parts.mjs';
 import { lockHouseholdInventory } from './ingredient-stock.mjs';
 import { removeStoredRecipeImageFiles } from './recipe-images.mjs';
+import { parisToday } from './automatic-profile.mjs';
 
 export function validateRecipeDeletion(input) {
   if(!input || !isUuid(input.householdId))return {error:'invalid-household-id'};
@@ -20,18 +21,36 @@ export async function deleteRecipe(pool,id,data,imageOptions) {
   try{
     await client.query('BEGIN');
     await lockHouseholdInventory(client,data.householdId);
-    const found=await client.query('SELECT id,version FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL FOR UPDATE',[id,data.householdId]);
+    const found=await client.query('SELECT id,version,recipe_archived FROM recipes WHERE id=$1 AND household_id=$2 AND parent_recipe_id IS NULL FOR UPDATE',[id,data.householdId]);
     if(!found.rowCount){await client.query('ROLLBACK');return null;}
     if(Number(found.rows[0].version)!==data.version){await client.query('ROLLBACK');return {error:'recipe-version-conflict'};}
-    const children=await client.query('SELECT id FROM recipes WHERE parent_recipe_id=$1 AND household_id=$2 FOR UPDATE',[id,data.householdId]);
-    const ids=[id,...children.rows.map(part=>part.id)];
-    const refs=await client.query(`SELECT
-      (SELECT count(*) FROM planned_meal_items WHERE recipe_id=ANY($1::uuid[])) AS meals,
-      (SELECT count(*) FROM stock_lots WHERE recipe_id=ANY($1::uuid[])) AS productions`,[ids]);
-    const usage={meals:Number(refs.rows[0].meals),productions:Number(refs.rows[0].productions)};
-    if(usage.meals || usage.productions){await client.query('ROLLBACK');return {error:'recipe-in-use',...usage};}
-    const ingredientUses=await client.query('SELECT DISTINCT source.id,source.name FROM recipe_lines l JOIN recipes r ON r.id=l.recipe_id JOIN recipes source ON source.id=COALESCE(r.parent_recipe_id,r.id) WHERE l.ingredient_recipe_id=ANY($1::uuid[]) AND NOT (l.recipe_id=ANY($1::uuid[]))',[ids]);
-    if(ingredientUses.rowCount){await client.query('ROLLBACK');return {error:'recipe-in-use',recipes:ingredientUses.rows};}
+    if(found.rows[0].recipe_archived){await client.query('ROLLBACK');return {archived:true};}
+    const instances=await client.query(`SELECT id FROM recipes WHERE household_id=$1 AND choice_instance AND choice_origin->>'templateId'=$2 FOR UPDATE`,[data.householdId,id]);
+    const roots=[id,...instances.rows.map(recipe=>recipe.id)];
+    const children=await client.query('SELECT id FROM recipes WHERE parent_recipe_id=ANY($1::uuid[]) AND household_id=$2 FOR UPDATE',[roots,data.householdId]);
+    const ids=[...roots,...children.rows.map(part=>part.id)];
+    const {rows:[usage]}=await client.query(`SELECT
+      (SELECT count(DISTINCT m.id)::int FROM planned_meal_items i JOIN planned_meals m ON m.id=i.meal_id
+        WHERE i.recipe_id=ANY($1::uuid[]) AND m.meal_date >= $2::date) AS "activeMeals",
+      EXISTS(SELECT 1 FROM planned_meal_items WHERE recipe_id=ANY($1::uuid[])) AS "mealHistory",
+      EXISTS(SELECT 1 FROM stock_lots WHERE recipe_id=ANY($1::uuid[])) AS "stockHistory",
+      (SELECT count(*)::int FROM planned_extra_productions WHERE recipe_id=ANY($1::uuid[]) AND stock_lot_id IS NULL) AS "pendingProductions",
+      EXISTS(SELECT 1 FROM planned_extra_productions WHERE recipe_id=ANY($1::uuid[])) AS "productionHistory"`,[ids,parisToday()]);
+    const ingredientUses=await client.query(`SELECT DISTINCT source.id,source.name,
+        (source.recipe_archived OR (r.parent_recipe_id IS NOT NULL AND NOT r.serving_part_active)) AS historical
+      FROM recipe_lines l JOIN recipes r ON r.id=l.recipe_id JOIN recipes source ON source.id=COALESCE(r.parent_recipe_id,r.id)
+      WHERE l.ingredient_recipe_id=ANY($1::uuid[]) AND NOT (l.recipe_id=ANY($1::uuid[]))`,[ids]);
+    const activeRecipes=ingredientUses.rows.filter(use=>!use.historical).map(({id,name})=>({id,name}));
+    if(usage.activeMeals||usage.pendingProductions||activeRecipes.length){
+      await client.query('ROLLBACK');
+      return {error:'recipe-in-use',meals:usage.activeMeals,pendingProductions:usage.pendingProductions,recipes:activeRecipes};
+    }
+    if(usage.mealHistory||usage.stockHistory||usage.productionHistory||ingredientUses.rowCount||instances.rowCount){
+      await client.query(`UPDATE recipes SET recipe_archived=true,version=version+1,updated_at=now()
+        WHERE household_id=$1 AND id=ANY($2::uuid[])`,[data.householdId,ids]);
+      await client.query('COMMIT');
+      return {archived:true};
+    }
     const images=await client.query('SELECT file_name FROM recipe_images WHERE recipe_id=ANY($1::uuid[]) FOR UPDATE',[ids]);
     files=images.rows.map(image=>image.file_name);
     await client.query('DELETE FROM recipes WHERE parent_recipe_id=$1 AND household_id=$2',[id,data.householdId]);

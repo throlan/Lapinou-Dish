@@ -8,8 +8,10 @@ import {Readable} from 'node:stream';
 import {PGlite} from '@electric-sql/pglite';
 import {createRecipe,readRecipe,deleteRecipe,validateRecipeInput,validateRecipeDeletion} from '../src/server/recipes.mjs';
 import {saveRecipeImage,removeStoredRecipeImageFiles} from '../src/server/recipe-images.mjs';
-import {savePlannedMeal} from '../src/server/planning.mjs';
+import {savePlannedMeal,readPlannedMeal,duplicatePlannedMeal} from '../src/server/planning.mjs';
 import {addStockLot,cancelStockLot} from '../src/server/household-planning.mjs';
+import {saveExtraProduction} from '../src/server/extra-productions.mjs';
+import {parisToday} from '../src/server/automatic-profile.mjs';
 import {handleRequest} from '../src/server/app.mjs';
 
 const png=Buffer.from([137,80,78,71,13,10,26,10,0,0,0,0]);
@@ -49,15 +51,25 @@ test('unused duplicate deletion removes only its id, generated parts and photo a
   }finally{await f.close();}
 });
 
-test('menus protect both parent and generated parts, including prepared historical meals',async()=>{
+test('archiving a recipe used in a past meal preserves the meal, serving part and photo',async()=>{
   const f=await fixture();
   try{
     const recipe=await f.create(true),part=recipe.servingParts[0];
     const meal=await savePlannedMeal(f.pool,null,{householdId:f.householdId,mealDate:'2026-01-01',slot:'lunch',notes:'History',attendeeIds:[f.personId],items:[{recipeId:part.id,role:'main',amounts:[{personId:f.personId,quantity:50}]}]});
     await f.pool.query('UPDATE planned_meals SET prepared_at=now() WHERE id=$1',[meal.id]);
-    assert.deepEqual(await deleteRecipe(f.pool,recipe.id,{householdId:f.householdId,version:recipe.version}),{error:'recipe-in-use',meals:1,productions:0});
-    assert.ok(await readRecipe(f.pool,recipe.id));assert.ok(await readRecipe(f.pool,part.id));
-    assert.equal((await f.pool.query('SELECT count(*) FROM planned_amounts')).rows[0].count,1);
+    await saveRecipeImage(f.pool,recipe.id,{householdId:f.householdId,mediaType:'image/png',source:'personal',image:png},{imageDirectory:f.directory});
+    const response=await removeHTTP(recipe.id,{householdId:f.householdId,version:recipe.version},f.pool);
+    assert.equal(response.status,200);assert.deepEqual(response.body,{archived:true});
+    assert.equal((await readRecipe(f.pool,recipe.id)).recipeArchived,true);
+    assert.equal((await readRecipe(f.pool,part.id)).recipeArchived,true);
+    const history=await readPlannedMeal(f.pool,{id:meal.id},f.householdId);
+    assert.equal(history.notes,'History');assert.ok(history.preparedAt);
+    assert.equal(history.items[0].recipeId,part.id);assert.equal(history.items[0].amounts[0].quantity,50);
+    assert.equal((await readdir(f.directory)).length,1);
+    const future={householdId:f.householdId,mealDate:parisToday(),slot:'lunch',attendeeIds:[f.personId],
+      items:[{recipeId:part.id,role:'main',amounts:[{personId:f.personId,quantity:50}]}]};
+    assert.deepEqual(await savePlannedMeal(f.pool,null,future),{error:'recipe-archived'});
+    assert.deepEqual(await duplicatePlannedMeal(f.pool,meal.id,{householdId:f.householdId,dates:[parisToday()],slot:'lunch',requestId:randomUUID()}),{error:'recipe-archived'});
   }finally{await f.close();}
 });
 
@@ -68,9 +80,28 @@ test('production history remains protected even after cancellation',async()=>{
     const lot=await addStockLot(f.pool,{householdId:f.householdId,recipeId:recipe.id,quantity:4,producedOn:'2026-10-18',storage:'freezer',note:''});
     await cancelStockLot(f.pool,f.householdId,lot.id);
     const result=await deleteRecipe(f.pool,recipe.id,{householdId:f.householdId,version:recipe.version});
-    assert.equal(result.error,'recipe-in-use');assert.equal(result.productions,3);
+    assert.deepEqual(result,{archived:true});
     assert.equal((await f.pool.query('SELECT count(*) FROM stock_lots')).rows[0].count,3);
-    assert.ok(await readRecipe(f.pool,recipe.id));
+    assert.equal((await readRecipe(f.pool,recipe.id)).recipeArchived,true);
+  }finally{await f.close();}
+});
+
+test('today’s meals, including variants, and a pending production prevent withdrawal',async()=>{
+  const f=await fixture();
+  try{
+    const template=await f.create(),instance=await f.create(true),parent=await f.create();
+    await f.pool.query('UPDATE recipes SET choice_instance=true,choice_origin=$2::jsonb WHERE id=$1',
+      [instance.id,JSON.stringify({templateId:template.id,key:'linked-instance'})]);
+    const part=instance.servingParts[0];
+    await savePlannedMeal(f.pool,null,{householdId:f.householdId,mealDate:parisToday(),slot:'lunch',notes:'',attendeeIds:[f.personId],
+      items:[{recipeId:part.id,role:'main',amounts:[{personId:f.personId,quantity:50}]}]});
+    const plan=await saveExtraProduction(f.pool,{id:randomUUID(),householdId:f.householdId,recipeId:parent.id,
+      plannedOn:parisToday(),quantity:4,storage:'fridge',note:''});
+    assert.ok(plan.id);
+    assert.deepEqual(await deleteRecipe(f.pool,template.id,{householdId:f.householdId,version:template.version}),
+      {error:'recipe-in-use',meals:1,pendingProductions:0,recipes:[]});
+    assert.deepEqual(await deleteRecipe(f.pool,parent.id,{householdId:f.householdId,version:parent.version}),
+      {error:'recipe-in-use',meals:0,pendingProductions:1,recipes:[]});
   }finally{await f.close();}
 });
 

@@ -23,7 +23,7 @@ function deletionUI(){
 test('recipe removal confirms once and removes only the selected duplicate after API success',async()=>{
   const ui=deletionUI();let confirmation='';ui.context.confirm=text=>{confirmation=text;return true;};
   await ui.remove();
-  assert.match(confirmation,/Duplicate/);assert.match(confirmation,/définitivement/);
+  assert.match(confirmation,/Duplicate/);assert.match(confirmation,/archivée/);
   assert.equal(ui.requests[0].url,'/api/recipes/delete-this');assert.equal(ui.requests[0].method,'DELETE');
   assert.deepEqual(JSON.parse(ui.requests[0].body),{householdId:'household',version:7});
   assert.equal(ui.context.state.recipes.length,1);assert.equal(ui.context.state.recipes[0].id,'keep-this');
@@ -40,7 +40,7 @@ test('cancelling confirmation or clicking a disabled removal never sends a reque
 });
 
 test('protected recipes, conflicts and connection failures keep the card and show an actionable message',async()=>{
-  for(const [body,expected] of [[{error:'recipe-in-use',meals:2,productions:1},/menus concernés.*historique de production/],
+  for(const [body,expected] of [[{error:'recipe-in-use',meals:2,pendingProductions:1},/menus d’aujourd’hui ou à venir.*préparations prévues/],
     [{error:'recipe-version-conflict'},/Actualise la liste/],[{error:'recipe-not-found'},/plus disponible/],[{},/connexion/]]){
     const ui=deletionUI();ui.context.api=async()=>{throw {body};};
     await ui.remove();assert.equal(ui.context.state.recipes.length,2);
@@ -49,6 +49,14 @@ test('protected recipes, conflicts and connection failures keep the card and sho
   }
   const ui=deletionUI();ui.context.api=async()=>({deleted:true,imageCleanupPending:true});
   await ui.remove();assert.match(ui.$('#recipe-list-message').textContent,/fichier photo/);
+});
+
+test('historical recipes are archived while the client retains the recipe for history',async()=>{
+  const ui=deletionUI();
+  ui.context.api=async()=>({archived:true});
+  await ui.remove();
+  assert.equal(ui.context.state.recipes.find(recipe=>recipe.id===ui.recipe.id).recipeArchived,true);
+  assert.match(ui.$('#recipe-list-message').textContent,/archivée.*anciens repas/);
 });
 
 test('rendered recipe cards visibly expose a named delete action bound to that recipe',()=>{
