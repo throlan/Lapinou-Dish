@@ -896,11 +896,29 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
   font-weight: 650;
   padding-inline: 0.3rem;
 }
-#day-meals-choices fieldset > select,
+.day-recipe-picker,
 .day-meal-complements:not(:empty) {
   flex: 1 1 100%;
   min-width: 0;
 }
+.day-recipe-picker { position:relative; }
+.day-recipe-options {
+  position:absolute; z-index:3; inset:calc(100% + 4px) 0 auto; margin:0; padding:4px;
+  max-height:13rem; list-style:none; overflow-y:auto; border:1px solid var(--line);
+  border-radius:10px; background:var(--panel); box-shadow:0 8px 20px #38214626;
+}
+.day-recipe-options[hidden] { display:none; }
+.day-recipe-options li { padding:.5rem .65rem; border-radius:6px; }
+.day-recipe-options li[role="option"] { cursor:pointer; }
+.day-recipe-options li[role="option"]:hover,.day-recipe-options li.is-active { background:var(--surface-raised,var(--line)); }
+.day-recipe-options small { display:block; color:var(--muted); }
+.day-meal-breakfast-extras { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,175px),1fr)); gap:.45rem .65rem; }
+.day-meal-breakfast-extras > strong { grid-column:1 / -1; }
+.day-meal-breakfast-extras small { color:var(--muted); }
+.breakfast-drink-preference { margin:.75rem 0; }
+.breakfast-drink-preference summary { cursor:pointer; }
+.breakfast-drink-preference form { margin-top:.45rem; }
+.breakfast-drink-preference .form-message:empty { display:none; }
 #day-meals-choices fieldset > button {
   text-align: left;
   white-space: normal;

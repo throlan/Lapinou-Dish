@@ -81,6 +81,101 @@ export function preparationStockLabel(recipe, stock, quantityLabel) {
   }).join(' / ');
 }
 
+export function findDayRecipes(recipes,query) {
+  const normalize = value => value.normalize('NFD').replace(/\p{M}/gu,'').toLocaleLowerCase('fr');
+  const words = normalize(query).trim().split(/\s+/);
+  return recipes.filter(({name})=>{
+    const title=normalize(name);
+    return words.every(word=>title.includes(word));
+  });
+}
+
+export function createDayRecipePicker(slot,label,recipes,onChange,quantityLabel) {
+  const element=document.createElement('div'), input=document.createElement('input'), list=document.createElement('ul');
+  element.className='day-recipe-picker';
+  list.className='day-recipe-options';
+  list.id='day-recipes-'+slot;
+  list.setAttribute('role','listbox');
+  list.setAttribute('aria-label',label);
+  input.type='search';input.autocomplete='off';input.placeholder='Rechercher un plat principal…';
+  input.setAttribute('role','combobox');
+  input.setAttribute('aria-label',label);
+  input.setAttribute('aria-autocomplete','list');
+  input.setAttribute('aria-controls',list.id);
+  element.append(input,list);
+  let selected=null, stock=null, options=[], active=-1, query='';
+
+  function close() {
+    list.hidden=true;
+    input.setAttribute('aria-expanded','false');
+    input.removeAttribute('aria-activedescendant');
+    input.value=selected?.name??'';
+  }
+  function choose(recipe) {
+    if(input.disabled)return;
+    selected=recipe;
+    close();
+    onChange();
+  }
+  function activate(index) {
+    active=index;
+    options.forEach(({node},i)=>node.classList.toggle('is-active',i===active));
+    if(active<0)input.removeAttribute('aria-activedescendant');
+    else {
+      input.setAttribute('aria-activedescendant',options[active].node.id);
+      options[active].node.scrollIntoView({block:'nearest'});
+    }
+  }
+  function show() {
+    const results=findDayRecipes(recipes,query);
+    const clear=selected?[{recipe:null,label:'Retirer le plat'}]:[];
+    const matches=results.map(recipe=>({recipe,label:recipe.name}));
+    if(query)matches.push(...clear);
+    else matches.unshift(...clear);
+    options=matches.map(({recipe,label},i)=>{
+      const node=document.createElement('li');node.id=list.id+'-'+i;
+      node.setAttribute('role','option');
+      node.setAttribute('aria-selected',String(Boolean(recipe&&recipe.id===selected?.id)));
+      node.textContent=label;
+      const detail=recipe&&stock?preparationStockLabel(recipe,stock,quantityLabel):'';
+      if(detail){const note=document.createElement('small');note.textContent=detail;node.append(note);}
+      node.addEventListener('pointerdown',event=>event.preventDefault());
+      node.addEventListener('click',()=>choose(recipe));
+      return {node,recipe};
+    });
+    list.replaceChildren(...options.map(option=>option.node));
+    if(!results.length){
+      const empty=document.createElement('li');empty.setAttribute('role','presentation');empty.textContent='Aucun plat trouvé.';
+      list.prepend(empty);
+    }
+    list.hidden=false;
+    input.setAttribute('aria-expanded','true');
+    activate(-1);
+  }
+  close();
+  const open=()=>{query='';show();};
+  input.addEventListener('focus',open);
+  input.addEventListener('click',()=>{if(list.hidden)open();});
+  input.addEventListener('input',()=>{query=input.value;show();});
+  input.addEventListener('blur',close);
+  input.addEventListener('keydown',event=>{
+    if(event.key==='Escape'&&!list.hidden){event.preventDefault();close();return;}
+    if(event.key==='Enter'){
+      event.preventDefault();
+      const option=active>=0?options[active]:options.find(entry=>entry.recipe);
+      if(!list.hidden&&option)choose(option.recipe);
+      return;
+    }
+    if(!['ArrowDown','ArrowUp'].includes(event.key))return;
+    event.preventDefault();
+    if(list.hidden)open();
+    if(!options.length)return;
+    const next=event.key==='ArrowDown'?Math.min(active+1,options.length-1):active<0?options.length-1:Math.max(active-1,0);
+    activate(next);
+  });
+  return {element,get value(){return selected?.id??'';},setStock(value){stock=value;if(!list.hidden)show();}};
+}
+
 export function fitsDayExtra(target, used, incomplete, extra) {
   return target != null && !incomplete && Number.isFinite(used) &&
     Number.isFinite(extra) && extra >= 0 && used + extra <= target + 1e-6;
@@ -88,6 +183,7 @@ export function fitsDayExtra(target, used, incomplete, extra) {
 
 export function expandDayMealPortions(meals, { targets, used, incomplete, energy, propose }) {
   for (const meal of meals) {
+    if (meal.slot !== 'lunch' && meal.slot !== 'dinner') continue;
     for (const personId of meal.attendeeIds) {
       const balance = targets.get(personId) - used.get(personId);
       if (incomplete.has(personId) || !(balance > 1e-6)) continue;

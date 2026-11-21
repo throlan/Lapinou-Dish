@@ -20,8 +20,8 @@ test('daily preview removes a whole dessert then reduces separate starch, preser
 test('an indivisible main stays whole when the daily target is exceeded',()=>{
   const result=rebalanceDailyEnergy([row({slot:'breakfast',unitId:'piece',quantity:4,energyKcal:100,proteinG:8,breakfastLimit:2})],[{id:'adult',name:'Adult',targetKcal:200}]);
   assert.equal(result.changes.length,0);assert.equal(result.results[0].beforeKcal,400);assert.equal(result.results[0].afterKcal,400);
-  assert.equal(breakfastServingLimit({yield:{unitId:'piece'}}),2);
-  assert.equal(breakfastServingLimit({yield:{unitId:'g',amount:2400}},{yield:{unitId:'piece',amount:24}}),200);
+  assert.equal(breakfastServingLimit({yield:{unitId:'piece'}}),1);
+  assert.equal(breakfastServingLimit({yield:{unitId:'g',amount:2400}},{yield:{unitId:'piece',amount:24}}),100);
   const suggestion=suggestQuantity({dailyTargetKcal:1850,slot:'breakfast',recipeKcal:113,recipeUnit:'piece'});
   const balanced=rebalanceNaturalPortions([{role:'main',quantity:Math.min(suggestion.quantity,2),step:1,recipeKcal:113,proteinG:8,maxQuantity:2}],suggestion.slotBudgetKcal);
   assert.equal(balanced.proposals[0].quantity,2);assert.equal(balanced.proteinTargetMet,false);

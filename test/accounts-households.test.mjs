@@ -90,6 +90,21 @@ test('individual accounts enforce household isolation, roles, sessions and expli
  assert.equal(food.status,201,JSON.stringify(food.body));const foodId=food.body.food.id;
  const dish=await request('POST','/api/recipes',{householdId:h,name:'Private bread',yield:{amount:10,unitId:'slice'},lines:[{foodId,quantity:500,unitId:'g'}]},ownerCookie);
  assert.equal(dish.status,201,JSON.stringify(dish.body));const recipeId=dish.body.recipe.id;
+ const drinkId=randomUUID(), memberId=ownPerson.body.person.id;
+ await pool.query(`INSERT INTO recipes(id,household_id,name,recipe_type,yield_amount,yield_unit_id,meal_moments)
+   VALUES($1,$2,'Boisson fictive','beverage',1,'portion',ARRAY['breakfast'])`,[drinkId,h]);
+ const drinkUrl=id=>'/api/people/'+id+'/breakfast-drink';
+ assert.deepEqual((await request('GET','/api/breakfast-drinks?householdId='+h,null,memberCookie)).body.drinks,[{id:drinkId,name:'Boisson fictive'}]);
+ assert.equal((await request('POST',drinkUrl(profile),{householdId:h,recipeId:drinkId},memberCookie)).status,403);
+ assert.equal((await request('POST',drinkUrl(profile),{householdId:h,recipeId:drinkId},ownerCookie)).status,200);
+ assert.deepEqual((await request('POST',drinkUrl(memberId),{householdId:h,recipeId:drinkId},memberCookie)).body,{breakfastDrinkRecipeId:drinkId});
+ assert.equal((await request('POST',drinkUrl(memberId),{householdId:h,recipeId},memberCookie)).body.error,'breakfast-drink-unavailable');
+ const preferences=(await request('GET','/api/people?householdId='+h,null,memberCookie)).body.people;
+ assert.equal(preferences.find(p=>p.id===memberId).breakfastDrinkRecipeId,drinkId);
+ assert.equal(preferences.find(p=>p.id===profile).breakfastDrinkRecipeId,null);
+ assert.deepEqual((await request('POST',drinkUrl(memberId),{householdId:h,recipeId:null},memberCookie)).body,{breakfastDrinkRecipeId:null});
+ await pool.query('DELETE FROM recipes WHERE id=$1',[drinkId]);
+ assert.equal((await pool.query('SELECT breakfast_drink_recipe_id FROM people WHERE id=$1',[profile])).rows[0].breakfast_drink_recipe_id,null);
  await pool.query("INSERT INTO recipe_images(recipe_id,media_type,source,image_bytes) VALUES($1,'image/png','personal',$2)",[recipeId,Buffer.from('synthetic-image')]);
  const second=await request('POST','/api/accounts/households',{name:'Second home'},ownerCookie);
  assert.equal(second.status,201,JSON.stringify(second.body));const other=second.body.household.id;

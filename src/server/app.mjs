@@ -38,7 +38,7 @@ import { listImportDrafts, saveImportDrafts } from './recipe-imports.mjs';
 import { extractRecipeWithOpenAI } from './openai-recipe-import.mjs';
 import { generateRecipeImage, inspectRecipeImageStorage, readRecipeImage, removeRecipeImage, saveRecipeImage, validateRecipeImageUpload } from './recipe-images.mjs';
 import { retrieveInstagramCaption, instagramPostUrl } from './instagram-caption.mjs';
-import { addProfileHistory, addWeightEntry, addWeightGoal, createPerson, listPeople, validatePersonInput, validateProfileHistoryInput, validateWeightGoalInput, validateWeightInput } from './people.mjs';
+import { addProfileHistory, addWeightEntry, addWeightGoal, createPerson, listPeople, listBreakfastDrinks, saveBreakfastDrink, validatePersonInput, validateProfileHistoryInput, validateWeightGoalInput, validateWeightInput } from './people.mjs';
 import { deletePlannedMeal, duplicatePlannedMeal, listPlannedMeals, listPlannedRecipeIds, savePlannedMeal, validateMealDuplication, validatePlannedMeal } from './planning.mjs';
 import { addStockLot, cancelStockLot, completeRoutine, deleteOrderLink, getRoutineSettings, listOrderLinks, listPreparationsToMake, listShoppingRequirements, listStock, saveOrderLink, saveRoutineSettings, saveShoppingLineState, validateOrderLinkInput, validateProductionInput, validateRoutineSettings, validateShoppingLineState } from './household-planning.mjs';
 import { parseRecipeArchive, parseRecipeText } from '../domain/recipe-import.mjs';
@@ -321,12 +321,26 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
         return send(response,200,{intake:row??null});
       }catch{return send(response,500,{error:'daily-macros-unavailable'});}
     }
-    const personAction = url.pathname.match(/^\/api\/people\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(weights|profile-history|weight-goals|nutrition-targets|automatic-profile|activity-plans|activity-sessions|serving-cap)$/i);
+    if(url.pathname==='/api/breakfast-drinks'&&request.method==='GET'){
+      const householdId=url.searchParams.get('householdId');
+      if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});
+      try{return send(response,200,{drinks:await listBreakfastDrinks(pool,householdId)});}
+      catch{return send(response,500,{error:'breakfast-drinks-unavailable'});}
+    }
+    const personAction = url.pathname.match(/^\/api\/people\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(weights|profile-history|weight-goals|nutrition-targets|automatic-profile|activity-plans|activity-sessions|serving-cap|breakfast-drink)$/i);
     if (personAction && request.method === 'POST') {
       const body = await readJson(request);
       if (body.error) return send(response, body.status ?? 400, { error: body.error });
       if (!isUuid(body.value?.householdId)) return send(response, 400, { error: 'invalid-household-id' });
       const kind=personAction[2];
+      if(kind==='breakfast-drink'){
+        const id=body.value.recipeId;
+        if(id!==null&&!isUuid(id))return send(response,400,{error:'invalid-breakfast-drink'});
+        try{
+          const result=await saveBreakfastDrink(pool,body.value.householdId,personAction[1],id);
+          return send(response,result?.error?409:result?200:404,result??{error:'person-not-found'});
+        }catch{return send(response,500,{error:'breakfast-drink-save-failed'});}
+      }
       if(kind==='serving-cap'){
         const checked=validatePersonServingCap(body.value);if(checked.error)return send(response,400,checked);
         try{const result=await savePersonServingCap(pool,personAction[1],body.value.householdId,checked.data);return send(response,result?200:404,result??{error:'person-not-found'});}
