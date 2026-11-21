@@ -47,7 +47,7 @@ export function validateWeightGoalInput(input) {
 
 export async function listPeople(pool, householdId) {
   const people = (await pool.query(
-    'SELECT id, display_name, birth_date::text AS birth_date, active FROM people WHERE household_id = $1 ORDER BY display_name',
+    'SELECT id, display_name, birth_date::text AS birth_date, active, breakfast_drink_recipe_id FROM people WHERE household_id = $1 ORDER BY display_name',
     [householdId],
   )).rows;
   if (!people.length) return [];
@@ -60,6 +60,7 @@ export async function listPeople(pool, householdId) {
   ]);
   return people.map((person) => ({
     id: person.id, displayName: person.display_name, birthDate: person.birth_date, active: person.active,
+    breakfastDrinkRecipeId: person.breakfast_drink_recipe_id ?? null,
     nutritionTargetHistory:targets.rows.filter(row=>row.person_id===person.id).map(row=>({id:row.id,effectiveFrom:row.date,revisionOrder:Number(row.revision_order),dailyEnergyKcal:Number(row.daily_energy_kcal),dailyProteinG:row.daily_protein_g==null?null:Number(row.daily_protein_g),dailyFatG:row.daily_fat_g==null?null:Number(row.daily_fat_g),dailyCarbohydrateG:row.daily_carbohydrate_g==null?null:Number(row.daily_carbohydrate_g),dailyFibreG:row.daily_fibre_g==null?null:Number(row.daily_fibre_g),questionnaire:row.questionnaire??null,origin:row.origin,method:row.method,referenceWeightKg:row.reference_weight_kg==null?null:Number(row.reference_weight_kg),confirmedAt:row.confirmed_at})),
     weightHistory: weights.rows.filter((entry) => entry.person_id === person.id).map((entry) => ({ id: entry.id, measuredOn: entry.measured_on, weightKg: Number(entry.weight_kg) })),
     weightGoalHistory: goals.rows.filter((entry) => entry.person_id === person.id).map((entry) => ({
@@ -72,6 +73,26 @@ export async function listPeople(pool, householdId) {
       dailyEnergyOrigin: entry.daily_energy_origin, dailyEnergyMethod: entry.daily_energy_method,
     })),
   }));
+}
+
+const breakfastDrinkCriteria = `r.recipe_type='beverage' AND r.parent_recipe_id IS NULL
+  AND NOT r.recipe_archived AND NOT r.choice_instance AND NOT r.separate_starch
+  AND (cardinality(r.meal_moments)=0 OR 'breakfast'=ANY(r.meal_moments))`;
+
+export async function listBreakfastDrinks(pool,householdId) {
+  const {rows}=await pool.query(`SELECT r.id,r.name FROM recipes r
+    WHERE r.household_id=$1 AND ${breakfastDrinkCriteria} ORDER BY lower(r.name),r.id`,[householdId]);
+  return rows;
+}
+
+export async function saveBreakfastDrink(pool,householdId,personId,recipeId) {
+  const {rows}=await pool.query(`UPDATE people SET breakfast_drink_recipe_id=$3
+    WHERE household_id=$1 AND id=$2 AND ($3::uuid IS NULL OR EXISTS(
+      SELECT 1 FROM recipes r WHERE r.household_id=$1 AND r.id=$3 AND ${breakfastDrinkCriteria}
+    )) RETURNING breakfast_drink_recipe_id AS "breakfastDrinkRecipeId"`,[householdId,personId,recipeId]);
+  if(rows.length)return rows[0];
+  const person=await pool.query('SELECT 1 FROM people WHERE household_id=$1 AND id=$2',[householdId,personId]);
+  return person.rows.length?{error:'breakfast-drink-unavailable'}:null;
 }
 
 export async function createPerson(pool, householdId, data) {

@@ -30,13 +30,17 @@ test('an incomplete ingredient component does not make the calories uncertain wh
 
 test('a daily balance can grow whole servings within the remaining budget, keeping incomplete days out',()=>{
  const ids=['a','b','c','d'];
- const meal={attendeeIds:ids,items:[{kcal:250,amounts:ids.map(personId=>({personId,quantity:1}))}]};
+ const meal={slot:'lunch',attendeeIds:ids,items:[{kcal:250,amounts:ids.map(personId=>({personId,quantity:1}))}]};
  const targets=new Map([['a',900],['b',1200],['c',1200],['d',1200]]);
  const used=new Map([['a',750],['b',650],['c',650],['d',650]]);
  const calls=[];
- expandDayMealPortions([meal],{targets,used,incomplete:new Set(['c']),energy:item=>item.kcal,
-   propose:(_,person,budget)=>{calls.push(person);return [person==='d'?5:Math.floor(budget/250)];}});
+ const breakfast={slot:'breakfast',attendeeIds:ids,items:[{kcal:120,amounts:ids.map(personId=>({personId,quantity:1}))}]};
+ const snack={slot:'snack',attendeeIds:ids,items:[{kcal:30,amounts:ids.map(personId=>({personId,quantity:4}))}]};
+ expandDayMealPortions([breakfast,snack,meal],{targets,used,incomplete:new Set(['c']),energy:item=>item.kcal,
+   propose:(slotMeal,person,budget)=>{assert.equal(slotMeal.slot,'lunch');calls.push(person);return [person==='d'?5:Math.floor(budget/250)];}});
  assert.deepEqual(meal.items[0].amounts.map(amount=>amount.quantity),[1,3,1,1]);
  assert.deepEqual([...used.values()],[750,1150,650,650]);
  assert.ok(!calls.includes('c'));
+ assert.ok(snack.items[0].amounts.every(amount=>amount.quantity===4));
+ assert.ok(breakfast.items[0].amounts.every(amount=>amount.quantity===1));
 });

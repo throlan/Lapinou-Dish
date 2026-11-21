@@ -3,14 +3,16 @@ import {effectiveDatedEntry} from './profile-dates.js';
 import { DEFAULT_MEAL_RATIOS, DEFAULT_PLATE_RATIOS, validPlateRatios, effectiveServingCaps, servingCapLoads } from './meal-config.js';
 export const SLOT_RATIOS = DEFAULT_MEAL_RATIOS;
 
+export function breakfastPieceQuantity(recipe,parent) {
+  if(recipe?.yield?.unitId==='piece')return 1;
+  if(recipe?.yield?.unitId!=='g')return null;
+  if(recipe.servingDisplay?.unitId==='piece'&&recipe.servingDisplay.gramsPerUnit>0)return recipe.servingDisplay.gramsPerUnit;
+  if(parent?.yield?.unitId==='piece'&&Number(parent.yield.amount)>0)return Number(recipe.yield.amount)/Number(parent.yield.amount);
+  return null;
+}
+
 export function breakfastServingLimit(recipe,parent) {
-  if(recipe?.yield?.unitId==='piece')return 2;
-  if(recipe?.yield?.unitId==='portion')return 1;
-  if(recipe?.yield?.unitId==='g' && parent?.yield?.unitId==='piece' && Number(parent.yield.amount)>0) {
-    const weight=2*Number(recipe.yield.amount)/Number(parent.yield.amount);
-    return Math.floor(weight/10)*10 || weight;
-  }
-  return Infinity;
+  return breakfastPieceQuantity(recipe,parent)??(recipe?.yield?.unitId==='portion'?1:Infinity);
 }
 
 const NATURAL_STEPS = Object.freeze({ piece: 1, portion: 0.5, g: 10 });
@@ -264,7 +266,7 @@ export function suggestPlatePortions(proposals, budget, plateRatios=DEFAULT_PLAT
 // These caps are per person and per meal. The load is expressed per unit of
 // the recipe's yield: raw grams for meat/fish, egg count, served grams for starch.
 
-export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RATIOS,overrides){
+export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RATIOS,overrides,{strictEnergy=false}={}){
   const ratios=validPlateRatios(plateRatios)?plateRatios:DEFAULT_PLATE_RATIOS;
   const rows=proposals.map(row=>({...row}));
   const remaining=effectiveServingCaps(overrides),groups=new Map(),warnings=new Set();
@@ -359,7 +361,7 @@ export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RA
       put(main,fit(main,maximum,maximum));
     }
     if(mode==='whole'){
-      const desired=kcal/main.recipeKcal;
+      const desired=main.breakfastPiece??kcal/main.recipeKcal;
       const wholePiece=['piece','slice'].includes(main.recipeUnit);
       put(main,fit(main,wholePiece?Math.max(1,desired):desired));
     }else{
@@ -371,7 +373,7 @@ export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RA
       const sideEnergy=starch.recipeKcal+ratio*(veg?.recipeKcal??0);
       if(!fixed){
         const reserved=Math.min(practicalMinimum,limit(starch))*sideEnergy;
-        const mainTarget=Math.min(kcal/energy*shares.main,Math.max(0,kcal-reserved)/main.recipeKcal);
+        const mainTarget=main.breakfastPiece??Math.min(kcal/energy*shares.main,Math.max(0,kcal-reserved)/main.recipeKcal);
         put(main,fit(main,mainTarget,Infinity,true));
       }
       let starchCap=limit(starch);
@@ -390,6 +392,20 @@ export function cappedMealPortions(proposals,budget,plateRatios=DEFAULT_PLATE_RA
     if(left>1)warnings.add('Une partie de l’objectif calorique reste disponible après application des plafonds et des unités.');
     if(members.some(row=>!row.quantity))warnings.add('Une partie ne tient pas dans les plafonds ou le budget : vérifie les quantités proposées.');
     for(const row of members)if(!row.quantity)row.quantity=null;
+  }
+  if(strictEnergy&&validBudget){
+    let available=budget;
+    const mains=rows.filter(row=>byRow.has(row)||row.role==='main');
+    const additions=rows.filter(row=>!byRow.has(row)&&row.role!=='main');
+    for(const row of [...mains,...additions]){
+      if(!(row.quantity>0)||!(row.recipeKcal>0))continue;
+      const step=row.countStep>0?row.countStep:row.step??NATURAL_STEPS[row.recipeUnit]??0.5;
+      if(row.quantity*row.recipeKcal>available+1e-6){
+        row.quantity=floor(available/row.recipeKcal,step);
+        warnings.add('Les portions de collation sont limitées au budget du créneau.');
+      }
+      available=Math.max(0,available-row.quantity*row.recipeKcal);
+    }
   }
   const volume=capMainDish(rows,effectiveServingCaps(overrides).plateTotal);
   volume.warnings.forEach(message=>warnings.add(message));

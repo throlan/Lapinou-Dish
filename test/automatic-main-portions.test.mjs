@@ -13,6 +13,52 @@ const individualStart=source.indexOf('function isIndividualRole(');
 const individualEnd=source.indexOf('function individualDefaultQuantity(',individualStart);
 function addIndividualMealItemRule(context){runInNewContext(source.slice(individualStart,individualEnd),context);}
 
+test('recalculation proposes one breakfast piece for all profiles, including a counted gram equivalent',()=>{
+  const parent={id:'parent',yield:{amount:4,unitId:'piece'},servingParts:[{servingPart:'main'}]};
+  const mousse={id:'whole',yield:{amount:4,unitId:'piece'},nutrition:{perYieldUnit:{energyKcal:255.2,proteinG:3.7}}};
+  const counted={id:'counted',parentRecipeId:parent.id,servingPart:'main',yield:{amount:475,unitId:'g'},
+    nutrition:{perYieldUnit:{energyKcal:255.2/118.75,proteinG:3.7/118.75}}};
+  const recipes=[parent,mousse,counted],people=[{id:'a',energy:1000},{id:'b',energy:3200}];
+  const context={...planner,servedGramsPerUnit,roundServingCalories,format:String,state:{recipes,people},
+    allPlanningRecipes:()=>recipes,latestProfile:person=>({dailyEnergyKcal:person.energy})};
+  addIndividualMealItemRule(context);
+  runInNewContext(source.slice(start,end)+'\nglobalThis.calculate=applyAutomaticPortions;',context);
+  for(const [recipe,quantity] of [[mousse,'1'],[counted,'118.75']]){
+    const items=[{recipeId:recipe.id,role:'main'}];
+    context.calculate(items,['a','b'],{date:'2026-11-21',slot:'breakfast',quiet:true});
+    assert.equal(items[0].amounts.a,quantity);assert.equal(items[0].amounts.b,quantity);
+    context.calculate(items,['a','b'],{date:'2026-11-21',slot:'breakfast',energyBudget:900,quiet:true});
+    assert.equal(items[0].amounts.a,quantity);assert.equal(items[0].amounts.b,quantity);
+  }
+});
+
+test('automatic snack portions stay within the configured share with pieces, grams and a drink',()=>{
+  const biscuit={id:'biscuit',yield:{amount:24,unitId:'piece'},nutrition:{perYieldUnit:{energyKcal:42,proteinG:3}}};
+  const heavy={id:'heavy',yield:{amount:4,unitId:'piece'},nutrition:{perYieldUnit:{energyKcal:210,proteinG:5}}};
+  const skyr={id:'skyr',yield:{amount:500,unitId:'g'},nutrition:{perYieldUnit:{energyKcal:1.05,proteinG:.07}}};
+  const drink={id:'drink',yield:{amount:1,unitId:'piece'},nutrition:{perYieldUnit:{energyKcal:30,proteinG:0}}};
+  const recipes=[biscuit,heavy,skyr,drink],people=[{id:'a',energy:1300},{id:'b',energy:2300}];
+  const context={...planner,servedGramsPerUnit,roundServingCalories,format:String,
+    state:{recipes,people,mealRatios:{breakfast:.15,lunch:.45,snack:.1,dinner:.3,evening_snack:0}},
+    allPlanningRecipes:()=>recipes,latestProfile:person=>({dailyEnergyKcal:person.energy})};
+  addIndividualMealItemRule(context);
+  runInNewContext(source.slice(start,end)+'\nglobalThis.calculate=applyAutomaticPortions;',context);
+  const options={date:'2026-11-21',slot:'snack',energyBudget:900,quiet:true};
+  const item={recipeId:biscuit.id,role:'main',amounts:{a:'12',b:'21'}};
+  context.calculate([item],['a','b'],options);
+  assert.deepEqual(item.amounts,{a:'3',b:'5'});
+  const grams={recipeId:skyr.id,role:'main'};
+  context.calculate([grams],['a'],options);
+  assert.equal(grams.amounts.a,'120');
+  const large={recipeId:heavy.id,role:'main'};
+  context.calculate([large],['a','b'],options);
+  assert.equal(large.amounts.a,'0');
+  assert.equal(large.amounts.b,'1');
+  const beverage={role:'beverage',assignments:{a:{recipeId:drink.id,quantity:'1'}}};
+  context.calculate([item,beverage],['a'],options);
+  assert.ok(Number(item.amounts.a)*42+Number(beverage.assignments.a.quantity)*30<=130);
+});
+
 test('automatic servings cap raw meat inside the mixed part for all four profiles', () => {
   const parent = { id: 'parent', yield: { amount: 4, unitId: 'portion' }, servingParts:[{servingPart:'main'},{servingPart:'starch'}] };
   const main = { id: 'main', parentRecipeId: parent.id, servingPart: 'main', servingLoad:{meat:.5}, yield: { amount: 1660, unitId: 'g' }, nutrition: { perYieldUnit: { energyKcal: 1.3, proteinG: 0.075 } } };
