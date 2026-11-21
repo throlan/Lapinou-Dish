@@ -69,8 +69,9 @@ test('migration preserves legacy targets, future targets and revisions remain di
  await db.query("INSERT INTO households(id,name,protein_targets) VALUES($1,'Fictif',$2)",[household,JSON.stringify({[person]:95})]);
  await db.query("INSERT INTO people(id,household_id,display_name) VALUES($1,$2,'Fictif')",[person,household]);
  await db.query("INSERT INTO person_profile_history(id,person_id,effective_from,daily_energy_kcal,daily_energy_origin) VALUES($1,$2,'2026-01-01',2100,'clinician')",[randomUUID(),person]);
- await db.exec(await readFile(new URL('../db/migrations/20261118_nutrition_goals.sql',import.meta.url),'utf8'));
- await db.exec(await readFile(new URL('../db/migrations/20261118_nutrition_macros.sql',import.meta.url),'utf8'));
+ for(const name of migrations.filter(name=>name>='20261118_nutrition_goals.sql')){
+  await db.exec(await readFile(new URL('../db/migrations/'+name,import.meta.url),'utf8'));
+ }
  const pool={async query(sql,args){const result=await db.query(sql,args);return {...result,rowCount:result.rows.length||result.affectedRows||0};}};
  let [saved]=await listPeople(pool,household);
  assert.equal(effectiveNutritionProfile(saved,'2026-11-18').dailyEnergyKcal,2100);assert.equal(dailyProteinTarget(saved,{},'2026-11-18'),95);
