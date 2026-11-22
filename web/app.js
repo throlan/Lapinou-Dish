@@ -6,7 +6,7 @@ import {createRecipeReplacements} from './recipe-replacements.js';
 import {filterPreparationStock,preparationStockFilters} from './preparation-stock-filters.js';
 import {createApiClient} from './api-client.js';
 import {createRecipePlanning} from './recipe-planning.js';
-import {createRecipeChoices} from './recipe-choices.js';
+import {createRecipeChoices,recipeCanBeComposed} from './recipe-choices.js';
 import {createRecipeEditorDialog} from './recipe-editor-dialog.js';
 import {recipePermissions} from './recipe-permissions.js';
 import {createRecipeMethodEditor} from './recipe-method-editor.js';
@@ -2457,10 +2457,29 @@ function configureCookingMode(){
 function openExtraProductionCooking(plan){
  if(plan.completed)return;openCookingSheet(plan.recipeId,plan.quantity,localDateValue(),{parts:[],extraProduction:plan,keepMenuComposition:true},'free');
 }
-async function chooseRecipeCombination(recipe,selection){
- const seen=new Set();while(recipe?.replacedByRecipeId){if(seen.has(recipe.id))throw new Error('recipe-replacement-cycle');seen.add(recipe.id);recipe=(await api('/api/recipes/'+recipe.replacedByRecipeId)).recipe;}
- if(!recipe?.choiceGroups?.length)return recipe;
- const result=await recipeChoices.choose(recipe,selection);if(result&&!state.recipes.some(r=>r.id===result.id))state.recipes.push(result);return result;
+async function chooseRecipeCombination(recipe,selection,{required=false}={}){
+ if(required||recipeCanBeComposed(recipe)){
+  recipe=(await api('/api/recipes/'+recipe.id)).recipe;
+  required=true;
+ }
+ const seen=new Set();
+ while(recipe?.replacedByRecipeId){
+  if(seen.has(recipe.id))throw new Error('recipe-replacement-cycle');
+  seen.add(recipe.id);
+  recipe=(await api('/api/recipes/'+recipe.replacedByRecipeId)).recipe;
+ }
+ if(!recipe?.choiceGroups?.length){
+  if(required||recipeCanBeComposed(recipe))throw new Error('recipe-choice-groups-missing');
+  return recipe;
+ }
+ const result=await recipeChoices.choose(recipe,selection);
+ if(result&&!state.recipes.some(r=>r.id===result.id))state.recipes.push(result);
+ return result;
+}
+function recipeCompositionMessage(error){
+ return error.message==='recipe-choice-groups-missing'
+  ? 'Aucune variante enregistrée pour cette recette. Dans la fiche recette, relie une liste de choix à un ingrédient et enregistre.'
+  : 'Impossible de charger cette composition. Réessaie.';
 }
 async function planRecipeFromCatalogue(recipe,slot,companions,targets=[slot]){
  const chosen=await chooseRecipeCombination(recipe);if(!chosen)return false;
@@ -3604,7 +3623,8 @@ function openDayMeals(date, calendarMeals) {
   async function pickRecipe(field, template) {
     const previous=state.recipes.find(recipe=>recipe.id===field.confirmedId);
     if(saving||composing){field.picker.setSelection(previous);return;}
-    if(!template?.choiceGroups?.length){
+    field.compositionError='';
+    if(!recipeCanBeComposed(template)){
       field.confirmedId=template?.id;
       field.template=null;
       if(field.slot==='snack')suggestedSnackId=null;
@@ -3614,7 +3634,6 @@ function openDayMeals(date, calendarMeals) {
     composing=true;
     field.picker.setSelection(previous);
     render();
-    let error;
     try{
       const initial=field.template?.id===template.id?previous?.choiceOrigin?.selection:undefined;
       const resolved=await chooseRecipeCombination(template,initial);
@@ -3623,10 +3642,10 @@ function openDayMeals(date, calendarMeals) {
       field.template=template;
       field.picker.setSelection(resolved);
       if(field.slot==='snack')suggestedSnackId=null;
-    }catch{error='Impossible de charger cette composition. Réessaie.';}
+    }catch(error){field.compositionError=recipeCompositionMessage(error);}
     finally{
       composing=false;
-      if(stillOpen()){render();if(error)message.textContent=error;}
+      if(stillOpen())render();
     }
   }
   root.replaceChildren();
@@ -3680,6 +3699,11 @@ function openDayMeals(date, calendarMeals) {
     review.replaceChildren();
     for (const field of fields) {
       field.complements.replaceChildren();
+      if(field.compositionError){
+        const notice=document.createElement('p');
+        notice.className='form-message';notice.setAttribute('role','status');notice.textContent=field.compositionError;
+        field.complements.append(notice);
+      }
       if(!field.template)continue;
       const change=document.createElement('button');
       change.type='button';change.className='text-button';change.textContent='Modifier la composition';
@@ -4857,7 +4881,7 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
       }
       select.addEventListener('change', async () => {
         let recipe = state.recipes.find(recipe => recipe.id === select.value);
-        try{recipe=await chooseRecipeCombination(recipe);}catch{showMessage($('#meal-message'),'Impossible de charger cette combinaison.');select.value=item.recipeId??'';return;}
+        try{recipe=await chooseRecipeCombination(recipe);}catch(error){showMessage($('#meal-message'),recipeCompositionMessage(error));select.value=item.recipeId??'';return;}
         if(!recipe){select.value=item.recipeId??'';return;}
         const data = currentFormAmounts();
         const previousParentId=linkedParentRecipeId(item);
@@ -4875,15 +4899,36 @@ function renderPlannedItems(existing = {}, { autoSuggest = false } = {}) {
     }
     const selectedRoot=state.recipes.find(r=>r.id===linkedRecipeId||r.servingParts?.some(p=>p.id===linkedRecipeId));
     const origin=selectedRoot?.choiceOrigin;
-    if(origin?.templateId){const change=document.createElement('button');change.type='button';change.className='text-button';change.textContent='Modifier les choix';change.addEventListener('click',async()=>{
-     try{const {recipe:template}=await api('/api/recipes/'+origin.templateId);const chosen=await chooseRecipeCombination(template,origin.selection);if(!chosen)return;
-      const data=currentFormAmounts();if(selectedRoot.servingParts?.length)removeLinkedRecipeGroup(data,selectedRoot.id);
-      if(isIndividualRole(currentRole)&&!linkedRecipe){data[index]={recipeId:'',role:currentRole,categoryId,assignments:Object.fromEntries(attendees.map(id=>[id,{recipeId:chosen.id,quantity:String(individualDefaultQuantity(chosen,currentRole))}]))};}
-      else if(chosen.servingParts?.length){for(const [i,part] of chosen.servingParts.entries())data[i===0?index:Math.max(-1,...Object.keys(data).map(Number))+1]={recipeId:part.id,role:part.servingPart==='main'?'main':'accompaniment',categoryId:part.servingPart==='main'?'main':'accompaniment',amounts:{}};}
-      else data[index]={recipeId:chosen.id,role:currentRole,categoryId,amounts:{}};
-      renderPlannedItems(data,{autoSuggest:true});
-     }catch{showMessage($('#meal-message'),'La recette de base ne peut pas être chargée. La combinaison enregistrée est conservée.');}
-    });top.append(change);}
+    const sharedDish=currentRole==='main';
+    if((!linkedRecipe||linkedRecipe.servingPart==='main')&&(origin?.templateId||(sharedDish&&recipeCanBeComposed(selectedRoot)))){
+      const change=document.createElement('button');
+      change.type='button';change.className='text-button';
+      change.textContent=origin?'Modifier les choix':'Choisir la composition';
+      change.addEventListener('click',async()=>{
+        change.disabled=true;
+        try{
+          const template=origin?.templateId?{id:origin.templateId}:selectedRoot;
+          const chosen=await chooseRecipeCombination(template,origin?.selection,{required:true});
+          if(!chosen)return;
+          const data=currentFormAmounts();
+          if(selectedRoot.servingParts?.length)removeLinkedRecipeGroup(data,selectedRoot.id);
+          if(isIndividualRole(currentRole)&&!linkedRecipe){
+            const quantity=String(individualDefaultQuantity(chosen,currentRole));
+            const assignments=Object.fromEntries(attendees.map(id=>[id,{recipeId:chosen.id,quantity}]));
+            data[index]={recipeId:'',role:currentRole,categoryId,assignments};
+          }else if(chosen.servingParts?.length){
+            for(const [position,part] of chosen.servingParts.entries()){
+              const key=position===0?index:Math.max(-1,...Object.keys(data).map(Number))+1;
+              const role=part.servingPart==='main'?'main':'accompaniment';
+              data[key]={recipeId:part.id,role,categoryId:role,amounts:{}};
+            }
+          }else data[index]={recipeId:chosen.id,role:currentRole,categoryId,amounts:{}};
+          renderPlannedItems(data,{autoSuggest:true});
+        }catch(error){showMessage($('#meal-message'),recipeCompositionMessage(error));}
+        finally{change.disabled=false;}
+      });
+      top.append(change);
+    }
     row.append(top, quantities);
     if (allPlanningRecipes().find(recipe=>recipe.id===item.recipeId)?.parentRecipeId) {
       const estimate=document.createElement('small'); estimate.className='muted'; const counted=allPlanningRecipes().find(recipe=>recipe.id===item.recipeId)?.servingDisplay; estimate.textContent=counted ? '1 '+servingUnitLabel(counted.unitId)+' = '+formatQty(counted.gramsPerUnit)+' g selon la recette et ses équivalences. Le recalcul garde des unités entières et ajuste les accompagnements dans le budget disponible.' : 'Grammes estimés à partir des ingrédients et du coefficient de cuisson.'; row.append(estimate);

@@ -1,5 +1,7 @@
 # Cahier de reprise — 22 novembre 2026
 
+La 0.18.12 relit la fiche des plats à composer avant le choix dans le calendrier, même si la liste chargée ne contient pas les variantes. Un repas enregistré avec une recette de base peut ouvrir le sélecteur depuis « Modifier le repas ». Si aucun choix n’est enregistré sur la fiche, le formulaire l’indique et conserve la sélection précédente. Aucune migration.
+
 La 0.18.11 demande la composition des plats à variantes dans « Choisir les repas ». Les portions, apports et ingrédients suivent la combinaison enregistrée. Le récapitulatif propose des compléments de petit-déjeuner, desserts et collations sur les emplacements libres selon les soldes des personnes. La collation reste plafonnée au quota du créneau. Les ajouts sont facultatifs. Aucune migration.
 
 La 0.18.10 rétablit la dernière page ouverte au rechargement, avec l’onglet des courses ou de l’administration. Depuis un ingrédient de la recette, la création d’une liste réutilisable revient à la ligne en cours et y sélectionne la nouvelle liste. Les autres champs de la recette restent saisis pendant ce parcours. Aucune migration.

@@ -4,6 +4,11 @@ const units=[['g','g'],['kg','kg'],['ml','ml'],['l','l'],['piece','pièce'],['sl
 const control=(caption,input)=>{const label=node('label',caption);label.append(input);return label;};
 const button=(text,action)=>{const b=node('button',text,'secondary');b.type='button';b.addEventListener('click',action);return b;};
 
+export function recipeCanBeComposed(recipe){
+ return Boolean(recipe && !recipe.choiceInstance && !recipe.parentRecipeId &&
+   (recipe.choiceGroups?.length || /(^|\s)[àa]\s+composer\b/i.test(recipe.name??'')));
+}
+
 export function createRecipeChoices({api,getHousehold,getAccount,onFood}){
  let lists=[],listRequest=0;
  const listUrl=()=>'/api/recipe-choice-lists?householdId='+encodeURIComponent(getHousehold().id);
@@ -142,11 +147,22 @@ export function createRecipeChoices({api,getHousehold,getAccount,onFood}){
   return new Promise(resolve=>{
    const {d,form,body,actions,close}=dialog((previewOnly?'Apports selon les choix · ':'Choisir la variante · ')+recipe.name);close.textContent=previewOnly?'Fermer':'Annuler';
    body.append(node('p',previewOnly?'Compare les combinaisons de cette recette enregistrée. Aucun repas ni aucune déclinaison ne sera créé.':'La même combinaison sera utilisée pour toutes les personnes du repas. Les ingrédients, apports et courses suivront ces choix.'));
-   const selections=new Map();for(const group of recipe.choiceGroups){const select=node('select');select.required=true;select.setAttribute('aria-label',group.label);for(const option of group.options)select.add(new Option(option.foodName,option.foodId));if(group.allowNone)select.add(new Option('Sans cet ingrédient','none'));const prior=initialSelection?.[group.id];select.value=prior===null&&group.allowNone?'none':group.options.some(o=>o.foodId===prior)?prior:recipe.lines[group.lineIndex].foodId;selections.set(group.id,select);body.append(control(group.label,select));}
+   const selections=new Map();
+   for(const group of recipe.choiceGroups){
+    const select=node('select');select.required=true;select.setAttribute('aria-label',group.label);
+    select.add(new Option('Choisir un ingrédient',''));
+    for(const option of group.options)select.add(new Option(option.foodName,option.foodId));
+    if(group.allowNone)select.add(new Option('Sans cet ingrédient','none'));
+    const prior=initialSelection?.[group.id],base=recipe.lines?.[group.lineIndex]?.foodId;
+    select.value=prior===null&&group.allowNone?'none':[prior,base].find(id=>group.options.some(option=>option.foodId===id))??'';
+    selections.set(group.id,select);body.append(control(group.label,select));
+   }
    const nutrition=node('section',null,'choice-nutrition-preview');nutrition.setAttribute('aria-live','polite');nutrition.setAttribute('aria-label','Apports de cette combinaison');
    const message=node('p',null,'form-message');message.setAttribute('role','status');body.append(nutrition,message);const submit=node('button','Utiliser cette combinaison','primary');submit.type='submit';if(!previewOnly)actions.prepend(submit);let settled=false,saving=false,sequence=0,loaded=false;
    const selection=()=>Object.fromEntries([...selections].map(([id,input])=>[id,input.value==='none'?null:input.value]));
-   async function refreshPreview(){const seq=++sequence;loaded=false;submit.disabled=true;nutrition.textContent='Calcul des apports…';message.textContent='';
+   async function refreshPreview(){const seq=++sequence;loaded=false;submit.disabled=true;message.textContent='';
+    if([...selections.values()].some(input=>!input.value)){nutrition.textContent='Choisis un ingrédient dans chaque liste pour voir les apports.';return;}
+    nutrition.textContent='Calcul des apports…';
     try{const {preview}=await api('/api/recipes/'+recipe.id+'/choices/preview?householdId='+encodeURIComponent(getHousehold().id)+'&version='+recipe.version+'&selection='+encodeURIComponent(JSON.stringify(selection())));if(seq!==sequence||!d.isConnected)return;
      const display=variantNutritionValues(preview),format=value=>value==null?'—':Number(value).toLocaleString('fr-FR',{maximumFractionDigits:1});
      nutrition.replaceChildren(node('h3','Apports de cette combinaison'),node('p',preview.labels.join(' · '),'hint'),node('strong',format(display.values.energyKcal)+' kcal / '+display.label));

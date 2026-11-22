@@ -141,7 +141,8 @@ export function createDayRecipePicker(slot,label,recipes,onChange,quantityLabel)
       node.setAttribute('aria-selected',String(Boolean(recipe&&recipe.id===selected?.id)));
       node.textContent=label;
       const detail=recipe&&stock?preparationStockLabel(recipe,stock,quantityLabel):'';
-      if(detail){const note=document.createElement('small');note.textContent=detail;node.append(note);}
+      const composition=recipe?.choiceGroups?.length?'Choisir la composition':'';
+      if(detail||composition){const note=document.createElement('small');note.textContent=[composition,detail].filter(Boolean).join(' · ');node.append(note);}
       node.addEventListener('pointerdown',event=>event.preventDefault());
       node.addEventListener('click',()=>choose(recipe));
       return {node,recipe};
