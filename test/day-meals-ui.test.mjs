@@ -20,9 +20,17 @@ test('the four day selectors recalculate totals and serve dessert to the people 
     recipe('Sauce','sauce','lunch',25),recipe('Thé','beverage','breakfast',0),recipe('Cappuccino','beverage','breakfast',75),recipe('Expresso','beverage','breakfast',15),
     recipe('Biscuit','dessert','breakfast',35),recipe('Skyr','custom-dairy','breakfast',43),
     recipe('Crème','dessert','dinner',50),recipe('Yaourt','dessert','dinner',100),recipe('Gâteau','dessert','dinner',350)];
-  let payload, paintedStock;
+  const variant={...recipe('Bowl à composer','dish','lunch',40),choiceGroups:[{id:'proteine'}]};
+  recipes.push(variant,recipe('Compote','dessert','snack',65));
+  let payload, paintedStock, finishComposition, chosenSelection;
+  const variantResult={...recipe('Bowl saumon','dish','lunch',410),choiceInstance:true,
+    choiceOrigin:{templateId:variant.id,selection:{proteine:'saumon'}}};
   const context={loadPlanningStock:async()=>new Map([['Pancakes',{quantity:3,unitId:'piece'}]]),
-    createDayRecipePicker:()=>{const element=node('input');return {element,get value(){return element.value;},setStock(){}};},
+    createDayRecipePicker:(_slot,_label,_recipes,onChange)=>{
+      const element=node('input');
+      element.pick=recipe=>{element.value=recipe?.id??'';onChange(recipe);};
+      return {element,get value(){return element.value;},setSelection(recipe){element.value=recipe?.id??'';},setStock(){}};
+    },
     annotatePlanningStock:(root,stock)=>{paintedStock={root,stock};},MEAL_ORDER,homeBudgetShare,plannedMacro,itemMacro,fitsDayExtra,expandDayMealPortions,$:selector=>nodes[selector],document:{createElement:node,createTextNode:text=>({text})},
     Option:function(label,value){Object.assign(this,{label,value});},
     state:{household:{id:'h'},people:[{id:'a',displayName:'Adulte',breakfastDrinkRecipeId:'Cappuccino'},{id:'b',displayName:'Enfant',breakfastDrinkRecipeId:'Thé'}],recipes,
@@ -30,8 +38,22 @@ test('the four day selectors recalculate totals and serve dessert to the people 
       mealRatios:DEFAULT_MEAL_RATIOS},
     slotLabels:MEAL_LABELS,displayDate:x=>x,latestProfile:()=>({dailyEnergyKcal:1000}),format:String,formatQty:String,
     displayServingQuantity:(_,q)=>q,servingUnitLabel:x=>x,servingUnit:()=> 'pièce',allPlanningRecipes:()=>recipes,
-    recipesForPlanning:(slot,role,_,type)=>recipes.filter(r=>r.slot===slot&&(role==='main'||r.recipeType===(type??role))),
-    applyAutomaticPortions:(items,ids,options)=>{for(const item of items)item.amounts=Object.fromEntries(ids.map(id=>[id,options.energyBudget&&item.recipeId==='Dîner'&&id==='a'?1.1:1]));return [];},
+    recipesForPlanning:(slot,role,_,type)=>recipes.filter(r=>r.slot===slot&&!r.choiceInstance&&(role==='main'||r.recipeType===(type??role))),
+    chooseRecipeCombination:(_,initial)=>{
+      chosenSelection=initial;
+      return new Promise(resolve=>{finishComposition=chosen=>{
+        if(chosen&&!recipes.includes(chosen))recipes.push(chosen);
+        resolve(chosen);
+      };});
+    },
+    applyAutomaticPortions:(items,ids,options)=>{
+      for(const item of items)item.amounts=Object.fromEntries(ids.map(id=>{
+        const kcal=recipes.find(recipe=>recipe.id===item.recipeId).nutrition.perYieldUnit.energyKcal;
+        if(options.slot==='snack'&&options.energyBudget!=null)return [id,Math.min(1,Math.floor(Math.min(100,options.energyBudget)/kcal))];
+        return [id,options.energyBudget&&item.recipeId==='Dîner'&&id==='a'?1.1:1];
+      }));
+      return [];
+    },
     individualDefaultQuantity:()=>1,calculateDailyEnergy:()=>({kcal:0}),newProductionRequestId:()=> 'request',
     api:async(_,options)=>{payload=JSON.parse(options.body);},refreshCalendar:async()=>{},refreshDashboard:async()=>{}};
   runInNewContext(source.slice(start,end)+'\nopenDayMeals("2026-11-25",[]);',context);
@@ -78,15 +100,48 @@ test('the four day selectors recalculate totals and serve dessert to the people 
   const morning=newForm.children[0];
   morning.children[1].value='Pancakes';newForm.handlers.change();
   const extra=personIndex=>morning.children.at(-1).children[1].children[personIndex+1].children[1];
-  assert.deepEqual(extra(0).children.map(option=>option.value),['']);
+  assert.deepEqual(extra(0).children.map(option=>option.value),['','Biscuit','Skyr']);
   assert.deepEqual(extra(1).children.map(option=>option.value),['','Biscuit','Skyr']);
   extra(1).value='Biscuit';change(extra(1));
   assert.deepEqual(extra(1).children.map(option=>option.value),['','Biscuit','Skyr']);
+  const suggestions=reviewNode=>reviewNode.children.find(child=>child.className==='day-meal-suggestions');
+  const suggestion=(reviewNode,label)=>suggestions(reviewNode)?.children.find(row=>row.children[0]?.textContent?.startsWith(label));
+  assert.match(suggestion(newReview,'Petit-déjeuner · Adulte').children[0].textContent,/Skyr/);
+  const snackSuggestion=suggestion(newReview,'Collation');
+  assert.match(snackSuggestion.children[0].textContent,/Compote/);
+  assert.match(snackSuggestion.children[1].textContent,/65 kcal/);
+  snackSuggestion.children[2].handlers.click();
   extra(1).value='Skyr';change(extra(1));
   await newReview.children.at(-1).handlers.click();
   assert.deepEqual(payload.meals[0].items.find(item=>item.recipeId==='Skyr'),{
     recipeId:'Skyr',role:'dessert',categoryId:'dairy',amounts:[{personId:'b',quantity:1}],
   });
+  assert.deepEqual(payload.meals.find(meal=>meal.slot==='snack').items.map(item=>[item.recipeId,item.amounts.map(amount=>amount.quantity)]),[['Compote',[1,1]]]);
+  context.openDayMeals('2026-11-27',[]);
+  const [variantForm,variantReview]=nodes['#day-meals-choices'].children;
+  const [,variantLunch,,variantDinner]=variantForm.children;
+  variantDinner.children[1].pick(recipes.find(recipe=>recipe.id==='Dîner'));
+  variantLunch.children[1].pick(variant);
+  assert.equal(variantLunch.children[1].value,'');
+  assert.equal(variantReview.children.at(-1).disabled,true);
+  finishComposition(null);
+  await new Promise(setImmediate);
+  assert.equal(variantLunch.children[1].value,'');
+  variantLunch.children[1].pick(variant);
+  finishComposition(variantResult);
+  await new Promise(setImmediate);
+  assert.equal(variantLunch.children[1].value,'Bowl saumon');
+  assert.match(variantReview.children[0].children[1].children[1].textContent,/710 \/ 1000/);
+  const proposedDessert=suggestion(variantReview,'Dîner · Dessert');
+  assert.match(proposedDessert.children[0].textContent,/Yaourt/);
+  proposedDessert.children[2].handlers.click();
+  variantLunch.children.at(-1).children[0].handlers.click();
+  assert.deepEqual(chosenSelection,{proteine:'saumon'});
+  finishComposition(null);
+  await new Promise(setImmediate);
+  await variantReview.children.at(-1).handlers.click();
+  assert.equal(payload.meals.find(meal=>meal.slot==='lunch').items[0].recipeId,'Bowl saumon');
+  assert.equal(payload.meals.find(meal=>meal.slot==='dinner').items[1].recipeId,'Yaourt');
 });
 
 test('the searchable selector matches any word in the title and retains stock and keyboard selection',async()=>{

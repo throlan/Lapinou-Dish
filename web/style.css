@@ -935,6 +935,10 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
   top: 0;
 }
 .day-meal-review p { margin: 0; }
+.day-meal-suggestions { display:grid; gap:.45rem; padding:.75rem; border:1px solid var(--line); border-radius:12px; }
+.day-meal-suggestions > div { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.2rem .5rem; align-items:center; }
+.day-meal-suggestions small { grid-row:2; color:var(--muted); }
+.day-meal-suggestions button { grid-column:2; grid-row:1 / span 2; padding:.45rem .65rem; }
 .day-meal-totals {
   display: grid;
   gap: 0.45rem;

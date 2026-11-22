@@ -47,6 +47,9 @@ test('automatic snack portions stay within the configured share with pieces, gra
   const item={recipeId:biscuit.id,role:'main',amounts:{a:'12',b:'21'}};
   context.calculate([item],['a','b'],options);
   assert.deepEqual(item.amounts,{a:'3',b:'5'});
+  const remaining={recipeId:biscuit.id,role:'main'};
+  context.calculate([remaining],['a','b'],{...options,energyBudget:80});
+  assert.deepEqual({...remaining.amounts},{a:'1',b:'1'});
   const grams={recipeId:skyr.id,role:'main'};
   context.calculate([grams],['a'],options);
   assert.equal(grams.amounts.a,'120');
