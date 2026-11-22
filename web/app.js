@@ -57,9 +57,23 @@ function showMessage(target, text, success = false) {
 
 const appViewHistory=[];
 let currentAppView='home';
-function setView(name, { recordHistory=true }={}) {
+function navigationKey(part) {
+  return state.household && state.account?.id ? `lapinou-navigation:${state.account.id}:${state.household.id}:${part}` : null;
+}
+function savedNavigation(part) {
+  const key=navigationKey(part);
+  try { return key ? sessionStorage.getItem(key) : null; } catch { return null; }
+}
+function rememberNavigation(part,value) {
+  const key=navigationKey(part);
+  if(key)try { sessionStorage.setItem(key,value); } catch {}
+}
+function setView(name, { recordHistory=true, refresh=true }={}) {
   if(name === 'profiles')name='admin';
-  if(recordHistory&&name!==currentAppView){appViewHistory.push(currentAppView);currentAppView=name;$('#app-back').disabled=appViewHistory.length===0;}
+  if(recordHistory&&name!==currentAppView)appViewHistory.push(currentAppView);
+  currentAppView=name;
+  $('#app-back').disabled=appViewHistory.length===0;
+  rememberNavigation('view',name);
   $('#home-view').classList.toggle('hidden', name !== 'home');
   $('#foods-view').classList.toggle('hidden', name !== 'foods');
   $('#recipes-view').classList.toggle('hidden', name !== 'recipes');
@@ -70,22 +84,27 @@ function setView(name, { recordHistory=true }={}) {
   $('#admin-view').classList.toggle('hidden', name !== 'admin');
   $$('.nav-button').forEach((button) => button.classList.toggle('active', button.dataset.view === name));
   $('.mobile-nav details').classList.toggle('active',['foods','import','admin'].includes(name));
-  if (name === 'home') refreshDashboard();
+  if (!refresh) return;
+  if (name === 'home') return refreshDashboard();
   if (name === 'foods') return refreshFoods();
   if (name === 'recipes') return refreshRecipes();
   if (name === 'import') return Promise.all([refreshImportDrafts(),refreshRecipeAIConfig()]);
-  if (name === 'calendar') refreshCalendar();
-  if (name === 'profiles') refreshPeople();
-  if (name === 'shopping') refreshShopping();
-  if (name === 'admin') {if(state.account?.role==='manager')refreshMealSettings();else refreshPeople();}
+  if (name === 'calendar') return refreshCalendar();
+  if (name === 'shopping') return refreshShopping();
+  if (name === 'admin') return state.account?.role==='manager'?refreshMealSettings():refreshPeople();
 }
 $('#app-back')?.addEventListener('click',()=>{
   const previous=appViewHistory.pop();
   if(!previous)return;
-  currentAppView=previous;$('#app-back').disabled=appViewHistory.length===0;
   setView(previous,{recordHistory:false});
 });
+$('a.brand').addEventListener('click',event=>{
+  if(event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
+  event.preventDefault();
+  void setView('home');
+});
 function setAdminTab(name){
+  rememberNavigation('admin',name);
   $$('.admin-tabs [data-admin-tab]').forEach(button=>{const selected=button.dataset.adminTab===name;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1;});
   $$('[data-admin-panel]').forEach(panel=>{panel.hidden=panel.dataset.adminPanel!==name;});
   if(name==='catalogue')void loadCatalogueEstimates();
@@ -124,6 +143,8 @@ function setupShoppingTabs(){
   }
   overview.remove();tabBar.after(panels);
   function select(name){
+    if(!tabs.some(tab=>tab.dataset.shoppingTab===name))name='list';
+    rememberNavigation('shopping',name);
     for(const tab of tabs){const selected=tab.dataset.shoppingTab===name;tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected?0:-1;}
     for(const panel of panels.children)panel.hidden=panel.dataset.shoppingPanel!==name;
   }
@@ -137,8 +158,9 @@ function setupShoppingTabs(){
     });
   }
   select('list');
+  return select;
 }
-setupShoppingTabs();
+const selectShoppingTab=setupShoppingTabs();
 
 const dashboardSlots = MEAL_ORDER.filter(slot=>slot!=='evening_snack');
 const dashboardSlotLabels = MEAL_LABELS;
@@ -2034,6 +2056,7 @@ function addRecipeLine(initial = null) {
                 gramsPerMillilitre: null, gramsPerUnit: {},
               }) });
               select.replaceChildren(new Option(food.name, food.id, true, true));
+              select.dispatchEvent(new Event('change'));
               search.classList.add('hidden'); row.classList.add('has-match'); changeMatch.classList.remove('hidden'); editFood.classList.remove('hidden');
               search.value = '';
               hint.textContent = 'Fiche créée. Les nutriments restent à compléter dans le catalogue.';
@@ -3362,9 +3385,18 @@ async function init() {
   });
   await loadHouseholds();
   if(!state.household){await health;setView('admin');setAdminTab('accounts');return;}
-  await Promise.all([refreshFoods(), health]);
-  await Promise.all([refreshPeople(), refreshCalendar(), refreshDashboard(), refreshRecipeAIConfig()]);
   $('#shopping-start').value = localDateValue(); $('#shopping-end').value = addDays(localDateValue(), 29); $('#production-form').elements.producedOn.value = localDateValue();
+  const storedView=savedNavigation('view');
+  const view=$$('.nav-button').some(button=>button.dataset.view===storedView)?storedView:'home';
+  const viewLoading=setView(view,{refresh:!['home','foods','calendar'].includes(view)});
+  if(view==='shopping')selectShoppingTab(savedNavigation('shopping'));
+  if(view==='admin'){
+    const storedTab=savedNavigation('admin');
+    const allowed=$$('.admin-tabs [data-admin-tab]').some(button=>button.dataset.adminTab===storedTab&&getComputedStyle(button).display!=='none');
+    setAdminTab(allowed?storedTab:'profiles');
+  }
+  await Promise.all([refreshFoods(), health, viewLoading]);
+  await Promise.all([refreshPeople(), refreshCalendar(), refreshDashboard(), view==='import'?null:refreshRecipeAIConfig()]);
   addRecipeLine();
 }
 

@@ -86,18 +86,21 @@ export async function recipeChoiceRoutes(request,response,pool,url){
    sendAccount(response,200,{archived:true});return true;
   }
   if(typeof body.name!=='string'||!body.name.trim()||body.name.length>100||!Array.isArray(body.foodIds)||!body.foodIds.length||body.foodIds.length>50||body.foodIds.some(id=>!uuid(id))||new Set(body.foodIds).size!==body.foodIds.length)fail('invalid-choice-list');
-  const foods=await pool.query('SELECT id FROM foods WHERE id=ANY($1::uuid[])',[body.foodIds]);
+  const foods=await pool.query('SELECT id,canonical_name AS name FROM foods WHERE id=ANY($1::uuid[])',[body.foodIds]);
   if(foods.rows.length!==body.foodIds.length)fail('unknown-choice-food');
   const id=list[1]??randomUUID();
+  let saved;
   if(request.method==='POST'){
    if(list[1])fail('invalid-choice-list');
-   await pool.query('INSERT INTO recipe_choice_lists(id,household_id,name,food_ids) VALUES($1,$2,$3,$4)',[id,body.householdId,body.name.trim(),body.foodIds]);
+   const created=await pool.query('INSERT INTO recipe_choice_lists(id,household_id,name,food_ids) VALUES($1,$2,$3,$4) RETURNING id,name,food_ids AS "foodIds",version',[id,body.householdId,body.name.trim(),body.foodIds]);
+   saved=created.rows[0];
   }else{
-   const updated=await pool.query('UPDATE recipe_choice_lists SET name=$3,food_ids=$4,version=version+1,updated_at=now() WHERE id=$1 AND household_id=$2 AND version=$5 AND NOT archived RETURNING id',[id,body.householdId,body.name.trim(),body.foodIds,body.version]);
+   const updated=await pool.query('UPDATE recipe_choice_lists SET name=$3,food_ids=$4,version=version+1,updated_at=now() WHERE id=$1 AND household_id=$2 AND version=$5 AND NOT archived RETURNING id,name,food_ids AS "foodIds",version',[id,body.householdId,body.name.trim(),body.foodIds,body.version]);
    if(!updated.rows.length)fail('choice-list-version-conflict',409);
+   saved=updated.rows[0];
   }
   await pool.query('DELETE FROM recipe_choice_list_food_refs WHERE list_id=$1',[id]);
   for(const foodId of body.foodIds)await pool.query('INSERT INTO recipe_choice_list_food_refs(list_id,food_id) VALUES($1,$2)',[id,foodId]);
-  sendAccount(response,request.method==='POST'?201:200,{id});return true;
+  sendAccount(response,request.method==='POST'?201:200,{...saved,foods:saved.foodIds.map(id=>foods.rows.find(food=>food.id===id))});return true;
  }catch(error){if(!error.status)throw error;sendAccount(response,error.status,{error:error.message});return true;}
 }

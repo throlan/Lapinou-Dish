@@ -5,27 +5,51 @@ const control=(caption,input)=>{const label=node('label',caption);label.append(i
 const button=(text,action)=>{const b=node('button',text,'secondary');b.type='button';b.addEventListener('click',action);return b;};
 
 export function createRecipeChoices({api,getHousehold,getAccount,onFood}){
- let lists=[];
+ let lists=[],listRequest=0;
  const listUrl=()=>'/api/recipe-choice-lists?householdId='+encodeURIComponent(getHousehold().id);
- async function refresh(){lists=(await api(listUrl())).lists;return lists;}
+ async function refresh(){
+  const request=++listRequest,result=await api(listUrl());
+  if(request===listRequest)lists=result.lists;
+ }
+ function rememberList(list){
+  listRequest++;
+  lists=[...lists.filter(entry=>entry.id!==list.id),list].sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+ }
  const curator=()=>getAccount()?.applicationAdmin||getAccount()?.role==='manager';
  function dialog(title){
   const d=node('dialog',null,'choice-dialog'),heading=node('h2',title),form=node('form'),body=node('div',null,'choice-dialog-body'),actions=node('div',null,'form-actions'),close=button('Fermer',()=>d.close());
   form.method='dialog';form.append(heading,body,actions);actions.append(close);d.append(form);document.body.append(d);
   d.addEventListener('close',()=>d.remove(),{once:true});return {d,form,body,actions,close};
  }
- async function manage(){
+ async function manage(onCreated){
   const {d,body,actions}=dialog('Listes d’ingrédients réutilisables');
   body.append(node('p','Chaque choix référence un aliment du catalogue. Les quantités sont réglées ensuite dans chaque recette. Modifier une liste ne réécrit ni les recettes enregistrées ni les repas.'));
   const rows=node('div'),message=node('p',null,'form-message');body.append(rows,message);
-  async function render(){
-   try{await refresh();rows.replaceChildren();for(const list of lists){const row=node('article',null,'choice-library-row');row.append(node('strong',list.name),node('p',list.foods.map(f=>f.name).join(' · ')));
-    if(curator())row.append(button('Modifier',()=>editList(list,render)),button('Archiver',async()=>{if(!confirm('Archiver cette liste ? Les recettes et repas existants seront conservés.'))return;try{await api('/api/recipe-choice-lists/'+list.id,{method:'DELETE',body:JSON.stringify({householdId:getHousehold().id,version:list.version})});await render();}catch{message.textContent='La liste a changé ou ne peut pas être archivée. Actualise avant de réessayer.';}}));rows.append(row);}
+  function render(){
+   message.textContent='';
+   rows.replaceChildren();
+   for(const list of lists){
+    const row=node('article',null,'choice-library-row');row.append(node('strong',list.name),node('p',list.foods.map(f=>f.name).join(' · ')));
+    if(curator())row.append(button('Modifier',()=>editList(list,render)),button('Archiver',async()=>{
+     if(!confirm('Archiver cette liste ? Les recettes et repas existants seront conservés.'))return;
+     try{
+      await api('/api/recipe-choice-lists/'+list.id,{method:'DELETE',body:JSON.stringify({householdId:getHousehold().id,version:list.version})});
+      listRequest++;
+      lists=lists.filter(entry=>entry.id!==list.id);
+      render();
+     }catch{message.textContent='La liste a changé ou ne peut pas être archivée. Actualise avant de réessayer.';}
+    }));
+    rows.append(row);
+   }
    if(!lists.length)rows.append(node('p','Aucune liste. Crée par exemple Fruits, Toppings, Protéines ou Légumineuses.'));
-   }catch{message.textContent='Impossible de charger les listes.';}
   }
-  if(curator())actions.prepend(button('+ Nouvelle liste',()=>editList(null,render)));
-  d.showModal();await render();
+  if(curator())actions.prepend(button('+ Nouvelle liste',()=>editList(null,saved=>{
+   if(onCreated){d.close();onCreated(saved);}
+   else render();
+  })));
+  d.showModal();
+  try{await refresh();if(d.open)render();}
+  catch{if(d.open)message.textContent='Impossible de charger les listes.';}
  }
  function editList(list,onSaved){
   const {d,form,body,actions,close}=dialog(list?'Modifier la liste':'Nouvelle liste');close.textContent='Annuler';
@@ -37,7 +61,24 @@ export function createRecipeChoices({api,getHousehold,getAccount,onFood}){
   search.addEventListener('input',()=>{clearTimeout(timer);const seq=++request;timer=setTimeout(async()=>{if(search.value.trim().length<2){results.replaceChildren();return;}try{const data=await api('/api/foods?q='+encodeURIComponent(search.value.trim())+'&limit=20');if(seq!==request)return;results.replaceChildren(...data.foods.filter(f=>!foods.has(f.id)).map(food=>button(food.name,()=>{if(foods.size>=50){message.textContent='50 aliments maximum par liste.';return;}foods.set(food.id,{id:food.id,name:food.name});render();results.replaceChildren();search.value='';search.focus();})));}catch{message.textContent='Catalogue indisponible.';}},180);});
   body.append(control('Nom de la liste',name),control('Ajouter des aliments du catalogue',search),results,selected,message);render();
   const save=node('button','Enregistrer la liste','primary');save.type='submit';actions.prepend(save);
-  form.addEventListener('submit',async event=>{event.preventDefault();if(!foods.size){message.textContent='Sélectionne au moins un aliment du catalogue.';return;}save.disabled=true;try{await api('/api/recipe-choice-lists'+(list?'/'+list.id:''),{method:list?'PUT':'POST',body:JSON.stringify({householdId:getHousehold().id,name:name.value,foodIds:[...foods.keys()],...(list?{version:list.version}:{})})});d.close();await onSaved();}catch(error){message.textContent=error.body?.error==='choice-list-version-conflict'?'Cette liste a changé. Ferme puis rouvre-la avant de réessayer.':'Impossible d’enregistrer la liste : '+(error.body?.error??error.message);save.disabled=false;}});
+  form.addEventListener('submit',async event=>{
+   event.preventDefault();
+   if(save.disabled)return;
+   if(!foods.size){message.textContent='Sélectionne au moins un aliment du catalogue.';return;}
+   save.disabled=close.disabled=true;
+   let saved;
+   try{
+    saved=await api('/api/recipe-choice-lists'+(list?'/'+list.id:''),{method:list?'PUT':'POST',body:JSON.stringify({householdId:getHousehold().id,name:name.value,foodIds:[...foods.keys()],...(list?{version:list.version}:{})})});
+   }catch(error){
+    message.textContent=error.body?.error==='choice-list-version-conflict'?'Cette liste a changé. Ferme puis rouvre-la avant de réessayer.':'Impossible d’enregistrer la liste : '+(error.body?.error??error.message);
+    save.disabled=close.disabled=false;
+    return;
+   }
+   rememberList(saved);
+   d.close();
+   onSaved(saved);
+  });
+  d.addEventListener('cancel',event=>{if(save.disabled)event.preventDefault();});
   d.showModal();
  }
 
@@ -59,17 +100,33 @@ export function createRecipeChoices({api,getHousehold,getAccount,onFood}){
     line.append(caption,control('Quantité',quantity),control('Unité',unit),control('État',state),button('Fiche aliment',()=>onFood?.(option.foodId)));panel.append(line);
    }
   }
-  function populate(){const selected=group?.listId??listSelect.value;listSelect.replaceChildren(new Option('Aucune liste · ingrédient fixe',''),...lists.map(l=>new Option(l.name,l.id)));if(selected&&!lists.some(l=>l.id===selected))listSelect.add(new Option('Liste archivée · choix conservés',selected));listSelect.value=selected;}
+  function populate(selected=listSelect.value||group?.listId||''){listSelect.replaceChildren(new Option('Aucune liste · ingrédient fixe',''),...lists.map(l=>new Option(l.name,l.id)));if(selected&&!lists.some(l=>l.id===selected))listSelect.add(new Option('Liste archivée · choix conservés',selected));listSelect.value=selected;}
   function applyList(){const list=lists.find(l=>l.id===listSelect.value);if(!list){if(!listSelect.value){group=null;panel.replaceChildren();summary.textContent='Proposer des variantes pour cet ingrédient';}return;}
    const original=base();if(!original.foodId){message.textContent='Sélectionne d’abord l’aliment de cette ligne.';return;}
    const prior=new Map((group?.options??[]).map(o=>[o.foodId,o]));const foods=[...list.foods];if(!foods.some(f=>f.id===original.foodId))foods.unshift({id:original.foodId,name:original.foodName});
    group={id:group?.id??crypto.randomUUID(),label:groupName.value.trim()||list.name,listId:list.id,options:foods.slice(0,50).map(f=>({...original,...prior.get(f.id),foodId:f.id,foodName:f.name}))};groupName.value=group.label;summary.textContent='Choix d’ingrédient · '+group.label;message.textContent='Les nouvelles options reprennent la quantité et l’unité de la ligne : vérifie-les pour le rendement de base. Le coefficient de cuisson provient de chaque fiche aliment selon l’état choisi. Les repas déjà enregistrés restent inchangés.';renderOptions();
   }
   listSelect.addEventListener('change',applyList);
+  listSelect.addEventListener('focus',()=>populate());
+  row.querySelector('[aria-label="Aliment lié"]').addEventListener('change',()=>{
+   if(listSelect.value&&listSelect.value!==group?.listId)applyList();
+  });
   details.append(control('Liste réutilisable',listSelect),control('Nom du choix dans cette recette',groupName),control('Autoriser « Sans cet ingrédient »',allowNone),button('Actualiser les choix depuis la liste',async()=>{try{await refresh();populate();applyList();}catch{message.textContent='Impossible de charger les listes.';}}),panel,message);
   details.append(button('Retirer les variantes de cette ligne',()=>{group=null;listSelect.value='';groupName.value='';allowNone.checked=false;panel.replaceChildren();summary.textContent='Proposer des variantes pour cet ingrédient';}));
-  if(curator())details.append(button('Créer ou modifier les listes',manage));
-  details.addEventListener('toggle',async()=>{if(details.open){try{await refresh();populate();}catch{message.textContent='Listes indisponibles. Les choix enregistrés sont conservés.';}}});
+  if(curator()){
+   const useCreatedList=list=>{
+    if(!row.isConnected)return;
+    populate(list.id);applyList();listSelect.focus({preventScroll:true});
+   };
+   details.append(button('+ Nouvelle liste',()=>editList(null,useCreatedList)),
+    button('Gérer les listes',()=>manage(useCreatedList)));
+  }
+  details.addEventListener('toggle',async()=>{
+   if(details.open){
+    try{await refresh();populate();}
+    catch{if(!lists.length)message.textContent='Listes indisponibles. Les choix enregistrés sont conservés.';}
+   }
+  });
   populate();renderOptions();row.append(details);
   row.recipeChoiceInput=()=>{
    if(!group)return null;const original=base();
