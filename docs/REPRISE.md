@@ -1,4 +1,6 @@
-# Cahier de reprise — 21 novembre 2026
+# Cahier de reprise — 22 novembre 2026
+
+La 0.18.10 rétablit la dernière page ouverte au rechargement, avec l’onglet des courses ou de l’administration. Depuis un ingrédient de la recette, la création d’une liste réutilisable revient à la ligne en cours et y sélectionne la nouvelle liste. Les autres champs de la recette restent saisis pendant ce parcours. Aucune migration.
 
 La 0.18.9 ajoute la boisson du petit-déjeuner par défaut dans les profils. La fenêtre « Choisir les repas » propose une boisson distincte par convive après calcul des plats, selon son solde, et permet de changer ou retirer ce choix pour la journée. Le calcul et le recalcul du petit-déjeuner proposent une pièce par personne pour les recettes correspondantes. Après le plat et la boisson, un laitage ou une pâtisserie peut être ajouté si le solde du créneau et celui de la journée le permettent. Les repas existants conservent leurs boissons. Les collations suivent le pourcentage configuré pour le créneau, et ne reçoivent aucun report calorique. Le solde disponible peut augmenter les portions du déjeuner et du dîner dans les plafonds. L’arrondi d’une quantité proposée ne peut pas dépasser ce budget. Chaque choix de plat accepte une recherche dans le titre complet, avec les indications de stock. Migration additive 20261121_breakfast_drink_preferences.sql.
 

@@ -76,7 +76,10 @@ test('choice libraries are private, manager edited, versioned, and shared recipe
  assert.equal((await request('POST','/api/recipe-choice-lists',data,reader.cookie)).status,403);
  const created=await request('POST','/api/recipe-choice-lists',data,owner.cookie);assert.equal(created.status,201,JSON.stringify(created.body));const listId=created.body.id;
  let list=(await request('GET','/api/recipe-choice-lists?householdId='+h,null,reader.cookie)).body.lists[0];assert.equal(list.foods.length,2);assert.equal(list.foods[0].name,'Myrtilles');
- assert.equal((await request('PUT','/api/recipe-choice-lists/'+listId,{...data,name:'Saveurs renommées',version:list.version},owner.cookie)).status,200);
+ assert.deepEqual(created.body,list,'the picker can use a saved list without fetching the library');
+ const updated=await request('PUT','/api/recipe-choice-lists/'+listId,{...data,name:'Saveurs renommées',version:list.version},owner.cookie);
+ assert.equal(updated.status,200);
+ assert.deepEqual(updated.body,{...list,name:'Saveurs renommées',version:list.version+1});
  assert.equal((await request('PUT','/api/recipe-choice-lists/'+listId,{...data,version:list.version},owner.cookie)).status,409);
  const sourceInput=structuredClone(input);sourceInput.choiceGroups[0].listId=listId;
  const source=await request('POST','/api/recipes',sourceInput,owner.cookie);assert.equal(source.status,201,JSON.stringify(source.body));
