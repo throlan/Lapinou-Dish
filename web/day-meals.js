@@ -113,9 +113,12 @@ export function createDayRecipePicker(slot,label,recipes,onChange,quantityLabel)
   }
   function choose(recipe) {
     if(input.disabled)return;
+    setSelection(recipe);
+    onChange(recipe);
+  }
+  function setSelection(recipe) {
     selected=recipe;
     close();
-    onChange();
   }
   function activate(index) {
     active=index;
@@ -173,7 +176,7 @@ export function createDayRecipePicker(slot,label,recipes,onChange,quantityLabel)
     const next=event.key==='ArrowDown'?Math.min(active+1,options.length-1):active<0?options.length-1:Math.max(active-1,0);
     activate(next);
   });
-  return {element,get value(){return selected?.id??'';},setStock(value){stock=value;if(!list.hidden)show();}};
+  return {element,get value(){return selected?.id??'';},setSelection,setStock(value){stock=value;if(!list.hidden)show();}};
 }
 
 export function fitsDayExtra(target, used, incomplete, extra) {
