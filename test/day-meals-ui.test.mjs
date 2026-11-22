@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {runInNewContext} from 'node:vm';
 import {homeBudgetShare,plannedMacro,itemMacro,fitsDayExtra,expandDayMealPortions,findDayRecipes,preparationStockLabel} from '../web/day-meals.js';
 import {MEAL_ORDER,MEAL_LABELS,DEFAULT_MEAL_RATIOS} from '../web/meal-config.js';
+import {recipeCanBeComposed} from '../web/recipe-choices.js';
 
 test('the four day selectors recalculate totals and serve dessert to the people with room in their own budgets',async()=>{
   const source=await readFile(new URL('../web/app.js',import.meta.url),'utf8');
@@ -20,12 +21,13 @@ test('the four day selectors recalculate totals and serve dessert to the people 
     recipe('Sauce','sauce','lunch',25),recipe('Thé','beverage','breakfast',0),recipe('Cappuccino','beverage','breakfast',75),recipe('Expresso','beverage','breakfast',15),
     recipe('Biscuit','dessert','breakfast',35),recipe('Skyr','custom-dairy','breakfast',43),
     recipe('Crème','dessert','dinner',50),recipe('Yaourt','dessert','dinner',100),recipe('Gâteau','dessert','dinner',350)];
-  const variant={...recipe('Bowl à composer','dish','lunch',40),choiceGroups:[{id:'proteine'}]};
+  const variant={...recipe('Bowl Légumineuses à composer','dish','lunch',40),choiceGroups:[]};
   recipes.push(variant,recipe('Compote','dessert','snack',65));
   let payload, paintedStock, finishComposition, chosenSelection;
   const variantResult={...recipe('Bowl saumon','dish','lunch',410),choiceInstance:true,
     choiceOrigin:{templateId:variant.id,selection:{proteine:'saumon'}}};
-  const context={loadPlanningStock:async()=>new Map([['Pancakes',{quantity:3,unitId:'piece'}]]),
+  const context={recipeCanBeComposed,recipeCompositionMessage:error=>error.message,
+    loadPlanningStock:async()=>new Map([['Pancakes',{quantity:3,unitId:'piece'}]]),
     createDayRecipePicker:(_slot,_label,_recipes,onChange)=>{
       const element=node('input');
       element.pick=recipe=>{element.value=recipe?.id??'';onChange(recipe);};
@@ -142,6 +144,28 @@ test('the four day selectors recalculate totals and serve dessert to the people 
   await variantReview.children.at(-1).handlers.click();
   assert.equal(payload.meals.find(meal=>meal.slot==='lunch').items[0].recipeId,'Bowl saumon');
   assert.equal(payload.meals.find(meal=>meal.slot==='dinner').items[1].recipeId,'Yaourt');
+});
+
+test('composition reloads the exact recipe and never falls back to a named bowl without saved choices',async()=>{
+  const source=await readFile(new URL('../web/app.js',import.meta.url),'utf8');
+  const start=source.indexOf('async function chooseRecipeCombination');
+  const end=source.indexOf('async function planRecipeFromCatalogue',start);
+  const legacy={id:'bowl',name:'Bowl Légumineuses à composer',choiceGroups:[]};
+  const chosen={id:'variant',name:'Bowl Légumineuses à composer — Saumon',choiceInstance:true};
+  const regular={id:'pie',name:'Tarte aux pommes',choiceGroups:[]};
+  let stored={...legacy,choiceGroups:[{label:'Protéine'}]};
+  const calls=[],context={recipeCanBeComposed,state:{recipes:[legacy]},
+    api:async path=>{calls.push(path);return {recipe:stored};},
+    recipeChoices:{choose:async recipe=>{assert.equal(recipe,stored);return chosen;}}};
+  runInNewContext(source.slice(start,end)+'\nglobalThis.choose=chooseRecipeCombination;',context);
+  assert.equal(await context.choose(legacy),chosen);
+  assert.deepEqual(calls,['/api/recipes/bowl']);
+  assert.equal(context.state.recipes.at(-1),chosen);
+  assert.equal(await context.choose(chosen),chosen);
+  assert.equal(await context.choose(regular),regular);
+  assert.deepEqual(calls,['/api/recipes/bowl']);
+  stored=legacy;
+  await assert.rejects(context.choose(legacy),/recipe-choice-groups-missing/);
 });
 
 test('the searchable selector matches any word in the title and retains stock and keyboard selection',async()=>{
