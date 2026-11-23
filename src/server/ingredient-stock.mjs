@@ -58,12 +58,12 @@ export async function countProductInventory(pool,input) {
     if(grams==null){await client.query('ROLLBACK');return {error:'ingredient-conversion-missing'};}
     const quantityG=Math.round(grams*100000)/100000;
     if(quantityG>100000000){await client.query('ROLLBACK');return {error:'invalid-product-count'};}
-    await client.query(`INSERT INTO household_ingredient_stock(household_id,food_id,quantity_g,minimum_g,target_g,lead_days)
+    const updated=await client.query(`INSERT INTO household_ingredient_stock(household_id,food_id,quantity_g,minimum_g,target_g,lead_days)
       VALUES($1,$2,$3,0,0,0) ON CONFLICT(household_id,food_id) DO UPDATE SET
-      quantity_g=$3,version=household_ingredient_stock.version+1,updated_at=now()`,[input.householdId,input.foodId,quantityG]);
+      quantity_g=$3,version=household_ingredient_stock.version+1,updated_at=now() RETURNING version`,[input.householdId,input.foodId,quantityG]);
     await client.query(`INSERT INTO ingredient_stock_movements(id,household_id,food_id,delta_g,reason,source_quantity,source_unit_id)
       VALUES($1,$2,$3,$4,'inventory',$5,$6)`,[randomUUID(),input.householdId,input.foodId,quantityG-Number(existing.rows[0]?.quantity_g??0),input.quantity,input.unitId]);
-    await client.query('COMMIT');return {saved:true,quantityG};
+    await client.query('COMMIT');return {saved:true,quantityG,version:updated.rows[0].version};
   }catch(error){await client.query('ROLLBACK');if(error.code==='23503')return {error:'unknown-household-or-food'};throw error;}
   finally{client.release();}
 }

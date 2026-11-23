@@ -40,6 +40,14 @@ test('recipe directory filters by normalized query, type, moment and missing dat
   assert.deepEqual(recipeMissingData(recipes[0]),[]);
 });
 
+test('recipes without production tracking can be found alongside the other directory filters',()=>{
+  const tracked={...recipes[0],name:'Soupe en lots',productionType:'batch_cooking'};
+  const untracked={...recipes[0],name:'Soupe du jour',productionType:'none'};
+  const catalogue=[tracked,untracked,...recipes];
+  assert.deepEqual(filterRecipeDirectory(catalogue,{stockTracking:'none',query:'soupe'}),[untracked,recipes[0]]);
+  assert.deepEqual(filterRecipeDirectory(catalogue,{stockTracking:'',type:'dish'}),[tracked,untracked,recipes[0]]);
+});
+
 test('shopping sources for split preparations open their parent recipe card',()=>{
   const parent={id:'parent',name:'Bœuf, riz et légumes',servingParts:[{id:'meat'},{id:'rice'},{id:'vegetables'}]};
   assert.equal(recipeCardForSource([parent],'rice'),parent);

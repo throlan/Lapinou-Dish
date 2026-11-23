@@ -637,6 +637,9 @@ details.profile-card[open]>.profile-card-heading::after { content:'Replier ▴';
 #ingredient-selection { margin-top:14px; padding:12px; border:1px solid var(--line); border-radius:12px; }
 .ingredient-selection-heading,.ingredient-row-actions { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
 .ingredient-selection-heading { justify-content:space-between; }
+.ingredient-inline-count { display:flex; flex-wrap:wrap; align-items:end; gap:8px; margin:8px 0; }
+.ingredient-inline-count label { width:min(100%,11rem); }
+.ingredient-inline-count .form-message { margin:0; align-self:center; }
 .ingredient-selection-heading p { margin:4px 0; }
 .ingredient-receipt-form { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto; gap:10px; align-items:end; margin:12px 0; }
 #ingredient-edit-details summary { cursor:pointer; }
