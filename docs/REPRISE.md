@@ -1,4 +1,6 @@
-# Cahier de reprise — 22 novembre 2026
+# Cahier de reprise — 23 novembre 2026
+
+La 0.18.13 tient compte de la date de production dans la disponibilité des lots. Un lot produit après un repas ne peut plus le couvrir ni être déduit automatiquement pour ce repas. Les besoins de préparation et les courses utilisent la même règle. Le test reproduit la déduction sur un repas ancien qui faussait la couverture du repas suivant. Aucun mouvement historique n’est réécrit. Aucune migration.
 
 La 0.18.12 relit la fiche des plats à composer avant le choix dans le calendrier, même si la liste chargée ne contient pas les variantes. Un repas enregistré avec une recette de base peut ouvrir le sélecteur depuis « Modifier le repas ». Si aucun choix n’est enregistré sur la fiche, le formulaire l’indique et conserve la sélection précédente. Aucune migration.
 
