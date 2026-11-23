@@ -1,14 +1,17 @@
 import {randomUUID} from 'node:crypto';
 import {availableRecipeStock,loadRecipeGraph,recipeFraction} from './recipe-ingredients.mjs';
 import {loadStockBuckets,takeStock} from './stock-reservations.mjs';
+import {loadPreparationStockIdentity,sumPreparationStock} from './preparation-stock-identity.mjs';
 import {lockHouseholdInventory} from './ingredient-stock.mjs';
 export function stockLocalDate(now=new Date()){
  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Paris',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
  const get=type=>parts.find(p=>p.type===type).value;return `${get('year')}-${get('month')}-${get('day')}`;
 }
 export async function mealStockReadiness(client,householdId){
- const [graph,physical]=await Promise.all([loadRecipeGraph(client,householdId),availableRecipeStock(client,householdId)]);
- const buckets=await loadStockBuckets(client,householdId,physical);
+ const [graph,identity,physical]=await Promise.all([
+  loadRecipeGraph(client,householdId),loadPreparationStockIdentity(client,householdId),availableRecipeStock(client,householdId),
+ ]);
+ const buckets=await loadStockBuckets(client,householdId,sumPreparationStock(physical,identity),identity);
  const events=await client.query(`SELECT m.id AS meal_id,m.meal_date::text AS date,m.stock_auto_disabled,i.id AS item_id,i.recipe_id,
    sum(a.quantity) AS quantity,COALESCE(u.quantity,0) AS used,u.used_at
    FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id JOIN planned_amounts a ON a.planned_item_id=i.id
@@ -20,7 +23,7 @@ export async function mealStockReadiness(client,householdId){
  const meals=new Map(),ready=[];
  function reserve(id,quantity,date,path=[],mealId=null){
   if(path.includes(id))throw new Error('recipe-ingredient-cycle');const recipe=graph.get(id);if(!recipe)throw new Error('recipe-ingredient-not-found');
-  if(recipe.productionType!=='none')return takeStock(buckets,id,quantity,date,mealId);
+  if(recipe.productionType!=='none')return takeStock(buckets,identity.key(id),quantity,date,mealId);
   // A bagel in stock does not mean its untracked hamburger is already cooked.
   for(const line of recipe.lines.filter(l=>l.recipeId)){const child=graph.get(line.recipeId),fraction=recipeFraction(graph,line.recipeId,line.quantity*quantity/recipe.yield.amount,line.unitId);
    for(const part of child.separateStarch&&child.parts.length?child.parts:[child])reserve(part.id,fraction*part.yield.amount,date,[...path,id],mealId);}

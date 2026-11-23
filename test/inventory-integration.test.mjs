@@ -25,7 +25,7 @@ test('ingredient inventory and shopping run against PostgreSQL, with atomic prod
   const migrations=new URL('../db/migrations/',import.meta.url);
   for(const file of (await readdir(migrations)).filter(file=>file.endsWith('.sql')).sort())await db.exec(await readFile(new URL(file,migrations),'utf8'));
   // New migration can safely be repeated without changing existing stock.
-  const today=(await pool.query('SELECT CURRENT_DATE::text AS today')).rows[0].today;
+  const {today,yesterday}=(await pool.query('SELECT CURRENT_DATE::text AS today,(CURRENT_DATE-1)::text AS yesterday')).rows[0];
   await db.exec(`
     INSERT INTO households(id,name) VALUES ('${householdId}','Synthetic household');
     INSERT INTO people(id,household_id,display_name) VALUES ('${person}','${householdId}','Synthetic person');
@@ -48,7 +48,7 @@ test('ingredient inventory and shopping run against PostgreSQL, with atomic prod
   assert.deepEqual(await saveIngredientStock(pool,stockInput(whey,500,100,1000)),{saved:true});
   assert.deepEqual(await saveIngredientStock(pool,stockInput(flour,2000,500,3000)),{saved:true});
   await db.exec(await readFile(new URL('20261013_ingredient_stock.sql',migrations),'utf8'));
-  const production={householdId,recipeId,producedOn:today,quantity:24,storage:'freezer',note:'',requestId:'44444444-4444-4444-8444-444444444444'};
+  const production={householdId,recipeId,producedOn:yesterday,quantity:24,storage:'freezer',note:'',requestId:'44444444-4444-4444-8444-444444444444'};
 
   await t.test('24 muffins deduct 240 g whey and 600 g flour, and add 24 finished pieces',async()=>{
     const lot=await addStockLot(pool,production);
@@ -140,8 +140,11 @@ test('ingredient inventory and shopping run against PostgreSQL, with atomic prod
       INSERT INTO planned_meal_items(id,meal_id,recipe_id) VALUES ('66666666-6666-4666-8666-666666666666','55555555-5555-4555-8555-555555555555','${recipeId}');
       INSERT INTO planned_amounts(planned_item_id,person_id,quantity) VALUES ('66666666-6666-4666-8666-666666666666','${person}',12);
     `);
-    assert.equal((await listIngredientStock(pool,householdId)).find(row=>row.foodId===whey).neededG,360);
-    await pool.query("DELETE FROM planned_meals WHERE id='55555555-5555-4555-8555-555555555555'");
+    try{
+      assert.equal((await listIngredientStock(pool,householdId)).find(row=>row.foodId===whey).neededG,360);
+    }finally{
+      await pool.query("DELETE FROM planned_meals WHERE id='55555555-5555-4555-8555-555555555555'");
+    }
   });
   await t.test('optional personal desserts persist separately and survive complete meal duplication',async()=>{
     const teenA='aaaa1111-1111-4111-8111-aaaaaaaaaaaa',teenB='bbbb1111-1111-4111-8111-bbbbbbbbbbbb';

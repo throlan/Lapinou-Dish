@@ -6,7 +6,7 @@ import {PGlite} from '@electric-sql/pglite';
 import {mealStockReadiness,settleHouseholdMealStock,stockLocalDate,startMealStockClock} from '../src/server/meal-stock-readiness.mjs';
 import {availableRecipeStock,recipeRequirements} from '../src/server/recipe-ingredients.mjs';
 import {preparationStockLabel} from '../web/day-meals.js';
-import {addStockLot,cancelStockLot,listPreparationsToMake,listStock,validateProductionInput} from '../src/server/household-planning.mjs';
+import {addStockLot,cancelStockLot,listPreparationsToMake,listShoppingRequirements,listStock,validateProductionInput} from '../src/server/household-planning.mjs';
 import {savePlannedMeal,listPlannedMeals,deletePlannedMeal,duplicatePlannedMeal} from '../src/server/planning.mjs';
 import {setMealPrepared} from '../src/server/meal-preparation.mjs';
 import {countPreparationStock} from '../src/server/preparation-stock.mjs';
@@ -77,6 +77,32 @@ test('readiness reserves without debit, then uses once after the meal day, catch
  const persisted=await f.pool.query('SELECT quantity FROM planned_amounts ORDER BY quantity');assert.deepEqual(persisted.rows.map(x=>Number(x.quantity)),[2,2]);
  const stock=(await listStock(f.pool,f.h)).find(x=>x.recipeId===r);assert.equal(stock.physicalQuantity,0);assert.equal(stock.plannedQuantity,0);
  assert.deepEqual(await listPreparationsToMake(f.pool,f.h,'2026-11-02','2026-11-08'),[]);
+});
+
+test('a new batch cannot retroactively cover a meal before its production date',async t=>{
+ const f=await fixture(t),r=await f.recipe();
+ const older=await f.meal('2026-11-21',[[r,2]]);
+ const later=await f.meal('2026-11-23',[[r,4]]);
+ await f.pool.query('UPDATE households SET auto_stock_start_date=$1 WHERE id=$2',['2026-11-01',f.h]);
+ await f.lot(r,4,{producedOn:'2026-11-22'});
+ const readiness=await mealStockReadiness(f.pool,f.h);
+ assert.equal(readiness.meals.get(older.id).stockReady,false);
+ assert.equal(readiness.meals.get(later.id).stockReady,true);
+ assert.equal((await settleHouseholdMealStock(f.pool,f.h,{now:now('2026-11-23T12:00:00Z')})).used,0);
+ assert.equal(await f.physical(r),4);
+
+ // The newer batch is reserved for the later meal. A need in the selected
+ // period before production is still visible in shopping and preparation.
+ const counted=(await listIngredientStock(f.pool,f.h))[0];
+ await countProductInventory(f.pool,{householdId:f.h,foodId:f.food,quantity:0,unitId:'g',version:counted.version});
+ const range=['2026-11-21','2026-11-23'];
+ const [need]=await listPreparationsToMake(f.pool,f.h,...range);
+ assert.equal(need.coveredQuantity,4);
+ assert.equal(need.toMakeQuantity,2);
+ const shopping=await listShoppingRequirements(f.pool,f.h,...range);
+ assert.equal(shopping.find(item=>item.foodId===f.food)?.neededQuantity,20);
+ const futureShopping=await listShoppingRequirements(f.pool,f.h,'2026-11-23','2026-11-23');
+ assert.equal(futureShopping.some(item=>item.foodId===f.food),false);
 });
 
 test('limited stock covers the earliest slot, not insertion order, and a count correction removes readiness',async t=>{

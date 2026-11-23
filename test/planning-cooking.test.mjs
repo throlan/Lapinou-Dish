@@ -3,6 +3,7 @@ import {accountGateway} from '../src/server/accounts.mjs';
 import {handleRequest} from '../src/server/app.mjs';
 import {communityRoutes} from '../src/server/community.mjs';
 import test from 'node:test';
+import {setMealPrepared} from '../src/server/meal-preparation.mjs';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {readFile,readdir} from 'node:fs/promises';
@@ -10,7 +11,7 @@ import {PGlite} from '@electric-sql/pglite';
 import {cookingPeriod,freePlanningSlots,validPlanningDate} from '../web/planning-periods.js';
 import {createRecipe,updateRecipe,validateRecipeInput} from '../src/server/recipes.mjs';
 import {savePlannedMeal,validatePlannedMeal,listPlannedMeals} from '../src/server/planning.mjs';
-import {addStockLot,validateProductionInput} from '../src/server/household-planning.mjs';
+import {addStockLot,listPreparationsToMake,listShoppingRequirements,listStock,validateProductionInput} from '../src/server/household-planning.mjs';
 import {cookingForMeal} from '../src/server/planning-cooking.mjs';
 import {mealStockReadiness} from '../src/server/meal-stock-readiness.mjs';
 
@@ -70,7 +71,42 @@ test('a lot made for dinner cannot be reserved by lunch the same day; replay and
 
 
 test('calendar cooking scales untracked recipes for display without changing their stock-tracking mode',async t=>{
- const f=await fixture(t);await updateRecipe(f.pool,f.recipe.id,validateRecipeInput({...f.input,productionType:'none'}).data);const meal=await f.meal('2026-11-16','lunch',3);const result=await cookingForMeal(f.pool,f.h,meal.result.id,f.recipe.id,'meal');assert.equal(result.recipe.productionType,'none');assert.equal(result.preparations[0].toMakeQuantity,3);
+ const f=await fixture(t);
+ await updateRecipe(f.pool,f.recipe.id,validateRecipeInput({...f.input,productionType:'none'}).data);
+ const meal=await f.meal('2026-11-16','lunch',3);
+ const range=['2026-11-16','2026-11-16'];
+ const expectedItems={includeMenuRecipes:true};
+ assert.deepEqual(await listPreparationsToMake(f.pool,f.h,...range),[]);
+ const [overview]=await listPreparationsToMake(f.pool,f.h,...range,expectedItems);
+ assert.equal(overview.recipeId,f.recipe.id);
+ assert.deepEqual(overview.mealIds,[meal.result.id]);
+ assert.equal(overview.toMakeQuantity,3);
+ assert.deepEqual(await listStock(f.pool,f.h),[]);
+ const result=await cookingForMeal(f.pool,f.h,meal.result.id,f.recipe.id,'meal');
+ assert.equal(result.recipe.productionType,'none');
+ assert.equal(result.preparations[0].toMakeQuantity,3);
+ assert.equal(result.plannedMealId,meal.result.id);
+ const prepared=await setMealPrepared(f.pool,f.h,result.plannedMealId,true);
+ assert.equal(prepared.prepared,true);
+ assert.deepEqual((await cookingForMeal(f.pool,f.h,meal.result.id,f.recipe.id,'meal')).preparations,[]);
+ assert.equal((await f.pool.query('SELECT id FROM stock_lots')).rows.length,0);
+ assert.equal((await setMealPrepared(f.pool,f.h,result.plannedMealId,true)).replayed,true);
+ assert.deepEqual(await listPreparationsToMake(f.pool,f.h,...range,expectedItems),[]);
+ assert.deepEqual(await listShoppingRequirements(f.pool,f.h,...range),[]);
+});
+
+test('a compatible recipe revision uses existing finished stock after changing the production category',async t=>{
+ const f=await fixture(t);
+ const lot=await f.produce({quantity:4});
+ const revised=await updateRecipe(f.pool,f.recipe.id,validateRecipeInput({...f.input,productionType:'pastry'}).data);
+ assert.equal(revised.replacesRecipeId,f.recipe.id);
+ const {result}=await f.meal('2026-11-23','lunch',3,{items:[{recipeId:revised.id,role:'main',amounts:[{personId:f.person,quantity:3}]}]});
+ assert.equal((await listPlannedMeals(f.pool,f.h,'2026-11-23')).find(meal=>meal.id===result.id).stockReady,true);
+ const [stock]=await listStock(f.pool,f.h);
+ assert.equal(stock.recipeId,revised.id);
+ assert.equal(stock.lots[0].id,lot.id);
+ assert.equal(stock.availableQuantity,1);
+ assert.deepEqual(await listShoppingRequirements(f.pool,f.h,'2026-11-23','2026-11-23'),[]);
 });
 
 test('a targeted split bundle reserves all its parts for the selected meal and retains independent quantities',async t=>{

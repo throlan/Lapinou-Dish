@@ -1,12 +1,18 @@
 // Physical stock is shared by planning and readiness. Scoped lots cover their
 // own menu dates first; a surplus becomes available after that range ends.
-export async function loadStockBuckets(client,householdId,physicalStock){
- const lots=await client.query(`SELECT s.id,s.recipe_id,s.quantity,COALESCE(target.meal_date,s.planned_start,p.planned_start)::text AS start,
+export async function loadStockBuckets(client,householdId,physicalStock,identity){
+ const lots=await client.query(`SELECT s.id,s.recipe_id,s.quantity,
+   GREATEST(s.produced_on,COALESCE(target.meal_date,s.planned_start,p.planned_start))::text AS start,
    COALESCE(target.meal_date,s.planned_end,p.planned_end)::text AS "end",COALESCE(s.planned_meal_id,p.planned_meal_id) AS meal_id FROM stock_lots s LEFT JOIN stock_lots p ON p.id=s.parent_lot_id LEFT JOIN planned_meals target ON target.id=COALESCE(s.planned_meal_id,p.planned_meal_id)
    WHERE s.household_id=$1 AND s.cancelled_at IS NULL AND NOT s.is_serving_bundle ORDER BY s.produced_on,s.created_at,s.id`,[householdId]);
  const uses=await client.query('SELECT source_allocations FROM recipe_stock_uses WHERE household_id=$1 AND automatic AND cancelled_at IS NULL',[householdId]);
  const used=new Map();for(const row of uses.rows)for(const item of row.source_allocations??[])if(item.lotId)used.set(item.lotId,(used.get(item.lotId)??0)+Number(item.quantity));
- const buckets=new Map();for(const lot of lots.rows){if(!buckets.has(lot.recipe_id))buckets.set(lot.recipe_id,[]);buckets.get(lot.recipe_id).push({lotId:lot.id,quantity:Math.max(0,Number(lot.quantity)-(used.get(lot.id)??0)),start:lot.start,end:lot.end,mealId:lot.meal_id});}
+ const buckets=new Map();
+ for(const lot of lots.rows){
+  const key=identity.key(lot.recipe_id);
+  if(!buckets.has(key))buckets.set(key,[]);
+  buckets.get(key).push({lotId:lot.id,quantity:Math.max(0,Number(lot.quantity)-(used.get(lot.id)??0)),start:lot.start,end:lot.end,mealId:lot.meal_id});
+ }
  // Reconcile legacy uses and physical inventory corrections without changing
  // original lots. New automatic uses have exact source allocations above.
  for(const [id,physical] of physicalStock){

@@ -1,5 +1,6 @@
 import {purchaseProductRequirements,listShoppingPreferences,excludedShoppingFood,foodPurchaseMass} from './shopping-products.mjs';
 import {recipeRequirements,preparationInputs,recordRecipeUses} from './recipe-ingredients.mjs';
+import {loadPreparationStockIdentity,sumPreparationStock} from './preparation-stock-identity.mjs';
 import { randomUUID } from 'node:crypto';
 import { listFoodStores } from './food-stores.mjs';
 import { rawShoppingRequirements } from './shopping-requirements.mjs';
@@ -276,15 +277,18 @@ export async function cancelStockLot(pool, householdId, lotId) {
     if (result.rows[0].cancelled_at) { await client.query('ROLLBACK'); return { cancelled:true,replayed:true,restored:[] }; }
     const cancelledRecipes=await client.query(`SELECT recipe_id,sum(quantity) AS quantity FROM stock_lots
       WHERE (id=$1 OR parent_lot_id=$1) AND NOT is_serving_bundle GROUP BY recipe_id`,[lotId]);
-    for(const recipe of cancelledRecipes.rows){
+    const identity=await loadPreparationStockIdentity(client,householdId);
+    const stockKeys=new Set(cancelledRecipes.rows.map(row=>identity.key(row.recipe_id)));
+    for(const key of stockKeys){
+      const members=identity.members(key);
       const remaining=await client.query(`SELECT COALESCE(sum(quantity),0) AS quantity FROM stock_lots
-        WHERE household_id=$1 AND recipe_id=$2 AND cancelled_at IS NULL AND NOT is_serving_bundle
-          AND id<>$3 AND parent_lot_id IS DISTINCT FROM $3`,[householdId,recipe.recipe_id,lotId]);
-      const prepared=await client.query(`SELECT COALESCE(sum(a.quantity),0)-COALESCE((SELECT sum(u.quantity) FROM recipe_stock_uses u JOIN planned_meals x ON x.id=u.meal_id WHERE u.household_id=$1 AND u.recipe_id=$2 AND u.automatic AND u.cancelled_at IS NULL AND x.prepared_at IS NOT NULL),0) AS quantity
+        WHERE household_id=$1 AND recipe_id=ANY($2::uuid[]) AND cancelled_at IS NULL AND NOT is_serving_bundle
+          AND id<>$3 AND parent_lot_id IS DISTINCT FROM $3`,[householdId,members,lotId]);
+      const prepared=await client.query(`SELECT COALESCE(sum(a.quantity),0)-COALESCE((SELECT sum(u.quantity) FROM recipe_stock_uses u JOIN planned_meals x ON x.id=u.meal_id WHERE u.household_id=$1 AND u.recipe_id=ANY($2::uuid[]) AND u.automatic AND u.cancelled_at IS NULL AND x.prepared_at IS NOT NULL),0) AS quantity
         FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id JOIN planned_amounts a ON a.planned_item_id=i.id
-        WHERE m.household_id=$1 AND m.prepared_at IS NOT NULL AND i.recipe_id=$2`,[householdId,recipe.recipe_id]);
-      const used=await client.query('SELECT COALESCE(sum(quantity),0) AS quantity FROM recipe_stock_uses WHERE household_id=$1 AND recipe_id=$2 AND cancelled_at IS NULL AND stock_lot_id IS DISTINCT FROM $3',[householdId,recipe.recipe_id,lotId]);
-      const correction=await client.query('SELECT COALESCE(sum(delta),0) AS quantity FROM preparation_stock_counts WHERE household_id=$1 AND recipe_id=$2',[householdId,recipe.recipe_id]);
+        WHERE m.household_id=$1 AND m.prepared_at IS NOT NULL AND i.recipe_id=ANY($2::uuid[])`,[householdId,members]);
+      const used=await client.query('SELECT COALESCE(sum(quantity),0) AS quantity FROM recipe_stock_uses WHERE household_id=$1 AND recipe_id=ANY($2::uuid[]) AND cancelled_at IS NULL AND stock_lot_id IS DISTINCT FROM $3',[householdId,members,lotId]);
+      const correction=await client.query('SELECT COALESCE(sum(delta),0) AS quantity FROM preparation_stock_counts WHERE household_id=$1 AND recipe_id=ANY($2::uuid[])',[householdId,members]);
       if(Number(remaining.rows[0].quantity)+Number(correction.rows[0].quantity)+0.00001<Number(prepared.rows[0].quantity)+Number(used.rows[0].quantity)){
         await client.query('ROLLBACK');return {error:'production-already-used'};
       }
@@ -345,20 +349,27 @@ export async function listStock(pool, householdId) {
        COALESCE(planned_end,(SELECT p.planned_end FROM stock_lots p WHERE p.id=stock_lots.parent_lot_id))::text AS "plannedEnd"
      FROM stock_lots WHERE household_id=$1 AND cancelled_at IS NULL AND NOT is_serving_bundle ORDER BY produced_on DESC, created_at DESC`, [householdId]);
   const needs=await recipeRequirements(pool,householdId,'0001-01-01','9999-12-31');
-  const rows=new Map(result.rows.map(row=>[row.recipeId,row]));
-  for(const [id,quantity] of new Map([...needs.reservations,...[...needs.initialStock].filter(([,value])=>value!==0)]))if(!rows.has(id)){const r=needs.graph.get(id);rows.set(id,{recipeId:id,name:r.name,unitId:r.yield.unitId,productionType:r.productionType,producedQuantity:0,latestProduction:null,storage:[]});}
-  return [...rows.values()].map((row) => ({
-    ...row,
-    lots: lots.rows.filter(lot=>lot.recipeId===row.recipeId).map(lot=>({...lot,quantity:Number(lot.quantity)})),
-    producedQuantity: Number(row.producedQuantity),
-    physicalQuantity: needs.initialStock.get(row.recipeId)??0,
-    plannedQuantity: needs.reservations.get(row.recipeId)??0,
-    availableQuantity: (needs.initialStock.get(row.recipeId)??0)-(needs.reservations.get(row.recipeId)??0),
-  }));
+  const {identity,graph,initialStock,reservations}=needs;
+  const produced=sumPreparationStock(result.rows.map(row=>[row.recipeId,Number(row.producedQuantity)]),identity);
+  const groupedLots=new Map();
+  for(const {recipeId,...lot} of lots.rows){
+    const key=identity.key(recipeId);
+    if(!groupedLots.has(key))groupedLots.set(key,[]);
+    groupedLots.get(key).push({...lot,recipeId,quantity:Number(lot.quantity)});
+  }
+  const ids=new Set([...produced.keys(),...reservations.keys(),...[...initialStock].filter(([,quantity])=>quantity!==0).map(([id])=>id)]);
+  return [...ids].map(recipeId=>{
+    const recipe=graph.get(recipeId),lots=groupedLots.get(recipeId)??[];
+    const physicalQuantity=initialStock.get(recipeId)??0,plannedQuantity=reservations.get(recipeId)??0;
+    return {recipeId,name:recipe.name,unitId:recipe.yield.unitId,productionType:recipe.productionType,
+      lots,producedQuantity:produced.get(recipeId)??0,latestProduction:lots[0]?.producedOn??null,
+      storage:[...new Set(lots.map(lot=>lot.storage))],physicalQuantity,plannedQuantity,
+      availableQuantity:physicalQuantity-plannedQuantity};
+  }).sort((a,b)=>a.name.localeCompare(b.name));
 }
 
-export async function listPreparationsToMake(pool, householdId, startDate, endDate) {
-  return (await recipeRequirements(pool,householdId,startDate,endDate)).preparations;
+export async function listPreparationsToMake(pool, householdId, startDate, endDate, {includeMenuRecipes=false}={}) {
+  return (await recipeRequirements(pool,householdId,startDate,endDate,{includeMenuRecipes,includeMealIds:includeMenuRecipes})).preparations;
 }
 
 export async function listShoppingRequirements(pool, householdId, startDate, endDate) {

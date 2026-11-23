@@ -98,7 +98,8 @@ test('separate services display and submit only their own menu quantities includ
 });
 
 test('cooking from the directory reloads menus and offers explicit free cooking when no menu is available',async()=>{
-  const a=source.indexOf("cook.addEventListener('click',async()=>"),b=source.indexOf('\n  const removalMessage=',a);
+  const card=source.indexOf('function recipeCard(');
+  const a=source.indexOf("cook.addEventListener('click',async()=>",card),b=source.indexOf('\n  const removalMessage=',a);
   assert.ok(a>=0 && b>a);
   const cook={disabled:false,addEventListener(_,handler){this.click=handler;}},opened=[],requests=[];
   const recipe={id:'parent',yield:{amount:4,unitId:'portion'},servingParts:[{id:'whole',yield:{amount:2760,unitId:'g'}}]};

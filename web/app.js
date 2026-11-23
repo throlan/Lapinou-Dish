@@ -406,6 +406,8 @@ function renderPreparationStock(){
       if(item.lots?.length||item.physicalQuantity!==0)card.append(preparationStockCount(item));
       for(const lot of item.lots??[]){
         const row=document.createElement('div');row.className='production-lot';
+        row.dataset.stockLotId=lot.id;
+        if(lot.parentLotId)row.dataset.stockParentLotId=lot.parentLotId;
         const label=document.createElement('span');label.textContent=`Lot du ${displayDate(lot.producedOn)} · ${formatQty(lot.quantity)} ${item.unitId}${lot.note?' · '+lot.note:''}${lot.plannedMealId?' · réservé à un repas précis':lot.plannedStart?' · menus du '+displayDate(lot.plannedStart)+' au '+displayDate(lot.plannedEnd):''}`;
         const cancel=document.createElement('button');cancel.type='button';cancel.className='secondary';cancel.textContent=lot.parentLotId?'Annuler le batch complet':'Annuler le lot';
         cancel.addEventListener('click',async()=>{
@@ -415,7 +417,7 @@ function renderPreparationStock(){
             const result=await api(`/api/household-planning/production/${lot.id}?householdId=${encodeURIComponent(state.household.id)}`,{method:'DELETE'});
             const restored=(result.restored??[]).map(row=>`${row.name} : +${formatQty(row.quantityG)} g`).join(' · ');
             showMessage($('#production-message'),'Lot retiré du stock.'+(restored?' Ingrédients remis : '+restored:''),true);
-            await refreshShopping();await refreshDashboard();
+            await Promise.allSettled([refreshShopping(),refreshDashboard(),refreshCalendar()]);
           }catch(error){showMessage($('#production-message'),error.body?.error==='production-already-used'
             ?'Ce lot a été utilisé ou son stock a été corrigé à la baisse. L’annuler ne laisserait pas assez de stock pour les quantités déjà sorties.'
             :'Annulation impossible : '+(error.body?.error??error.message));}
@@ -427,6 +429,26 @@ function renderPreparationStock(){
     }) : [emptyMessage(!preparationStock.length?'Aucun stock suivi. Ajoute un type de production à une recette, puis enregistre une production.':filter==='needed'?'Aucune préparation à refaire : les réservations sont couvertes.':filter==='remaining'?'Aucune préparation avec du stock restant.':'Aucune préparation avec du stock ou des réservations. Choisis « Tout afficher » pour consulter les anciens lots.')]));
 }
 $('#preparation-stock-filter').addEventListener('change',()=>{try{localStorage.setItem('lapinou-preparation-stock-filter:'+state.household.id,$('#preparation-stock-filter').value);}catch{}renderPreparationStock();});
+function productionStockLink(lotId) {
+  const button=document.createElement('button');
+  button.type='button';button.className='text-button';button.textContent='Voir le lot dans Stocks';
+  button.addEventListener('click',async()=>{
+    if($('#cook-dialog').open)$('#cook-dialog').close();
+    const loading=setView('shopping');
+    selectShoppingTab('stock');
+    await loading;
+    const findLot=()=>$$('#stock-list .production-lot').find(row=>
+      row.dataset.stockLotId===lotId||row.dataset.stockParentLotId===lotId);
+    if(!findLot()){
+      $('#preparation-stock-filter').value='all';
+      renderPreparationStock();
+    }
+    const row=findLot();
+    if(row)row.scrollIntoView({block:'center'});
+    else showMessage($('#production-message'),'Ce lot n’est pas disponible dans la liste des stocks.');
+  });
+  return button;
+}
 async function refreshShopping() {
   if (!state.household) return;
   const householdId = state.household.id;
@@ -602,13 +624,13 @@ function extraProductionRow(plan){
       const requestId=newProductionRequestId();
       confirm.addEventListener('click',async()=>{confirm.disabled=true;try{
         await api('/api/household-planning/production',{method:'POST',body:JSON.stringify({householdId:state.household.id,recipeId:plan.recipeId,extraProductionId:plan.id,producedOn:localDateValue(),quantity:plan.quantity,storage:plan.storage,note:plan.note,requestId})});
-        await refreshShopping();await refreshDashboard();
+        await Promise.allSettled([refreshShopping(),refreshDashboard(),refreshCalendar()]);
       }catch(error){showMessage($('#extra-production-plan-message'),'Production non confirmée : '+(error.body?.error??error.message));confirm.disabled=false;}});
       const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='Retirer du planning';
       remove.addEventListener('click',async()=>{remove.disabled=true;try{await api(`/api/household-planning/extra-productions/${plan.id}?householdId=${encodeURIComponent(state.household.id)}`,{method:'DELETE'});await refreshShopping();}catch(error){showMessage($('#extra-production-plan-message'),'Suppression impossible : '+(error.body?.error??error.message));remove.disabled=false;}});
       const cook=document.createElement('button');cook.type='button';cook.className='primary';cook.textContent='Cuisiner';cook.addEventListener('click',()=>openExtraProductionCooking(plan));
       row.append(cook,confirm,remove);
-    }
+    }else if(plan.stockLotId)row.append(productionStockLink(plan.stockLotId));
 
     const context=document.createElement('small');context.textContent='Hors menus · quantité explicitement planifiée';row.append(context);return row;
 }
@@ -633,6 +655,8 @@ $('#extra-production-plan-form').addEventListener('submit',async event=>{
 function preparationRow(group,productionDate) {
   const recipe=state.recipes.find(entry=>entry.id===group.recipeId),parts=group.parts;
   const first=parts[0],covered=parts.every(item=>item.toMakeQuantity<=0.00001);
+  const untracked=first.productionType==='none';
+  const mealIds=new Set(parts.flatMap(part=>part.mealIds??[]));
   const row=document.createElement('article');row.className='preparation-row'+(covered?' is-covered':'');
   const title=document.createElement('strong');title.textContent=recipe?.name??first.name;
   const identity=document.createElement('div');identity.className='preparation-identity';
@@ -642,19 +666,37 @@ function preparationRow(group,productionDate) {
   const dates=document.createElement('small');dates.textContent=`${Math.max(...parts.map(item=>item.mealCount))} repas · ${displayDate(first.firstDate)}${first.lastDate!==first.firstDate?' au '+displayDate(first.lastDate):''}`;
   const amount=document.createElement('span');amount.className='preparation-amount';
   const suggested=suggestedProductionQuantity(group,recipe);
-  amount.textContent=covered?'Couvert par le stock':recipe?`${formatQty(suggested)} ${cookingYield(recipe).unitId} à produire`:'À produire';
+  amount.textContent=covered?'Couvert par le stock':recipe?`${formatQty(suggested)} ${cookingYield(recipe).unitId} ${untracked?'à cuisiner':'à produire'}`:'À produire';
   row.append(identity);if(nutritionBadge)row.append(nutritionBadge);row.append(dates,amount);
   if(first.minimumProductionQuantity>0){const minimum=document.createElement('small');minimum.className='preparation-minimum';minimum.textContent=`Lot minimum : ${formatQty(first.minimumProductionAmount)} ${productionUnitLabels[first.minimumProductionUnitId]??first.minimumProductionUnitId}`;row.append(minimum);}
   const details=document.createElement('ul');details.className='preparation-parts';
-  for(const part of parts){const line=document.createElement('li');line.textContent=`${part.parentRecipeId?part.name.split(' — ').at(-1):'Recette entière'} : ${part.toMakeQuantity<=0.00001?'couvert':`${formatQty(part.toMakeQuantity)} ${part.unitId} à produire`} · prévu ${formatQty(part.plannedQuantity)} ${part.unitId} · ${part.minimumProductionQuantity>0?'couvert par le stock et les lots prévus':'stock couvrant'} ${formatQty(part.coveredQuantity)} ${part.unitId}`;details.append(line);}
+  for(const part of parts){
+    const line=document.createElement('li');
+    const section=part.parentRecipeId?part.name.split(' — ').at(-1):'Recette entière';
+    line.textContent=untracked
+      ?section+' · '+formatQty(part.plannedQuantity)+' '+part.unitId+' prévus aux menus'
+      :`${section} : ${part.toMakeQuantity<=0.00001?'couvert':`${formatQty(part.toMakeQuantity)} ${part.unitId} à produire`} · prévu ${formatQty(part.plannedQuantity)} ${part.unitId} · ${part.minimumProductionQuantity>0?'couvert par le stock et les lots prévus':'stock couvrant'} ${formatQty(part.coveredQuantity)} ${part.unitId}`;
+    details.append(line);
+  }
   row.append(details);
   if(recipe){
     if(recipe.replacedByRecipeId&&state.account?.role==='manager'){const update=document.createElement('button');update.type='button';update.className='secondary';update.textContent='Actualiser les repas à préparer';update.addEventListener('click',()=>replacePlannedRecipe(recipe,group.plannedStart??$('#shopping-start').value,group.plannedEnd??$('#shopping-end').value));row.append(update);}
     const link=document.createElement('button');link.type='button';link.className='secondary';link.textContent='Voir la recette';link.addEventListener('click',()=>showRecipeCard(recipe.id));row.append(link);
-    const cook=document.createElement('button');cook.type='button';cook.className='primary';cook.textContent='Cuisiner';cook.addEventListener('click',()=>openCookingSheet(recipe.id,suggested,productionDate,group));row.append(cook);
+    const cook=document.createElement('button');cook.type='button';cook.className='primary';cook.textContent='Cuisiner';
+    cook.addEventListener('click',async()=>{
+      if(!untracked||mealIds.size!==1){openCookingSheet(recipe.id,suggested,productionDate,group);return;}
+      const [mealId]=mealIds;
+      const householdId=state.household.id;
+      cook.disabled=true;
+      try{
+        const data=await api(`/api/planning/meals/${mealId}/cooking?householdId=${encodeURIComponent(householdId)}&recipeId=${encodeURIComponent(recipe.id)}&scope=meal`);
+        if(state.household?.id===householdId)openScopedCooking(data);
+      }catch{row.append(emptyMessage('Impossible d’ouvrir ce repas. Rouvre-le depuis le calendrier.'));}
+      finally{cook.disabled=false;}
+    });row.append(cook);
   }
   const calendar=document.createElement('button');calendar.type='button';calendar.className='secondary';calendar.textContent='Voir le repas dans le calendrier';
-  calendar.addEventListener('click',()=>{state.calendarWeekStart=mondayOf(first.firstDate);setView('calendar');});row.append(calendar);
+  calendar.addEventListener('click',()=>{state.calendarWeekStart=mondayOf(first.firstDate);calendarSelectedDate=first.firstDate;setView('calendar');});row.append(calendar);
   return row;
 }
 function preparationGroup(label,key,items,openKeys,emptyText,productionDate,period,extraPlans=[]) {
@@ -673,7 +715,7 @@ async function refreshPreparations(start,end) {
   root.replaceChildren(emptyMessage('Calcul des préparations…'));
   try {
     await refreshProductionTypes();
-    const path=(from,to)=>`/api/household-planning/preparations?householdId=${encodeURIComponent(state.household.id)}&startDate=${encodeURIComponent(from)}&endDate=${encodeURIComponent(to)}`;
+    const path=(from,to)=>`/api/household-planning/preparations?householdId=${encodeURIComponent(state.household.id)}&startDate=${encodeURIComponent(from)}&endDate=${encodeURIComponent(to)}&includeMenuRecipes=1`;
     const [{preparations},{productions:extraPlans}]=await Promise.all([api(path(start,end)),api(`/api/household-planning/extra-productions?householdId=${encodeURIComponent(state.household.id)}&startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`)]);
     if(request!==preparationsRequest)return;
     renderExtraProductionPlans(extraPlans);
@@ -693,18 +735,20 @@ async function refreshPreparations(start,end) {
     if(request!==preparationsRequest)return;
     const batchItems=selected.filter(item=>item.productionType==='batch_cooking');
     const extraBatch=extraPlans.filter(p=>!p.completed&&p.productionType==='batch_cooking'&&p.plannedOn>=window.start&&p.plannedOn<=window.end);
-    const typedGroups=state.productionTypes.filter(type=>type.id!=='batch_cooking').map(type=>({type,items:preparations.filter(item=>item.productionType===type.id),extras:extraPlans.filter(p=>!p.completed&&p.productionType===type.id)}));
+    const menuItems=preparations.filter(item=>item.productionType==='none');
+    const typedGroups=state.productionTypes.filter(type=>!['batch_cooking','none'].includes(type.id)).map(type=>({type,items:preparations.filter(item=>item.productionType===type.id),extras:extraPlans.filter(p=>!p.completed&&p.productionType===type.id)}));
     state.preparations=[...typedGroups.flatMap(group=>group.items),...batchItems];
     state.preparationScopes=new Map([...typedGroups.flatMap(group=>groupPreparations(group.items).map(g=>[g.recipeId,{start,end}])),...groupPreparations(batchItems).map(g=>[g.recipeId,{start:window.start,end:window.end}])]);
     renderProductionOptions();
-    const tasks=[...typedGroups.flatMap(group=>groupPreparations(group.items)),...groupPreparations(batchItems)];
+    const tasks=[...typedGroups.flatMap(group=>groupPreparations(group.items)),...groupPreparations(batchItems),...groupPreparations(menuItems)];
     const extrasCount=extraBatch.length+typedGroups.reduce((sum,g)=>sum+g.extras.length,0);
-    count.textContent=`${tasks.filter(group=>group.parts.some(item=>item.toMakeQuantity>0.00001)).length+extrasCount} à faire · ${tasks.length+extrasCount} suivies`;
+    count.textContent=`${tasks.filter(group=>group.parts.some(item=>item.toMakeQuantity>0.00001)).length+extrasCount} à faire`;
     const batch=preparationGroup(`${productionTypeLabel('batch_cooking')} · du ${displayDate(window.start)} au ${displayDate(window.end)}`,'batch',batchItems,openKeys,'Aucune préparation pour cette plage.',window.start,{start:window.start,end:window.end},extraBatch);
     // Show the selected list immediately on first entry; preserve later toggles.
-    if(!batchCookingRendered)batch.open=true;
+    const menu=menuItems.length?preparationGroup('À cuisiner pour les repas','menu',menuItems,openKeys,'',undefined,{start,end}):null;
+    if(!batchCookingRendered){batch.open=true;if(menu)menu.open=true;}
     batchCookingRendered=true;
-    root.replaceChildren(...typedGroups.map(({type,items,extras})=>preparationGroup(type.label,type.id,items,openKeys,`Aucune production « ${type.label} » sur cette période.`,undefined,{start,end},extras)),batch);
+    root.replaceChildren(...typedGroups.map(({type,items,extras})=>preparationGroup(type.label,type.id,items,openKeys,`Aucune production « ${type.label} » sur cette période.`,undefined,{start,end},extras)),batch,...(menu?[menu]:[]));
   }catch(error){if(request===preparationsRequest){root.replaceChildren(emptyMessage('Préparations indisponibles : '+(error.body?.error??error.message)));count.textContent='';}}
 }
 for(const selector of ['#batch-cooking-start','#batch-cooking-duration']){
@@ -939,7 +983,9 @@ $('#production-form').addEventListener('submit',async event=>{
     pendingProduction=null;form.reset();setProductionPeriod(form,null);form.elements.producedOn.value=localDateValue();
     const deductions=(lot.deductions??[]).map(item=>`${item.name} : −${formatQty(item.usedG)} g`).join(' · ');
     const warnings=(lot.stockWarnings??[]).map(item=>`${item.name} : ${formatQty(item.quantity)} ${item.unitId}`).join(' · ');
-    showMessage($('#production-message'),'Production ajoutée au stock.'+(deductions?' Ingrédients déduits : '+deductions:'')+(warnings?' Stocks à régulariser : '+warnings:''),true);
+    const message=$('#production-message');
+    showMessage(message,'Production ajoutée au stock.'+(deductions?' Ingrédients déduits : '+deductions:'')+(warnings?' Stocks à régulariser : '+warnings:''),true);
+    if(lot.id)message.append(' ',productionStockLink(lot.id));
     await refreshShopping();await refreshDashboard();await refreshCalendar();
   } catch(error){
     const body=error.body??{};
@@ -2430,6 +2476,14 @@ function configureCookingMode(){
   const recipe=state.recipes.find(item=>item.id===cookingRecipeId);if(!recipe||!cookingState)return;
   cookingState.mode=cookingState.planned?.extraProduction||$('#cook-mode').value==='free'?'free':'menus';
   const free=cookingState.mode==='free',planned=cookingState.planned,form=$('#cook-form');
+  const tracked=recipe.productionType&&recipe.productionType!=='none';
+  const confirmMeal=!tracked&&!free&&planned?.plannedMealId&&planned.parts.length>0;
+  const save=$('#save-cook');
+  save.classList.toggle('hidden',!tracked&&!confirmMeal);
+  save.textContent=confirmMeal?'Marquer le repas préparé':'Ajouter la production au stock';
+  showMessage($('#cook-message'),tracked?'':confirmMeal
+    ?'Valide quand le repas entier est prêt. Les ingrédients suivis seront déduits.'
+    :'Cette recette n’est pas suivie en stock.');
   const target=free?recipe.yield:cookingYield(recipe);
   form.elements.quantity.value=free?cookingState.freeQuantity:cookingState.menuQuantity;
   form.elements.quantity.step=free?'0.001':'any';
@@ -2521,9 +2575,8 @@ function openCookingSheet(recipeId,quantity,productionDate,planned,initialMode='
   const source=$('#cook-source');source.replaceChildren();if(recipe.sourceUrl){const link=document.createElement('a');link.href=recipe.sourceUrl;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Source de la recette';source.append(link);}
   stopCookingInstagram();stopCookingInstagram=mountCookingInstagram($('#cook-video'),recipe.sourceUrl,document);
   const tracked=recipe.productionType&&recipe.productionType!=='none';
-  $('#cook-production-fields').classList.toggle('hidden',!tracked);$('#save-cook').classList.toggle('hidden',!tracked);
+  $('#cook-production-fields').classList.toggle('hidden',!tracked);
   form.elements.producedOn.required=Boolean(tracked);
-  showMessage($('#cook-message'),tracked?'':'Cette recette n’est pas suivie en stock. Sa fiche reste consultable et les quantités peuvent être ajustées.');
   configureCookingMode();
   const extra=planned?.extraProduction;$('#cook-mode').disabled=Boolean(extra);form.elements.quantity.readOnly=Boolean(extra);
   form.querySelector?.('.production-period')?.classList.toggle('hidden',Boolean(extra));
@@ -2537,8 +2590,16 @@ $('#cook-form')?.elements.quantity.addEventListener('input',renderCookingIngredi
 for(const id of ['close-cook-dialog','cancel-cook'])$('#'+id)?.addEventListener('click',()=>$('#cook-dialog').close());
 $('#cook-form')?.addEventListener('submit',async event=>{
   event.preventDefault();const form=event.currentTarget,recipe=state.recipes.find(item=>item.id===cookingRecipeId),button=$('#save-cook');
-  if(!recipe||!recipe.productionType||recipe.productionType==='none'||button.disabled||!form.reportValidity())return;
+  if(!recipe||button.disabled)return;
   const free=cookingState?.mode==='free';
+  if(!recipe.productionType||recipe.productionType==='none'){
+    const planned=cookingState?.planned;
+    if(!free&&planned?.plannedMealId&&planned.parts.length){
+      await changeMealPreparation({id:planned.plannedMealId},true,button,$('#cook-message'),$('#cook-dialog'));
+    }
+    return;
+  }
+  if(!form.reportValidity())return;
   const servingQuantities=!free&&cookingPartInputs.length?cookingPartInputs.map(({part,input})=>({recipeId:part.recipeId,quantity:Number(input.value)})):null;
   if(servingQuantities && !servingQuantities.some(part=>part.quantity>0)){showMessage($('#cook-message'),'Aucune quantité à fabriquer pour ces menus.');return;}
   const payload={householdId:state.household.id,recipeId:free||servingQuantities?recipe.id:productionRecipe(recipe).id,producedOn:form.elements.producedOn.value,
@@ -2548,7 +2609,10 @@ $('#cook-form')?.addEventListener('submit',async event=>{
   try{
     const {lot}=await api('/api/household-planning/production',{method:'POST',body:JSON.stringify({...payload,requestId:cookingRequest.requestId})});
     const warnings=(lot?.stockWarnings??[]).map(item=>`${item.name} : ${formatQty(item.quantity)} ${item.unitId}`).join(' · ');
-    cookingRequest=null;saved=true;showMessage($('#cook-message'),'Production ajoutée au stock.'+(warnings?' Stocks à régulariser : '+warnings+'.':'')+' Ferme la fiche pour revenir à la liste.',true);
+    cookingRequest=null;saved=true;
+    const message=$('#cook-message');
+    showMessage(message,'Production ajoutée au stock.'+(warnings?' Stocks à régulariser : '+warnings+'.':''),true);
+    if(lot?.id)message.append(' ',productionStockLink(lot.id));
     await Promise.allSettled([refreshShopping(),refreshDashboard(),refreshCalendar()]);
   }catch(error){const body=error.body??{};
     showMessage($('#cook-message'),body.error==='prepared-component-insufficient'
@@ -4322,15 +4386,17 @@ function mealStatusLabel(meal) {
     ? 'Portions utilisées ✓' : `Stock utilisé pour ${meal.usedItemIds?.length ?? 0} préparation(s) sur ${meal.items?.length ?? 0}`;
   if (meal.stockReady) return 'Prêt ✓ — portions réservées';
   if (meal.readyItemIds?.length) return `${meal.readyItemIds.length} préparation(s) prête(s) sur ${meal.items?.length ?? 0}`;
-  return meal.isOccasion ? 'Repas exceptionnel' : 'À préparer';
+  if(meal.isOccasion)return 'Repas exceptionnel';
+  if(meal.items?.length&&meal.items.every(item=>item.recipe?.productionType==='none'))return 'Préparation à confirmer';
+  return 'À préparer';
 }
 
-async function changeMealPreparation(meal, value, button, status) {
+async function changeMealPreparation(meal, value, button, status, dialog=$('#meal-details-dialog')) {
   button.disabled = true;
   try {
     await api(`/api/planning/meals/${meal.id}/prepared`, {method:'PUT',body:JSON.stringify({householdId:state.household.id,prepared:value})});
     await Promise.all([refreshCalendar(),refreshShopping(),refreshDashboard()]);
-    $('#meal-details-dialog').close();
+    if(dialog.open)dialog.close();
   } catch (error) {
     const body = error.body ?? {};
     const explanations = {

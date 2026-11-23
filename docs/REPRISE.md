@@ -1,4 +1,6 @@
-# Cahier de reprise — 22 novembre 2026
+# Cahier de reprise — 23 novembre 2026
+
+La 0.18.13 tient compte de la date de production dans la disponibilité des lots. Un lot produit après un repas ne peut plus le couvrir ni être déduit automatiquement pour ce repas. Les besoins de préparation et les courses utilisent la même règle. Le test reproduit la déduction sur un repas ancien qui faussait la couverture du repas suivant. Les lots de la même combinaison se cumulent même après modification de la fiche de recette. Le rapprochement s’applique aussi aux anciennes versions d’une même recette en production, à unité et service identiques. Les courses, réservations, retraits et corrections utilisent ce stock commun. Les lots et les recettes enregistrées gardent leur historique. Dans « Cuisiner » pour un repas précis, une recette non suivie en stock permet de marquer le repas préparé et de déduire ses ingrédients suivis. Les plats et desserts à cuisiner pour les menus sont visibles dans un groupe dédié, y compris sans suivi en stock. Une production confirmée donne accès à son lot, même si le filtre courant masque un lot épuisé. Aucune migration.
 
 La 0.18.12 relit la fiche des plats à composer avant le choix dans le calendrier, même si la liste chargée ne contient pas les variantes. Un repas enregistré avec une recette de base peut ouvrir le sélecteur depuis « Modifier le repas ». Si aucun choix n’est enregistré sur la fiche, le formulaire l’indique et conserve la sélection précédente. Aucune migration.
 
