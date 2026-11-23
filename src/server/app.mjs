@@ -542,7 +542,8 @@ async function handleRoutes(request,response,pool,recipeAI={}) {
       if(!isUuid(householdId))return send(response,400,{error:'invalid-household-id'});
       if(!isValidDate(startDate)||!isValidDate(endDate)||endDate<startDate)return send(response,400,{error:'invalid-shopping-period'});
       if((new Date(endDate)-new Date(startDate))/86400000>62)return send(response,400,{error:'shopping-period-too-long'});
-      try{return send(response,200,{preparations:await listPreparationsToMake(pool,householdId,startDate,endDate)});}
+      const includeMenuRecipes=url.searchParams.get('includeMenuRecipes')==='1';
+      try{return send(response,200,{preparations:await listPreparationsToMake(pool,householdId,startDate,endDate,{includeMenuRecipes})});}
       catch{return send(response,500,{error:'preparations-read-failed'});}
     }
     if(url.pathname==='/api/household-purchase-units' && request.method==='GET'){

@@ -10,7 +10,9 @@ import {PGlite} from '@electric-sql/pglite';
 import {createRecipe,readRecipe,updateRecipe,validateRecipeInput} from '../src/server/recipes.mjs';
 import {resolveRecipeChoices} from '../src/server/recipe-choices.mjs';
 import {savePlannedMeal,listPlannedMeals} from '../src/server/planning.mjs';
-import {addStockLot,listShoppingRequirements} from '../src/server/household-planning.mjs';
+import {addStockLot,cancelStockLot,listShoppingRequirements,listStock} from '../src/server/household-planning.mjs';
+import {setMealPrepared} from '../src/server/meal-preparation.mjs';
+import {countPreparationStock} from '../src/server/preparation-stock.mjs';
 import {saveIngredientStock,listIngredientStock} from '../src/server/ingredient-stock.mjs';
 
 async function fixture(t){
@@ -66,6 +68,56 @@ test('dessert flavour and topping resolve once, drive nutrition, shopping and st
  const fresh=await resolveRecipeChoices(pool,source.id,h,selection);assert.notEqual(fresh.id,chosen.id);assert.equal(fresh.lines[0].quantity,800);
 });
 
+
+test('production lots of the same choices share stock across recipe versions without changing saved meals',async t=>{
+ const {pool,h,person,foods,input}=await fixture(t);
+ const definition={...input,name:'Muffins fictifs',yield:{amount:12,unitId:'piece'}};
+ const source=await createRecipe(pool,validateRecipeInput(definition).data);
+ const selection={saveur:foods.Myrtilles,topping:foods.Amandes};
+ const first=await resolveRecipeChoices(pool,source.id,h,selection);
+ const production={householdId:h,recipeId:first.id,quantity:12,producedOn:'2026-11-16',storage:'freezer',note:'',requestId:randomUUID()};
+ const oldLot=await addStockLot(pool,production);
+ assert.equal(oldLot.quantity,12);
+ assert.equal((await addStockLot(pool,production)).replayed,true);
+ const plan=(recipeId,quantity,date)=>savePlannedMeal(pool,null,{householdId:h,mealDate:date,slot:'lunch',notes:'',
+   attendeeIds:[person],items:[{recipeId,role:'main',amounts:[{personId:person,quantity}]}]});
+ const oldMeal=await plan(first.id,4,'2026-11-17');
+ assert.equal((await setMealPrepared(pool,h,oldMeal.id,true)).prepared,true);
+
+ await updateRecipe(pool,source.id,validateRecipeInput({...definition,description:'Nouvelle fiche'}).data);
+ const second=await resolveRecipeChoices(pool,source.id,h,selection);
+ const different=await resolveRecipeChoices(pool,source.id,h,{...selection,topping:foods.Banane});
+ assert.notEqual(second.id,first.id);
+ const newLot=await addStockLot(pool,{...production,recipeId:second.id,producedOn:'2026-11-22',requestId:randomUUID()});
+ await addStockLot(pool,{...production,recipeId:different.id,quantity:3,producedOn:'2026-11-22',requestId:randomUUID()});
+ const stock=async()=>(await listStock(pool,h)).find(row=>row.lots.some(lot=>lot.id===newLot.id));
+ const all=await listStock(pool,h);
+ assert.equal(all.length,2);
+ const combined=await stock();
+ assert.equal(combined.producedQuantity,24);
+ assert.equal(combined.physicalQuantity,20);
+ assert.deepEqual(combined.lots.map(lot=>lot.id),[newLot.id,oldLot.id]);
+ assert.equal(all.find(row=>row.recipeId===different.id).physicalQuantity,3);
+
+ const upcoming=await plan(second.id,18,'2026-11-23');
+ assert.equal((await stock()).availableQuantity,2);
+ assert.deepEqual(await listShoppingRequirements(pool,h,'2026-11-23','2026-11-23'),[]);
+ const reserved=(await listPlannedMeals(pool,h,'2026-11-23')).find(meal=>meal.id===upcoming.id);
+ assert.equal(reserved.stockReady,true);
+ assert.equal((await setMealPrepared(pool,h,upcoming.id,true)).prepared,true);
+ assert.equal((await stock()).physicalQuantity,2);
+ assert.equal((await countPreparationStock(pool,{householdId:h,recipeId:first.id,expectedQuantity:2,quantity:3})).physicalQuantity,3);
+ assert.equal((await stock()).physicalQuantity,3);
+ assert.equal((await cancelStockLot(pool,h,newLot.id)).error,'production-already-used');
+ assert.equal((await listPlannedMeals(pool,h,'2026-11-16')).find(meal=>meal.id===oldMeal.id).items[0].recipeId,first.id);
+ const gramsInput={...definition,yield:{amount:450,unitId:'g'}};
+ assert.equal((await updateRecipe(pool,source.id,validateRecipeInput(gramsInput).data)).error,undefined);
+ const inGrams=await resolveRecipeChoices(pool,source.id,h,selection);
+ const gramMeal=await plan(inGrams.id,100,'2026-11-24');
+ const calendar=await listPlannedMeals(pool,h,'2026-11-23');
+ assert.equal(calendar.find(meal=>meal.id===gramMeal.id).stockReady,false);
+ assert.equal((await stock()).physicalQuantity,3);
+});
 
 test('choice libraries are private, manager edited, versioned, and shared recipes carry only catalogue-linked choices',async t=>{
  const {pool,h,person,foods,input}=await fixture(t);

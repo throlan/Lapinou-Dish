@@ -1,4 +1,5 @@
 import {loadStockBuckets,takeStock,addPlannedStock} from './stock-reservations.mjs';
+import {loadPreparationStockIdentity,sumPreparationStock} from './preparation-stock-identity.mjs';
 import {purchaseProductRequirements} from './shopping-products.mjs';
 import {randomUUID} from 'node:crypto';
 import {toGrams} from '../domain/foods.ts';
@@ -86,7 +87,7 @@ export function validateRecipeGraph(graph) {
   for(const recipe of graph.values())visit(recipe);
 }
 
-export async function availableRecipeStock(client,householdId) {
+export async function availableRecipeStock(client,householdId,identity=null) {
   const result=await client.query(`WITH produced AS (
     SELECT recipe_id,sum(quantity) AS quantity FROM stock_lots WHERE household_id=$1 AND cancelled_at IS NULL AND NOT is_serving_bundle GROUP BY recipe_id
   ), prepared AS (
@@ -98,19 +99,22 @@ export async function availableRecipeStock(client,householdId) {
     +COALESCE((SELECT sum(c.delta) FROM preparation_stock_counts c WHERE c.household_id=$1 AND c.recipe_id=r.id),0) AS quantity
   FROM recipes r LEFT JOIN produced p ON p.recipe_id=r.id LEFT JOIN prepared b ON b.recipe_id=r.id LEFT JOIN used u ON u.recipe_id=r.id
   WHERE r.household_id=$1`,[householdId]);
-  return new Map(result.rows.map(r=>[r.id,Number(r.quantity)]));
+  const quantities=new Map(result.rows.map(r=>[r.id,Number(r.quantity)]));
+  return identity?sumPreparationStock(quantities,identity):quantities;
 }
 
 // Expand missing quantities only, sharing the same finished-stock pool for direct
 // menus and nested uses. Earlier menus reserve first, exactly as before.
-export async function recipeRequirements(client,householdId,startDate,endDate,{mealId=null,includeUntracked=false,includeMealIds=false,stockOn=null,excludeMealId=null}={}) {
-  const [graph,stock]=await Promise.all([loadRecipeGraph(client,householdId),availableRecipeStock(client,householdId)]);
+export async function recipeRequirements(client,householdId,startDate,endDate,{mealId=null,includeUntracked=false,includeMenuRecipes=false,includeMealIds=false,stockOn=null,excludeMealId=null}={}) {
+  const [graph,identity,rawStock]=await Promise.all([
+    loadRecipeGraph(client,householdId),loadPreparationStockIdentity(client,householdId),availableRecipeStock(client,householdId),
+  ]);
+  const initialStock=sumPreparationStock(rawStock,identity);
   for(const recipe of graph.values()){
     recipe.minimumProductionQuantity=recipeMinimumInYield(recipe);
   }
-  const initialStock=new Map(stock);
-  const buckets=await loadStockBuckets(client,householdId,stock);
-  const events=await client.query(`SELECT m.id,m.meal_date::text AS date,i.recipe_id,
+  const buckets=await loadStockBuckets(client,householdId,initialStock,identity);
+  const events=await client.query(`SELECT m.id,m.meal_date::text AS date,i.recipe_id,i.role,
     sum(a.quantity)-COALESCE((SELECT sum(u.quantity) FROM recipe_stock_uses u WHERE u.planned_item_id=i.id AND u.automatic AND u.cancelled_at IS NULL),0) AS quantity
     FROM planned_meals m JOIN planned_meal_items i ON i.meal_id=m.id JOIN planned_amounts a ON a.planned_item_id=i.id
     WHERE m.household_id=$1 AND m.prepared_at IS NULL AND m.meal_date<=$2::date
@@ -128,20 +132,22 @@ export async function recipeRequirements(client,householdId,startDate,endDate,{m
       for(const part of r.parts)demand(part.id,quantity/r.yield.amount*part.yield.amount,event,[...path,recipeId]);
       return;
     }
-    const covered=event.extra||r.productionType==='none'?0:takeStock(buckets,recipeId,quantity,event.date,event.id).quantity;
+    const stockKey=identity.key(recipeId);
+    const covered=event.extra||r.productionType==='none'?0:takeStock(buckets,stockKey,quantity,event.date,event.id).quantity;
     const missing=quantity-covered;
     const inRange=event.date>=startDate&&(!mealId||event.id===mealId);
     const produceQuantity=r.productionType!=='none'&&missing>0
       ?Math.max(missing,inRange?r.minimumProductionQuantity??0:0):0;
     if(r.productionType!=='none'){
-      addPlannedStock(buckets,recipeId,event.extra?produceQuantity:produceQuantity-missing,event.date);
-      if(!event.extra)reservations.set(recipeId,(reservations.get(recipeId)??0)+quantity);
+      addPlannedStock(buckets,stockKey,event.extra?produceQuantity:produceQuantity-missing,event.date);
+      if(!event.extra)reservations.set(stockKey,(reservations.get(stockKey)??0)+quantity);
     }
-    if(inRange && (r.productionType!=='none'||includeUntracked)&&!event.extra){
+    const untrackedMenuRecipe=includeMenuRecipes&&!path.length&&(['main','dessert'].includes(event.role)||r.parentRecipeId);
+    if(inRange && (r.productionType!=='none'||includeUntracked||untrackedMenuRecipe)&&!event.extra){
       const p=preparations.get(recipeId)??{recipeId,parentRecipeId:r.parentRecipeId,name:r.name,productionType:r.productionType,
         unitId:r.yield.unitId,yieldAmount:r.yield.amount,plannedQuantity:0,coveredQuantity:0,toMakeQuantity:0,
         minimumProductionQuantity:r.minimumProductionQuantity??0,minimumProductionAmount:r.minimumProductionAmount??0,
-        minimumProductionUnitId:r.minimumProductionUnitId??r.yield.unitId,stockQuantity:initialStock.get(recipeId)??0,firstDate:event.date,lastDate:event.date,meals:new Set()};
+        minimumProductionUnitId:r.minimumProductionUnitId??r.yield.unitId,stockQuantity:initialStock.get(stockKey)??0,firstDate:event.date,lastDate:event.date,meals:new Set()};
       p.plannedQuantity+=quantity;p.coveredQuantity+=covered;p.toMakeQuantity+=r.productionType==='none'?missing:produceQuantity;p.lastDate=event.date;p.meals.add(event.id);preparations.set(recipeId,p);
     }
     const ingredientQuantity=r.productionType==='none'?missing:produceQuantity;
@@ -166,9 +172,9 @@ export async function recipeRequirements(client,householdId,startDate,endDate,{m
     const quantity = clean(entries.filter(entry => !entry.virtual && (!entry.start || entry.start <= stockOn) &&
       (!entry.mealId || entry.mealId === excludeMealId || entry.end < stockOn))
       .reduce((sum, entry) => sum + Math.max(0, entry.quantity), 0));
-    return quantity > 0 ? [{recipeId, quantity, unitId:graph.get(recipeId).yield.unitId}] : [];
+    return quantity > 0 ? identity.members(recipeId).map(id=>({recipeId:id,quantity,unitId:graph.get(id).yield.unitId})) : [];
   });
-  return {graph,initialStock,reservations,availableStock,
+  return {graph,identity,initialStock,reservations,availableStock,
     preparations:[...preparations.values()].map(({meals,...p})=>({...p,plannedQuantity:clean(p.plannedQuantity),coveredQuantity:clean(p.coveredQuantity),toMakeQuantity:clean(p.toMakeQuantity),mealCount:meals.size,...(includeMealIds?{mealIds:[...meals]}:{})})).sort((a,b)=>a.firstDate.localeCompare(b.firstDate)||a.name.localeCompare(b.name,'fr')),
     foods:[...foods.values()].map(({sources,...f})=>({...f,quantity:clean(f.quantity),recipes:[...sources.values()].map(r=>({...r,quantity:clean(r.quantity)})).sort((a,b)=>a.name.localeCompare(b.name,'fr'))})).sort((a,b)=>a.name.localeCompare(b.name,'fr')||a.unitId.localeCompare(b.unitId))};
 }
@@ -176,7 +182,10 @@ export async function recipeRequirements(client,householdId,startDate,endDate,{m
 // Used inside the caller's inventory transaction. Tracked components must be
 // cooked first; untracked sauces are made as part of the dish from raw foods.
 export async function preparationInputs(client,householdId,targets,{allowNegativeStock=false}={}) {
-  const graph=await loadRecipeGraph(client,householdId),stock=await availableRecipeStock(client,householdId);
+  const [graph,identity,rawStock]=await Promise.all([
+    loadRecipeGraph(client,householdId),loadPreparationStockIdentity(client,householdId),availableRecipeStock(client,householdId),
+  ]);
+  const stock=sumPreparationStock(rawStock,identity);
   const uses=new Map(),foods=[];
   function ingredients(recipeId,factor,path=[]){
     if(path.includes(recipeId))return fail('recipe-ingredient-cycle');
@@ -186,7 +195,8 @@ export async function preparationInputs(client,householdId,targets,{allowNegativ
       const child=graph.get(line.recipeId),fraction=recipeFraction(graph,child.id,line.quantity*factor,line.unitId);
       if(child.productionType==='none')ingredients(child.id,fraction,[...path,recipeId]);
       else for(const target of child.separateStarch&&child.parts.length?child.parts:[child]){
-        uses.set(target.id,(uses.get(target.id)??0)+fraction*target.yield.amount);
+        const key=identity.key(target.id);
+        uses.set(key,(uses.get(key)??0)+fraction*target.yield.amount);
       }
     }
   }
@@ -202,7 +212,7 @@ export async function preparationInputs(client,householdId,targets,{allowNegativ
   if(purchaseFoods.some(row=>row.mappingError))return {error:'ingredient-conversion-missing',name:purchaseFoods.find(row=>row.mappingError).name};
   const tracked=await client.query('SELECT food_id,quantity_g FROM household_ingredient_stock WHERE household_id=$1 ORDER BY food_id FOR UPDATE',[householdId]);
   const byFood=new Map(tracked.rows.map(r=>[r.food_id,Number(r.quantity_g)]));
-  return {uses,shortages,lines:purchaseFoods.filter(l=>byFood.has(l.foodId)).map(l=>({...l,quantityG:byFood.get(l.foodId)}))};
+  return {uses,shortages,identity,stock,lines:purchaseFoods.filter(l=>byFood.has(l.foodId)).map(l=>({...l,quantityG:byFood.get(l.foodId)}))};
 }
 
 export async function recordRecipeUses(client,householdId,uses,{lotId=null,mealId=null}) {

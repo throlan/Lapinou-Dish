@@ -1,4 +1,4 @@
-import {preparationInputs,recordRecipeUses,availableRecipeStock} from './recipe-ingredients.mjs';
+import {preparationInputs,recordRecipeUses} from './recipe-ingredients.mjs';
 import {productionDeductions} from './ingredient-stock.mjs';
 import { randomUUID } from 'node:crypto';
 import { lockHouseholdInventory } from './ingredient-stock.mjs';
@@ -34,9 +34,12 @@ export async function setMealPrepared(pool,householdId,mealId,prepared) {
       GROUP BY i.recipe_id,r.production_type,r.yield_amount`,[mealId]);
     const inputs=await preparationInputs(client,householdId,items.rows.filter(item=>item.productionType==='none').map(item=>({id:item.recipeId,factor:Number(item.quantity)/Number(item.yieldAmount)})));
     if(inputs.error){await client.query('ROLLBACK');return inputs;}
-    const stock=await availableRecipeStock(client,householdId);
+    const needed=new Map();
     for(const item of items.rows.filter(item=>item.productionType!=='none')){
-      if((stock.get(item.recipeId)??0)-(inputs.uses.get(item.recipeId)??0)+0.00000001<Math.max(0,Number(item.quantity)-(autoQuantities.get(item.recipeId)??0))){
+      const key=inputs.identity.key(item.recipeId);
+      const additional=Math.max(0,Number(item.quantity)-(autoQuantities.get(item.recipeId)??0));
+      needed.set(key,(needed.get(key)??0)+additional);
+      if((inputs.stock.get(key)??0)-(inputs.uses.get(key)??0)+1e-8<needed.get(key)){
         await client.query('ROLLBACK');return {error:'prepared-batch-insufficient',recipeId:item.recipeId};
       }
     }
