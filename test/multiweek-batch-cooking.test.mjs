@@ -100,7 +100,7 @@ test('a combined batch shares initial stock and recipe minima across duplicated 
 test('batch selectors request one combined range and leave other production periods intact',async()=>{
   const {runInNewContext}=await import('node:vm');
   const source=await readFile(new URL('../web/app.js',import.meta.url),'utf8');
-  const a=source.indexOf('async function refreshPreparations(start,end)'),b=source.indexOf('async function refreshShoppingList()',a);
+  const a=source.indexOf('async function refreshPreparations(start,end)'),b=source.indexOf('async function refreshShoppingList(',a);
   const elements=new Map();
   const element=()=>({value:'',textContent:'',disabled:false,children:[],handlers:{},querySelectorAll(){return [];},replaceChildren(...children){this.children=children;},addEventListener(type,handler){this.handlers[type]=handler;}});
   const $=selector=>{if(!elements.has(selector))elements.set(selector,element());return elements.get(selector);};

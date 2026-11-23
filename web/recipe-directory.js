@@ -33,6 +33,7 @@ export function filterRecipeDirectory(recipes, filters) {
   return recipes.filter(recipe => {
     if(filters.validation==='validated'&&!recipe.reviewValidated||filters.validation==='unvalidated'&&recipe.reviewValidated)return false;
     if (filters.service && recipeServiceMode(recipe)!==filters.service) return false;
+    if (filters.stockTracking === 'none' && (recipe.productionType ?? 'none') !== 'none') return false;
     if (filters.type && (recipe.recipeType ?? 'dish') !== filters.type) return false;
     if (filters.moment === 'untagged' && recipe.mealMoments?.length) return false;
     if (filters.moment && filters.moment !== 'untagged' && !recipe.mealMoments?.includes(filters.moment)) return false;

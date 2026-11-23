@@ -11,7 +11,7 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/style.css?v=0.18.11">
+    <link rel="stylesheet" href="/style.css?v=0.18.14">
     <link rel="stylesheet" href="/editorial.css?v=0.18.6"><link rel="stylesheet" href="/recipe-directory-refresh.css?v=0.7.0">
       <link rel="stylesheet" href="/recipe-editor-dialog.css?v=0.12.1">
       <link rel="stylesheet" href="/recipe-choices.css?v=0.12.1">
@@ -202,6 +202,7 @@
               <label>Relecture<select id="recipe-validation-filter"><option value="all">Toutes les recettes</option><option value="unvalidated">Non validées · à revoir</option><option value="validated">Validées</option></select></label>
             </div>
             <details class="recipe-advanced-filters"><summary>Plus de filtres <span id="recipe-advanced-count"></span></summary><div id="recipe-advanced-controls">
+              <label>Suivi en stock<select id="recipe-stock-tracking-filter"><option value="">Toutes les recettes</option><option value="none">Sans suivi en stock</option></select></label>
               <label>Type de service<select id="recipe-service-filter"><option value="">Tous les services</option><option value="original">Pièces / portions</option><option value="whole">Ensemble · grammes estimés</option><option value="separate">Viande et légumes + féculents</option><option value="three">Protéines, légumes et féculents séparés</option></select></label>
               <label>Fiches à afficher<select id="recipe-missing-filter"><option value="">Toutes les fiches</option><option value="any">Toute donnée à compléter</option><option value="nutrition">Calcul nutritionnel incomplet</option><option value="nutrition-planned">Nutrition incomplète · au calendrier ce mois et après</option><option value="instructions">Instructions absentes</option><option value="image">Photo absente</option></select></label>
             </div></details>
@@ -310,10 +311,11 @@
             <summary>Gestion détaillée du stock des produits</summary>
             <div class="shopping-product-fields">
               <label>Filtrer les produits suivis<input id="ingredient-stock-query" type="search" placeholder="Nom du produit" autocomplete="off"></label>
-              <label>État du stock<select id="ingredient-stock-filter"><option value="all">Tous les produits suivis</option><option value="negative">Stock négatif</option><option value="empty">Stock épuisé</option><option value="positive">Stock positif</option><option value="order">À commander</option><option value="shortage">Manque prévu</option><option value="incomplete">Estimations incomplètes</option></select></label>
+              <label>État du stock<select id="ingredient-stock-filter"><option value="all">Tous les produits suivis</option><option value="negative">Stock négatif</option><option value="empty">Stock épuisé</option><option value="positive">En stock</option><option value="order">À commander</option><option value="shortage">Manque prévu</option><option value="incomplete">Estimations incomplètes</option></select></label>
             </div>
             <p id="ingredient-stock-summary" class="hint" role="status"></p>
             <div id="ingredient-stock-list"><p class="empty">Aucun produit suivi.</p></div>
+            <p id="ingredient-stock-count-status" class="form-message" role="status"></p>
           </details>
         </section>
       </section>
@@ -582,6 +584,6 @@
       </form>
     </dialog>
     <script type="module" src="/install-app.js?v=0.3.17"></script>
-    <script type="module" src="/app.js?v=0.18.13"></script>
+    <script type="module" src="/app.js?v=0.18.14"></script>
   </body>
 </html>
